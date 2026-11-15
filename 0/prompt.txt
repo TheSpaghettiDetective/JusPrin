@@ -1,0 +1,1379 @@
+<task-notification>
+<task-id>aa977d0a3bf2da9e5</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/aa977d0a3bf2da9e5.output</output-file>
+<status>completed</status>
+<summary>Agent "Mark text: AI chat page" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I've marked the text a person reads in 17 of my 22 files: roughly 230 marks. The other five needed no changes. `npx vitest run` passes (40 files, 781 tests). `npx tsc --noEmit` fails with 2 errors, both in files other helpers own:
+- `src/components/PrinterPanel.tsx(94,126)`
+- `src/components/SetupCard.tsx(150,47)`
+
+Both are the same mistake: a `string | undefined` value put straight into a `t` placeholder. My files type-check clean. HEAD was d8b891ba80. Nothing committed; no catalogs or tests touched.
+
+**Changed** (all under `/Users/kenneth/Projects/JusPrin/.claude/worktrees/localize-fork/src/slic3r/GUI/JusPrin/AgentUI/src/`): `App.tsx`, `credits.ts`, and in `components/`: `MessageList`, `Composer`, `ChatNavigation`, `TurnActivity`, `ToolActivityCard`, `AttachmentChip`, `MarkdownMessage`, `GcodeMarker`, `WorkCard`, `ProposalCard`, `FileNotesCard`, `ModelPickers`, `Panels`, `BalancePanel`, `AccountBox`.
+
+**Unchanged:** `Progress.tsx` (no text), `replyChoices.ts`, `skillParser.ts`, `state/store.ts`, `WebShared/bridgeClient.ts`.
+
+**Sentences I rebuilt so each is one message** (English renders the same):
+- The "Opened part.3mf and 2 more as a new project" line.
+- The saved-preset receipts ("Saved: …", "Removed: …").
+- "Worked for 1m 9s · 3 actions" and "2 failed".
+- Every credits sentence. In the one about the next message being unaffordable, the model kind (Standard, Expert or a model's name) stays a placeholder.
+- Day and week counts in chat times, "N models", "N times", and the filament and printer task titles.
+- The "Put the project back to …?" dialog title.
+
+**New helpers others can reuse:** `creditsLeft()` in `credits.ts`, and `lotLeft()` in `BalancePanel.tsx`. `Preferences.tsx` and Home's `AgentGroup.tsx` still build "{creditCount} left" and "X of Y left" from pieces; whoever owns those files could switch to them.
+
+**Left in English on purpose:**
+- **Text the model reads:**
+  - The "Choices:" marker and the reply buttons, which come from the model.
+  - The proposal card's other choice, which is sent back as the reply.
+  - Skill files.
+  - "Check the plan against what changed.", which is sent as the person's message.
+- **Developer text:**
+  - The bridge diagnostics and their log lines.
+  - The skill-file errors.
+  - What Copy details puts on the clipboard.
+  - "… N more characters" inside the action's result block.
+  - The tool, server and action id line.
+- **Text from the native side:** confirmation dialogs, error messages, tool and work titles, receipt details, file notes.
+- **Format names and separators:** SVG, PDF, G-code (the attach menu and file badge), and the " · " and " → " joins.
+- **`bridgeClient.ts`:** its only text is the two connection-failure explanations that sit under a Diagnostics disclosure. There's also an extraction risk: `lingui.config.ts` only scans `AgentUI/src` and `HomeUI/src`, not `WebShared`. A marked string there would never reach a catalog. I believe the production macro drops the English source (not checked here), so the page would show a message id instead. If those lines should be translated, `WebShared` needs adding to that config first.
+
+**Where I wasn't sure text reaches the model:**
+- **Ask current chat about this** (`App.tsx`): it pre-fills the message box with an English "From earlier chat …" excerpt, which the person then sends. I left it unmarked because it goes to the model; it could arguably follow the person's language.
+- **Check the plan against what changed.**: it shows in the thread as the person's message but is also the model's input, so I left it unmarked.
+
+**Notes for whoever translates:**
+- Dates in `credits.ts` and `BalancePanel.tsx` still format with `en-GB`, and credit numbers with `en-US` commas. I kept that to leave behaviour unchanged, so month names stay English in other languages.
+- I marked the panel title "AI" and the "AI" / "you" in the opened-file line, with translator comments, since "AI" is the feature's generic name rather than a brand.</result>
+<usage><subagent_tokens>216576</subagent_tokens><tool_uses>39</tool_uses><duration_ms>443825</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>af7fa187e42361e6d</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/af7fa187e42361e6d.output</output-file>
+<status>completed</status>
+<summary>Agent "Mark text: Home page" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I've marked about 175 strings for translation across the Home page, and both checks pass: `npx tsc --noEmit` is clean and `npx vitest run` passed 162 of 162 tests. HEAD was d8b891ba80 and nothing is committed.
+
+**Files changed** (all under `/Users/kenneth/Projects/JusPrin/.claude/worktrees/localize-fork/src/slic3r/GUI/JusPrin/HomeUI/src/`): `App.tsx`, `history.ts`, `savedDate.ts`, and in `components/`: `AgentGroup.tsx`, `Onboarding.tsx`, `PrintHistory.tsx`, `PrintReportForm.tsx`, `PrinterCard.tsx`, `PrinterMenu.tsx`, `PrinterPickerHost.tsx`. `state/store.ts`, `bridge/protocol.ts`, `bridge/client.ts`, `tokens.ts`, `main.tsx`, `ProjectCard.tsx`, `ConfirmDialog.tsx`, `Lockup.tsx` and `Glyphs.tsx` had nothing a person reads that isn't a name, a code value, or text sent by the app.
+
+**Dates and times**
+- `savedDate.ts` now has `dateLocale(english)`. In English it returns the formats used today (`en-US` for dates, `en-GB` for the 24-hour clock). In any other language it returns `document.documentElement.lang`.
+- Every `toLocale*` call in `savedDate.ts` and `history.ts` goes through it.
+- "Today" and "Yesterday" are marked. The day headings upper-case the translated word with `toLocaleUpperCase`, so English still reads TODAY, OCT, OCT 2025.
+
+**Sentences rebuilt so they aren't pieced together**
+- "finished today" and "last finished Sun" are now whole messages per case, instead of splicing in the word "today".
+- The first-run line about formats, and "JusPrin asks… for your {printer}." with and without a printer.
+- "Also brings N filaments and M print settings." is one message with two plurals, plus a message for each alone.
+- "Sent once" / "Sent N times" and "Exported once…" use plural with an exact match for 1 (`=1`).
+- Counts in history lines and the report form, "Last connected N min/h/days ago", and the credits in the report offer all use `plural`.
+
+**Inside plural messages, numbers are written as `{count}` rather than `#`.** Lingui's `#` adds thousands separators, so a 1200-layer print would start reading "1,200 layers". The `{count}` form keeps English exactly as it is. The catch is that other languages won't group digits either.
+
+**Left in English on purpose**
+- **Text from the app**, already translated on the native side or out of my scope: project status, the projects problem, printer error and message, confirm dialog text, the update message, onboarding errors, and the connection detail under Diagnostics.
+- **Names and code values**: JusPrin 1 and OrcaSlicer in `IMPORT_APPS`, the format list, the lockup's alt text, the photo credits' titles, author, links and licence (pulled out as placeholders around the translated "by… Cropped."), and the protocol and action values.
+- **Pure number formats with no words**: percentages, "13:09 → 15:41", "Oct 20 09:02", "Plate 1 → Printer", and the " · " joins between phrases that are each translated.
+- **No AI-model text**: I found none in these files.
+
+**Things I'm unsure about**
+- `AgentGroup.tsx` now calls `creditsLeft` and `lotLeft` from the AI page's `credits.ts` and `BalancePanel.tsx`. Another helper has those files open right now. They produce the same English the card showed before.
+- The month in the day headings, in a year other than this one, is formatted by `Intl` together with the year. That gives the same English, but the shape differs by language.
+- I marked unit abbreviations (h, m, s, g, MB, KB) with notes for translators.
+- "Back" uses the `navigation` context, matching `AddPrinterForm.tsx`.
+- "Free", "Ready", "Paused", "Partly", "Filter", "Recent", "Name" and "LIVE" carry notes for translators.
+- I checked the messages by extracting them into a scratch catalog; the real `.po` files were not touched. 179 messages came out as valid ICU. I did not render Home in another language.
+- The test run prints a React "not wrapped in act(...)" warning in one first-launch test in `App.test.tsx`. It's a warning, not a failure. I didn't check whether it appeared before my changes.</result>
+<usage><subagent_tokens>191389</subagent_tokens><tool_uses>38</tool_uses><duration_ms>467390</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a89839a0312ad3478</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/a89839a0312ad3478.output</output-file>
+<status>completed</status>
+<summary>Agent "Mark text: printer and guide UI" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I marked about 200 messages across 10 of your 21 files. Every page now runs its person-facing text through Lingui, and the English renders exactly as before. `npx tsc --noEmit` is clean and `npx vitest run` passes (40 files, 781 tests); the Home page's own tests also pass (7 files, 162 tests). Nothing is committed and no catalog was touched.
+
+**How I checked the English is unchanged.** For the files where I rebuilt sentences, I ran a throwaway test that rendered the old file (from HEAD) and the new one side by side and compared the HTML. It covered the import window on every screen with 0, 1 and several printers, filaments, print settings and skipped items. It also covered the result lines, the setup card's states and wording helpers, every printer-panel card, and the add-printer form through all its steps, searches, the other-printers box and the create-preset dialog. All matched exactly, apart from React's auto-generated ids. I deleted those test files afterwards.
+
+**Files changed** (under `/Users/kenneth/Projects/JusPrin/.claude/worktrees/localize-fork/src/slic3r/GUI/JusPrin/AgentUI/src/`):
+- `components/SetupCard.tsx`
+- `components/PrinterPanel.tsx`
+- `components/AddPrinterForm.tsx`
+- `components/PrinterPicker.tsx`
+- `components/OrcaImport.tsx`
+- `components/OrcaImportLists.tsx`
+- `OrcaImportApp.tsx`
+- `components/Guide.tsx`
+- `calibration.ts`
+- `printerWords.ts` (the chat box placeholder only)
+
+Sentences that were assembled from pieces are now one message each, with counts as plurals:
+- the setup card's presets line;
+- the import window's "found" and "nothing to import" sentences, "Also imported: …" and "… weren't imported";
+- the add-printer form's search and count lines.
+
+The Back buttons carry the `navigation` context.
+
+**No change needed** in `GuideApp.tsx`, `guide.ts`, `guidePages.ts`, `printerInstructions.ts`, `filamentInstructions.ts`, `projectInstructions.ts`, `skills.ts`, `bridge/protocol.ts`, `bridge/client.ts`, `bridge/dropGuard.ts` or `tokens.ts`.
+
+**Left in English on purpose:**
+- **Model text:** all of `printerInstructions.ts`, `filamentInstructions.ts`, `projectInstructions.ts` and `skills.ts`. Also `sizesText` in `printerWords.ts`, which only feeds the printer instructions.
+- **The printer chat's first line** (`opening()` in `printerWords.ts`). The app posts it into the chat as the AI's own first message, so every later request sends it to the model. Its last line, "Choices: …", is also read as reply buttons, so translating that keyword would break them.
+- **Compared values:** `DONE_CHOICE = 'Done'`, the import window's screen names, and the block kinds.
+- **The guide:** page content and titles come from `docs/guide`, and `guide.ts` only throws errors for developers.
+- **Types and transport:** `protocol.ts`, `client.ts`, `dropGuard.ts` and `tokens.ts` hold no person-facing text.
+- **Text the native side writes:** form errors, plate labels, the reasons something wasn't imported, `planInvalidatedBy`, the report text, and printer, brand and preset names.
+- **No words to translate:** `· {count}`, the `${process}.` case of the presets line, and the ', ' between listed names.
+
+**Where I was unsure:**
+- **The printer chat's first line.** Leaving it English means someone using the app in German sees an English first message. The alternative is to translate it and let the model see its own first turn in German, keeping "Choices:" untranslated. That isn't my call.
+- **Units.** I marked "~5 min", "~2h 05m", "12 g", "0.4 mm" and "cost 1.20", since some languages write them differently (Russian uses "мм" and "г").
+- **Plurals that match exactly one.** Where the English says "the item" or "One filament" with no number, I used an exact-1 branch (`1:`) instead of the `one` category.</result>
+<usage><subagent_tokens>199156</subagent_tokens><tool_uses>42</tool_uses><duration_ms>587234</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bknmmtqnd</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/bknmmtqnd.output</output-file>
+<status>completed</status>
+<summary>Background command "W=/Users/kenneth/Projects/JusPrin/.claude/worktrees/localize-fork; S=/private/tmp/claude/claude-502/-Users-kenneth--claude-spares-spare-y6RR11/cf003aa0-b151-445c-8bb1-ddda0e13feaf/scratchpad; export PATH=/Applications/CMake.app/Contents/bin:/Users/kenneth/.nvm/versions/node/v24.13.0/bin:$PATH; cd $W &amp;&amp; nohup perl -e 'setpgrp(0,0); exec @ARGV' cmake --build $W/build/arm64 --config Release --target libslic3r -- -j4 &gt; $S/build-libslic3r.log 2&gt;&amp;1; echo exit=$? &gt;&gt; $S/build-libslic3r.log; tail -3 $S/build-libslic3r.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a6ee269666f530a17</task-id>
+<tool-use-id>toolu_012Ldpd7zu8CkosE8VzkrXpc</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/a6ee269666f530a17.output</output-file>
+<status>completed</status>
+<summary>Agent "Mark text: native Shell windows" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I marked or fixed text in 11 files under `src/slic3r/GUI/JusPrin/Shell/`. Four of them pass a `-fsyntax-only` check; the other seven I only reviewed by reading the diff. HEAD was `d8b891ba80`. Nothing is committed, no catalogs were touched, and no build was started.
+
+**What changed:**
+- **New marks (about 10 strings):** the three strings in the MCP setup progress dialog (`McpSetupCommand.cpp`, which now includes `slic3r/GUI/I18N.hpp` first) and the "3MF files" filter label in the export dialog. That filter label already exists in OrcaSlicer's catalog. There were also six new whole-sentence msgids that replace the spliced fragments below.
+- **Existing marks fixed (about 25):**
+  - **Concatenated fragments:**
+    - The print report's closing line was built from `" and "` / `", and "` pieces. It is now `"%s, %s"`, `"%s and %s"`, `"%s, and %s"` and `"%s."`, each with a TRN comment.
+    - Other fragments now use whole messages or placeholders:
+      - `"by " + designer` becomes `"by %s"`; `"Restore " + when` becomes `"Restore %s"`.
+      - `"last finished " + today/yesterday` becomes three whole messages.
+      - `", %s MM NOZZLE"` becomes `"%s, %s MM NOZZLE"`.
+      - `" mm " + nozzle/nozzles` becomes a plural `"%s mm nozzle"`.
+      - `"from %s"` no longer receives a translated "the file"; that case is its own sentence.
+      - The Billing / Credits sheet's "Loading %s…" and "Couldn't load %s" became four whole sentences.
+      - The trailing space is gone from "%s will be saved and closed. ".
+      - "Connecting" and "Checking connection" now carry their "…" inside the msgid.
+  - **Plurals:** `wxPLURAL` (which the extractor never read) is now `_L_PLURAL`. Plurals were also added for "%d sliced", the slot counts, "%d objects", "%d won't print", "%d per-object settings" and "%d G-codes".
+  - **Contexts:** "Print" is now `_L_CONTEXT("Print", "Verb")` on the button and `("Print", "Menu")` on the menu title. OrcaSlicer's template has "Print" only with a context, so the old marks would have gone untranslated. TRN comments were added to "Build", "Supports", "part" and "modifier".
+  - No strings were being translated in static initializers.
+
+The English renders exactly as before. One result of that: a screen reader still hears "1 per-object settings", because its singular msgid was kept as written. Correcting it to "setting" needs your approval.
+
+**Left in English on purpose:**
+- **Text the model reads:** the print-again outcomes in `ShellController::open_print_dialog`, the issue-submission outcome ids, the "opened from Home" origin, and the autosave errors given to tools.
+- **MCP setup results:** AgentHost decides the error code by searching this text for "timed out", and the text includes the CLI's own output.
+- **`SetupCommands` install errors:** they carry exception text, are logged, and reach the printer-setup path.
+- **`AgentPane` MCP startup error:** it is mixed with raw exception text.
+- **Window names given with `SetName("…")`:** the shell harness finds windows by these exact names.
+- **The copied About version text and the GitHub issue template body:** both are for developers.
+- **Log lines, thrown exceptions, OrcaSlicer folder ids, file names, URLs and brand names.**
+
+**Things I'm unsure about, all outside my files:**
+- "Support inside the %s" receives English Workspace text such as "hole of 5 mm" (from `Workspace/OrcaSliceChecks.cpp`), so that row stays partly English.
+- Several dialogs show `result.message` from Workspace and `autosave.open_failure()` as they are, so those messages appear in English.
+- `AppMenus::fill_open_recent` compares the project name with `_u8L("Untitled")`. OrcaSlicer itself stores its translated "Untitled", so there is no id to compare; I left it.
+- AppMenus and ClassicView find OrcaSlicer's own menus by their localized labels. That is by design; I left those msgids unchanged.
+
+**How I checked:** I took each file's command from the main build tree's ninja Release rules (`/Users/kenneth/Projects/JusPrin/build/arm64/compile_commands.json` only lists 24 dependency files), pointed the source paths at the worktree, dropped the precompiled header, and ran `-fsyntax-only` with `-Werror`. `McpSetupCommand.cpp`, `StatusRow.cpp`, `CheckPrintReportPanel.cpp` and `LeftPaneProject.cpp` passed. `ShellController.cpp`, `LeftPane.cpp`, `FilamentMenu.cpp`, `ServerSheet.cpp`, `PrinterMenu.cpp`, `AppMenus.cpp` and `AboutWindow.cpp` were only read through in the diff.</result>
+<usage><subagent_tokens>281941</subagent_tokens><tool_uses>95</tool_uses><duration_ms>625816</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a6a39f8863c4541a0</task-id>
+<tool-use-id>toolu_01QAiqSa3ZoXisRUHQu6vwtP</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/a6a39f8863c4541a0.output</output-file>
+<status>completed</status>
+<summary>Agent "Mark text: native Home and printers" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I marked the remaining person-facing text in Home, PrinterSetup and Printers and fixed the rule breaks I found. Preferences, Updates, V1Import and Startup needed no changes. HEAD was d8b891ba80. Nothing is committed and no .po file was touched.
+
+**Decision needed.** While I worked, another helper added `src/slic3r/GUI/JusPrin/Support/Translate.hpp`: `L()` plus a global `translated()` that the app installs at startup. I had already built my own hook for the same job. The printer form's GUI-free files can't use `_L`, because the agent and profile test binaries build them without wx. My hook is a small `Wording` callback that `IPrinterBackend::wording()` returns; the Orca backend translates through it and test backends keep English. The two do the same thing, but `Translate.hpp` has no plural, and the "Made for …" phrase needs one. You could keep both (costs a second mechanism), or add a plural to `Translate.hpp` and switch my files over (about a dozen mechanical edits, which I couldn't make because that file isn't mine). I'd add the plural and switch. Which do you want?
+
+**Files changed** (all under `/Users/kenneth/Projects/JusPrin/.claude/worktrees/localize-fork/src/slic3r/GUI/JusPrin/`):
+- `Home/OrcaHomeBackend.cpp`, `Home/OrcaImporter.cpp`
+- `PrinterSetup/PrinterBackend.hpp`, `OrcaPrinterBackend.hpp`, `OrcaPrinterBackend.cpp`, `PrinterConversation.cpp`, `SetupOptionsLoader.hpp`, `SetupOptionsLoader.cpp`, `PrinterPanel.cpp`
+- `Printers/NamedPrinters.cpp`, `Printers/NamedPrinters.hpp`
+
+**Newly marked: about 13 strings.**
+- Home printer cards: the nozzle size, "%g mm".
+- Home project cards: the short date pattern, with and without the year.
+- The "Photos" label in the report photo picker.
+- The printer form's four error messages and its profile-read error.
+- The "Made for …" phrases, with a plural for the count.
+- The form's plate names now go through translation where they are shown. OrcaSlicer's catalogs already have them.
+
+**Existing marks fixed: about 17.**
+- "Klipper stopped:" was joined to the message with `+`. It is now one string with a placeholder.
+- Five strings had two `%s` placeholders, which translators can't reorder. They now use `%1%`/`%2%`, and the other project-status strings were moved to the same form.
+- "Draft", "Sent" and "Printed" now have a "project status" context. Upstream's plain "Draft" means something else.
+- "Back" now uses upstream's "Navigation" context.
+- Four messages that only the printer chat's model reads were translated by mistake: in `link_named_printer`, `change_named_printer_nozzle` and `configure_named_printer_host`. They are English again.
+
+**One English change.** When a filament is made for exactly three printers, the form now says "and 1 other printer" instead of "1 other printers". The plural form makes that unavoidable. Tell me if you want the old wording kept.
+
+**Left in English on purpose:**
+- Everything in PrinterSetup the model reads: tool results, notes, connection reports, the backend's connect and host-test messages. The build volume in the printer catalogue also goes only to the model.
+- Log lines, thrown errors, and the preferences and Home protocol errors (`hello_reject`). Our own code is on both ends, and the page doesn't show them.
+- Identifiers: window names, settings keys, status ids, wildcard patterns.
+- Names: brands, AMS, Klipper, OctoPrint, the languages' own names, and the "Orca copy" / "JusPrin 1 copy" suffixes, which become part of saved preset names.
+- The defaults in `HomeBackend.hpp` ("Connection is unavailable."), which the app always replaces.
+
+**Not sure about these:**
+- `OrcaHomeBackend.cpp` decides a project is untitled by comparing its saved name with `_L("Untitled")`. That is behaviour chosen by translated text, and it breaks after a language switch. `ProjectAutosave.cpp` and `AppMenus.cpp` do the same, and both are outside my files, so I left it.
+- `remove_named_printer` messages are shown on Home and also sent to the model by the chat's Undo. I kept them translated.
+- The filament chat's opening greeting in `PrinterPanel.cpp` is shown and also becomes the model's own history. I left it English.
+- The chat's tool activity titles ("Checking &lt;address&gt;", "Waiting for the access code for …") are saved in the project and shown. I left them English to match the rest of the tool titles in `Agent/`; I don't know if they reach the model.
+
+**How I checked it compiles.** The `compile_commands.json` in `build/arm64` holds only 24 files, so I generated the full command list with `ninja -t compdb`. I then ran `-fsyntax-only` one file at a time against the worktree sources, with no precompiled header. All six passed:
+- `PrinterConversation.cpp` and `SetupOptionsLoader.cpp`, each in its GUI-free test build.
+- `OrcaHomeBackend.cpp`, `OrcaPrinterBackend.cpp`, `OrcaImporter.cpp` and `NamedPrinters.cpp` in the GUI build.
+
+I reviewed `PrinterPanel.cpp` without compiling it; the only change there is the context on "Back". Nothing was linked or run.</result>
+<usage><subagent_tokens>309515</subagent_tokens><tool_uses>80</tool_uses><duration_ms>696924</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a3a4e5f7dfc384d0e</task-id>
+<tool-use-id>toolu_01X13T9559KhejGc1GyS5skr</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/a3a4e5f7dfc384d0e.output</output-file>
+<status>completed</status>
+<summary>Agent "Mark text: settings and sign-in" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I've marked every string a person reads in all eight files, about 320 in total, and the English renders exactly as before. `npx tsc --noEmit` passes, and `npx vitest run` passes 781 tests in 40 files. HomeUI's suite also passes (162 tests), since Home draws the sign-in form. I touched no tests, catalogs or other files, and committed nothing.
+
+To check the English, I rendered the old and new versions of each component side by side, over a few hundred combinations of their inputs, and compared the HTML. That throwaway test lives only in the scratchpad, at `/private/tmp/claude/claude-502/-Users-kenneth--claude-spares-spare-y6RR11/cf003aa0-b151-445c-8bb1-ddda0e13feaf/scratchpad/cmp/all.cmp.test.tsx`. All of it matched, with one exception. The AI-changes group header with no "of N" used to print "3  settings" with two spaces. It now prints one. The screen looks the same.
+
+**Files changed** (all under `/Users/kenneth/Projects/JusPrin/.claude/worktrees/localize-fork/src/slic3r/GUI/JusPrin/AgentUI/src/`): `components/Preferences.tsx`, `PreferencesApp.tsx`, `components/AgentConnection.tsx`, `components/SignInDoor.tsx`, `components/SetupLocalTool.tsx`, `components/CodeField.tsx`, `components/AllSettings.tsx`, `components/ChangeRows.tsx`.
+
+**Sentences I rebuilt instead of wrapping:**
+- **Fallback words spliced into a sentence.** For example, "this account", "This tool", "the settings file" and "the AI tool". Each sentence is now two whole messages, one with the name and one without.
+- **"Signed in as {email}" joined to "· AI unavailable".** This is now one message.
+- **The key-check error.** It glued the host's message to "Nothing was saved." It is now one message with a placeholder.
+- **The Language search in Preferences.** "Find a {label}" lowercased the label inside the sentence. The caller now passes the whole "Find a language" and "No language matches…" text.
+- **All settings.** Its own `plural()` helper is replaced by Lingui `plural`. The region and object summaries ("…except in 2 regions: … and …") are now whole plural messages, and "a and b" lists are joined through a "{list} and {name}" message.
+- **Kinds of customization and page names.** Kind names ("Support blocker" and the rest) and the group headings ("Quality", "Support"…) are translated where they are shown. The English values the code compares stay as they are.
+
+**Deliberately left in English:**
+- **Names:** BYOAI, JusPrin, the provider names Anthropic, OpenAI and OpenRouter, and the "Windows" tag.
+- **Values that arrive from the host:** setting labels, page and group names, values, preset and object names, plan name and price line, the server's warning and error text, tool names, subtitles and commands, and change-log labels and locations. One exception: a preset switch's location is one of the words printer, filament or process, so those three are translated.
+- **Identifiers and compared values:** `PROCESS_PAGES`, override kinds, section ids, key prefixes such as `sk-ant-`.
+- **Number-and-name text and separators:** "1 · PLA", "{n} {volume name}", the " · " and ", " joins, and "—".
+- **The `you@example.com` placeholder.**
+- **The nav row's `aria-label`.** It joins the section name and its hint with a comma; both halves are already translated.
+
+None of these strings reach the model: the native side words what the model reads.
+
+**Things I was unsure about:**
+- **Two places still insert one translated phrase into another message:**
+  - "Up to date · checked {checked}" receives a phrase like "2 hours ago".
+  - The change log's "{who}, in {preset}" receives "you", "AI" or a tool's name.
+
+  I gave both a note for translators. Writing out every combination would mean about ten messages for the first, and it would break the existing `checkedAgo` test.
+- **All settings stays mostly English.** Its setting labels and page and group names come from the host untranslated today, which I checked in `OrcaWorkspaceAdapter.cpp` and `OrcaSettingDefinitions.hpp`. That needs fixing on the native side. If the host starts sending translated page names, the `PROCESS_PAGES.includes(setting.page)` comparison will stop matching.
+- **Plan dates stay English.** "Renews 5 Nov" is still formatted with `en-GB` whatever the app's language. Changing that would change behaviour, not only wording, so I left it.
+- **Lingui's `#` formats the number for the language,** so "1000" would show as "1,000". The counts in these files never get that high.</result>
+<usage><subagent_tokens>257297</subagent_tokens><tool_uses>54</tool_uses><duration_ms>735755</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a5c7dfaff464e5be8</task-id>
+<tool-use-id>toolu_01E5Fpg6whZgL9p56nx4xNJn</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/a5c7dfaff464e5be8.output</output-file>
+<status>completed</status>
+<summary>Agent "Mark text: native agent and canvas" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I've marked the person-facing text in my folders: about 130 strings are newly marked and 4 existing marks are fixed. The English that shows on screen is unchanged. Three things need your attention before the build.
+
+**Decision needed: a new header in Support/.** AgentHost, the provider agents, the cloud sign-in, the tool coordinator and the MCP config file are compiled into the agent tests, which don't link wxWidgets. A `_u8L` in those files would break that test build. So I added `Support/Translate.hpp`, a GUI-free header. In those files, text is marked with `L("...")` and translated where it is shown with `translated(...)`. `AgentWebView.cpp` installs the wx translation when the app starts; in the tests the English comes back unchanged. libslic3r has a similar hook, but it needs libslic3r linked, which those tests don't. Should I keep this header? Keeping it means someone has to add `GUI/JusPrin/Support/Translate.hpp` to `sources.cmake` (not my file). The other helpers working in other GUI-free files (`PrinterSetup/PrinterConversation.cpp`, `Home/HomeHost.cpp`) will hit the same problem and could reuse it. My pick is to keep it.
+
+**Files changed** (all under `src/slic3r/GUI/JusPrin/`):
+- `Agent/`: `AgentHost.cpp` and `.hpp`, `AgentWebView.cpp`, `ProviderAgent.cpp`, `CloudAccount.cpp`, `AgentSetup.cpp`, `AnthropicCodec.cpp`, `ResponsesCodec.cpp`, `ToolExecutionCoordinator.cpp`, `ProjectStateDocument.cpp`, `ProjectPersistence.cpp`
+- `Mcp/McpConfigFile.cpp`
+- `PrintIssues/`: `IssueOverlay.cpp`, `PrintIssueMonitor.cpp`
+- New: `Support/Translate.hpp`
+
+**What is newly marked:**
+- Chat, setup, sign-in and attachment errors the page shows, the file-dialog labels, and the AI service and HTTP failure messages. Messages with a name in them now use `%1%` placeholders instead of joining pieces.
+- Chat notes that the model also reads: the slice-result notes, the calibration notes and the "Restored…" note. The screen shows the translation and the model still gets the English. `post_note` has a new optional `for_model` argument for this.
+- The settings proposal card, the "Attachment" placeholder in the chat list, the two restore labels in the change log, and MCP config refusals.
+
+**Existing marks fixed:**
+- `AgentWebView` diagnostics: the label-plus-fragment strings became two whole sentences.
+- `IssueOverlay`: the ". " that joined two sentences is now a translatable `"%1%. %2%"`.
+- `PrintIssueMonitor`: the nozzle sentences now use OrcaSlicer's current plural messages. The old `%s` copies weren't in its catalog, so they never translated.
+
+**Left in English on purpose:**
+- Bridge errors that only a broken page triggers, such as "attach_file requires a file name". They're developer diagnostics.
+- Tool activity titles. `workspace_inspect` gives them to the model, and each is one stored string.
+- Undo step names. They become the change labels the model reads.
+- The plan-doubt reasons and the setting display words ("On", "Not set"). The setup card and the model share them.
+- The All settings labels, pages and groups. The page compares the page names in English.
+- The default chat title "New chat". It's stored and it's the title the model is given; the page could show its own words for a default title.
+- Month names in the calibration note dates, MCP progress text sent to external clients, log lines, exceptions, and names.
+
+**Marked strings that reach the model:**
+- The skipped-confirmation questions in `SkippedConfirmations.hpp` are tool warnings the model reads. They're looked up in the catalog on purpose to match OrcaSlicer's dialogs, so I left them.
+- Print-issue messages go to the model in the issue context. They copy OrcaSlicer's notices, which are already translated.
+- "Explain this issue and my options." from Ask AI, and my new "Pick another block/tile/…" button, are sent as the person's own message, so the model gets them in the person's language.
+
+**Unsure:** the proposal rows look up OrcaSlicer's setting labels in its catalog at runtime, which picks the meaning that has no context. Some MCP refusals include a file path and stay English.
+
+**Compile check:** I didn't run a build. The configured tree's `compile_commands.json` doesn't list these files, so I took the commands from `ninja -t compdb`, pointed them at the worktree, and ran `-fsyntax-only` one file at a time. Six files passed: `AgentHost`, `ToolExecutionCoordinator` and `ProviderAgent` in the test configuration, and `AgentWebView`, `PrintIssueMonitor` and `IssueOverlay` in the app configuration. The rest are simple wraps that I reviewed by hand; that includes `AgentHost` in the app configuration, which I didn't run.</result>
+<usage><subagent_tokens>317566</subagent_tokens><tool_uses>124</tool_uses><duration_ms>1005576</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a05d75e4e4a06fa68</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/a05d75e4e4a06fa68.output</output-file>
+<status>completed</status>
+<summary>Agent "Translate catalogs: French" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I've translated both French files in full, and the native check passes. The page check still fails on one entry, and that failure comes from the test itself, not from the translation.
+
+**Checks**
+- **Native file:** `msgfmt --check-format --check-header` exits 0. It only warns that three header fields still have their default values.
+- **Page file:** `npx vitest run src/catalogs.test.ts -t '^fr catalogs'` passes the native test and fails the page test on one entry. That entry is `{count, plural, one {Part} other {Parts}}`, and the French is `{count, plural, one {Pièce} many {Pièces} other {Pièces}}`.
+  - The test looks for placeholders with the pattern `/\{[A-Za-z0-9_]+(?=[,}])/`. That pattern also picks up the branch texts `{Part` and `{Parts` from the English, and no translation can contain them. I ran the pattern in node to confirm: the English gives `{count`, `{Part`, `{Parts`, and the French gives only `{count`.
+  - Every language will fail this entry the same way. The German translator's "Teil" and the Spanish "Pieza" in the other files hit it too.
+  - I left the correct French in place. I didn't change the test, because changing a check needs Kenneth's yes.
+
+**Decision needed:** should the page test ignore plural branch texts when it compares placeholders? Today one entry can't pass in any language, so the page check stays red for everyone. The fix is a small change to that pattern in `catalogs.test.ts`, which needs Kenneth's approval. The other option is to reword the source text so the branch isn't a single bare word, which means a code change and running the catalog update again. My pick is the test fix. Should it go to Kenneth?
+
+**Entries translated:** 513 native, 898 page. Every entry is marked `# AI Translated`. No entry is marked fuzzy, and I didn't change any msgid, comment or entry order.
+
+**Flagged `# Needs human review`:** 5 entries, all about dates or text the app fills in at runtime.
+- Native "short date": I reordered it to `%2% %1%` so the day comes before the month ("20 oct.").
+- "last finished %s" and "finished {day}", in both files: French needs "le" before a date but not before a weekday, and the sentence can't tell which it gets.
+- One seam count, where the placeholder holds a description and the preposition "sur" may not fit it.
+
+**Word choices a reviewer should know**
+- AI → **IA** ("Demander à l'IA", "Panneau IA").
+- Chat → **conversation**. The verb "to chat" became "discuter".
+- Preset → **préréglage**; process → **traitement**; print settings → **réglages d'impression**; printer settings → **paramètres de l'imprimante**. These all follow upstream's catalog.
+- Plate → **plaque**. "Bed type" → "Type de plaque", as upstream has it.
+- Slice → **découper / découpe**.
+- Credits → **crédits**; plan → **forfait**.
+- Sign in → **se connecter / connexion**; sign out → **se déconnecter**; sign up → **s'inscrire**.
+- Register is **vous**, as upstream uses. Quotes are « », and French spacing goes before `:` and `?`. Units are h, min, s, Ko and Mo.
+- In the page file I wrote every apostrophe as ’. A plain `'` before `{` acts as an escape character in ICU messages.
+- French plurals need `one`, `many` and `other`. I added `many` everywhere. Where the English has only an `=1` branch, I added a `one` branch too, because French `one` also covers 0.
+- "the {modelName}" became "la {modelName}", which assumes the printer model reads as feminine, as in "la Bambu Lab P1S". This affects about 15 entries and I didn't flag each one.
+
+The files are `src/slic3r/GUI/JusPrin/Localization/native/fr.po` and `src/slic3r/GUI/JusPrin/Localization/pages/fr.po` in `/Users/kenneth/Projects/JusPrin/.claude/worktrees/localize-fork/`. Nothing is committed.</result>
+<usage><subagent_tokens>215981</subagent_tokens><tool_uses>40</tool_uses><duration_ms>542630</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a61ef1eb714fed7d3</task-id>
+<tool-use-id>toolu_01RPW5V1jG4VCepxCtJs1Nab</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/a61ef1eb714fed7d3.output</output-file>
+<status>completed</status>
+<summary>Agent "Translate catalogs: Simplified Chinese" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Both zh_CN catalogs are fully translated, but only the native check passes. The page check fails on one entry, and the fault is in the test, not the translation.
+
+**Checks**
+- **Native catalog:** `msgfmt --check-format --check-header` passes. The only output is the usual warnings about default header fields.
+- **Page catalog:** `vitest src/catalogs.test.ts -t '^zh_CN catalogs'` passes the native test and fails the page test on one entry, `{count, plural, one {Part} other {Parts}}` → `{count, plural, other {零件}}`.
+  - The test's pattern for placeholders, `\{[A-Za-z0-9_]+(?=[,}])`, mistakes the one-word plural options `{Part}` and `{Parts}` for placeholders. So any real translation of that entry fails.
+  - The de and fr catalogs fail on the same entry for the same reason (`{Teil}`, `{Pièce}`).
+  - The fix belongs in the test, which needs Kenneth's yes. I kept the correct translation rather than inserting dummy `{Part}` placeholders to get past the check.
+
+**Entries translated**
+- Native: 513 of 513. Plural entries have one form, as the `nplurals=1` header requires.
+- Page: 898 of 898. Plurals give only `other`, as Chinese needs, and keep the `=1` branches where the source has them.
+- Every entry is marked `# AI Translated`, with no fuzzy flags. I changed only `msgstr` lines and added comment lines.
+
+**Flagged `# Needs human review`: 4, all in the native file**
+- **Calibration buttons:** "Pick another block" (换一个区块) and "Pick another tile" (换一个色块). Someone should check these match the parts of the test print they refer to.
+- **Project card dates:** "%1% %2%" (%1%%2%日) and "%1%, %2%" (%2%年%1%). These assume `wxDateTime::GetMonthName` gives 10月 in Chinese. If it gives "Oct", the card would read "Oct20日".
+
+**Terminology**
+- **AI:** kept as "AI". AI provider is 服务商.
+- **Chat:** 对话. New chat is 新建对话.
+- **Preset:** 预设. Print settings is 打印设置, process is 工艺, as upstream uses them.
+- **Plate:** 盘, from the glossary and upstream. The physical sheet ("Which plate is on it?") is 打印板, and the bed is 热床.
+- **Credits:** 积分. Plans are 套餐, and the Standard and Expert tiers are 标准 and 专家.
+- **Sign in:** 登录. Sign out is 登出, to match upstream's "Log Out"; 退出登录 would read more naturally if a reviewer prefers it.
+- **Other:** the text addresses the person as 您, as upstream does. Filament is 耗材丝, and an object copy is 副本.
+
+Files:
+- /Users/kenneth/Projects/JusPrin/.claude/worktrees/localize-fork/src/slic3r/GUI/JusPrin/Localization/native/zh_CN.po
+- /Users/kenneth/Projects/JusPrin/.claude/worktrees/localize-fork/src/slic3r/GUI/JusPrin/Localization/pages/zh_CN.po</result>
+<usage><subagent_tokens>210652</subagent_tokens><tool_uses>51</tool_uses><duration_ms>550634</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a432028bba522cc3d</task-id>
+<tool-use-id>toolu_012kJedxd9Nv6HoFUT9mJx2D</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/a432028bba522cc3d.output</output-file>
+<status>completed</status>
+<summary>Agent "Translate catalogs: Traditional Chinese" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Both zh_TW catalogs are fully translated. The native check passes. The page check fails on exactly one entry, `{count, plural, one {Part} other {Parts}}`, and I believe the check is at fault there, not the translation.
+
+**Check results**
+- `msgfmt --check-format --check-header` on the native file: passes, exit 0. It only warns that three header fields still hold their default text.
+- `vitest … -t '^zh_TW catalogs'`: the native test passes. The page test fails only on `{count, plural, one {Part} other {Parts}}` → `{count, plural, other {零件}}`.
+  - The check's pattern for spotting arguments also picks up any one-word plural branch, so it reads `{Part}` and `{Parts}` as arguments that must reappear in the translation.
+  - Any real translation fails this entry. The German `{Teil}…{Teile}` fails the same way.
+  - The only way to pass would be fake select arguments named `Part`/`Parts`, which would ship odd code, so I didn't. I also didn't change the check: that needs your yes, and the brief limited me to my two files.
+
+Decision needed: how should that last failure be cleared? One option is to change the check so a branch holding a single plain word isn't counted as an argument. That needs your yes, but it fixes the entry for every language at once. The other is to reword the source message so neither branch is a lone word, for example "{count, plural, one {# part} other {# parts}}". That changes the English and every language then has to translate the entry again. I'd change the check. Which do you want?
+
+**Entries translated**
+- Native: 513 of 513, of which 18 are flagged `# Needs human review`.
+- Pages: 898 of 898, of which 34 are flagged.
+- Every entry has `# AI Translated`. No msgid, comment line or entry order changed.
+
+**Main reasons for review flags**
+- **One English word, two meanings, no context in the source.** "Model" is used for both the AI model and the printer model; I chose 模型, but a printer model is 型號. "Search models" is shared the same way; I chose 搜尋型號. Both need a `msgctxt` in the source.
+- **Dates on project cards** (`%1%%2%日`, `%2%年%1%`): these assume the system gives the short month as "10月". Worth checking on a real card.
+- **Short labels whose job only shows in the running app**: "Showing", "Then", "Thinking", "Check plan", "Plan needs another look", "Download" and "Downloads" (both 下載), "LIVE", "Profile".
+- **預設 reading as "default"**: it is upstream's word for preset, but in Taiwan it also means default. It matters where the thinking level "Default" and a setting's value "preset" both appear.
+- **Product wording**: 自備 AI for "Bring Your Own AI", and 專精 3D 列印 for "specializes in 3D printing".
+
+**Terminology a reviewer should know**
+- **AI**: kept as "AI".
+- **Chat**: 對話.
+- **Preset**: 預設, upstream's term. A process preset is 列印參数預設 is not used; it is 列印參數預設, also upstream's.
+- **Plate**: 列印板, from the glossary.
+- **Credits**: 點數; a count reads "{n} 點".
+- **Sign in / sign out / sign up**: 登入 / 登出 / 註冊. The emailed code is 驗證碼.
+- **Printer**: 列印裝置, which upstream's zh_TW catalog uses 558 times; it never uses 列印機 or 印表機.
+- **Others**: filament 線材, slice 切片, project 專案, API key API 金鑰, provider 供應商, Prepare 「準備」, Preferences 偏好設定.
+- **Kept in English**: Pressure Advance and Brim, as upstream does. Multimaterial is 多線材, from upstream.
+- **Style**: polite 您, full-width punctuation, 「」 quotes, and a space between Chinese and Latin text or digits, as upstream does.
+
+Nothing is committed. The changed files are:
+- `/Users/kenneth/Projects/JusPrin/.claude/worktrees/localize-fork/src/slic3r/GUI/JusPrin/Localization/native/zh_TW.po`
+- `/Users/kenneth/Projects/JusPrin/.claude/worktrees/localize-fork/src/slic3r/GUI/JusPrin/Localization/pages/zh_TW.po`</result>
+<usage><subagent_tokens>213585</subagent_tokens><tool_uses>49</tool_uses><duration_ms>559414</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ab419b3fbed91a0f7</task-id>
+<tool-use-id>toolu_0154PTeY5fpW5BUErDrBucwU</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/ab419b3fbed91a0f7.output</output-file>
+<status>completed</status>
+<summary>Agent "Translate catalogs: German" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I translated both German catalogs completely. Both required checks pass.
+
+**Checks**
+- **`msgfmt --check-format --check-header`** on the native file exits 0. It prints three warnings that the header fields PO-Revision-Date, Last-Translator and Language-Team still hold their placeholder values. I didn't touch the header.
+- **`npx vitest run src/catalogs.test.ts -t '^de catalogs'`** passes both of its tests.
+- **A test bug that was fixed while I worked:** the old version of the test failed every language on the page entry `{count, plural, one {Part} other {Parts}}`. Its pattern mistook any plural branch made of one plain ASCII word for an argument name, so the English side seemed to have arguments called `Part` and `Parts`. The French and Spanish files failed on that entry too. While I was working, someone else changed `catalogs.test.ts` so it reads argument names from the compiled message instead. With that change the German "Teil" / "Teile" passes. I did not edit the test.
+
+**Entries translated**
+- **Native file** (`src/slic3r/GUI/JusPrin/Localization/native/de.po`): all 513 entries, each marked `# AI Translated`. The 17 plural entries have both German forms.
+- **Page file** (`src/slic3r/GUI/JusPrin/Localization/pages/de.po`): all 898 entries, each marked `# AI Translated`. That includes "Language" → "Sprache", which I kept. A second entry was also already translated: "JusPrin verwendet {0} nach dem Neustart." I kept it as it was and marked it too. Where the English plural has only `=1` and `other`, I added the `one` branch German needs.
+- No other files touched. Nothing committed.
+
+**Flagged `# Needs human review`: 3 entries**
+- **Native date "Oct 20":** I made it `%2%. %1%` ("20. Okt."), because German puts the day first. Someone should check how it looks with the month abbreviation the app actually inserts.
+- **Page "Expert" tier name:** I kept it as "Expert", next to "Standard". It is also inserted into "dieser {tier}-Chat", so a reviewer should decide whether "Experte" reads better.
+- **Page "Remove {lowered}":** this is a screen-reader label. The source code lowercases the first letter of the setting name, which is wrong for German nouns ("schichthöhe"). That needs fixing in `AllSettings.tsx`, not in the catalog.
+
+**Terminology a reviewer should know**
+- **Register:** "Sie", as the upstream German catalog uses (about 1,250 uses against 2 of "du"). The one exception is "Erkläre dieses Problem und meine Möglichkeiten." That is text the person sends to the AI, so it addresses the AI with "du".
+- **AI:** "KI" ("KI fragen", "KI-Panel", "KI einrichten").
+- **Chat:** "Chat". "Conversation" is "Unterhaltung".
+- **Preset:** "Profil", from the glossary ("Filamentprofil", "Druckerprofil", "Prozessprofil").
+- **Plate:** "Platte", from the glossary. "Bed" is "Druckbett". "Which plate is on it?" became "Welche Druckplatte ist eingelegt?"
+- **Slice:** "slicen" / "geslict", as upstream writes it.
+- **Credits:** "Credits", with the singular "Credit". "Plan" is "Tarif".
+- **Sign in / out / up:** "anmelden" / "abmelden" / "registrieren". "Sign-in" is "Anmeldung".
+- **Other words taken from upstream:** "Einstellungen" (Preferences), "Startseite" (Home), "Stützen", "Stützverstärker" and "Stützblocker", "Modifizierer", "Naht aufmalen", "Farben malen", "Struktur" for the Strength settings section, "Rückgängig" / "Wiederholen" for Undo and Redo, and "Erneut versuchen" for Retry.
+- **Kept in English:** BYOAI, which appears as "Eigene KI (BYOAI)", and Fuzzy Skin.
+
+My working scripts and the translation batches are in `/private/tmp/claude/claude-502/-Users-kenneth--claude-spares-spare-y6RR11/cf003aa0-b151-445c-8bb1-ddda0e13feaf/scratchpad/de/`.</result>
+<usage><subagent_tokens>217259</subagent_tokens><tool_uses>42</tool_uses><duration_ms>598377</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>aa7ba914f5fbcf71a</task-id>
+<tool-use-id>toolu_01SNQ8W2aoA5JMVRWtJSBGcd</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/aa7ba914f5fbcf71a.output</output-file>
+<status>completed</status>
+<summary>Agent "Translate catalogs: Italian" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I translated both Italian catalogs, and both checks now pass.
+
+**Checks**
+- `msgfmt --check-format --check-header` on `native/it.po` exits 0. The only output is the usual warnings about the unfilled header fields (PO-Revision-Date, Last-Translator, Language-Team).
+- `npx vitest run src/catalogs.test.ts -t '^it catalogs'` passes 2 of 2. At first the pages test failed on one entry, "Part"/"Parts". Its argument check took a one-word plural branch like `{Part}` for an argument, so any one-word translation failed. The same false failure showed up for de, es and fr. During my run `catalogs.test.ts` changed on disk; I didn't edit it. On the rerun the entry passed with the plain translation "Parte"/"Parti". Whoever changed the check should know it needs Kenneth's yes.
+
+**Entries translated**
+- Native: 513 of 513, including the 16 plural entries with both forms filled.
+- Pages: 898 of 898. Every entry is marked `# AI Translated`.
+- Every page plural has `one`, `many` and `other`, because Node's plural rules for Italian ask for `many`. The `many` branch repeats `other`. Where the English has only an `=1` branch, I added a `one` branch that repeats it.
+- In the page catalog I wrote apostrophes as ’, the same as the English source. A straight `'` can act as a quote character in ICU messages.
+
+**Flagged `# Needs human review`**: 16 native, 46 pages. The main reasons:
+- **Gender and agreement:** short status words where Italian has to pick a gender: printer states (Pronta, Connessa, Non connessa), "Trovata", "Terminata", "Modificate", and "won't print" for objects or copies.
+- **A value inserted at runtime:** sentences such as "Supporto all'interno di %s", "%d cuciture su %s" and "Il supporto tocca %s…" take a region name from the code, which may be English. Others take a model tier name inside "questa chat {tier}" or a version number after "Hai la {current}".
+- **Short labels whose role shows only in the running app:** the thinking-level set (Disattivato, Minimo, Basso, Medio, Alto, Molto alto, Massimo, Approfondito, Veloce), "Altro" for Others, "LIVE" on the camera picture, and "Vai agli ultimi" for Jump to latest.
+- **Dates:** "%2% %1%" gives "20 ott", and the date with the year has no comma. Someone should look at both at runtime.
+- **Unclear English:** "Project chat is blocked until restoration is recovered."
+
+**Terminology a reviewer should know**
+- **AI:** "IA", the standard Italian form. The upstream Italian catalog mixes "AI" and "IA", mostly "AI".
+- **Chat:** "chat", feminine (la chat). Conversation is "conversazione".
+- **Preset:** "profilo", as the glossary and upstream have it. Process preset is "profilo di processo".
+- **Plate:** "piatto". The print plan is "piano di stampa", so it doesn't read as a billing "piano".
+- **Credits:** "crediti". Plans are "piani".
+- **Sign in:** "Accedi", and the signed-in state is "Accesso effettuato". Sign out is "Disconnetti", as upstream renders Log Out, so it doesn't clash with File › Exit, which is "Esci".
+- **Slice:** "Elabora" and "elaborazione", as upstream does.
+- **Other choices:** support painting is "Dipingi supporti" and seam painting "Dipingi cucitura", as upstream names those tools. "Bring Your Own AI" and BYOAI stay in English. Region is "zona". The canvas is "area di lavoro".
+- **Register:** informal "tu", as upstream uses.
+
+I touched only `src/slic3r/GUI/JusPrin/Localization/native/it.po` and `src/slic3r/GUI/JusPrin/Localization/pages/it.po`, and committed nothing. The translation tables and scripts are in `/private/tmp/claude/claude-502/-Users-kenneth--claude-spares-spare-y6RR11/cf003aa0-b151-445c-8bb1-ddda0e13feaf/scratchpad/it/`.</result>
+<usage><subagent_tokens>230026</subagent_tokens><tool_uses>50</tool_uses><duration_ms>593924</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>adbc86c237860b83f</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/adbc86c237860b83f.output</output-file>
+<status>completed</status>
+<summary>Agent "Translate catalogs: Korean" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Both Korean catalogs are fully translated, and both checks pass.
+
+**Checks**
+- `msgfmt --check-format --check-header` on `native/ko.po` exits 0. The only output is the usual warnings that three header fields still have their default values.
+- `npx vitest run src/catalogs.test.ts -t '^ko catalogs'` passes 2 of 2.
+
+**Entries translated**
+- `/Users/kenneth/Projects/JusPrin/.claude/worktrees/localize-fork/src/slic3r/GUI/JusPrin/Localization/native/ko.po`: 513 entries.
+- `/Users/kenneth/Projects/JusPrin/.claude/worktrees/localize-fork/src/slic3r/GUI/JusPrin/Localization/pages/ko.po`: 898 entries.
+
+Every entry has `# AI Translated`, and no msgid, msgctxt, `#.`/`#:` comment or entry order changed. Korean has a single plural form (`nplurals=1`), but the native file came with an empty `msgstr[1]` on its 17 plural entries, and `msgfmt` treats that as a fatal error. So those entries now have only `msgstr[0]`. In the pages file, each plural keeps just `other`, plus the `=1` branch wherever the source has one.
+
+**Flagged `# Needs human review` (7 entries)**
+- **Dates on project cards** (2 native entries): Korean puts the year first, so the format reads "2025년 10월 20일". That only works if the abbreviated month name wx supplies comes out as "10월" under the Korean locale, which I haven't checked.
+- **List joiners in the print report's closing line** (3 native entries): the three English joiners ("a, b", "a and b", "a, and b") all became plain commas. The clauses are short noun phrases ending in "없음", and Korean doesn't join those with "및".
+- **"Bring Your Own AI"** (2 page entries): I left the section name in English because another Preferences line calls it "the BYOAI section". A reviewer may want a Korean name with "(BYOAI)" after it.
+
+**Terminology a reviewer should know**
+- Register is formal-polite (합니다/하세요), as in upstream's catalog. Particles after placeholders are written 을(를), 이(가), (으)로.
+- AI stays "AI"; "Ask AI" is "AI에게 묻기".
+- Chat is "채팅", and conversation is "대화".
+- Preset is "사전 설정" (glossary and upstream).
+- Plate is "플레이트", kept apart from bed "베드".
+- Credits are "크레딧", counted as "{n}크레딧". Plan, in the billing sense, is "요금제"; the print plan is "출력 계획".
+- Sign in is "로그인", sign out "로그아웃", sign up "가입".
+- Other words taken from upstream's catalog:
+  - print / printing: 출력
+  - Prepare tab: 준비 하기
+  - Preferences: 기본 설정
+  - calibrate: 교정
+  - object / part: 객체 / 부품
+  - modifier: 수정자
+  - negative part: 비우기 부품
+  - support enforcer / blocker: 서포트 강제기 / 서포트 차단기
+  - pan: 화면 이동
+- Two terms upstream doesn't have: "Check print" is "출력 점검", and the model tiers Standard / Expert are "표준" / "전문가".
+
+**One problem in the source, not the translation:** the comments in `native/JusPrin.pot` are attached one entry too early in several places. For example, the note for "G-code exported %1%" sits on "G-code exported", which has no placeholder. I translated from the code each entry comes from, not from those comments.
+
+My helper script and the translation batches are in `/private/tmp/claude/claude-502/-Users-kenneth--claude-spares-spare-y6RR11/cf003aa0-b151-445c-8bb1-ddda0e13feaf/scratchpad/ko/`. Nothing is committed.</result>
+<usage><subagent_tokens>229551</subagent_tokens><tool_uses>54</tool_uses><duration_ms>604401</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a76712326f4e54764</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/a76712326f4e54764.output</output-file>
+<status>completed</status>
+<summary>Agent "Translate catalogs: Spanish" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I translated everything in both Spanish files, and both checks pass: `msgfmt` exits 0 on the native file and the `es catalogs` test passes 2 of 2.
+
+**What was translated**
+- **Native file:** all 513 entries, including all 17 plural entries with both Spanish forms. Every entry is marked `# AI Translated`.
+- **Page file:** all 898 entries. Every plural has the `one`, `many` and `other` branches that Spanish needs, and the `=1` branches are kept. Every entry is marked `# AI Translated`.
+- **Tone:** I used formal "usted", because that is what upstream's Spanish catalog mostly uses. One exception: "Explain this issue and my options." is sent to the AI as if the person typed it, so it addresses the AI as "tú".
+
+**About the check:** midway through, the page test failed on "Part / Parts" and "Show it / Show them". The old check mistook a one-word plural branch such as `{Pieza}` for a placeholder. You committed a fix while I was working (257d3088d4), and the test passes with the proper Spanish words. Any other language you checked before that commit would have hit the same false failure.
+
+**Flagged `# Needs human review`:** 16 in the native file and 14 in the page file. The main reasons:
+- **Gender guesses:** Spanish adjectives agree with a noun the English leaves out. Examples are printer statuses ("Lista", "Conectada"), "Ignorada", "Reabierta / generada" for a calibration test, the failed-actions count, and "JusPrin la copia" during import.
+- **Values filled in when the app runs:** dates after "el" ("Termina el {ends}", "terminado el {day}"), the "last checked" phrases, "a las {time}" when the time also has a day, and the tier name in "chat de nivel {tier}". Also nouns slotted into "Soporte dentro de %s", "Eliminar {lowered}" and "Publicada el {released}".
+- **Unclear English or context:**
+  - "until restoration is recovered" is unclear in the English.
+  - "tile" in a calibration test: "baldosa" or "casilla"?
+  - "Move to front": the front of a list or of the 3D view?
+  - "Profile": a preset, or the model's details?
+  - "print from a card": most likely an SD card.
+
+**Terminology a reviewer should know**
+- **AI:** "IA", used with the article ("la IA", "Preguntar a la IA"). Bring Your Own AI is "Traiga su propia IA", and the section name BYOAI is kept.
+- **chat:** "chat" (masculine): "chat nuevo", "Chats del proyecto".
+- **preset:** "perfil", following the glossary and upstream: "perfil de filamento / impresora / proceso".
+- **plate:** "cama", following the glossary and upstream: "Laminar todas las camas", "Tipo de cama". The build-sheet question "Which plate is on it?" is "¿Qué cama tiene?", matching upstream's "Cama PEI Texturizada".
+- **credits:** "créditos". Plan, sign-up and report credits are "Créditos del plan", "Créditos de registro" and "Créditos por informes".
+- **sign in / sign out / sign up:** "Iniciar sesión" / "Cerrar sesión" / "Registrarse". "Sesión iniciada como {address}"; an expired sign-in is "Su sesión … ha caducado".
+- **Other words:**
+  - slice is "laminar"; settings are "ajustes"; Home is "Inicio".
+  - Upstream's own terms are kept: "parte negativa", "forzado de soportes", "bloqueador de soporte", "Pintar soportes/colores/costura", "Fuerza" (the Strength category).
+  - The model tiers are "Estándar" and "Experto".
+  - Quotes are written « », and dates are reordered to Spanish order ("%2% %1%" gives "20 oct").
+
+I only touched `src/slic3r/GUI/JusPrin/Localization/native/es.po` and `src/slic3r/GUI/JusPrin/Localization/pages/es.po`, and nothing is committed.</result>
+<usage><subagent_tokens>225846</subagent_tokens><tool_uses>52</tool_uses><duration_ms>618597</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a45339c27cb1d9b2b</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/a45339c27cb1d9b2b.output</output-file>
+<status>completed</status>
+<summary>Agent "Translate catalogs: Brazilian Portuguese" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Both Brazilian Portuguese catalogs are fully translated, and both required checks pass. I changed only the two pt_BR files and committed nothing.
+
+**Checks**
+- `msgfmt --check-format --check-header` on the native catalog passes. Its only output is three warnings that the header's translator, team and revision-date fields still hold their default values.
+- `npx vitest run src/catalogs.test.ts -t '^pt_BR catalogs'` passes 2 of 2.
+
+**Entries translated**
+- Native windows (`native/pt_BR.po`): all 513 entries, 17 of them plurals with two forms each.
+- Pages (`pages/pt_BR.po`): all 898 entries.
+- Every entry is marked `# AI Translated`, and none is fuzzy.
+- Portuguese needs a third plural category, `many`, that English doesn't have, and the test requires it. I filled it with the same text as `other`, since it only applies to abbreviated large numbers. Where the source had only `=1` and `other`, I added `one` with the `other` text.
+
+**Flagged `# Needs human review`: 7 entries (4 native, 3 pages)**
+- **Calibration "tile":** "Pick another tile" became "Escolher outro quadrado". Someone should check that this matches what the test actually prints.
+- **Project-card dates:** the day now comes before the month ("20 de out."), and the year is added as "… de 2026". Someone should check how these read on the card.
+- **"Support inside the %s":** the region label is dropped into "de %s". Depending on the label, an article ("do furo") may read better.
+- **AI model names:** Standard became "Padrão" and Expert became "Especialista". Because of that, the "Default" thinking level became "Automático", so the two names don't clash in the model picker.
+
+**Terminology a reviewer should know**
+- **AI:** "IA", feminine ("a IA", "Perguntar à IA"), as Brazilian Portuguese normally writes it.
+- **Chat:** "conversa". "Chat" is common, but "conversa" reads as normal Portuguese interface text.
+- **Preset:** "predefinição", as in the upstream glossary and catalog.
+- **Plate:** "placa", as in the upstream glossary ("Fatiar placa"). Bed type is "Tipo de placa", which is upstream's wording. The physical bed is "mesa".
+- **Credits:** "créditos".
+- **Sign in:** "Entrar" on buttons and "faça login" / "entre novamente" in sentences. A sign-in that ended is "sua sessão terminou". "Signed in as X" is "Conectado como X", and Sign out is "Sair".
+- **Other terms:**
+  - Slice is "fatiar" and a slice is "fatiamento".
+  - Filament slot is "espaço", as in the glossary.
+  - Print settings is "configurações de impressão", and the process preset is "predefinição de processo".
+  - Home is "Início", Prepare is "Preparar", Preview is "Pré-visualizar", and Preferences is "Preferências".
+  - Support enforcer is "reforço de suporte" and support blocker is "bloqueador de suporte", both as upstream has them.
+- **Register:** "você", matching upstream.
+- **Capitalisation:** sentence case throughout, rather than upstream's frequent Title Case.
+
+Files:
+- `/Users/kenneth/Projects/JusPrin/.claude/worktrees/localize-fork/src/slic3r/GUI/JusPrin/Localization/native/pt_BR.po`
+- `/Users/kenneth/Projects/JusPrin/.claude/worktrees/localize-fork/src/slic3r/GUI/JusPrin/Localization/pages/pt_BR.po`</result>
+<usage><subagent_tokens>241353</subagent_tokens><tool_uses>38</tool_uses><duration_ms>631526</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>abc77cc8d7afb9f7d</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/abc77cc8d7afb9f7d.output</output-file>
+<status>completed</status>
+<summary>Agent "Translate catalogs: Japanese" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Both Japanese catalogs are fully translated and both required checks pass.
+
+**Checks**
+- `msgfmt --check-format --check-header` on `native/ja.po` exits 0. It prints three warnings about header fields that still have their default values, which the brief didn't ask me to touch.
+- `npx vitest run src/catalogs.test.ts -t '^ja catalogs'` passes 2 of 2.
+
+**Entries translated**
+- `native/ja.po`: 513 entries, including 17 plurals. Each plural has one `msgstr[0]`, because the header says `nplurals=1`.
+- `pages/ja.po`: 898 entries. Each page plural keeps only the `other` branch, plus any `=1` exact branches the source had.
+- Every entry is marked `# AI Translated`, and none is fuzzy. No msgid, msgctxt, comment or entry order changed, and I touched no file other than these two.
+
+**Flagged `# Needs human review`: 5 entries**
+- **The two date formats on project cards** (native, `short date` and `date with year`). I wrote `%1%%2%日` and `%2%年%1%`. These only read right if `wxDateTime::GetMonthName(Name_Abbr)` returns a Japanese month such as 「10月」 in the Japanese locale.
+- **"Project chat is blocked until restoration is recovered."** The English is vague, so the meaning needs checking.
+- **"Export the G-code to print from a card."** Someone should check that 「カード」 reads as a memory card here, not a card on screen.
+- **"One filament made for other printers does."** (AddPrinterForm) This finishes a sentence that starts elsewhere, so it needs checking in the running app.
+
+**Word choices a reviewer should know**
+- **AI:** kept as 「AI」.
+- **Chat:** 「チャット」. "Conversation" is 「会話」.
+- **Preset:** 「プリセット」. Upstream's catalog and the glossary use the same word.
+- **Plate:** 「プレート」. "Bed type" is 「ベッドタイプ」.
+- **Credits:** 「クレジット」, for example 「残り{n}クレジット」.
+- **Sign in / sign out / sign up:** 「サインイン」 and 「サインアウト」, as upstream uses for its login. "Sign up" is 「登録」.
+- **Print:** 「印刷」, which upstream's sentences use more often than 「造形」. "Print settings" stays 「造形設定」 to match upstream's tab name.
+- **Cancel:** the bare button is 「取消し」 as in upstream. Inside sentences I used 「キャンセル」.
+- **Preferences:** 「設定」, the same as upstream.
+- **Model tiers:** "Standard" and "Expert" are 「スタンダード」 and 「エキスパート」.
+- **Register:** polite です/ます, full-width 。、？, and 「」 in place of curly quotes, matching upstream.
+- **Glossary terms:** painting modes follow upstream: 「サポートペイント」, 「色塗り」, 「ファジー壁面ペイント」 and 「継ぎ目ペイント」. "Negative part" is 「マイナスパーツ」, and the support enforcer and blocker are 「サポート増強器」 and 「サポート除去器」.
+
+**One choice made to avoid a risk**
+- I kept placeholder order in the two C-format strings where Japanese would normally reorder them: "%1$s on %2$s" became 「%1$s (%2$s)」, and the seam count keeps `%d` before `%s`.
+- Reordering would need the positional arguments to work at runtime, and I couldn't confirm that they do.
+
+The batch files I applied the translations from are in `/private/tmp/claude/claude-502/-Users-kenneth--claude-spares-spare-y6RR11/cf003aa0-b151-445c-8bb1-ddda0e13feaf/scratchpad/ja/` (`n1`–`n4.jsonl` for native, `p1`–`p6.jsonl` for pages).
+
+Files:
+- /Users/kenneth/Projects/JusPrin/.claude/worktrees/localize-fork/src/slic3r/GUI/JusPrin/Localization/native/ja.po
+- /Users/kenneth/Projects/JusPrin/.claude/worktrees/localize-fork/src/slic3r/GUI/JusPrin/Localization/pages/ja.po</result>
+<usage><subagent_tokens>227951</subagent_tokens><tool_uses>59</tool_uses><duration_ms>672275</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a864d1e4556ee8f85</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/a864d1e4556ee8f85.output</output-file>
+<status>completed</status>
+<summary>Agent "Translate catalogs: Polish" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I've translated both Polish catalogs completely, and both checks pass. Nothing is committed, and I only edited the two `pl.po` files.
+
+**Checks**
+- `msgfmt --check-format --check-header` on `native/pl.po` exits 0. The only output is the three warnings about header fields that still hold their default values.
+- `npx vitest run src/catalogs.test.ts -t '^pl catalogs'` gives 2 passed, 0 failed.
+
+**Entries translated**
+- `src/slic3r/GUI/JusPrin/Localization/native/pl.po`: 513 of 513. The 17 plural entries each have the three forms Polish needs.
+- `src/slic3r/GUI/JusPrin/Localization/pages/pl.po`: 898 of 898. Every page plural has the `one`, `few`, `many` and `other` branches, and the `=1` branches from the English are kept.
+- Every entry carries `# AI Translated`, and none is marked fuzzy.
+
+**Flagged `# Needs human review` (8: 5 in the native file, 3 in the pages file)**
+- **Gender that depends on what is being counted or described (5).** The "won't print" tag and its count can mean an object (masculine) or a copy (feminine, *kopia*). The reopened calibration test's status line (*Ponownie otwarty · wygenerowany*) assumes the word is masculine. Two print-report lines put a region's name into the sentence, and their wording needs checking against the real names.
+- **The "Bring Your Own AI" heading.** I wrote "Własna AI (Bring Your Own AI)". Someone should decide whether the English name should stand alone.
+- **The word "you" as the actor beside a change.** I used lowercase "ty", and it may read better as "Ty".
+- **"your provider".** This stands in when a provider's name is missing, as in "{name} API key". Polish case endings mean it won't fit every sentence.
+
+**Terminology a reviewer should know**
+- **AI**: kept as "AI", treated as feminine (*AI odpowiada*, *AI nie jest skonfigurowana*). The model tiers are "Standard" and "Ekspert".
+- **chat**: *czat*. "Conversation" is *rozmowa*.
+- **preset**: *profil*, which is the glossary's word and upstream's.
+- **plate**: *płyta*, as in the glossary and upstream.
+- **slice**: *tnij* / *potnij* / *cięcie*, as upstream uses them.
+- **credits**: *kredyty* (1 *kredyt*, 2 *kredyty*, 5 *kredytów*).
+- **sign in / sign out / sign up**: *Zaloguj się* / *Wyloguj się* / *Zarejestruj się*.
+- **Sessions**: an ended sign-in is *sesja logowania wygasła*, and "Signed in as" is *Zalogowano jako*.
+- **Other recurring words**, matching upstream:
+  - *Preferencje*, *Ustawienia drukarki*, *Ustawienia druku*, *Przygotowanie* and *Podgląd* as tab names
+  - *Gniazdo* for a slot, *Dysza*, *Cofnij* / *Ponów*
+  - *Wł.* / *Wył.*, *Panel dotykowy*, *Przesuwanie*, *Multimateriał*
+  - *Część ujemna*, *Wzmocnienie podpory* / *Blokada podpory*
+- **Register**: informal "ty", as upstream uses it. Where the past tense would force a gender for the reader, I rephrased with impersonal forms.
+
+I also read 30 random entries from each file against their English and fixed the one that read awkwardly. The scripts and translation batches I worked from are in `/private/tmp/claude/claude-502/-Users-kenneth--claude-spares-spare-y6RR11/cf003aa0-b151-445c-8bb1-ddda0e13feaf/scratchpad/pl/`.</result>
+<usage><subagent_tokens>233685</subagent_tokens><tool_uses>61</tool_uses><duration_ms>725753</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>af546fd8603d622fd</task-id>
+<tool-use-id>toolu_01DrhHuwGVD1STERDqHo6d17</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/af546fd8603d622fd.output</output-file>
+<status>completed</status>
+<summary>Agent "Translate catalogs: Russian" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Both Russian catalogs are fully translated and both checks pass.
+
+**Checks**
+- `msgfmt --check-format --check-header` on `native/ru.po` exits 0. It only warns that the header's translator and date fields still hold their default values.
+- `npx vitest run src/catalogs.test.ts -t '^ru catalogs'` passes 2 of 2.
+
+**Entries translated**
+- `/Users/kenneth/Projects/JusPrin/.claude/worktrees/localize-fork/src/slic3r/GUI/JusPrin/Localization/native/ru.po`: 513 entries, including 17 plural entries, each with 3 inflected forms.
+- `/Users/kenneth/Projects/JusPrin/.claude/worktrees/localize-fork/src/slic3r/GUI/JusPrin/Localization/pages/ru.po`: 898 entries. Every plural has `one`, `few`, `many` and `other`, and the `=1` branches are kept.
+- Every entry is marked `# AI Translated`. No msgid, comment line or entry order changed: I diffed both files against copies taken before I started. I touched no other file.
+- I read 30 random entries from each file once more and reworded one: "Explain this issue and my options."
+
+**Flagged `# Needs human review`: 12 entries (7 native, 5 pages)**
+- **Two terms where upstream's word could clash:**
+  - "Auto-orient": I used "Автоориентация", but upstream says "Положить на стол".
+  - The "Quality" settings group: I used "Качество", but upstream's tab says "Вид".
+- **The "Process" group:** I wrote "Настройки печати", because upstream's "Настройки" is also the word for Preferences.
+- **Labels whose role only shows in the running app:** "Move to front" on the plate menu, the "Profile" heading in the Project tab, "slots, side by side", the "LIVE" camera badge ("В ЭФИРЕ"), and the "Bring Your Own AI" heading ("Свой ИИ").
+- **Text built from runtime values:**
+  - "From %1%" became "Источник: %1%", so the inserted place name needs no grammatical case.
+  - The short date reorders to "20 окт.".
+- **Unclear English:** the source "Project chat is blocked until restoration is recovered."
+
+For other runtime names, such as a marked area in the print report, I used phrasings like «область «%s»», so the inserted names need no grammatical case and no flag.
+
+**Terminology**
+- **AI:** "ИИ" ("Спросить ИИ", "панель ИИ").
+- **Chat:** "чат"; "conversation" is "разговор".
+- **Preset:** "профиль". A process preset is "профиль настроек печати".
+- **Plate:** "стол"; bed type is "покрытие", as upstream has it.
+- **Filament:** "материал"; slicing is "нарезка"/"нарезать".
+- **Credits:** "кредит / кредита / кредитов".
+- **Sign in:** "Войти" / "вход"; account is "учётная запись"; sign out is "Выйти".
+- **Model tiers:** "Стандарт" and "Эксперт".
+- **G-code:** kept as "G-code", following the brief and the glossary. Upstream's Russian catalog mostly writes "G-код" (171 strings against 19), so a reviewer may want to pick one for the whole app.
+- **Address:** formal, lowercase "вы", as upstream uses. Units are abbreviated the Russian way ("мм", "мин", "ч", "с", "г").</result>
+<usage><subagent_tokens>261344</subagent_tokens><tool_uses>60</tool_uses><duration_ms>936458</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b80swjgyq</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/b80swjgyq.output</output-file>
+<status>completed</status>
+<summary>Background command "W=/Users/kenneth/Projects/JusPrin/.claude/worktrees/localize-fork; S=/private/tmp/claude/claude-502/-Users-kenneth--claude-spares-spare-y6RR11/cf003aa0-b151-445c-8bb1-ddda0e13feaf/scratchpad; uptime; pgrep -fl ninja | grep -c localize; export PATH=/Applications/CMake.app/Contents/bin:/Users/kenneth/.nvm/versions/node/v24.13.0/bin:$PATH; cd $W &amp;&amp; nohup perl -e 'setpgrp(0,0); exec @ARGV' cmake --build $W/build/arm64 --config Release --target OrcaSlicer agent_bridge_tests jusprin_tests jusprin_profile_tests shell_integration_harness jusprin_catalogs -- -j4 &gt; $S/build-app.log 2&gt;&amp;1; echo exit=$? &gt;&gt; $S/build-app.log; tail -5 $S/build-app.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bjoc2t2at</task-id>
+<tool-use-id>toolu_01VxM27REo8uu55TUcDtLC9C</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/bjoc2t2at.output</output-file>
+<status>completed</status>
+<summary>Background command "Build the six test programs left out of the first build" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a1c4ad0b3479aea49</task-id>
+<tool-use-id>toolu_01LpNwN3BX2jnJLB41KKpqG4</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/a1c4ad0b3479aea49.output</output-file>
+<status>completed</status>
+<summary>Agent "Translate catalogs: Dutch" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Both Dutch catalogs are fully translated, and both checks pass.
+
+**Checks**
+- `msgfmt --check-format --check-header` on `native/nl.po` exits 0. It warns only that the PO-Revision-Date, Last-Translator and Language-Team header fields still have their default values, which I left alone.
+- `npx vitest run src/catalogs.test.ts -t '^nl catalogs'` passes 2 of 2. The first run failed on five plurals that had only `=1` and `other` branches, because the test also wants a `one` branch. I added one to each.
+
+**Entries translated**
+- `/Users/kenneth/Projects/JusPrin/.claude/worktrees/localize-fork/src/slic3r/GUI/JusPrin/Localization/native/nl.po`: 513 entries, 17 of them plurals with both forms filled.
+- `/Users/kenneth/Projects/JusPrin/.claude/worktrees/localize-fork/src/slic3r/GUI/JusPrin/Localization/pages/nl.po`: 898 entries.
+- Every entry is marked `# AI Translated`. The only lines removed from either file are the empty `msgstr` lines, so no msgid, context, comment or entry order changed. Every apostrophe in the page file is ’.
+
+**Flagged `# Needs human review`: 49 (13 native, 36 pages)**
+- **Text whose meaning depends on its screen.** Examples: "Check plan" and "Plan needs another look" on the setup card (I read "plan" as the AI's print plan, not a subscription), "Controls", "Showing", "Then", "Move to front", "Whole plate", and "from a card" (I took it to mean an SD card).
+- **Sentences with a date or time filled in at runtime.** Examples: "Ends {ends}", "Expires {date}", "last finished {day}", "Saved {saved}". The short-date entry also needs a look: I reordered it to day-first (`%2% %1%`, as in "20 okt"), and the dated one drops the comma.
+- **Fragments that finish an earlier sentence.** Examples: "One filament made for other printers does.", the "None of the # match" plural, and "Een bestand en # ander geopend".
+- **Wording I want a native speaker to confirm.** Examples: "Bring Your Own AI" left in English, the decimal comma in "0,4 mm", "momentopname" for snapshot, and "plaat" in "Which plate is on it?" for the physical build plate.
+
+**Terminology a reviewer should know**
+- **Form of address:** I used "u", as upstream does (253 strings use u/uw against 35 that use je).
+- **AI:** kept as "AI", with no article in running text: "Vraag AI", "Vraag het opnieuw aan AI", "AI-paneel", "AI-instellingen".
+- **Chat:** "chat". "Conversation" is "gesprek", as in "Printergesprek".
+- **Preset:** "voorinstelling", from the glossary and upstream. So "filamentvoorinstelling", "printervoorinstelling", "procesvoorinstelling".
+- **Plate:** "printbed", the glossary and upstream word. Plural "printbedden".
+- **Credits:** "credits". A subscription plan is "abonnement", so "Plan credits" became "Abonnementscredits".
+- **Sign in / sign out / sign up:** "Inloggen" / "Uitloggen" / "Registreren". I avoided "aanmelden" because Dutch apps also use it for signing in. A sign-in session is "inlogsessie".
+- **Other words, matched to upstream:** "slicen" / "gesliced", "mondstuk", "ondersteuning", "Voorbereiden", "Voorvertoning", "Voorkeuren", "Annuleren", "Ongedaan maken", "Opnieuw proberen". Home kept as "Home".
+- **Short units:** hours are "u" and minutes "min", as in "2 u 04 min".
+
+I didn't commit anything, and I touched no other language's files. The scripts and translation tables are in `/private/tmp/claude/claude-502/-Users-kenneth--claude-spares-spare-y6RR11/cf003aa0-b151-445c-8bb1-ddda0e13feaf/scratchpad/nl/`.</result>
+<usage><subagent_tokens>205183</subagent_tokens><tool_uses>32</tool_uses><duration_ms>526970</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a62959c7fe156f41a</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/a62959c7fe156f41a.output</output-file>
+<status>completed</status>
+<summary>Agent "Translate catalogs: Catalan" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I've translated both Catalan (`ca`) catalogs completely, and both checks pass.
+
+**Checks**
+- `msgfmt --check-format --check-header` on the native file exits 0. It still prints the warnings about the header fields left at their placeholder defaults.
+- `npx vitest run src/catalogs.test.ts -t '^ca catalogs'` passes (2 passed, 43 skipped).
+
+**Entries translated**
+- Native file: 513 entries, including 17 plural entries with both forms filled.
+- Page file: 898 entries.
+- Every entry is marked `# AI Translated`. Nothing is fuzzy, and no msgid, msgctxt, `#.`/`#:` line or entry order changed.
+
+**Plurals need a `many` branch in Catalan.** The test uses current CLDR rules, which give Catalan `one`, `many` and `other`. The first run failed for that reason. All 91 page plurals now have a `many` branch copied from `other`. Plurals that only had an exact `=1` branch also got a `one` branch copied from it. The Spanish catalog was already done this way.
+
+**Flagged `# Needs human review`: 42 entries (13 native, 29 pages)**
+- **Gender agreement with text the app fills in.** About half the flags. Printer model names get the feminine article ("la {modelName}"), and labels like "Preparada", "Connectada" and "Trobada" agree with "impressora" or "app". Where English "it" or "them" is unclear, I assumed it means printers or presets.
+- **Sentences built around a runtime placeholder.** Dates, `{savedMoment}`, `{observed}`, `{tier}`, `{0}` for restartFor, and version numbers ("la {current}").
+- **Unclear English.** "Project chat is blocked until restoration is recovered", "streaming response", "delta", "printers to bring", and "matches" in print history.
+- **Word choices someone should decide:**
+  - "Strength" is "Resistència" here, but upstream uses "Força".
+  - "Starting Home." comes out as the awkward "Iniciant Inici."
+  - "you" (the person who opened a file) is "vosaltres".
+  - "Working on it…" is "Hi estem treballant…".
+  - "Which plate is on it?" uses "placa", which may need "llit" or "base" for the physical plate.
+  - "Bring Your Own AI": translate it or keep the English name?
+
+**Terminology for a reviewer**
+- **Register:** formal "vós" (Feu, Voleu, el vostre), which upstream's Catalan catalog uses about 680 times against about 80 for "tu". Buttons and menu items use the infinitive (Cancel·lar, Desar, Tancar), as upstream does.
+- **AI:** "IA" (la IA). **Chat:** "xat". **Credits:** "crèdits".
+- **Preset:** "perfil", from the glossary and upstream.
+- **Plate:** "placa" (glossary). **Bed:** "llit". **Slice:** "laminar", with "laminat" as the noun.
+- **Sign in:** "iniciar sessió"; sign out is "tancar la sessió", sign up is "registrar-se".
+- **Other terms taken from upstream:** "configuració d'impressió" for a print setting, "ranura" (slot), "broquet" (nozzle), "connector" (plug-in), "Preparació" and "Previsualització" (Prepare and Preview), "Inici" (Home), "Clau d'accés" (Access code), "Ordenar" (Arrange), "Rang d'alçada" (Height range).
+- **Wording of my own:** "Moure al principi" for "Move to front". It makes a plate plate 1, so it means move to the start of the list.
+- In the page file every apostrophe is the typographic ’.
+
+The files changed are `/Users/kenneth/Projects/JusPrin/.claude/worktrees/localize-fork/src/slic3r/GUI/JusPrin/Localization/native/ca.po` and `/Users/kenneth/Projects/JusPrin/.claude/worktrees/localize-fork/src/slic3r/GUI/JusPrin/Localization/pages/ca.po`. Nothing is committed, and no other language's files were touched.</result>
+<usage><subagent_tokens>221116</subagent_tokens><tool_uses>45</tool_uses><duration_ms>633668</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a8bb5e827bcf5e1f4</task-id>
+<tool-use-id>toolu_01NzDnPsz9Y2Eo2DSxfEvQHJ</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/a8bb5e827bcf5e1f4.output</output-file>
+<status>completed</status>
+<summary>Agent "Translate catalogs: Czech" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I translated both Czech catalogs completely, and both required checks pass.
+
+**Checks**
+- `msgfmt --check-format --check-header` on `native/cs.po`: exits 0. It only warns that three header fields still hold their default values.
+- `npx vitest run src/catalogs.test.ts -t '^cs catalogs'`: 2 passed.
+- I also confirmed that no msgid, msgctxt, `#.`/`#:`/`#,` line or entry order changed in either file. The only differences are the msgstr lines and the new translator comments.
+
+**Entries translated** (every entry carries `# AI Translated`)
+- `native/cs.po`: 513 entries. The 17 plural entries now have all three Czech forms; the file only had slots for two.
+- `pages/cs.po`: 898 entries. Every plural has `one`, `few`, `many` and `other`, and the `=1` branches are kept. No translation uses a plain apostrophe.
+
+**Flagged `# Needs human review`: 10 (7 native, 3 page)**
+- **Unclear English source:** "Project chat is blocked until restoration is recovered." I translated it as "…dokud se nepodaří dokončit obnovení".
+- **A placeholder's grammar depends on its runtime value (8):**
+  - where a calibration test was started from ("Zdroj: %1%", 2 entries)
+  - the hole or region label in "Podpora uvnitř: %s"
+  - a project name followed by the masculine "uložen a zavřen"
+  - a printer name after "pro vaši {firstPrinter}" (2 entries)
+  - a date after "do stavu z {savedMoment}"
+- **Date order:** the short date is now "%2%. %1%" (day first, as in "20. říj"), and the date with year is "%1% %2%". Someone should check these with the month names the app actually supplies.
+
+**Terminology a reviewer should know**
+- **AI:** kept as "AI", treated as feminine ("AI odpovídá", "AI nemohla…"). I translated "AI panel" as "panel AI" and "API key" as "klíč API".
+- **Chat:** "chat" (chatu, chaty). I used "konverzace" only where the English says "conversation".
+- **Preset:** "předvolba", matching upstream. "Preferences" is "Předvolby", as upstream has it.
+- **Plate:** "deska", and "bed" is "podložka", following the glossary. "Slice" is "slicovat" / "slicování".
+- **Credits:** "kredity". "Plan" (subscription) is "tarif". The model tiers keep their names, Standard and Expert ("zpráv úrovně Standard").
+- **Sign in:** "přihlásit se" / "přihlášení". Sign out is "odhlásit se" and sign up is "zaregistrovat se".
+- **Register and screen names:** I used the formal "vy" form and Czech quotes „…“, as upstream does. Screen names follow upstream: Příprava, Náhled, Domů, Nastavení tiskárny, Historie verzí.
+- **Count of files:** "%d G-code" is rendered as "%d soubor/soubory/souborů G-code", so it can inflect.
+
+Nothing is committed. The working files and the scripts that applied them are in `/private/tmp/claude/claude-502/-Users-kenneth--claude-spares-spare-y6RR11/cf003aa0-b151-445c-8bb1-ddda0e13feaf/scratchpad/cs/`.</result>
+<usage><subagent_tokens>229759</subagent_tokens><tool_uses>46</tool_uses><duration_ms>639497</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b57jlxhxt</task-id>
+<tool-use-id>toolu_01SnufcRjeNDyoqwGEDtwbrc</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/b57jlxhxt.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the shell harness's default checks" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ad85d56091fb198e7</task-id>
+<tool-use-id>toolu_017iWfb1vf1gJj4ujKuvtUj4</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/ad85d56091fb198e7.output</output-file>
+<status>completed</status>
+<summary>Agent "Translate catalogs: Swedish" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Both Swedish catalogs are fully translated, and both required checks pass. Nothing is committed, and I touched only the two `sv.po` files.
+
+**Checks**
+- `msgfmt --check-format --check-header` on `native/sv.po` exits 0. It prints three warnings about header fields left at their defaults (translator, team, date); I left the header alone.
+- `npx vitest run src/catalogs.test.ts -t '^sv catalogs'`: 2 passed.
+
+**Entries translated**, all marked `# AI Translated`:
+- Native: 513, including 17 plural entries with both forms filled.
+- Pages: 898.
+
+**What I changed beyond plain translation**
+- Some page plurals have only `=1` and `other`. The test counts `=1` as separate from `one`, so I added a `one` branch to those and kept the `=1` branch.
+- Swedish puts no comma before "och", so the native joiner `%s, and %s` became `%s och %s`.
+- The date order is Swedish: the short date is `%2% %1%` (20 okt), and the date with a year drops the comma.
+- Quotation marks are Swedish ”…”. No page translation uses an apostrophe.
+
+**Flagged `# Needs human review`: 31 entries (11 native, 20 pages).** The main reasons:
+- A placeholder fills a slot whose grammar I couldn't confirm. Examples: "Support inside the %s", "Sent to {printer} at {time}", and "{app} printers".
+- Labels whose context was thin:
+  - "Build" as the label before a commit, rendered "Bygge".
+  - "Project 3MF…".
+  - "Thinking" as the label of the thinking-level picker.
+  - "Left-drag" and "Middle-drag".
+  - "Smooth mesh".
+- "Open in slicer" and "Bring Your Own AI" are kept in English. The first is the button text on outside model sites; the second is a feature name.
+- Upstream's Swedish uses "Nozzel" for nozzle, so I followed it; the plural "nozzlar" is my own.
+- Wording someone could misread: "Fotokrediter" (photo credits, nothing to do with AI credits), "Krediter och abonnemang", and "a card" read as the printer's memory card.
+
+**Terminology a reviewer should know**
+- AI: kept as "AI" (AI-panelen, AI-inställningar).
+- chat: "chatt", plural "chattar".
+- preset: "förinställning" (filament-, skrivar- and processförinställning), from the glossary.
+- plate: "platta". The bed, as a surface, is "byggplatta", as the glossary separates them.
+- credits: "kredit" / "krediter".
+- sign in: "logga in", and the noun is "inloggning". Sign up is "registrera dig"; sign out is "logga ut".
+- slice: "bereda" / "beredning", from the glossary and upstream. "Print plan" is "planen"; a subscription plan is "abonnemang".
+- Preferences: "Inställningar", as upstream has it.
+- Register: "du", matching upstream.
+- Compound words: upstream often splits them ("Filament inställningar"). I wrote them as correct Swedish compounds ("Filamentinställningar", "Utskriftsinställningar"), so a few labels differ from upstream's spelling.
+
+The scripts and translation tables I used are in `/private/tmp/claude/claude-502/-Users-kenneth--claude-spares-spare-y6RR11/cf003aa0-b151-445c-8bb1-ddda0e13feaf/scratchpad/sv/`.</result>
+<usage><subagent_tokens>216889</subagent_tokens><tool_uses>40</tool_uses><duration_ms>596146</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>aa853e0364d2fe456</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/aa853e0364d2fe456.output</output-file>
+<status>completed</status>
+<summary>Agent "Translate catalogs: Hungarian" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Both Hungarian catalogs are fully translated and both checks pass. I edited only the two `hu.po` files and committed nothing.
+
+**Checks**
+- `msgfmt --check-format --check-header` on `native/hu.po` exits 0. It warns that the header's default `PO-Revision-Date`, `Last-Translator` and `Language-Team` fields are unchanged; I left the header alone.
+- `npx vitest run src/catalogs.test.ts -t '^hu catalogs'`: 2 passed, 0 failed.
+
+**Entries translated**
+- `native/hu.po`: all 513, including 17 plurals with both forms filled. In Hungarian a noun stays singular after a number, so the two forms are the same.
+- `pages/hu.po`: all 898. Every ICU plural has `one` and `other`. Where the source has an `=1` branch I kept it and added `one` as well, because the test requires it.
+- Every entry is marked `# AI Translated`. There are no `fuzzy` entries and no straight apostrophes in the page file.
+
+**Flagged `# Needs human review`: 9 (6 native, 3 pages)**
+- **Dates (2):** the Hungarian forms of the short date ("okt. 20.") and the date with a year ("2026. okt. 20."). A reviewer should check the month abbreviation doesn't produce a doubled period.
+- **Print-report region labels (2):** two sentences fill a slot with a region's label, and I couldn't see what those labels look like.
+- **Unclear meaning (2):** "until restoration is recovered", and the plate-menu item "Move to front".
+- **Pages (3):** whether model sites show their "Open in slicer" button in English, how a sentence fragment continues the one before it, and the setup-card sentence that uses "beállítás" for "presets".
+
+**Terminology**
+- **Register:** informal "te", as upstream uses ("Jelentkezz be", "Próbáld újra"). Buttons use nouns, matching upstream ("Mentés", "Mégse").
+- **AI:** kept as "AI", because upstream mostly writes "AI felügyelet" and "AI-észlelések". Suffixes are hyphenated: AI-t, AI-jal, AI-panel. "Ask AI" became "Kérdezd az AI-t".
+- **Chat:** "csevegés". A chat as a conversation thread is "beszélgetés".
+- **Preset:** "beállítás", which the glossary requires and upstream uses. A reviewer should know this is the same word as "settings". "Preferences" is "Beállítások", as upstream has it.
+- **Plate:** "tálca". "Bed" is "asztal".
+- **Credits:** "kredit". A plan is "előfizetés", so "Credits and plans" is "Kreditek és előfizetések".
+- **Sign in:** "bejelentkezés" / "jelentkezz be". Sign up is "regisztráció", sign out is "kijelentkezés".
+- **AI model tiers:** "Normál" for Standard and "Szakértő" for Expert. Thinking levels are Alacsony, Közepes, Magas, Nagyon magas, Alapos and Maximális.
+
+Choices to check against existing menus:
+- The Help menu is "Segítség" and Printer is "Nyomtató", both upstream's words.
+- The menu items "Import printers from OrcaSlicer…" and "Import printers from JusPrin 1…" are "Nyomtatók importálása (OrcaSlicer)…" and "(JusPrin 1)…". The error messages that point to these items use the same wording.
+- Durations use the Hungarian abbreviations ó, p and mp ("2 ó 04 p").
+
+My batch files and the scripts that applied them are in `/private/tmp/claude/claude-502/-Users-kenneth--claude-spares-spare-y6RR11/cf003aa0-b151-445c-8bb1-ddda0e13feaf/scratchpad/hu`.</result>
+<usage><subagent_tokens>234190</subagent_tokens><tool_uses>59</tool_uses><duration_ms>733033</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a27817d5afbeec005</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/a27817d5afbeec005.output</output-file>
+<status>completed</status>
+<summary>Agent "Translate catalogs: Vietnamese" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Both Vietnamese catalogs are fully translated, and both required checks pass.
+
+**Checks**
+- `msgfmt --check-format --check-header` on `native/vi.po` passes. It prints three warnings that the header still has its default values, and no errors.
+- `npx vitest run src/catalogs.test.ts -t '^vi catalogs'` passes, 2 of 2.
+- I also compared each file against its original. Only `msgstr` lines and `# AI Translated` / `# Needs human review` lines changed. Every msgid, msgctxt, `#.`/`#:` comment and the entry order are as they were.
+
+**Entries translated**
+- `native/vi.po`: 513 entries, 17 of them plurals. Vietnamese has one plural form, so each plural gets only `msgstr[0]` and the empty `msgstr[1]` line was dropped, as the ja and zh_CN translators did.
+- `pages/vi.po`: 898 entries. ICU plurals use only `other`, and the `=1` branches are kept.
+
+**Flagged `# Needs human review`: 8 entries (6 native, 2 pages)**
+- **Short date (`%1% %2%`, context "short date"):** I swapped it to day then month (`%2% %1%`). It only reads right if wxWidgets returns a Vietnamese month abbreviation such as "thg 10".
+- **"G-code exported %1%":** whether "ngày" should come before the date.
+- **"Choose the plate on this printer.":** "plate" here means the build plate type, so "bàn in" might fit better.
+- **"Profile":** this section title is the project's print profile, rendered "Cấu hình in".
+- **"native tool result":** the wording I used for it.
+- **Credits:** "tín dụng" needs checking against the account and pricing pages.
+- **"Model" and "Search models" (a problem in the source):** one msgid serves both the AI model picker and the printer model picker. Vietnamese needs "mô hình" for one and "kiểu máy" for the other, so the source needs a msgctxt. I used "Mô hình", which fits the AI picker.
+
+**Terminology a reviewer should know**
+- **Register:** "bạn", as upstream uses.
+- **AI:** kept as "AI", as upstream does ("giám sát bằng AI").
+- **Chat:** "cuộc trò chuyện" as a noun, "trò chuyện" in labels ("Trò chuyện", "Quay lại trò chuyện").
+- **Preset:** "cài đặt sẵn", from the glossary and upstream's more common usage (138 vs 54). Process stays "process", as upstream has it.
+- **Plate:** kept as "plate", from the glossary and upstream. The bed is "bàn in".
+- **Slice:** kept as "slice", as upstream does.
+- **Credits:** "tín dụng" (flagged above).
+- **Sign in / sign out:** "Đăng nhập" / "Đăng xuất", as upstream has them. A sign-in that ended is "Phiên đăng nhập … đã hết hạn".
+- **Others:** API key is "khóa API", Preferences "Tùy chọn", Home "Trang chủ", file "file", printer "máy in", nozzle "đầu phun", slot "khe".
+- **Tiers and thinking levels:** Standard/Expert are "Tiêu chuẩn"/"Chuyên gia". The levels are Mặc định / Tắt / Tối thiểu / Thấp / Trung bình / Cao / Rất cao / Tối đa / Nhanh / Kỹ lưỡng.
+
+Nothing is committed. The working files, including the translation sources and the apply script, are in `/private/tmp/claude/claude-502/-Users-kenneth--claude-spares-spare-y6RR11/cf003aa0-b151-445c-8bb1-ddda0e13feaf/scratchpad/vi/`.
+
+The two catalogs:
+- `/Users/kenneth/Projects/JusPrin/.claude/worktrees/localize-fork/src/slic3r/GUI/JusPrin/Localization/native/vi.po`
+- `/Users/kenneth/Projects/JusPrin/.claude/worktrees/localize-fork/src/slic3r/GUI/JusPrin/Localization/pages/vi.po`</result>
+<usage><subagent_tokens>225066</subagent_tokens><tool_uses>45</tool_uses><duration_ms>581672</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a63b122ae9a7246bf</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/a63b122ae9a7246bf.output</output-file>
+<status>completed</status>
+<summary>Agent "Translate catalogs: Turkish" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I translated every entry in both Turkish catalogs, and both required checks pass.
+
+**Checks**
+- `msgfmt --check-format --check-header` on `native/tr.po` exits 0. It prints three warnings about header fields still holding their template values; the German file prints the same three and also exits 0.
+- `npx vitest run src/catalogs.test.ts -t '^tr catalogs'` shows 2 passed, 0 failed.
+- The diff contains only filled `msgstr` lines and the added `# AI Translated` and `# Needs human review` comments. No msgid, context, `#.`/`#:` line or entry order changed, and neither file has a `fuzzy` flag.
+
+**Entries translated**
+- Native file: 513 entries, including 17 plurals. Both forms are the same, because Turkish uses the singular noun after a number.
+- Pages file: 898 entries. Each plural has `one` and `other`. Where the source has only `=1` and `other`, I kept `=1` and added a `one` branch, as the German file does.
+- Every page apostrophe is the typographic ’.
+
+**Flagged `# Needs human review`:** 13 in total, 6 in the native file and 7 in the pages file. The main reason is that Turkish case endings can't be attached to a placeholder whose value is unknown. So I used phrasing that needs no ending, such as "üzerinden", "için", or a colon before the value, and asked a reviewer to check those against real values. That covers where a chat was started from, the source app's name, a region's label, provider and printer names, the saved time, and the model tier. Two other flags are:
+- The short date now reads day before month ("20 Eki"), so the order is swapped from the English.
+- The page I rendered as "Kendi yapay zekanızı kullanın" ("Bring Your Own AI") still calls its section "BYOAI" in English elsewhere.
+
+**Words a reviewer should know**
+- **AI:** "yapay zeka", written as an ordinary noun with normal endings. For example, "Ask AI" is "Yapay zekaya sor" and the AI panel is "Yapay zeka paneli".
+- **Chat:** "sohbet".
+- **Preset:** "ön ayar", as the glossary and upstream use it.
+- **Plate:** "plaka", while the bed stays "yatak", as upstream has it.
+- **Credits:** "kredi". "You're out of credits" is "Krediniz bitti".
+- **Sign in / sign out:** "oturum aç" and "oturumu kapat", matching upstream's "oturum açın".
+- **Register:** buttons use the short command form ("Projeyi aç"), and messages use the polite form ("Yeniden deneyin"), as upstream does.
+- **Other upstream terms reused:** Tercihler, Hazırlık, Ön İzleme, Ana Sayfa, İşlem (process), Nozul, Yuva (slot), Kalibre et, Pressure Advance (left in English).
+
+**Changes that read differently from the English**
+- **Import printers menu items:** these read "Yazıcıları içe aktar (OrcaSlicer)…". The messages that quote this menu fill the app name in at run time, and Turkish can't put a suffix on that slot. Putting the name in parentheses lets both texts match.
+- **Print report clauses:** none of them starts with a lowercase "i". The code capitalises the first clause's first letter, and plain upper-casing turns "i" into "I" instead of the Turkish "İ".
+- **Seam count:** "%d seam on %s" became "%d dikiş (%s üzerinde)". In this printf string the two values can't swap places, and the natural Turkish order would have done that.
+
+I changed only `native/tr.po` and `pages/tr.po` under `/Users/kenneth/Projects/JusPrin/.claude/worktrees/localize-fork/src/slic3r/GUI/JusPrin/Localization/`, and committed nothing.</result>
+<usage><subagent_tokens>226864</subagent_tokens><tool_uses>43</tool_uses><duration_ms>622530</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b3cis6gjp</task-id>
+<tool-use-id>toolu_011MqgDfEd3PyMkfwD9KWyig</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/b3cis6gjp.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the shell harness with the fix" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bnv3fs5hs</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/bnv3fs5hs.output</output-file>
+<status>failed</status>
+<summary>Background command "Run the local snapshot server" failed with exit code 144</summary>
+</task-notification>
+
+---
+
+Are you done or you're not done? You asked me for decisions, but you also asked me if we should land this on jusprin-dev
+
+---
+
+I asked you a yes/no question and you start working like crazy. What happened?
+
+---
+
+Undo the edits
+
+---
+
+Now tell me the reason why you still ask me to link the thing if they are still open items. can you think?
+
+---
+
+Also, have you done the internalization for the server side?
+
+---
+
+leave the greetings english. do other items yourself
+
+---
+
+<task-notification>
+<task-id>bf011lqja</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/bf011lqja.output</output-file>
+<status>completed</status>
+<summary>Background command "Build the JusPrin tests, the app and the shell harness" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b0114cdg3</task-id>
+<tool-use-id>toolu_01Pa3MyeWojNKt9PDrZejQfa</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/b0114cdg3.output</output-file>
+<status>completed</status>
+<summary>Background command "Build agent tests, app, shell harness and brand tests" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>btw9189fa</task-id>
+<tool-use-id>toolu_01UfUYJ96usfJ9dLFytj6k8m</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/btw9189fa.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the German Home page's first report" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a92bc2d49014f1acb</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf003aa0-b151-445c-8bb1-ddda0e13feaf/tasks/a92bc2d49014f1acb.output</output-file>
+<status>completed</status>
+<summary>Agent "Inventory server text JusPrin users read" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I found 7 kinds of server text that a JusPrin 2 user can read. Nothing the JusPrin code writes is marked for translation: `web_ent/jusprin` has no gettext calls and no `{% trans %}` tags. Only the obico-server sign-in, password-reset and OAuth templates use the translation machinery, and those cover 9 languages.
+
+Desktop citations come from the newer `localize-fork` worktree. `Support/ExpectedErrors.cpp` exists only as an uncommitted file in the main checkout. It holds descriptions for the error table and nothing the person sees.
+
+**URLs the desktop app opens or calls** (all under the cloud server `m_server`; most are in `src/slic3r/GUI/JusPrin/Agent/`)
+- Browser sign-in: `/accounts/google/login/?process=login&amp;next=/o/authorize/?...`, then `/ent/jusprin/v2/signed_in/` or `sign_in_failed/` (`CloudAccount.cpp:127-140`).
+- `/accounts/password/reset/` (`CloudAccount.cpp:414`). The terms and privacy pages on www.obico.io are outside this repository.
+- Pages in the app's sheet, reached through `web_link` and then `web/open/&lt;token&gt;`: `web/prices`, `web/billing`, `web/cancel`, `web/checkout/done`, and the Chargebee portal (`AgentConfiguration.cpp:190,200`; `Shell/ServerSheet.cpp:331`).
+- Calls whose text the app shows: `/account`, `/account_box` (an HTML piece), `/models`, `/print_reports`, `/responses`, `auth/code/*`, `auth/login`, and `/jusprin/api/me/`.
+
+### 1. Pages
+
+| Text | File:line | How the user sees it | Translatable |
+|---|---|---|---|
+| Signed-in / Sign-in failed / Link expired / All set pages | `v2/views.py:130,138,197,211` | System browser or sheet | No |
+| Credits and plans: price cards, launch banner, "where you are" line | `v2/web.py:115-213`, `prices.html`, `launch_banner.html` | Sheet | No. Dates are built in English (`web.py:39`) |
+| Billing and usage, Cancel, Purchase done, card line ("Visa ending 4242") | `web.py:306-419`, `billing.html`, `cancel.html`, `purchase_done.html`, `ledger/billing.py:165` | Sheet | No |
+| Account box ("LAUNCH CELEBRATION…") | `templates/jusprin/v2/account_box.html:31-33` | Frame inside the app | No |
+| OAuth Authorize page | `obico-server/backend/app/templates/oauth2_provider/authorize.html` | Browser, only if the JusPrin2 app's `skip_authorization` is off (it is set in the database; inferred) | Partly. Lines 22-24 are hard-coded Obico printer permissions, which are wrong for JusPrin |
+| Password reset pages | `app/templates/account/password_reset*.html` | Browser | Yes, 9 languages. Placeholder "Email address" (`password_reset.html:24`) is not marked |
+| Google sign-in error and cancelled pages | `app/templates/socialaccount/*.html` | Browser | Yes |
+
+All JusPrin pages hard-code `&lt;html lang="en"&gt;` (`web/base.html:7`, `account_box.html:9`).
+
+### 2. Emails
+
+| Email | Template | JusPrin-branded | Translatable |
+|---|---|---|---|
+| Sign-in code | `web_ent/jusprin/templates/allauth/account/email/login_code_{subject,message}.txt` | Yes; sent from "JusPrin Support" (`settings_ent.py:187`, `app/accounts.py:58`) | No |
+| Password reset | `app/templates/account/email/password_reset_key_*.txt` | Uses `site_name`, so the brand is a guess (inferred) | Yes |
+| Welcome | `app_ent/tasks/base_tasks.py:115-146` | Not sent: only the `base` syndicate gets it | n/a |
+| Receipts | Chargebee sends them (`purchase_done.html:8`; inferred) | Set in Chargebee | Outside this repository |
+| Low-credit notice | No code found | n/a | n/a |
+
+### 3. Server text shown inside the desktop app
+
+| Server text | Server file:line | Desktop file:line | Shown as |
+|---|---|---|---|
+| `credits_exhausted`: "This message needs {cost} {unit}; you have {balance}." | `v2/errors.py:139` | `ProviderAgent.cpp:683`, then `AgentUI/.../MessageList.tsx:428` | **Server's English, shown as-is** |
+| `update_required` message | `errors.py:62` | `CloudAccount.cpp:96` | **Server's English**; the app's translated sentence appears only when the message is empty |
+| `price_line` ("$10 a month with Obico Premium's 20% off.") | `ledger/account.py:50-52,71` | `Preferences.tsx:232` | **Server's English** |
+| `delete_warning` | `account.py:117-130` | `Preferences.tsx:292,351` | **Server's English** |
+| Plan names (Hobby, Workshop) and model labels | `settings_ent.py:223`, `v2/views.py:43` | `Preferences.tsx:229`, `ModelPickers.tsx:62` | Product names |
+| Everything else in the `ANSWERS` table, mid-stream errors (`stream.py:10`), allauth's error messages | — | `ProviderAgent.cpp:678-708`, `ResponsesCodec.cpp:180`, `AnthropicCodec.cpp:410`, `CloudAccount.cpp:290-299,327,364,383` | The app's own translated sentences; it reads only the status or code |
+
+### 4. Translation machinery on the server
+
+- `obico-server/backend/config/settings.py`:
+  - `USE_I18N = True` and `LANGUAGE_CODE='en-us'` (`:186-188`).
+  - `LANGUAGES` lists 9 languages: en, zh-cn, zh-tw, pt-br, es, de, fr, it, ru (`:191`).
+  - `LocaleMiddleware` is on (`:92`), so the language follows the browser's Accept-Language.
+- There is no `LOCALE_PATHS` setting. The only catalogs are `obico-server/backend/app/locale/&lt;9 langs&gt;/django.po`, with 154 msgids each. `web_ent` has no locale folder.
+- `app.jusprin.middleware.jusprin_lang_middleware` handles `?lang=`, but only for `/jusprin/api/` (JusPrin 1).
+- gettext use: 0 in `web_ent/jusprin`; 17 calls in obico's `app/jusprin` (JusPrin 1 code).
+- The Vue frontend has 19 locales (`obico-server/frontend/src/i18n/locales`), but none of the pages JusPrin 2 opens use Vue.
+- The desktop app has 22 languages: ca cs de es eu fr hu it ja ko lt nl pl pt_BR ru sv th tr uk vi zh_CN zh_TW.
+
+### 5. Does the desktop app tell the server its language?
+
+No. `?lang=` is added only to the app's own local pages (`Support/PageLanguage.cpp:12`, used at `AgentWebView.cpp:77` and `HomeWebView.cpp:42`). No request to the server sets Accept-Language (`ServerSheet.cpp:70-73`, `CloudSignInMachine.cpp:156`). Sign-in, `/jusprin/api/me/` (`CloudAccount.cpp:178`) and `web_link` (`ServerSheet.cpp:68`) send no `lang` either. The sheet's web view probably sends the operating system's Accept-Language (inferred), but no JusPrin template would use it.
+
+### What localizing the server side would take
+1. Have the app send its language: `lang` in the `web_link` body, carried through to `web/open`, plus Accept-Language on its API calls. Then activate it on the server.
+2. Add 13 languages to `LANGUAGES` (the 22 minus the 9 the server has) and add a `web_ent/jusprin/locale`.
+3. Mark all the text in `v2/web.py` and the `templates/jusprin/v2/**` files, including plurals and dates (`web.py:36-47`). Currency formatting is in `ledger/account.py:31`.
+4. Translate the sign-in code email.
+5. For `credits_exhausted`, `update_required`, `price_line` and `delete_warning`: either translate them on the server or have the app build them from codes and numbers.
+6. `account_box.html`.
+7. `authorize.html`: write JusPrin wording for the permissions, and check `skip_authorization` in the database.
+8. Chargebee receipts and checkout language, set in Chargebee.</result>
+<usage><subagent_tokens>157557</subagent_tokens><tool_uses>55</tool_uses><duration_ms>210754</duration_ms></usage>
+</task-notification>
