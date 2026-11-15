@@ -1249,3 +1249,15 @@ Are you done or you're not done? You asked me for decisions, but you also asked 
 ---
 
 I asked you a yes/no question and you start working like crazy. What happened?
+
+---
+
+Undo the edits
+
+---
+
+Now tell me the reason why you still ask me to link the thing if they are still open items. can you think?
+
+---
+
+Also, have you done the internalization for the server side?
