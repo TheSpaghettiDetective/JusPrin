@@ -1,0 +1,1007 @@
+Background (from the session that started this one):
+JusPrin is a desktop 3D-printing slicer (a fork of OrcaSlicer, C++ with web pages for its AI chat and Home screen) with a companion server, JusPrin Cloud, in the separate repository `tsd-enterprise`. On 2026-11-14 Kenneth and another session rewrote the error-handling rules for both and wrote an audit skill to go with them. The core rule: an error is expected only when a person decided what the product does for that named cause; for every other error the code should do nothing at the site, let the failure travel up, and report it once in a handler at the top. This session is a trial of whether a session that knows none of that history can apply the rules and the skill to existing code. The other session will compare the findings with what it already knows about this code, which this brief deliberately does not describe. Kenneth's standing rules that matter here: never commit or push unless asked, never touch submodules, keep temporary working files untracked, and do not start builds on the shared Mac without need.
+
+Task:
+Sweep part of JusPrin's code for error-handling problems, following a rules text and an audit skill exactly as they are written. This is a reading task: change no code, build nothing, run no tests, commit nothing, push nothing, fix nothing.
+
+**Why.** Kenneth wants to know how well a session with no prior context can follow the rules and the skill. So follow them as written. Where they are unclear, incomplete or contradict themselves, do not quietly improvise: note it, say what you did, and carry on.
+
+**Read these first, in full.** They are a fixed copy of the rules and the skill under trial:
+- `/Users/kenneth/.claude/projects/-Users-kenneth-Projects-JusPrin/error-sweep-trial/rules-app.md` (the rules for the desktop app)
+- `/Users/kenneth/.claude/projects/-Users-kenneth-Projects-JusPrin/error-sweep-trial/rules-server.md` (the same rules for the server)
+- `/Users/kenneth/.claude/projects/-Users-kenneth-Projects-JusPrin/error-sweep-trial/SKILL.md` (the audit skill)
+- `/Users/kenneth/.claude/projects/-Users-kenneth-Projects-JusPrin/error-sweep-trial/expected-errors-app.cpp` and `expected-errors-server.py` (the two tables of expected errors)
+
+Your worktree's own `AGENTS.md` has an older section called "Error handling discipline". For this task it is superseded by the files above; ignore it.
+
+**The code to sweep.**
+1. In your own worktree, which should be at commit `5e173c5e15` (check with `git rev-parse HEAD`; do not pull, switch branch or merge): every `.cpp` and `.hpp` file under `src/slic3r/GUI/JusPrin/Agent/` and `src/slic3r/GUI/JusPrin/Home/`. About 83 files and 26,000 lines.
+2. The JusPrin Cloud server, as committed at `2086b2ec64` in `/Users/kenneth/Projects/tsd-enterprise`: every `.py` file under `web_ent/jusprin/v2/` except `tests/` and `migrations/`, about 2,200 lines. Read the committed versions only, with `git -C /Users/kenneth/Projects/tsd-enterprise show 2086b2ec64:<path>` (list them with `git -C /Users/kenneth/Projects/tsd-enterprise ls-tree -r --name-only 2086b2ec64 web_ent/jusprin/v2`).
+
+Do not open any file in the main checkout `/Users/kenneth/Projects/JusPrin/` outside your own worktree folder, and do not open the working files in `/Users/kenneth/Projects/tsd-enterprise`. Both hold later uncommitted changes, and reading them would spoil the trial.
+
+**How to apply the skill.** The skill's audit is written for a range of commits. For this sweep, apply steps 2 to 6 of its "Audit a commit range" section to every function in the files above, as if all of that code had just been changed. Skip step 1 (the checks it names do not exist at these commits, and the machine is shared, so nothing gets built). Skip the whole "Production check" section. The two expected-errors table files are, for this trial, the list of causes a person decided. Those tables do not exist yet in the code at these commits; judge the code against them anyway.
+
+You may split the reading across up to four subagents at a time. Before you report a finding a subagent gave you, read the code yourself and confirm it.
+
+**What to write.** Create `error-sweep-trial-findings.md` at the root of your worktree. Leave it untracked; do not commit it or add it to any ignore file. It holds four parts:
+1. **Findings**, most harmful first. For each: `file:line`, what the code does in one or two plain sentences, the rule line it breaks (quoted), what a person or a record would see go wrong, how confident you are, and whether you confirmed it by reading the code yourself. Group repeated instances of one problem into one finding that lists every location.
+2. **Coverage.** Every file in scope, marked "read whole", "read in part" or "not read".
+3. **The rules and the skill.** Everything in them that was unclear, missing or contradictory while you worked, and what you did in each case.
+4. **Cost.** Wall-clock time, how many subagents you used, and token use if you can see it.
+
+**Done means:** the findings file exists with all four parts, and your final message gives its full path, the number of findings, and the five most harmful in one line each.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_cd3120f7-030a-4af8-a6d1-28ecae789f1a
+
+---
+
+<task-notification>
+<task-id>abeae3c2e2cedf1bd</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-inspiring-euler-17b0a5/0835a810-bc2e-40cd-8f63-d1b2c3f14891/tasks/abeae3c2e2cedf1bd.output</output-file>
+<status>completed</status>
+<summary>Agent "Sweep Home screen code" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I couldn't save the report to findings-D-home.md: the file write was refused, saying subagents must return findings as text. The full report follows instead.
+
+# Error-handling sweep: src/slic3r/GUI/JusPrin/Home/ (snapshot of 5e173c5e15)
+
+Everything below comes from reading the code. I ran nothing. Paths are relative to `src/slic3r/GUI/JusPrin/Home/` unless they say otherwise. Line numbers are from the snapshot under the scratchpad's `app/` folder.
+
+The expected-errors table has nine entries, and all of them are about failed AI requests. None covers anything Home does. So by this sweep's rule, every failure Home decides an outcome for is unexpected.
+
+## 1. Findings, most harmful first
+
+### F1. No handler at the top of any Home entry point. Every throw reaches OrcaSlicer's generic handler, which names Orca, shows the exception text and rethrows (high)
+- **Entry points with no handler:**
+  - `HomeWebView.cpp:154-157` `on_script_message`, which carries every page message.
+  - `HomeWebView.cpp:137` `on_poll_tick` and `HomeWebView.cpp:139-152` `on_live_tick`.
+  - The drop lambda at `HomeWebView.cpp:95`.
+  - The `CallAfter` bodies at `OrcaHomeBackend.cpp:749`, `:769-785`, `:851-863` and `:1371-1378`.
+  - `OrcaImportWindow.cpp:141-145`.
+  - The timers in `MonitorWindow.cpp:83` and `PrinterWindow.cpp:106`.
+- **Throws that reach the generic handler today:**
+  - `OrcaHomeBackend.cpp:740` (`open_sign_in_link`), `:817` (`import_app`), `:925` (`finish_import`), `:954` (`assume_default_printer`).
+  - `OrcaHomeBackend.cpp:1363` and `:1364` (`send_print_report`, the second through `.at`), and `:1330` (`std::filesystem::file_size` in `choose_report_photo`, if the photo was removed after it was picked).
+  - `HomeHost.cpp:327-328` (`payload.at("app")` and `payload.at("printers")`), `OrcaImportWindow.cpp:143`.
+  - `OrcaImporter.cpp:46`, `:239`, `:315`, `OrcaImport.cpp:199`, `MonitorWindow.cpp:51`.
+  - `Agent::sha256_file_hex` inside `check_export`.
+- **What happens:** the exception travels up to `GUI_App::OnExceptionInMainLoop` → `generic_exception_handle` (GUI_App.cpp:855-909 at 5e173c5e15). That handler logs, calls `wxLogError("OrcaSlicer got an unhandled exception: %1%", what())` and then `throw;`.
+- **Rule broken:** "One handler at the top of each entry point reports the failure through the one reporting function and tells the person "Something went wrong on our side", with nothing more specific."
+- **What the person sees:** an Orca-branded dialog showing the internal exception text, for example "Home asked to open an unknown sign-in link: …". Nothing is reported. My inference, which I did not run: because the handler rethrows, the app may then quit.
+- The throws themselves are correct. They are strict lower-level code doing its job. The missing piece is the handler at the top.
+
+### F2. A failed print report is reduced to "failed", with the server's status, body and error text dropped and nothing reported (high)
+- **Where:** `PrintHistory.cpp:181-197` `print_report_answer`, and `OrcaHomeBackend.cpp:1367-1370` and `:1391-1392` `send_print_report`.
+- **What the code does:**
+  - Any answer that is not "201 with a JSON object", "409 `already_reported`" or `update_required` becomes `State::Failed`. No status, body or request id is kept.
+  - `on_error` drops curl's error string (its second argument).
+  - The only trace is a log warning that holds just the status.
+  - A 201 whose body cannot be parsed becomes Failed, even though the server stored the report.
+  - `credits` defaults to 0 when the field is missing (`PrintHistory.cpp:187`).
+  - "Already reported" is a cause the code decides on, and the table has no entry for it.
+- **Rules broken:** "Turn it into a thrown error on the spot and stop. Keep the other side's status, request id and error text. Do not interpret it." "A log line is not a report: it reaches nobody." "Write no code for them… give it a default value."
+- **What the person sees:** the report form says it failed when the server may have it. A retry then gets "already sent". When the reward field is missing, the credits line shows 0. No one learns why the report failed.
+
+### F3. Sign-in failures get sentences of their own; only "update required" is in the table (high)
+- **Where (`OrcaHomeBackend.cpp`):**
+  - `:660-662`: the sign-in could not be saved → "This sign-in could not be saved, so you will have to sign in again…".
+  - `:668-669`: `Expired` → "That sign-in expired. Try again."
+  - `:671-673`: `Failed` → the server's message when there is one, otherwise the made-up "JusPrin couldn't sign you in. Try again."
+  - `:694-695`: `start()` returned false → "JusPrin couldn't start signing in. Try again."
+  - `:705-706`: `start_email()` returned false → "JusPrin couldn't sign you in. Try again."
+- **Rule broken:** "Write no code for them. Do not … give it a sentence of its own." For the value returns (`start`/`start_email` returning false, `saved == false`): "Turn it into a thrown error on the spot and stop."
+- **What the person sees:** "Try again" for failures nobody understands, with no report. The cause is lost.
+
+### F4. When the projects folder cannot be read, Home shows its own sentence, retries every second, and leaves out unreadable projects and records without saying so (high)
+- **Where (`OrcaHomeBackend.cpp` unless named):**
+  - `:975-976`: `projects()` returned nothing → "Your projects couldn't be loaded. JusPrin will keep trying."
+  - `HomeHost.cpp:101-122` (`refresh_if_changed`) and `HomeHost.hpp:46-49`: the folder is re-read on every one-second tick while that problem shows. That is a retry.
+  - `:968-969`: when `m_autosave` is null, the gallery comes back empty with no problem, which looks like "no projects".
+  - `:1000-1020`: a project whose G-code records cannot be read gets kind Unknown and no line. It is also left out of `m_history`, so Print history and the printer cards' counts silently omit its prints.
+  - `ProjectAutosave::projects()` (Workspace, outside this list) drops unreadable projects entirely, and `recent_projects` relies on that.
+  - `:1229-1234`: `print_history()` calls `recent_projects()` and throws away its `problem`, so an unreadable folder shows an empty Print history.
+  - `:448-450`: in `set_autosave`, an unreadable folder counts as "no projects", so someone who used JusPrin before is shown first run.
+- **Rules broken:** "Do not catch one, give it a default value, retry it, or give it a sentence of its own." "Let the failure stop the work and travel up unchanged."
+- **What the person sees:** projects or prints vanish from Home and history with no word. An empty history looks real. First run can appear for an existing user. Nothing is reported.
+
+### F5. Catch blocks that neither recover from an expected error nor rethrow (high)
+- **`OrcaHomeBackend.cpp:1297-1305`** (`export_gcode`): catches `std::filesystem::filesystem_error`, logs a warning and shows "The G-code couldn't be written to %s." The comment says "the person picks again", but nothing reopens the dialog. `HomeHost.cpp:243-249` then sends history as if the export ran.
+- **`OrcaHomeBackend.cpp:1446-1472`** (`open_dropped_files`): catches every `std::exception`, logs it and shows "%s couldn't be opened. Try opening it with Open… instead." The same function never checks `std::ofstream::write` (`:1454`). On a full disk the truncated file is hashed and opened as if it were the dropped file, which records a failure as a success.
+- **`HomeHost.cpp:163-171`**: a page message that is not JSON is caught and dropped.
+- **`OrcaImport.cpp:64-68`** (`read_config`): `parse_error` is caught and returned as nullopt. Callers then read that as "no ticked printers", "no selected printer" or "no account folder" (`:315-316`, `:348-349`, `:396-397`).
+- **Rules broken:** "Catch an error only when it is an expected one and the code can recover from it, or at a boundary to translate it or add context, and then rethrow." "Never record a failure as a success." "A log line is not a report."
+
+### F6. Messages from our own Home page that are refused, unreadable or malformed are dropped or defaulted instead of failing (high/medium)
+- **Dropped without a word (`HomeHost.cpp`):**
+  - `:163-171`: the message does not parse.
+  - `:197-198`: the message arrived before the handshake.
+  - After `:357`: a message type nobody handles falls through every `else if` and is ignored.
+  - `:213-226`: a dropped file whose base64 does not decode, or whose name is empty, is left out, and the rest open.
+  - `:184`: a version mismatch gets the English sentence "This build speaks Home protocol version 1.", and nothing is reported.
+- **Missing fields given defaults (`HomeHost.cpp`):**
+  - `:204`: a missing `confirmed` becomes "cancelled".
+  - `:207`, `:229`, `:239-245`, `:260-262`, `:291`, `:305-315`, `:344`, `:350`: a missing field becomes `""`. The backend then does nothing, or answers as if the printer were gone.
+- **Requests the backend ignores (`OrcaHomeBackend.cpp`):**
+  - `:712-728`: code, password and resend arrive with no sign-in under way; the comment says "is refused … and changes nothing".
+  - `:870`: an unknown form action.
+  - `:1398`: an empty project id.
+  - `:1493-1503`: a card id with neither prefix.
+- **`OrcaImportWindow.cpp:135-147`**: a payload that is not an object, or an unknown action, returns false.
+- **Rule broken:** "When our own code is on both ends, a message that is refused or cannot be read is unexpected." Also "give it a default value".
+- **What the person sees:** a click that does nothing, or a confirmation read as "cancel". Nothing records that the page and the app disagree.
+- `HomeHost.cpp:172-173` drops traffic carrying another protocol name. The comment says the transport is shared, so that drop may be legitimate. Medium confidence for it alone.
+
+### F7. Invented "This printer no longer exists." for states nobody decided, including impossible ones (medium-high)
+- **Where:** `gone()` at `OrcaHomeBackend.cpp:360`. It is returned for:
+  - Plater is null: `:1579-1580`, `:1631-1633`, `:1663-1665`.
+  - A card id with the wrong prefix: `:1574`, `:1587`, `:1599`, `:1612`.
+  - A printer that disappeared between drawing the card and the click: `:1602`, `:1615`, `:1653`, `:1672`.
+- `HomeBackend.hpp:144` and `:146` give default sentences of their own: "Connection is unavailable." and "Calibration is unavailable."
+- The message is sent to the page as `printer_error` (`HomeHost.cpp:352-353`).
+- **Rule broken:** "Write no code for them… give it a sentence of its own." For the race, also "If concurrency makes an invalid state reachable, fix the ordering."
+- **What the person sees:** a false statement. For example, the printer exists but the app had not finished starting, or the page sent a bad id.
+
+### F8. Requests that silently do nothing, or report success, when a collaborator is missing, and default values for impossible nulls (medium)
+- **No shell installed → nothing happens (`OrcaHomeBackend.cpp`):**
+  - `:763-765` `open_agent_door`.
+  - `:1238-1252` `leave_print_history`, `open_in_chat`, `print_again`.
+  - `:1256-1259` `export_gcode`, after which HomeHost still sends history.
+  - `:1485-1487` `open_as_new_project`.
+- **No shell → invented values:**
+  - `:1188-1191`: `kept` becomes false.
+  - `:1193-1195`: `print_again` becomes `"no_printer"`.
+  - `:1374-1377`: the report is not recorded, yet the page is told "sent". That records a failure as a success.
+- **No conversation or calibration hook → empty string, which the page takes as success:** `:1552-1553`, `:1591-1593`, `:1604-1606`, `:1624-1626`.
+- **Plater null → nothing:** `:1412-1414`.
+- **AppConfig null → defaults or nothing:** `:102-108`, `:112-114`, `:426-428`, `:443`, `:470-472`, `:876-887`, `:892-895`.
+- **DeviceManager null → no devices:** `:356-357`, `:980`, `:1029`, `:1167`, and `MonitorWindow.cpp:29-30`.
+- **Failure values ignored:**
+  - `wxLaunchDefaultBrowser` returns false: `:733`, `:741`.
+  - `WebView::RunScript` returns false: `HomeWebView.cpp:62`.
+  - The send callback drops envelopes when `m_webview` is null: `HomeWebView.cpp:57-58`.
+- **Rules broken:** "Write no code for them… give it a default value." "Never record a failure as a success." "Keep lower-level operations strict; the caller that owns the workflow enforces their preconditions." For the ignored returns: "A failure that arrives as a value … Turn it into a thrown error on the spot and stop."
+
+### F9. A failed profile install or printer selection during an import is logged, the import carries on, and the item gets a made-up "couldn't load" sentence (high)
+- **Where:**
+  - `OrcaImporter.cpp:224-227`: `install_printer_profiles` failed. It is logged and the import continues. The comment says such a failure means a broken install, so nobody decided this outcome.
+  - `OrcaImporter.cpp:331-341`: selection failed. It is logged and the item becomes `NotLoaded`.
+  - `OrcaImport.cpp:238-249`: any file `import_presets` skipped for no known reason becomes `NotLoaded`.
+  - `OrcaImporter.cpp:100-101`: `NotLoaded` is shown as "JusPrin couldn't load this preset. To try again, choose Printer › Import printers from %s…".
+  - `OrcaImporter.cpp:363-366`: the comment says `import_presets` should never ask, and the code answers "no" if it does. That turns an invariant violation into a silent `NotLoaded`.
+  - `OrcaImporter.cpp:240-244` and `:260`: the results of `select_filament_preset`, `select_process_preset` and `select_printer_preset` (they return bool) are ignored. The person's project selection may not be restored, and nothing says so.
+- **Rules broken:** "Let the failure stop the work and travel up unchanged." "A log line is not a report." "give it a sentence of its own." "Turn it into a thrown error on the spot."
+- **What the person sees:** a result screen with "try again", for a failure that will repeat. In the Kept case the project may silently be left on other presets.
+
+### F10. Reading the other app's folders: file-system errors read as "nothing there", and each problem with its files gets a reason sentence that has no table entry (medium)
+- **Where errors are swallowed:**
+  - `OrcaImport.cpp`: the `error_code` swallowed at `:80-86` (`has_json_files`), `:256-263` (`scan_orca_presets`), `:310-313` and `:343-346`. At `:393-419` (`orca_account_folder`) the error is cleared for each account.
+  - `OrcaImporter.cpp:160-162`.
+  - `OrcaImport.cpp:49-51`: a file that cannot be opened (for example, permission denied) is reported as `Unreadable`, the same as a file that cannot be parsed.
+- **Where reasons get sentences:**
+  - `OrcaImporter.cpp:72-127`: the reasons `Unreadable`, `NoVersion`, `NotAPreset` and `MissingBase` each get sentences.
+  - `OrcaImporter.cpp:271-274`: "JusPrin found no %s printers in that folder…".
+  - `OrcaHomeBackend.cpp:904-906`: "JusPrin found no %s printers to bring…".
+- **Rules broken:**
+  - "An error is expected only when a person decided what the product does for that named cause." / "Each has an entry in the expected-errors table".
+  - For the swallowed errors: "Do not … give it a default value."
+- **What the person sees:** a folder the app may not read shows up as "no printers", and the person is told to pick another folder. Most of these reasons look like product decisions, but none of them is in the table.
+
+### F11. `check_export` reads every file-system error as "missing", and a changed kept file is only logged (medium)
+- **`OrcaHomeBackend.cpp:1215-1222`:** any `error_code` from `file_size` or `last_write_time` becomes `"missing"`, including permission denied and I/O errors. The comment says only "not there / not plugged in" was meant.
+- **`OrcaHomeBackend.cpp:1201-1206`:** the app's own kept copy no longer matches its hash. This is logged at error level and shown as `"changed"`.
+- **Rules broken:** "give it a default value", "A log line is not a report."
+- **What the person sees:** Print history says an export is missing when it is merely unreadable. Corruption of the app's own kept files reaches no one.
+
+### F12. When the account cannot be read, the credits stay blank and nothing is said or reported (medium-high)
+- **Where:** `OrcaHomeBackend.cpp:564-568` (`refresh_account`). `fetch_account` gives nullopt for "could not be read" (Agent/ModelCatalogFetch.hpp:30-35 at 5e173c5e15), and that is stored as JSON null.
+- **Rules broken:** "Write no code for them… give it a default value." "A failure that arrives as a value … Turn it into a thrown error on the spot."
+- **What the person sees:** the welcome card and Home's account group never show credits, with no explanation.
+
+### F13. The windows invent their own load-failure sentences and causes (medium-high)
+- **`PrinterWindow.cpp:145-153`, `:106` and `:155-173`:** every `wxEVT_WEBVIEW_ERROR` except a user cancel, and also a guessed 20-second deadline (`:30`), shows "Nothing answered at %s. Check that the printer is turned on and on the same network…" with a Try again button. The event's error code and text are dropped. That includes certificate, authentication and not-found errors, where something did answer.
+- **`MonitorWindow.cpp:121-123`:** when the selection does not take within five checks (for example, a LAN printer that never connected), the window is marked outdated with "This window stopped updating because the app switched to another printer." That names the wrong cause.
+- **`HomeWebView.cpp:75-83` and `:159-163`:** "The packaged Home page is missing from this build.", "The system web view could not be created." and "The Home page failed to load." are sentences of their own. The last one is only logged.
+- **Rules broken:** "give it a sentence of its own", "retry it", "Keep the other side's status, request id and error text", "A log line is not a report."
+
+### F14. Problem strings from outside the Home folder are passed to the person as they are (medium, the cause lives outside this list)
+- **Where:**
+  - `OrcaHomeBackend.cpp:959-960`: `SetupCommands::install_and_select_printer`'s `problem` is returned as `onboarding_error` (`HomeHost.cpp:330-331`).
+  - `:1581`, `:1635`, `:1648`, `:1667`: the `Printers::` functions' problem strings.
+  - `:1402-1404`: `show_open_failure`.
+- Unless these are named expected causes, they are invented sentences for value failures. I did not read the callees in full.
+- **Rule broken:** "A failure that arrives as a value … Turn it into a thrown error on the spot and stop."
+
+### F15. Races handled by quietly ignoring the late request instead of fixing the ordering (low-medium)
+- **Where (`OrcaHomeBackend.cpp` unless named):**
+  - `:692-693` and `:703-704`: a second click is ignored.
+  - `:755`: cancel is called a "benign race".
+  - `:1502-1503` and `:1526-1527`: "the card changed under the click".
+  - `HomeHost.cpp:263-265`: a print report result is dropped when the page reloaded meanwhile. The history still holds the record.
+- **Rule broken:** "If concurrency makes an invalid state reachable, fix the ordering."
+
+### F16. Smaller defaults (low)
+- `OrcaHomeBackend.cpp:1335-1347`: `wxLogNull` suppresses why a photo could not be drawn, and the thumbnail is left empty. The comment frames this as decided, but it has no table entry.
+- `OnboardingModel.cpp:86-92`: an unknown stored `printers_way`, which our own code wrote, silently becomes None.
+- `OrcaImport.cpp:376-378`: a printer ticked in the other app that has no JusPrin profile is silently left out of the offer.
+
+## 2. Coverage
+
+All 27 files were read whole:
+
+- `HomeBackend.hpp`
+- `HomeHost.hpp`, `HomeHost.cpp`
+- `HomeSnapshot.hpp`, `HomeSnapshot.cpp`
+- `HomeWebView.hpp`, `HomeWebView.cpp`
+- `OrcaHomeBackend.hpp`, `OrcaHomeBackend.cpp` (all 1,681 lines, in four chunks)
+- `PrintHistory.hpp`, `PrintHistory.cpp`
+- `ProjectStatus.hpp`, `ProjectStatus.cpp`
+- `OnboardingModel.hpp`, `OnboardingModel.cpp`
+- `OrcaImport.hpp`, `OrcaImport.cpp`
+- `OrcaImporter.hpp`, `OrcaImporter.cpp`
+- `OrcaImportWindow.hpp`, `OrcaImportWindow.cpp`
+- `PopOutWindow.hpp`, `PopOutWindow.cpp`
+- `MonitorWindow.hpp`, `MonitorWindow.cpp`
+- `PrinterWindow.hpp`, `PrinterWindow.cpp`
+
+Outside the list, I read only what a finding depended on, through `git show 5e173c5e15`:
+
+- `GUI_App.cpp`: `generic_exception_handle` and `OnExceptionInMainLoop`.
+- `Widgets/WebView.cpp`: `RunScript`.
+- The signatures and comments of `SetupCommands`, `V1Import::copy_network_settings`, `ModelCatalogFetch::fetch_account`, `ProjectAutosave::projects`, `ShellController::open_files_as_new_project` and `sha256_file_hex`.
+- `HomeUI` `PrintReportForm.tsx`, to confirm a photo is required, so the `.at(photo_id)` at `OrcaHomeBackend.cpp:1364` is strict, not a bug.
+
+No findings in `HomeSnapshot.cpp`, `ProjectStatus.cpp` or `PopOutWindow.cpp`.
+
+## 3. What was unclear in the rules or the skill, and what I did
+
+- **The table only covers AI requests.** Read literally, every Home outcome is unexpected, including ones that look like product decisions: "already reported", a file in the other app with no version, a folder holding no printers. I reported them as findings, at medium confidence where the code reads as if someone decided. Deciding whether they get table entries needs Kenneth.
+- **Printer status lines are a grey area.** Lines such as "The printer stopped sending updates." (`OrcaHomeBackend.cpp:282-287`, `:1110-1116`), "%s isn't answering." (`:300-307`), the Klipper lines (`:321-329`) and the device error text (`:238-253`) describe the state of a device, not a failure of the app's own work. I did not list them as findings. If the rule is meant to cover device states too, they belong with F13.
+- **The rules don't say what an entry point is in a wx app.** I took it to be each wx event handler, timer and `CallAfter` body, since each one ends in OrcaSlicer's main-loop handler.
+- **Cancelled file and folder dialogs** I treated as normal control flow, not as errors.
+- **Defensive null checks.** The rules forbid default values but don't name null checks of `wxGetApp()` members (AppConfig, Plater, DeviceManager). I counted them as default values for impossible states (F8). Note that the code is inconsistent: some calls check for null and others, such as `:1052` and `:1677`, do not.
+- **Messages on a shared transport.** "A message that is refused or cannot be read" has no carve-out for traffic that belongs to another page on the same transport (`HomeHost.cpp:172`). I left that one drop at medium confidence.
+- **What is checked.** I judged everything by reading. I ran no code, so the guess in F1 that the app may quit after the generic dialog is not verified.</result>
+<usage><subagent_tokens>241850</subagent_tokens><tool_uses>30</tool_uses><duration_ms>386041</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a53604674d1c61063</task-id>
+<tool-use-id>toolu_01PVdmEwqA1mR1LeqfKKimSK</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-inspiring-euler-17b0a5/0835a810-bc2e-40cd-8f63-d1b2c3f14891/tasks/a53604674d1c61063.output</output-file>
+<status>completed</status>
+<summary>Agent "Sweep AgentHost and web view" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I couldn't save this to `/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-inspiring-euler-17b0a5/0835a810-bc2e-40cd-8f63-d1b2c3f14891/scratchpad/findings-A-host.md`: the harness refused the write and told me to return the findings as text. The full result is below.
+
+# Error-handling sweep: Agent host, web view, service headers (snapshot 5e173c5e15)
+
+All findings were checked by reading only. Nothing was built or run. Paths are relative to `src/slic3r/GUI/JusPrin/Agent/` in the snapshot. The expected-errors table holds only the nine AI-request causes (update_required, invalid_credentials, credits_exhausted, request_too_large, rate_limited, service_overloaded, service_unavailable, timeout, network_error). Every other outcome below is judged as unexpected.
+
+## 1. Findings, most harmful first
+
+### 1. A failed AI reply shows the failure's own words, and no failure is ever reported
+- **Where:** `AgentHost.cpp:3412-3416` (pump_stream), `3205-3227` (fail_stream), `2982-2983` (begin_stream), `3354-3357` (continue_after_tool), `2912-2926` (begin_reply), `3912-3917`, `3929-3931`, `3944-3950` (use_chat_model).
+- **What the code does:** fail_stream stores whatever AgentError the service handed it on the reply and sends it to the page as it is. It does the same whether or not the code is one of the nine table causes. Nothing anywhere calls a reporting function. Where the host has no error of its own, it makes one up:
+  - an event with no error becomes `agent_error` "The AI request failed." (3415);
+  - `start()` returning false becomes `agent_unavailable` "The AI service could not start this request." (2983);
+  - `continue_after_tool()` returning false becomes `agent_continuation_failed` "AI could not receive the native tool result." (3356);
+  - missing instructions becomes "The panel is still loading. Try again in a moment." (2919);
+  - a model list that is not loaded becomes "JusPrin hasn't loaded the AI models for your account yet. Try again in a moment." (3930);
+  - `make_agent` returning null for a provider that is configured becomes "No … API key is set up" (3946), which guesses the cause.
+
+  Every one of these is marked `retryable: true`, except provider_not_set_up and chat_provider_removed.
+- **Rules broken:** "Do not catch one, give it a default value, retry it, or give it a sentence of its own." "One handler at the top of each entry point reports the failure through the one reporting function and tells the person "Something went wrong on our side", with nothing more specific."
+- **What goes wrong:** Someone sends a message and the service fails for a reason outside the table, such as a decode bug or an HTTP status that is not mapped. They see a specific-sounding sentence and a Retry button. No record of the failure exists anywhere except the saved message. When start or continuation fails, the reason is lost completely, because the interface returns a bare bool.
+- **Confidence:** high.
+
+### 2. Our own page's refused messages come back as bridge_error with a sentence of their own, and nobody reports them
+- **Where** (all in `AgentHost.cpp`):
+  - wrong_protocol 955-957; handshake_required 974-976; unknown_type 1072-1073.
+  - invalid_payload 1063-1064, 1114-1116, 1355-1357, 1414-1416, 2461-2463, 4103-4105, 4197-4199.
+  - stale_conversation 1340-1343; user_message_refusal 1286-1295 (sent at 1335-1337).
+  - handle_retry 1948-1980 (recovery_required, inactive_conversation, invalid_retry, busy).
+  - unknown_work 2056; unknown_action 2075-2077, 2101-2103; proposal_closed 2110-2116; unknown_message and receipt_closed 2137-2146.
+  - busy 2222-2224, 2315-2317, 2371-2375, 2445-2447, 2501-2503, 2630-2632, 2662-2664, 4175-4177.
+  - stale_transition 2308-2313; invalid_transition 2320-2322; checkpoint_unavailable 2325-2329.
+  - rename_failed 2351-2354; unknown_conversation 2265-2267, 2381-2383; inactive_conversation 2399-2401.
+  - setup_unavailable, setup_busy and not_signed_in 2449-2451, 2465-2467, 2497-2507, 2626-2642, 2658-2668.
+  - unsupported 1520-1522, 4254-4256.
+- **What the code does:** The page and this host ship together, so each of these is our own page sending something the host turns down. The host answers with a code and a sentence written for that case. On the page, `AgentUI/src/App.tsx:125-130` puts `payload.message` on screen through setCommandError, and `state/store.ts:403-406` writes a diagnostic line. No one reports anything. A few cases elsewhere in the same file are handled correctly: they throw instead (1518, 1697, 1701, 4151, 4184, 4253). The file is inconsistent.
+- **Rules broken:** "When our own code is on both ends, a message that is refused or cannot be read is unexpected." "give it a sentence of its own." "No other code reports."
+- **What goes wrong:** If the page and the host fall out of step, the person reads lines such as "Only the chat's last reply can be retried." or "The settings action names no object or action." No report shows the bug. Some of these may be races a person decided on, such as a Stop pressed after the reply ended, or busy while a reply streams. None of them has a table entry.
+- **Confidence:** high.
+
+### 3. Failures to save the chat document get invented sentences and lose their reason, and two save results are ignored
+- **Where:** `AgentHost.cpp:2192-2213` (checkpoint_active_chat), `2226-2229` and `2241-2245` (create), `2276-2292` (switch), `2331-2340` (restore), `2385-2389` (delete).
+- **What the code does:**
+  - The pin, the checkpoint save and the document save all return bool or optional, so the reason is gone before the host sees it.
+  - The host answers with save_failed lines such as "The current chat could not be saved.", or with restore_failed "JusPrin couldn't put the project back." It then blocks the chat (2336).
+  - After a successful restore, the result of `checkpoint_active_chat()` is thrown away (2342), so a failed save there passes silently.
+  - At 2237, the return value of `save_chat_checkpoint` for the new chat is ignored, although line 2207 checks the same call.
+- **Rules broken:** "A failure that arrives as a value … Turn it into a thrown error on the spot and stop. Keep the other side's status, request id and error text." "give it a sentence of its own." "Never record a failure as a success."
+- **What goes wrong:** Someone's disk is full, or the version store fails. They see a vague line and the project chat is blocked, and nobody can learn why. After a restore, a failed save can lose the outgoing chat's checkpoint while the screen says "Restored this chat's saved project setup."
+- **Confidence:** high.
+
+### 4. Credential and account failures become warnings or bools, and work carries on
+- **Where:** `AgentHost.cpp:2787-2790` (pump_setup), `2750-2754` (pump_account, signed in), `2509-2511` (remove key), `2536-2561` (delete account), `2552-2554`, `2647-2651`, `2673-2676`, `2473-2479`.
+- **What the code does:**
+  - A key the provider verified that fails to save becomes the warning "This key could not be saved…". The setup is still recorded as "verified".
+  - A sign-in that fails to save gets the same treatment (2752).
+  - Removing a key that fails gives "That key could not be removed."
+  - The delete-account answer is a bare bool. A busy host and an unreachable server both give `deleted:false` (2544-2546).
+  - After the server has deleted the account, the result of `remove_saved_key` is ignored (2554), so the local key may stay with no one told.
+  - `cloud-&gt;start` or `start_email` returning false gives "JusPrin couldn't start signing in. Try again." with retryable true.
+  - `start_check` returning false is labelled "unsupported_provider", which guesses the cause.
+- **Rules broken:** "Turn it into a thrown error on the spot and stop." "give it a sentence of its own." "Never record a failure as a success." "retry it."
+- **What goes wrong:** Someone signs in or adds a key and it seems to work. Next launch they are signed out, and no record says why. An account deletion fails with no status or request id to look up.
+- **Confidence:** high.
+
+### 5. Network answers arrive as bool or nullopt, the detail is dropped, and stale data is shown as current
+- **Where:** `AgentHost.hpp:57-81` (the IChatModelSource ModelsDone, AccountDone, AccountBoxDone and DeleteAccountDone signatures); `AgentHost.cpp:3638-3652` (request_model_lists), `3778-3793` (request_account), `3803-3815` (request_account_box).
+- **What the code does:**
+  - The model-source interface cannot carry a status, a request id or an error text, only ok, refused and an update message.
+  - A model list that fails sets the state to "failed" and keeps nothing else.
+  - An account read that fails returns early and keeps the last answer (3789-3790). The page keeps showing the old credits as if they were current.
+  - A failed account box looks the same as "no box".
+- **Rules broken:** "Keep the other side's status, request id and error text. Do not interpret it." "give it a default value." The one-handler rule.
+- **What goes wrong:** When the server is failing, the person sees an old credit balance, or a model picker that says it failed with no reason. Nothing is reported, so a server outage on these calls cannot be seen from the app.
+- **Confidence:** high.
+
+### 6. Attachments drop out of the request silently, or are sent empty
+- **Where:** `AgentHost.cpp:1371-1378` (handle_user_message), `3148-3151` and `3161-3178` (make_agent_request), `1387-1394` (attachment_preview_data_url), `2973-2979` (keep_blob); `AgentHost.hpp:164-168` with ImageThumbnail.hpp's image_for_model.
+- **What the code does:**
+  - Attachment ids that are not "staged" are dropped from the message without a word ("dropped rather than trusted").
+  - A record that is missing at request time is skipped.
+  - A text, image or PDF blob that is missing reads as an empty string, and the empty content is sent to the model. For the same condition, load_record_text at 3025 throws.
+  - A blob for the chat record that cannot be written becomes nullopt, and the turn goes on.
+  - An image that cannot be decoded is treated like one that is already small enough, and the original bytes are sent.
+- **Rules broken:** "Do not catch one, give it a default value…" "Let the failure stop the work and travel up unchanged." "Never record a failure as a success."
+- **What goes wrong:** Someone attaches a photo and sees it go with their message. The model answers as if there were no photo, or gets an empty image. Nobody is told and nothing is recorded.
+- **Confidence:** high for 1371-1378 and 3148-3178. Medium for keep_blob, because I did not read what the provider does with a nullopt blob.
+
+### 7. Attachment reading and storing failures get invented sentences and lose the OS error
+- **Where:** `AgentHost.cpp:1453-1461`, `1476-1478`, `1543-1557`.
+- **What the code does:**
+  - A base64 decode failure, on bytes our own page encoded, becomes "The file could not be read."
+  - A store failure, reported only as a bool, becomes store_failed "The attachment could not be stored."
+  - Any file_size or ifstream failure becomes "unreadable", and the error_code is dropped.
+- **Rules broken:** "give it a sentence of its own"; "Keep the other side's … error text."
+- **What goes wrong:** A file that cannot be written or read shows a red chip with a generic line. The reason (permission denied, disk full) is lost and nothing is reported.
+- **Confidence:** high.
+
+### 8. A message from the app to the page can be lost silently, and the host counts it as sent
+- **Where:**
+  - `AgentWebView.cpp:241-248`: the bool from `WebView::RunScript` is ignored, and the script does nothing if `window.__jusprinBridge` is missing.
+  - `AgentHost.cpp:762-763`: `send_envelope` returns quietly when no sender is set.
+  - `AgentHost.cpp:785`: `m_messages_sent` goes up before the outcome is known.
+  - `AgentHost.cpp:101,105,107` (message_json): stored JSON is parsed leniently. A bad stored report gives a discarded value, which nlohmann prints as `&lt;discarded&gt;`. That makes the whole state or message_added envelope invalid JavaScript when the web view embeds it.
+- **Rules broken:** "A failure that arrives as a value … Turn it into a thrown error on the spot and stop." "Never record a failure as a success."
+- **What goes wrong:** If the app fails to deliver assistant_failed or state to the page, the page waits forever. The diagnostics panel even shows the lost messages as "sent". One corrupt stored file report blanks the whole chat state on every reload.
+- **Confidence:** medium. That nlohmann prints `&lt;discarded&gt;` is from memory of its serializer and was not checked.
+
+### 9. A fault in reading a page message goes to OrcaSlicer's generic handler, not to a JusPrin report
+- **Where:** `AgentHost.cpp:926-947` (on_page_message), and `GUI_App.cpp:855-905` and `9600-9604` at the same commit.
+- **What the code does:** It catches `json::exception`, adds the message type and id, and rethrows. That part is allowed. The comment says the fault goes on to "GUI_App's handler, which logs it and reports it once". In fact generic_exception_handle writes a log line, queues `wxLogError("OrcaSlicer got an unhandled exception: &lt;what&gt;")` and rethrows. OnExceptionInMainLoop returns false.
+- **Rules broken:** "One handler at the top of each entry point reports the failure through the one reporting function and tells the person "Something went wrong on our side", with nothing more specific." "A log line is not a report."
+- **What goes wrong:**
+  - Every throw in this file ends up there: the strict `at()` reads, the RuntimeErrors at 972, 1518, 1697, 1701, 4151, 4184 and 4253, the logic_error at 1838, and the missing-blob throw at 3025. That includes throws from the timer pumps (PrinterPanel.cpp:380-381, PreferencesWindow.cpp:365-366).
+  - My hypothesis, not verified, is that the app then ends, possibly before the delayed wxLogError appears.
+  - The person gets either no sentence or an Orca-branded one with the exception text, and no report is made.
+  - In begin_stream, a throw from make_agent_request (3025) comes after `m_stream` is set and assistant_started is sent (2948-2954). That reply is left saved as "streaming".
+- **Confidence:** medium. The handler is read; that the app terminates is inferred.
+
+### 10. The MCP connection code catches every exception and picks codes by matching error text
+- **Where:** `AgentHost.cpp:4152-4170` (handle_mcp_preview), `4202-4213` and `4238-4239` (handle_mcp_connect).
+- **What the code does:**
+  - mcp_preview catches `std::exception` and shows `what()` as `write_failed`, retryable, even though a preview writes nothing. This covers a parse failure of our own catalog text and `at()` misses.
+  - mcp_connect also catches everything. It decides `stale_preview` or `write_failed` by searching the message for "changed after the preview".
+  - A CLI failure is called `timeout` when its diagnostic contains "timed out".
+  - There are invented sentences too: helper_missing (4186-4194), cli_missing (4218-4219), and "This build cannot run the client CLI." (4224).
+- **Rules broken:** "Catch an error only when it is an expected one and the code can recover from it, or at a boundary to translate it or add context, and then rethrow." "Do not interpret it."
+- **What goes wrong:** A bug in our own catalog shows up as a write error with Retry. Rewording one exception message silently changes what the person is told. Nothing is reported.
+- **Confidence:** high.
+
+### 11. The AI page's connection-error panel gives its own sentences and a Retry, and reports nothing
+- **Where:** `AgentWebView.cpp:204-210`, `280-285` (on_load_error, a log line only), `287-291`, `293-310`, `175-179`.
+- **What the code does:** A packaged page that is missing, a web view that cannot be created, a load error and a handshake timeout each get their own sentence. There is a Retry button that reloads. No report is made.
+- **Rules broken:** "give it a sentence of its own", "retry it", "A log line is not a report", and the one-handler rule.
+- **What goes wrong:** Someone whose AI panel never connects sees "The AI page did not complete the bridge handshake." with traffic counters. We never hear about it.
+- **Confidence:** high.
+
+### 12. A failed tool call is only a log line
+- **Where:** `AgentHost.cpp:663-667`.
+- **What the code does:** A failed tool call writes a warning to the app log. Its error reaches the person only as the model's paraphrase of the tool result (3291-3293). Tool error codes, including "failed" for an internal fault, have no table entries and are never reported.
+- **Rule broken:** "A log line is not a report: it reaches nobody."
+- **What goes wrong:** An internal failure inside a tool, the in-app AI's or an MCP client's, leaves no record beyond each person's own log.
+- **Confidence:** medium. Whether tool error codes such as invalid_arguments count as "expected" is not settled (see section 3).
+
+### 13. A failed chat title loses its error and gets a sentence of its own
+- **Where:** `AgentHost.cpp:3451-3453`, `3465-3483` (pump_conversation_title).
+- **What the code does:** A Failed event's `error` is never read. A failed start, a title that is too long, invalid UTF-8 and a refused rename all become "The automatic chat title could not be generated. You can rename the chat."
+- **Rules broken:** "give it a sentence of its own"; "Keep the other side's … error text."
+- **Confidence:** high.
+
+### 14. The chat-titles file is wiped when it cannot be read, and write failures are only logged
+- **Where:** `AgentHost.cpp:3822-3832`, `3859-3872`.
+- **What the code does:** A file that cannot be parsed is replaced by `{}` with a warning, and the next write saves over it. The `create_directories` error code is ignored. A failed write or rename is logged and the function returns.
+- **Rules broken:** "give it a default value"; "A log line is not a report."
+- **What goes wrong:** Every window's chat titles disappear from Account's usage table, and nobody knows why.
+- **Confidence:** high.
+
+### 15. Some outcomes are thrown away without a word
+- **Where:**
+  - `AgentWebView.cpp:129-131`: the result of `desktop_open_any_folder` is ignored.
+  - `AgentWebView.cpp:134-136`: the bool from `wxLaunchDefaultBrowser` is ignored.
+  - `AgentHost.cpp:2701-2717`: with no opener, or an empty URL, "Reopen" does nothing and says nothing.
+  - `AgentHost.cpp:2684-2698`: a sign-in step that was not taken is ignored.
+- **Rule broken:** "A failure that arrives as a value … Turn it into a thrown error on the spot and stop."
+- **What goes wrong:** Someone presses "Open Google sign-in again" and nothing happens, with no record.
+- **Confidence:** medium.
+
+### 16. A new AI service is dropped when it arrives during a reply
+- **Where:** `AgentHost.cpp:3537-3541` (set_agent). It is reached from `2754` (sign-in finished), `2797` (key verified) and `2529` (key removed inside the delete-account callback).
+- **What the code does:** If a reply is running, set_agent returns quietly. The new service and its availability are lost, while the page has already been told "verified" or signed in.
+- **Rule broken:** "If concurrency makes an invalid state reachable, fix the ordering." It also records a failure as a success.
+- **What goes wrong:**
+  1. Someone signs in through the browser.
+  2. While the browser is open, they send a message, which the cloud path does not block.
+  3. The sign-in finishes while that reply runs.
+  4. The account shows as signed in, but the chat keeps the old service, or none.
+- **Confidence:** medium.
+
+### 17. States that should be impossible become silent no-ops
+- **Where:**
+  - `AgentHost.cpp:3410`: a ToolCall event with no tool falls through every branch, and the stream waits forever.
+  - `AgentHost.cpp:3247-3248`, `3190-3191`, `3207-3208`: a tool call, completion or failure with no stream returns quietly.
+  - `AgentHost.cpp:1606-1609`, `1627-1630`: empty text returns an empty id.
+  - `AgentHost.cpp:1365-1369`: a duplicate whose stored message is gone answers nothing.
+- **Rule broken:** "Write no code for them" and "Let the failure stop the work and travel up unchanged". Each one turns an invariant violation into a no-op.
+- **Confidence:** medium.
+
+### 18. Our own JSON is read leniently, and missing fields get made-up values
+- **Where:**
+  - parsed_or_object, `AgentHost.cpp:121-125`, used at 135, 142, 147, 410-412, 433, 1131, 3290 and 3299.
+  - `json::parse(..., nullptr, false)` on page payloads at 1061, 1072, 1086, 1242, 1887, 1923, 1957, 2046, 2073, 2098, 2131, 2230, 2262, 2306, 2364, 2403, 2671, 2689, 2710 and 4084.
+  - Defaults in handle_attach_file at 1409-1413 (an unknown `source` becomes "picker") and 1438-1439.
+  - `value("savedAs","")` at 1840; `value("start",0.0)` and `value("end",0.0)` at 1809-1810.
+  - `value("versionId","")` at 816, 2237, 2272, 2281, 2326 and 2335.
+- **What the code does:** Bad JSON, which our own code wrote, becomes `{}` or an empty field.
+- **Rule broken:** "give it a default value."
+- **What goes wrong:** A tool result that will not parse reaches the model as `"result": {}`, which reads as a success with no data. A receipt reads "Saved : …" with an empty name.
+- **Confidence:** medium.
+
+### 19. Settings, undo and proposal failures go back as bridge_error
+- **Where:**
+  - `AgentHost.cpp:2115-2116`: the coordinator's refusal string is always labelled proposal_closed.
+  - `AgentHost.cpp:2163-2174`: an invalid undo preview with no issues gets the invented "The earlier values cannot be put back."; undo_failed passes result.message on.
+  - `AgentHost.cpp:4111-4112`: settings_action_failed.
+- **What the code does:** Workspace failures are shown as the page's command error and are never reported.
+- **Rules broken:** "give it a sentence of its own"; the one-handler rule.
+- **Confidence:** medium.
+
+### 20. The service interfaces cannot carry the other side's status or request id
+- **Where:**
+  - `AgentProtocol.hpp:274-279`: AgentError holds only code, message and retryable.
+  - `AgentService.hpp:235, 238`: `start` and `continue_after_tool` return a bare bool.
+  - `ProductState.hpp:36-37`: `set_setup_title` returns false for two different causes.
+- **Rule broken:** "Keep the other side's status, request id and error text." No caller of these interfaces can meet it.
+- **Confidence:** high (structural).
+
+### 21. A failed plate render silently drops the picture from the file-loaded request
+- **Where:** `AgentHost.cpp:1169-1171`.
+- **What the code does:** If `render_view` fails, the file-loaded skill goes to the model without the plate picture and with no word.
+- **Rules broken:** "Write no code for them"; "Let the failure stop the work."
+- **Confidence:** medium.
+
+### 22. The slice-poll limit ends the turn and records it as Complete
+- **Where:** `AgentHost.cpp:3363-3364`.
+- **What the code does:** When the model polls its own slice too often, the host ends the turn and marks it Complete. This is a stopgap someone decided on, but it has no table entry.
+- **Rule at stake:** "Never record a failure as a success."
+- **Confidence:** low.
+
+## 2. Coverage
+
+All nine files were read whole: AgentHost.cpp (4261 lines, in chunks), AgentHost.hpp, AgentWebView.cpp, AgentWebView.hpp, WebViewRelease.cpp, WebViewRelease.hpp, AgentService.hpp, AgentProtocol.hpp and ProductState.hpp. WebViewRelease has no error handling to judge.
+
+To follow failures outward, I also read these at the commit:
+- GUI_App.cpp generic_exception_handle and OnExceptionInMainLoop.
+- AgentUI's handling of bridge_error, in App.tsx and store.ts.
+- RunScript in Widgets/WebView.cpp.
+- The image_for_model comment in ImageThumbnail.hpp.
+- The signatures in ProjectPersistence.hpp.
+
+How a failure travels from each entry point:
+- **Page message:** a throw reaches OrcaSlicer's generic handler (finding 9); a refusal reaches the page's command-error line (finding 2).
+- **Timer pumps:** a throw reaches the same handler; a Failed event reaches the reply with its own words (finding 1).
+- **Network callbacks:** the failure arrives as a bool or nullopt and never reaches a handler (finding 5).
+- **MCP connect:** caught and shown with `what()` (finding 10).
+- **Web view load:** the native error panel (finding 11).
+
+None of these reaches a handler that reports and says "Something went wrong on our side".
+
+## 3. Unclear or missing in the rules, and what I did
+
+- **Product refusals with no table entry.** The table covers only AI-request failures. Many outcomes here look like decisions a person made, for example:
+  - attachment too_large, unsupported_type and not_text (1467-1475);
+  - the 10 MiB note (3179-3181);
+  - chat_provider_removed;
+  - cli_missing;
+  - busy while a reply streams;
+  - the races where Stop or cancel arrives after the reply has ended (1925, 2080, 2486, 2723).
+
+  I judged them unexpected, as the brief says, and ranked the clear product rules (file size and type) low. They probably need table entries rather than code removed.
+- **Tool error codes.** The tool error contract (invalid_arguments, not_found, busy, needs_step, refused, failed) answers the model, not a person. The rules don't say whether a result the model reads counts as "what the person is told", or whether those codes need entries. I reported only that "failed" and every other tool failure is logged and never reported (finding 12).
+- **Races between the page and the host.** "If concurrency makes an invalid state reachable, fix the ordering" cannot apply to an asynchronous page that may press Stop after a reply has ended. I did not count those quiet ignores as findings, except where they lose real state (finding 16).
+- **The reporting function and top handler don't exist yet.** report_unexpected and the top handler the rules assume are not in this code, so every entry-point finding is partly "the handler is missing". I named the code that would still be wrong once they exist: invented sentences, dropped detail and ignored results.</result>
+<usage><subagent_tokens>253044</subagent_tokens><tool_uses>33</tool_uses><duration_ms>425173</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ac30d2d515fec496c</task-id>
+<tool-use-id>toolu_012BDLQCRLdZgtkVNiQriubg</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-inspiring-euler-17b0a5/0835a810-bc2e-40cd-8f63-d1b2c3f14891/tasks/ac30d2d515fec496c.output</output-file>
+<status>completed</status>
+<summary>Agent "Sweep tool execution code" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>The output file could not be written: the harness refuses report files from subagents. So nothing exists at `/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-inspiring-euler-17b0a5/0835a810-bc2e-40cd-8f63-d1b2c3f14891/scratchpad/findings-B-tools.md`. The full content is below for the caller to save.
+
+# Error-handling sweep: the tool-call files (reader B)
+
+Snapshot: commit 5e173c5e15. Paths below are relative to `src/slic3r/GUI/JusPrin/`. Every finding was checked only by reading. No code was run.
+
+The expected-errors table lists only failures of a request to the AI. No tool failure has an entry. So, strictly, every tool failure is unexpected. I did not report the codes that answer the model's own mistakes or a state it can read again: `invalid_arguments` for bad arguments, `not_found`, `stale_workspace`, `busy`, `needs_step`, `feature_expired`, `opened_before`, and the settings corrections. Part 3 explains why. The findings below are places where the app itself failed, or reached a state that cannot happen, and the code wrote an outcome for it.
+
+## 1. Findings, most harmful first
+
+### 1.1 Failures inside the app go back to the model as tool results. They are never reported, and the model writes its own sentence about them.
+- `Agent/ToolExecutionCoordinator.cpp:63-84` (`workspace_error_code`): this maps `WorkspaceError::Failed` to `"failed"` and `Refused` to `"refused"`.
+- It is used at these call sites: 671, 702, 744, 1371, 1419, 1443, 1513, 1573, 1580, 1629, 1670, 1708, 1727, 1810, 1832, 1862, 1885, 1904, 1923, 1948, 1956, 2062, 2222, 2434.
+- Codes that a host or surface returns are passed through the same way: 988 (preflight), 1052 (`finish_pending`), 2196 (print dialog), 2458 (extension executor).
+- `Agent/ToolErrors.hpp:5-28` and `:55-59` set the policy behind this. The group "Stop and tell the person" covers `refused`, `failed`, `local_save_failed` and `cancelled`. The comment adds that "a rare failure the app has nothing more to say about keeps one generic message".
+- `fail()` at `ToolExecutionCoordinator.cpp:2508-2531` records the failure and announces it to subscribers. `AgentHost::continue_after_tool` (`AgentHost.cpp:3291`) then sends it to the model.
+
+**What the code does.** Suppose OrcaSlicer fails an export, an import, a render, a merge or a slice start. The coordinator stores the failure as the call's outcome and hands it to the model as data. Nothing reports it, and the turn goes on. ToolErrors.hpp works as a second table of decided outcomes, and nobody decided them under these rules.
+
+**Rules it breaks.** "Let the failure stop the work and travel up unchanged." "One handler at the top of each entry point reports the failure through the one reporting function and tells the person 'Something went wrong on our side', with nothing more specific." "Do not … give it a sentence of its own."
+
+**What goes wrong.** Take a person whose export fails because the disk is full. No report is made anywhere. The person reads whatever the model decides to say, which may be a guess or a retry. Nobody upstream ever learns the failure happened.
+
+**Confidence:** high that this conflicts with the rules as written. Whether a tool result counts as "telling the person" is open (part 3).
+
+### 1.2 `pump()` catches a failed project save, logs it, and gives it a sentence of its own
+- `Agent/ToolExecutionCoordinator.cpp:1148-1154`: the save before the call is caught. The code writes to `std::clog` and fails the call with `local_save_failed` and "Nothing ran: the project could not be saved first: … Tell the person the project is not saved."
+- `:1179-1196`: the saves after the call (`m_version_after` and `m_document_boundary`) are caught as `std::exception`. The code writes to `std::clog` and turns the failure into "The change was made, but the project could not be saved: … Do not repeat the call; tell the person the project is not saved." If the call had already failed, the save failure is appended to that message instead.
+- The throwers are in `Shell/ShellController.cpp:660-710`. They throw `std::runtime_error` with the autosave's error text, or "no reason was reported".
+
+**Rules it breaks.** "Do not catch one, give it a default value, retry it, or give it a sentence of its own." "A log line is not a report: it reaches nobody." "Catch an error only when it is an expected one and the code can recover from it, or at a boundary to translate it or add context, and then rethrow." A failed save is not in the table, and nothing is rethrown.
+
+**What goes wrong.** A save that fails, for example because the disk is full or a folder can't be written, never reaches a report. The only record is a stderr line. The catch also takes in any `std::exception` from those callbacks, including a bug, and words it as "could not be saved".
+
+**Confidence:** high.
+
+### 1.3 `activity_cancel` ignores the result of `cancel_slice` and records success with a false explanation
+- `Agent/ToolExecutionCoordinator.cpp:1802-1805`: `m_workspace.cancel_slice(cancelled);` returns a `CommandResult`, and the code throws it away. `CommandResult` is not `[[nodiscard]]` (`Workspace/Workspace.hpp:1425`).
+- If the cancel fails, `cancelled` stays false. The call succeeds with "Nothing was stopped. The tools stop only a slice they started." That sentence is wrong for a slice the tools did start.
+
+**Rules it breaks.** "A failure that arrives as a value, such as a status code, stops nothing by itself. Turn it into a thrown error on the spot and stop." "Never record a failure as a success."
+
+**What goes wrong.** The person asks the AI to stop a slice. Stopping fails. The model is told the call succeeded and that the slice wasn't one the tools started, while the slice keeps running.
+
+**Confidence:** high.
+
+### 1.4 `slice_start` makes up a blocker reason when OrcaSlicer recorded none
+- `Agent/ToolExecutionCoordinator.cpp:2246-2257`: the slicer did not start, the plate is not sliced, and no `slice_failure` was recorded. In that case the code builds a failure with `severity = "blocker"` and the message "The app did not start slicing this plate." It returns this inside a **Succeeded** result.
+
+**Rules it breaks.** "Do not … give it a default value … or give it a sentence of its own." "Never record a failure as a success."
+
+**What goes wrong.** An unexplained state, which may be a bug where Orca neither slices nor says why, is shown to the model as an ordinary refusal by the app. The model passes it on as if it were the app's verdict, and nobody is told the state happened.
+
+**Confidence:** high.
+
+### 1.5 The code cannot read its saved projects, and it calls this a save failure, invents a sentence, and drops the reason
+- `Agent/ToolExecutionCoordinator.cpp:355-357` (`kProjectsUnreadable`), used at `:912-914` in `submit` and `:1351-1354` in `execute`. It fails with code `local_save_failed` and a fixed sentence.
+- `EarlierLookup` (`ToolExecutionCoordinator.hpp:169-174`) has only a `bool unreadable` and nowhere to carry the reason. The host's lookup (`ShellController.cpp:683-688`) sets that bool and drops `m_autosave-&gt;error()`.
+
+**Rules it breaks.** "Keep the other side's status, request id and error text. Do not interpret it." "Do not … give it a sentence of its own."
+
+**What goes wrong.** The person's open fails with words the code chose. The code name says "save" for a read failure. The real reason is lost, and nothing is reported.
+
+**Confidence:** high.
+
+### 1.6 Filesystem errors in path checks are dropped and reworded as the caller's mistake
+- `Agent/ToolExecutionCoordinator.cpp:641-646` (`object_import_file`) and `:899-904` (`project_open`): `is_regular_file(path, error)` fills an `std::error_code` that the code never reads. A permission or I/O error becomes `invalid_arguments` with "Give the absolute path of a file that exists."
+- `:709-711`: an error from `exists()` is dropped too. The export card then leaves out ", replacing it" and doesn't say the file will be overwritten.
+
+**Rules it breaks.** "Keep the other side's status, request id and error text." "Do not … give it a sentence of its own."
+
+**What goes wrong.** The model is told the file doesn't exist when it does but can't be read. It asks the person for another path.
+
+**Confidence:** medium. The rewording is certain. How often an existing file fails this check is not measured.
+
+### 1.7 States that cannot happen get a sentence instead of a throw
+- `Agent/ToolExecutionCoordinator.cpp:1280-1283`: `execute()` fails with `unknown_tool` even though `submit()` has already resolved the definition.
+- `:1358`: a missing `m_open_earlier` becomes the failure text "nothing here opens saved projects". It can only be missing if the owner set `find` without `open`.
+- `:2184-2186`: `print_dialog_open` with no plate fails with `workspace_unavailable`, "The project has no plate to print." Lines 1754 and 2136 throw `logic_error` for this same state ("OrcaSlicer keeps at least one plate in every project").
+- `:2283-2285`: `setup_record` is InApp-only, but a call whose message belongs to no chat fails with `refused`, "Only a chat's own call records its purpose and plan."
+- `Agent/ToolRegistry.cpp:769`: `valid_arguments` ends with `return false`. A new handler without a case would fail every call as `invalid_arguments`, so the model would be told its arguments are wrong.
+
+**Rule it breaks.** "Never turn an invariant violation or an 'impossible' state into success or a silent no-op" (the spirit of "Write no code for them"), and "Do not … give it a sentence of its own."
+
+**What goes wrong.** A bug shows up as an ordinary tool refusal, and the model works around it.
+
+**Confidence:** medium.
+
+### 1.8 `setup_record` guesses why the purpose was refused
+- `Agent/ToolExecutionCoordinator.cpp:2290-2293`: `set_setup_title` returns false in three cases: no conversation holds the message, the purpose is blank, or it contains a newline. The 120-character limit can't trigger, because `ToolRegistry.cpp:716-721` already caps the purpose at 60 characters. Every case gets "purpose must be one line of up to 120 characters."
+
+**Rule it breaks.** "Do not interpret it." "Do not … give it a sentence of its own."
+
+**What goes wrong.** The model is given a wrong limit (120 where 60 applies) and a reason that may not be the real one.
+
+**Confidence:** medium.
+
+### 1.9 `approve_proposal` makes up sentences for the person about a card that our own page sent
+- `Agent/ToolExecutionCoordinator.cpp:997-1006`: the person presses Save preset on a proposal the page drew, and the page names the preview. If the coordinator has no succeeded record for it, it returns "This proposal is no longer open. Ask AI again." If an apply is already in progress, it returns "This proposal is already saved."
+
+**Rule it breaks.** "When our own code is on both ends, a message that is refused or cannot be read is unexpected." "Do not … give it a sentence of its own."
+
+**What goes wrong.** A button the page offered and the host refused gets its own wording, and nobody is told the page and the host disagreed. The second sentence says "saved" while the save may still be running or may fail.
+
+**Confidence:** medium-low. Some of these may be ordinary states, such as a card left over from a closed project.
+
+### 1.10 An exception thrown in `submit()` or `execute()` leaves the record Running
+- `Agent/ToolExecutionCoordinator.cpp:622`: `submit()` adds the record before validating it. `ToolActivity::state` starts as `Running` (`ToolExecution.hpp:92`). If a later step throws, the record stays Running with preflight skipped and its arguments not fully filled in. Examples of throwing steps: the `logic_error`s at 669, 740 and 883, or a workspace call such as `check_export` or `preview_printer_setup`. If the app survived, the next `pump()` (1131-1213) would run it.
+- If `execute()` throws, the record also stays Running with `progress_current == progress_total`, so every following `pump()` tick would run it again.
+
+**Rules it breaks.** "Let the failure stop the work." "Do not … retry it."
+
+**What goes wrong.** Today this is limited by what happens to the exception (see the entry-point trace below): the app ends. If that changes, a failed call would be retried every 33 ms.
+
+**Confidence:** medium.
+
+### 1.11 Smaller points
+- `Agent/ToolExecutionCoordinator.cpp:1052` and `:2458`: an `ExtensionResult` error loses its `details_json`, because `fail()` is called without it. No executor sets details today. Rule: "Keep the other side's status, request id and error text." Confidence: low (no visible effect yet).
+- `:1813`: `cancel_job` returning `cancelled == false` is read as "That job had already ended." That is an interpretation of a value. Confidence: low.
+- `Agent/ToolRegistry.cpp:1643-1645` and `:1661-1663`: the output schemas of `printer_host_connect` and `printer_bambu_connect` make a failed connection a **succeeded** call whose `state` is `"failed"`. The executor is outside this list. Rule: "Never record a failure as a success." Confidence: low-medium. A connection the printer refuses may be an outcome someone decided, but it is not in the table.
+- `Agent/ToolErrors.hpp:94-98`: no code produces `slice_required`, `missing_plate`, `missing_build` or `invalid_progress` at this commit. That is not an error-handling breach, but it is a list of causes nobody produces.
+
+### Entry points followed (step 4)
+- **A failure returned as a value.** The entry point is `AgentHost::handle_agent_tool_call` → `submit`, or the shell timer → `AgentHost::pump_tools` → `pump` → `execute`. For example, `export_file` returns `Failed`. The path is `fail()` → `notify` → `AgentHost::continue_after_tool` → the model. It reaches no reporting handler, and the person never sees "Something went wrong on our side". Whatever the model writes is what they see.
+- **A thrown failure.** Examples are the `logic_error`s at 669, 1755 or 2450, a `json` exception, or anything from the workspace. It leaves `pump()` or `submit()` with no JusPrin handler on the way: `ShellController.cpp:337-339` has no try, and neither does `AgentHost::pump_tools` at `AgentHost.cpp:2800`. It reaches OrcaSlicer's `GUI_App::OnExceptionInMainLoop` → `generic_exception_handle` (`GUI_App.cpp:855-910`, 9600). That handler logs "Uncaught exception", raises the wxLogError "OrcaSlicer got an unhandled exception: &lt;text&gt;", and rethrows, so the app ends. Nothing reports it, and the person is not told "Something went wrong on our side".
+
+## 2. Coverage
+- `Agent/ToolExecutionCoordinator.cpp`: read whole.
+- `Agent/ToolExecutionCoordinator.hpp`: read whole.
+- `Agent/ToolRegistry.cpp`: read whole for every function: the schema helpers, `valid_arguments` (144-770), `matches_schema`, `instance`, `validate_output`, `find`, `exposed`, `validate_call` and `activity_title`. `make_definitions` (772-1697) is the tools' descriptions and schemas. I read 1535-1697 in full. For the rest I read only the lines on failure, refusal, error and retry.
+- `Agent/ToolRegistry.hpp`: read whole.
+- `Agent/ToolResults.cpp`: read whole.
+- `Agent/ToolResults.hpp`: read whole.
+- `Agent/ToolErrors.hpp`: read whole.
+- `Agent/ToolExecution.hpp`: read whole.
+- Outside the list, read only to follow callers and callees: `Agent/AgentHost.cpp` (930-950, 2800-2826, 3245-3330, 4155-4215), `Agent/AgentHost.hpp` (585-625), `Agent/ProductState.hpp` (25-45), `ProjectStateDocument.cpp` (783-797), `Shell/ShellController.cpp` (320-340, 640-710), `GUI_App.cpp` (855-910, 9600), and `Workspace/Workspace.hpp` (CommandResult, the cancel functions).
+
+## 3. Unclear, missing or contradictory
+1. **A tool result goes to the model, not to the person.** The table lists only AI-request causes, so by the brief every tool failure is unexpected. That would include "the model sent bad arguments" and "the project changed since your read". Then the whole ToolErrors.hpp contract, which the model needs in order to correct itself, would be a finding. The rules don't say whether the model's own recoverable mistakes count as "errors" at all. If they do, they need table entries with their cause and next step. I treated them as the tool protocol's normal answers and reported only failures of the app itself and states that cannot happen. This needs a decision from Kenneth.
+2. **Who is "the person" for a tool call?** The rule says the top handler "tells the person 'Something went wrong on our side'". For a tool call, the caller is the model, or an MCP client. The rules don't say whether the handler should end the turn and show the person that sentence, or return it to the model, which may then reword it. That conflicts with "nothing more specific".
+3. **The "Stop and tell the person" codes in ToolErrors.hpp** (`refused`, `failed`, `local_save_failed`) are a second policy that has the model write the sentence. The rules don't say whether a refusal decided by OrcaSlicer, such as "the last part of an object cannot be deleted", counts as "a person decided that outcome". I treated OrcaSlicer's own refusals as unsettled and reported only the outcomes JusPrin invents.
+4. **"Turn it into a thrown error on the spot."** Today a throw from the coordinator reaches only OrcaSlicer's generic handler, which ends the app. Applying the rule before the top handler exists would turn every OrcaSlicer tool failure into a crash. The rule assumes the handler exists, and the brief says to judge as if it did. I did, but the order of work matters.
+5. **"Our own code on both ends."** This clearly covers the page's `approve_proposal` (finding 1.9). It doesn't cover the model's arguments. It is unclear for MCP clients, which are not our code.
+6. **Skill step 1** (run the checks) was out of scope by the brief. No check was run.</result>
+<usage><subagent_tokens>254470</subagent_tokens><tool_uses>47</tool_uses><duration_ms>444344</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a8b41f9d70d9b5d6a</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-inspiring-euler-17b0a5/0835a810-bc2e-40cd-8f63-d1b2c3f14891/tasks/a8b41f9d70d9b5d6a.output</output-file>
+<status>completed</status>
+<summary>Agent "Sweep provider and cloud account" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I could not save the output file at `/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-inspiring-euler-17b0a5/0835a810-bc2e-40cd-8f63-d1b2c3f14891/scratchpad/findings-C-provider.md`: the tool refused the write because subagents may not write report files. The full content is below.
+
+# Error-handling sweep: provider, gateway, Cloud account and model catalog code
+
+Snapshot: commit 5e173c5e15. Paths below are under `src/slic3r/GUI/JusPrin/Agent/` unless written in full. Every finding was checked by reading only; nothing was run. The table means `expected-errors-app.cpp`. Its nine entries are update_required, invalid_credentials, credits_exhausted, request_too_large, rate_limited, service_overloaded, service_unavailable, timeout and network_error.
+
+Background that several findings rest on. I read it at the same commit.
+- `src/slic3r/Utils/Http.cpp:502-538` (OrcaSlicer's client): a curl failure calls `on_error` with status 0 and curl's text. A status of 400 or above calls `on_error` with the body and an empty error text. A 2xx or 304 calls `on_complete`. Any other status calls neither. Callbacks run on Http's own `std::thread`, with no try around them (`Http.cpp:795-803`).
+- `AgentError` (`AgentProtocol.hpp:274-279`) holds only a code, a sentence and a retryable flag. It has no field for the other side's status, request id or error text, so nothing built from it can carry them up.
+- The gateway (server snapshot, `web_ent/jusprin/v2/`) answers 400 `invalid_request` or `unknown_model` for a request it refuses, 405, 426, 429, 502 `upstream_error` (the docstring calls this "a gateway fault"), 503 `unavailable` or `busy`, and 504 `timeout`. Mid-stream it sends an `error` event carrying `code` `timeout` or `upstream_error` (`stream.py:90-97`, `gateway.py:311-315`).
+
+## 1. Findings, most harmful first
+
+### F1. Every AI status the table does not name becomes "could not reach the service, check the network"
+**Where:** `ProviderAgent.cpp:667-699` (`ProviderAgent::http_error`), reached from `ProviderAgent.cpp:641-642` (`parse_available`).
+
+**What it does:** It sorts statuses with fixed rules. Anything that misses them falls to the last line, `network_error` ("The AI request could not reach the &lt;name&gt; service.", retryable). That covers 400, 404, 405, 409, 410, 422, 426 from a provider that is not the account, and 402 from a provider that is not the account.
+
+**Rules broken:**
+- "Write no code for them. Do not catch one, give it a default value, retry it, or give it a sentence of its own."
+- "A failure that arrives as a value, such as a status code, stops nothing by itself. Turn it into a thrown error on the spot and stop. Keep the other side's status, request id and error text. Do not interpret it."
+- "When our own code is on both ends, a message that is refused or cannot be read is unexpected."
+
+**What a person sees:**
+- They type a model name their OpenAI key cannot use, and OpenAI answers 404. They are told the service could not be reached, to check the network and Retry. Retrying never helps.
+- Their OpenRouter or DeepSeek balance runs out, and the provider answers 402. They get the same network sentence.
+- Anthropic's "prompt is too long" comes back as a 400. That is the `request_too_large` cause, but it is shown as `network_error`.
+- JusPrin's own gateway refuses the app's request with 400 `invalid_request` (an unlisted field, a bad `X-JusPrin-*` header) or 400 `unknown_model` (an alias the server withdrew). Our code is on both ends, so this is a bug. The person is told to check their network, and nothing is reported.
+- The record keeps neither the status nor the provider's text.
+- Key setup goes through the same function (`AgentSetup.cpp:112-127`), so a wrong model typed during setup reads as a network failure too.
+
+**Confidence:** high.
+
+### F2. All 5xx answers are called "temporarily unavailable", including our own gateway's faults and its timeout
+**Where:** `ProviderAgent.cpp:692-697`.
+
+**What it does:** Any status of 500 or above other than 529 becomes `service_unavailable`, retryable. The timeout check comes after it, so a 504 never reaches `timeout`.
+
+**Rules broken:**
+- "When our own code is on both ends, a message that is refused or cannot be read is unexpected."
+- "A status code … is not a cause."
+
+**What a person sees:**
+- The gateway's own 502 `upstream_error` (its provider key fails, or the upstream answers something it does not map) is a JusPrin fault. The person is told the AI service is temporarily unavailable and to Retry. Nobody hears of the fault.
+- A 500 traceback on the gateway reads the same way.
+- The gateway's 504 `timeout`, for which a `timeout` entry exists, is shown as "temporarily unavailable" instead.
+- 501 and 505 are lumped in with outages.
+
+**Confidence:** high.
+
+### F3. Errors inside the stream lose their code, so even the table's own causes are hidden
+**Where:** `ResponsesCodec.cpp:176-177`, `AnthropicCodec.cpp:404-405`.
+
+**What it does:** Any `error` or `response.failed` event becomes `agent_service_error`, "The AI service could not complete the response." (retryable). The event's code and message are thrown away. That code is not in the table.
+
+**Rules broken:**
+- "Keep the other side's status, request id and error text. Do not interpret it."
+- "Do not … give it a sentence of its own."
+
+**What a person sees:**
+- Anthropic's mid-stream `overloaded_error` has a `service_overloaded` entry, but it shows as the generic sentence.
+- The gateway's own in-stream `timeout` has a `timeout` entry, but it shows as the generic sentence. So does the gateway's `upstream_error`, which is a gateway fault that should be reported.
+- OpenAI's `response.failed`, with its `error.code`, gets the same treatment.
+- The record has only `agent_service_error`.
+
+**Confidence:** high.
+
+### F4. Codes and sentences invented for stream and model failures nobody decided on
+**Where:**
+- `ProviderAgent.cpp:505-506`: `incomplete_response`.
+- `ProviderAgent.cpp:529`: `agent_paused_too_often`, after a cap of 4.
+- `ProviderAgent.cpp:533`, `:539`: `agent_continuation_failed`.
+- `ProviderAgent.cpp:589-590`: `malformed_tool_call`.
+- `ProviderAgent.cpp:651-652`: `malformed_response`, "ended before a complete response arrived".
+- `AnthropicCodec.cpp:337`, `:356`, `:387`, `:426-427`: `malformed_response` in four wordings.
+- `AnthropicCodec.cpp:413-422`: `max_tokens` and `model_context_window_exceeded` become Incomplete, and a refusal becomes `refusal`.
+- `ResponsesCodec.cpp:144`, `:156`: `malformed_response`.
+- `ResponsesCodec.cpp:174-175`: `response.incomplete`, whose reason is dropped.
+
+**What it does:** None of these causes has a table entry. Each one gets its own code and sentence, and the provider's payload or stop details are discarded.
+
+**Rules broken:**
+- "Do not … give it a sentence of its own."
+- "One handler at the top of each entry point reports the failure … 'Something went wrong on our side'."
+- "When our own code is on both ends, a message that is refused or cannot be read is unexpected." This applies to every unreadable stream from the gateway.
+
+**What a person sees:**
+- A gateway stream the app cannot parse (a bug on one of our two ends) shows "returned an unreadable streaming response". It is not reported, and the bytes are gone.
+- An OpenAI `response.incomplete` caused by `content_filter` is told "stopped before finishing", the same as running out of output tokens.
+- A captive portal or proxy that returns 200 with HTML is told "ended before a complete response arrived", with Retry.
+
+**Confidence:** high that no entry exists and the payload is dropped. Some of these, such as rejected tool calls fed back to the model, were plainly designed by someone. See section 3.
+
+### F5. Fixed statuses decide "signed out", "API key rejected" and "out of credits" without reading the answer
+**Where:**
+- `ProviderAgent.cpp:673-674`, `:686-687`: 401 or 403 becomes `invalid_credentials`.
+- `ProviderAgent.cpp:675-685`: 402. When the body is not the gateway's `credits_exhausted` it still becomes `credits_exhausted`, "You're out of credits." When the body has no `message`, the sentence shown is empty (`:679`).
+- `ProviderAgent.cpp:690-691`: 429 always becomes `rate_limited`.
+- Same pattern elsewhere: `CloudAccount.cpp:39` (`refused`, used at `:348` to decide Expired), and `ModelCatalogFetch.cpp:68` (`refused`, which leads to `reject_saved_key` in AgentHost).
+
+**Rules broken:**
+- "A status code, an exception type, or 'the request was not valid' is not a cause."
+- "Do not interpret it."
+
+**What a person sees:**
+- The gateway's docstring says only 401 means signed out, and the gateway never sends 403. A 403 from a proxy or CDN in front of it signs the person out (`note_key_rejected`, then "Your JusPrin sign-in has ended").
+- OpenAI's 403 for an unsupported region marks a good key as rejected.
+- OpenAI's 429 `insufficient_quota` (billing used up; this is from what I know of OpenAI's API, not verified here) is shown as "rate limited, try again shortly", so Retry loops.
+- A 402 from our own server that the app cannot read is unexpected, but the person is told they are out of credits.
+
+**Confidence:** high for the code path. Medium for which third-party answers actually occur.
+
+### F6. The request id and the provider's error text are lost in the transport, and nothing reports
+**Where:** `OpenAIHttpTransport.cpp:48-66` and `AgentTransport.hpp:40-46`. `AgentHttpEvent` has no headers. The `request-id` or `x-request-id` response header is never captured, and `Http.cpp` stores the headers but passes none of them on.
+
+**Also:** `AgentProtocol.hpp:274-279`. `AgentError` cannot carry a status, request id or text.
+
+**And:** `tests/agent/test_provider_agent.cpp:582-600` ("HTTP failures are mapped to safe errors") asserts that the body is dropped ("sensitive upstream body").
+
+Following one failure up from the chat entry point:
+1. Http thread.
+2. `accept_http` queue.
+3. `AgentHost` tick, `ProviderAgent::poll`, then a `Failed` event.
+4. `AgentHost::fail_stream` (`AgentHost.cpp:3412-3415`). It shows the invented sentence, or "The AI request failed." when there is no error.
+
+No step calls a reporting function, and no step says "Something went wrong on our side".
+
+**Rules broken:**
+- "Keep the other side's status, request id and error text."
+- "One handler at the top of each entry point reports the failure through the one reporting function."
+
+**What a person or record sees:** a support case cannot be matched to the provider's or the gateway's own records.
+
+**Confidence:** high.
+
+### F7. A reply that takes more than 120 s is cut off and called a timeout
+**Where:** `AgentTransport.hpp:27`, where `request_timeout_seconds{120}` becomes `CURLOPT_TIMEOUT`, the total transfer time (`Http.cpp:336`). The result is classified at `ProviderAgent.cpp:696-697`.
+
+**What it does:** A healthy stream still producing text after 120 s is cut by the app's own limit. curl reports "Timeout was reached" and the person sees "The AI request timed out." plus Retry, after part of the reply is already on screen and recorded (`handle` → `record`).
+
+**Rules broken:** "Do not … give it a sentence of its own." The table's `timeout` cause is "took too long to answer, or the connection to it stalled". A stream that is still flowing is neither, so the cut is an undecided failure dressed as an expected one.
+
+**Confidence:** medium. I inferred from the 64000 `max_tokens` and adaptive thinking that a reply can last that long; I did not measure it.
+
+### F8. A local disk failure is blamed on the AI service
+**Where:**
+- `ProviderAgent.cpp:357-363` (`kept`): a blob that cannot be written sets `m_unkept`.
+- `ProviderAgent.cpp:426-431` (`post`): it then returns false without any error.
+- `ProviderAgent.cpp:459-464`: a transport that cannot start returns the same false.
+
+**Callers then invent the cause:**
+- `AgentHost.cpp:2982-2983`: "The AI service could not start this request."
+- `AgentHost.cpp:3354-3356`: "AI could not receive the native tool result."
+- `ProviderAgent.cpp:532-533` and `:538-539`: "AI could not be asked to continue…" or "…told the results…".
+
+**Rules broken:**
+- "Let the failure stop the work and travel up unchanged."
+- "Do not … give it a sentence of its own."
+
+**What a person sees:** with a full disk, attaching a picture or getting a `view_render` result says the AI service failed. Retry fails the same way, and the real cause (the blob write in `write_attachment_blob`) is never named or reported.
+
+**Confidence:** high.
+
+### F9. Sign-in: undecided answers get invented sentences, and status and body are dropped
+**Where:** `CloudAccount.cpp`.
+- `:295-296` (`answered`): any auth answer not listed (500, status 0 with no network, 429, an unreadable body) becomes "JusPrin couldn't sign you in. Try again."
+- `:293-294`: any 400 to `login` that is not `too_many_login_attempts` becomes `wrong_password`. That includes a 400 for an invalid email or a missing field.
+- `:291-292`: any 409 on `code/confirm` becomes `expired_code`.
+- `:323-324` (`poll`): any browser sign-in failure (the person cancelled in the browser, the token exchange got a 500, the port was taken) becomes "Signing in didn't finish. Nothing was saved." `authorization.error` is never used, not even logged here, although the header says it is "for the log".
+- `:359-361` (`finish_check`): any non-200 from `/jusprin/api/me/` or `/models`, or an unreadable body, becomes "JusPrin couldn't be reached to finish signing in." `update_required` is checked on the models answer only (`:355`), so a 426 from `me` reads as "couldn't be reached".
+- `:366`: a missing `/user/email` is stored as an empty email.
+- `:367-371`: model entries without `id` or `format` are skipped.
+- `:378-380`: when `m_agents` returns null because the gateway named a wire format this build does not speak (`AgentConfiguration.cpp:246-248`), the person is told "JusPrin has no AI model for this account right now. Try again later."
+- `:85-95` (`update_required`): an unreadable 426 body from our own server gets a made-up sentence in place of the server's.
+
+**Also:** `CloudSignInMachine.cpp:146-148` and `:165-169` log the curl error text and pass only status and body, so status 0 arrives with no reason.
+
+**Rules broken:**
+- "Do not … give it a default value … or give it a sentence of its own."
+- "When our own code is on both ends, a message that is refused or cannot be read is unexpected."
+- "Keep the other side's status, request id and error text."
+- "A log line is not a report."
+
+**What a person sees:**
+- A server 500 during sign-in says "Try again" forever, and nobody hears of it.
+- A new format added on the server says "no AI model right now".
+- An email typo says "wrong password".
+
+None of the refusal codes (`wrong_code`, `expired_code`, `too_many_codes`, `wrong_password`, `too_many_tries`) or the Expired outcome has a table entry. See section 3.
+
+**Confidence:** high.
+
+### F10. Model-list parsing can crash the app, because it throws on Http's thread
+**Where:**
+- `ModelCatalog.cpp:177`, `:181`, `:183`, `:188`, `:43`, `:61`, `:74`, `:206`: `response.at("data")`, `model.at("id").get&lt;std::string&gt;()`, `model.at("format")`, `.get&lt;int&gt;()`, and `level.get&lt;std::string&gt;()`.
+- These are called from `on_complete` at `ModelCatalogFetch.cpp:54`, which runs on Http's `io_thread` with no handler.
+
+**What it does:** One model entry with a missing `format`, a string `credits`, or a null in OpenRouter's `supported_efforts` throws a `json` exception out of a `std::thread` body, and the program calls `std::terminate`.
+
+**Rules broken:** "One handler at the top of each entry point reports the failure through the one reporting function and tells the person 'Something went wrong on our side'." The callback is an entry point with no handler. Being strict at the lower level is right; the missing top handler is the fault.
+
+**What a person sees:** the app quits on start, or whenever the model list is fetched, because the gateway or OpenRouter changed one field.
+
+**Confidence:** high for the mechanism (read; not run).
+
+### F11. Model-list, account, account-box and account-delete failures are swallowed or written only to the log
+**Where:** `ModelCatalogFetch.cpp`.
+- `:46-53`: a 200 with no `data` gives the error "model list answered 200". The body is dropped.
+- `:64-72`: the server's body text is dropped and only the status or curl text is kept. In `AgentConfiguration.cpp:361-362` that text goes to a log line only, and the page is told just `ok=false` (`AgentHost.cpp:3638-3650`). The `update_required` check at `:49` sits in `on_complete`, which never sees 426, so it is dead.
+- `:91-109` (`fetch_account`): a 200 the app cannot read is logged as an error and passed on as nullopt. Every `on_error` drops status, text and body (`:106-109`). AgentHost then silently keeps the last answer (`AgentHost.cpp:3778-3792`).
+- `:127-136` (`fetch_account_box`): every failure is turned into "there is no box". A failure is recorded as a normal absence.
+- `:152-159` (`delete_account`): any status other than 204, and any failure, becomes `false`, with no status or reason.
+
+**Rules broken:**
+- "Never record a failure as a success."
+- "A log line is not a report: it reaches nobody."
+- "When our own code is on both ends, a message that is refused or cannot be read is unexpected."
+- "Keep the other side's status, request id and error text."
+
+**What a person sees:**
+- When the account endpoint breaks, the credit balance goes stale or stays blank with no message.
+- Preferences › Account loses its box with no word.
+- An account delete that timed out after the server deleted it says "not deleted". This last case is my inference.
+
+**Confidence:** high.
+
+### F12. Configuration states that should not happen are turned into sentences
+**Where:**
+- `ProviderFactory.cpp:145-147`: "The configured Agent provider is not supported." (an unknown id in our own config).
+- `:159-163`: "Sign in to your JusPrin account again." This is given both for an empty format (not yet checked, a known state) and for a format this build does not speak, which is unexpected.
+- `:170-172`: "The &lt;name&gt; Agent could not be initialized." This comes from `ready()` being false: an empty model or endpoint, or a null codec.
+- `AgentConfiguration.cpp:68-73`: stored formats that cannot be parsed silently become none, which then shows the "sign in again" sentence.
+- `AgentConfiguration.cpp:296-298`: `make_agent` returns null for an unknown format.
+
+**Rule broken:** "Never turn … an 'impossible' state into success or a silent no-op", in the sense of "Do not … give it a sentence of its own."
+
+**Confidence:** medium.
+
+### F13. Key-setup outcomes collapse into invented ones
+**Where:**
+- `AgentSetup.cpp:122-123`: a Failed event with no error becomes `setup_failed`, "The provider did not answer."
+- `AgentSetup.cpp:90-95`: `ready()` false and `start()` false (the transport failed, or a blob was not kept) return the same `false` as "unsupported provider". AgentHost then says "This build cannot verify a key for that provider yet." (`AgentHost.cpp:2473-2478`).
+
+**Rule broken:** "Do not … give it a default value … or give it a sentence of its own."
+
+**Confidence:** medium-high.
+
+### F14. A catch that is broader than the one failure it means to handle
+**Where:** `CloudSignInMachine.cpp:92-98` (`SignInJob::finalize`).
+
+**What it does:** The comment says that another program holding the loopback port is "the one failure expected". The catch, though, takes every `boost::system::system_error` from OAuthJob, including socket read or write errors during the redirect. It logs a warning and turns them into the generic "Signing in didn't finish" sentence. There is no table entry for port-in-use either.
+
+**Rule broken:** "Catch an error only when it is an expected one and the code can recover from it, or at a boundary to translate it or add context, and then rethrow."
+
+**Confidence:** high.
+
+### F15. Failures handled by logging alone
+**Where:**
+- `CloudSignInMachine.cpp:180-182`: a failed revoke on sign-out is a log line only, and there is no `tls_verify(true)` on that request.
+- `ProviderFactory.cpp:88-101`: a request-log write failure is a warning. `create_directories` and `remove` errors are ignored (`:89`, `ProviderFactory.cpp:60`).
+- `AgentConfiguration.cpp:118-120`: refused tool calls are a log line only.
+
+**Rule broken:** "A log line is not a report: it reaches nobody."
+
+**Confidence:** medium. The request log and the refusal log are diagnostics by design; the revoke is a security-relevant failure nobody sees.
+
+### Outside the list, but on these paths
+`Http.cpp:520-538` (OrcaSlicer-owned) calls neither callback for statuses below 200, or for 3xx other than 304. On these paths that means `ProviderAgent` stays busy forever with no event, `CloudSignIn` stays in Checking, and a model list stays Loading. It is reachable only with a 3xx that curl does not follow. Confidence: low that it happens; high that the path exists.
+
+## 2. Coverage
+
+All read whole:
+- `ProviderAgent.cpp`, `ProviderAgent.hpp`
+- `AnthropicCodec.cpp`, `AnthropicCodec.hpp`
+- `ResponsesCodec.cpp`, `ResponsesCodec.hpp`, `ProviderCodec.hpp`
+- `OpenAIResponsesAgent.cpp`, `OpenAIResponsesAgent.hpp`
+- `OpenAIHttpTransport.cpp`, `AgentTransport.hpp`
+- `ModelCatalog.cpp`, `ModelCatalog.hpp`, `ModelCatalogFetch.cpp`, `ModelCatalogFetch.hpp`
+- `ProviderFactory.cpp`, `ProviderFactory.hpp`, `ProviderProfile.hpp`
+- `CloudAccount.cpp`, `CloudAccount.hpp`
+- `CloudSignInMachine.cpp`, `CloudSignInMachine.hpp`
+- `AgentConfiguration.cpp`, `AgentConfiguration.hpp`
+- `AgentSetup.cpp`, `AgentSetup.hpp`
+
+Read in part, outside the list, to follow callers:
+- `AgentHost.cpp`: lines 2465-2490, 2540-2560, 2970-2983, 3350-3362, 3395-3415, 3630-3650 and 3770-3792.
+- `AgentProtocol.hpp:274-279`.
+- `src/slic3r/Utils/Http.cpp`: callback dispatch, timeouts, thread.
+- `tests/agent/test_provider_agent.cpp:582-600`.
+- Server: `errors.py`, `upstream.py:197-208`, `stream.py:90-97`, and a grep of `gateway.py`.
+
+## 3. What was unclear or missing in the rules and the skill
+
+- **The table covers only requests to the AI.** Sign-in refusals (wrong code, expired code, wrong password, too many tries), the Expired sign-in, the model-list refusal and the account endpoints have no entries. The brief says anything not in the table is unexpected, so I reported them as unexpected (F9, F11). Someone plainly designed the email refusals, which are documented in `CloudAccount.hpp:141-145`. Whether they need entries, or the table was meant to cover them, is for Kenneth to decide.
+- **Model-behaviour outcomes.** Tool calls fed back to the model as refusals, `malformed_tool_call`, `refusal`, `max_tokens`, pause_turn: these are deliberate designs with no entries. I grouped them in F4 rather than treating each as a separate defect.
+- **Retryable flags and the person's next step.** The table names what the person can do next, but `AgentError.retryable` is set per code here, not taken from the table. The rules do not say whether that flag must come from the table. I did not report it separately.
+- **The current test contradicts the rule.** The test at `test_provider_agent.cpp:582` deliberately asserts that the provider's body is not kept ("safe errors"), while the rules say to keep the other side's error text. I followed the rules (F6). Someone should decide whether provider text may hold secrets that must not reach the record.
+- **Error text and request ids have nowhere to go.** The rules say to keep them, but neither the transport nor `AgentError` has a field for them. I treated that missing structure as part of F6, not as a separate finding.</result>
+<usage><subagent_tokens>223756</subagent_tokens><tool_uses>34</tool_uses><duration_ms>441780</duration_ms></usage>
+</task-notification>
