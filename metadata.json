@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7HAP3MTW97BFCY39EQ2JKHQ",
+  "strategy": "manual-commit",
+  "branch": "fix-four-reproduced-refusal-bugs",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Agent/AgentConfiguration.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 734,
+    "cache_creation_tokens": 1011507,
+    "cache_read_tokens": 85506646,
+    "output_tokens": 230852,
+    "api_call_count": 367
+  }
+}
