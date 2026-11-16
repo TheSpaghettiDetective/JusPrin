@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7JT26R9C5XQ50FBWZY8D8YX",
+  "strategy": "manual-commit",
+  "branch": "claude/bold-mestorf-858777",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Agent/ProjectStateDocument.cpp",
+    "tests/agent/test_project_state.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 38,
+    "cache_creation_tokens": 89122,
+    "cache_read_tokens": 2847636,
+    "output_tokens": 14114,
+    "api_call_count": 19
+  }
+}
