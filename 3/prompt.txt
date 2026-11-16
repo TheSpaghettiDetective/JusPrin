@@ -1,0 +1,17 @@
+clean up the worktrees and branches for all subsessions
+
+---
+
+clean up disk space for your session and your subsessions
+
+---
+
+Yes, delete them
+
+---
+
+delete the three worktrees too
+
+---
+
+Do you think it's a good idea to use drip email to improve the conversion? Another idea is probably to use some pop-up inside the app. Use your own knowledge or search online to see what would be a good way to go about this decision.
