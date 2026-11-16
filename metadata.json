@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7JQ1K8J2J2JMAME1QAXV9K0",
+  "strategy": "manual-commit",
+  "branch": "claude/bold-mestorf-858777",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Preferences/PreferencesWindow.cpp",
+    "src/slic3r/GUI/JusPrin/Preferences/PreferencesWindow.hpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
+    "tests/shell/server_sheet_scenario.inc",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2,
+    "cache_creation_tokens": 1135,
+    "cache_read_tokens": 105274,
+    "output_tokens": 745,
+    "api_call_count": 1
+  }
+}
