@@ -3,8 +3,10 @@
   "checkpoint_id": "01M7JK13YP5RAB4WBZ9WET8Q6D",
   "strategy": "manual-commit",
   "branch": "jusprin-dev",
-  "checkpoints_count": 3,
-  "files_touched": null,
+  "checkpoints_count": 4,
+  "files_touched": [
+    "AGENTS.md"
+  ],
   "sessions": [
     {
       "metadata": "/0/metadata.json",
@@ -26,6 +28,13 @@
       "compact_transcript": "/2/transcript.jsonl",
       "content_hash": "/2/content_hash.txt",
       "prompt": "/2/prompt.txt"
+    },
+    {
+      "metadata": "/3/metadata.json",
+      "transcript": "/3/full.jsonl",
+      "compact_transcript": "/3/transcript.jsonl",
+      "content_hash": "/3/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
