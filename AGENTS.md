@@ -67,7 +67,7 @@ The reporting function is `report_unexpected_error` (`src/slic3r/GUI/JusPrin/Sup
 
 - An agent reads the changed code against these rules and asks one question wherever the code decides what happened: can the person do something about it, and did Kenneth decide what they are told?
 - Do not sort unexpected failures into kinds for the person, and do not bring Kenneth a question about the wording of a failure the person can do nothing about. On 2026-11-16 the code that kept five "try again" sentences apart was deleted for this reason.
-- To audit a commit range or check production for a period, use the `error-handling` skill (`.claude/skills/error-handling/`).
+- To audit a commit range, use the `error-handling` skill (`.claude/skills/error-handling/`). To check production for a period, use the `jusprin-production-check` skill in the tsd-enterprise repository.
 
 ## Build Commands
 
