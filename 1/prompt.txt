@@ -25,3 +25,7 @@
 <status>completed</status>
 <summary>Background command "Build unit tests and the app with the fix" completed (exit code 0)</summary>
 </task-notification>
+
+---
+
+Yes, take the screen
