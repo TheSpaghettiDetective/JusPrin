@@ -10,6 +10,7 @@
 // clicks either, so a link in it can't open. The server's HTML brings its
 // own styles, since the page's CSS doesn't reach in.
 import { useEffect, useRef, useState } from 'react';
+import { t } from '@lingui/core/macro';
 
 export function AccountBox({ html }: { html: string }) {
   const frame = useRef<HTMLIFrameElement>(null);
@@ -33,7 +34,7 @@ export function AccountBox({ html }: { html: string }) {
 
   // onLoad, not a listener added after mounting: the content may load first.
   return (
-    <iframe ref={frame} className="prefs-box" title="From JusPrin" sandbox="allow-same-origin" srcDoc={html}
+    <iframe ref={frame} className="prefs-box" title={t`From JusPrin`} sandbox="allow-same-origin" srcDoc={html}
       onLoad={() => {
         loaded.current = true;
         measure();

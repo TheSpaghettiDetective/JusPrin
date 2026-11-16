@@ -1075,10 +1075,11 @@ describe('App', () => {
     await userEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
     await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
     expect(host.lastOfType('delete_conversation')?.payload).toEqual({ conversationId: 'conv-1' });
-    host.deliver('state', emptyState({ activeConversationId: 'conv-2', conversations: [{ id: 'conv-2', title: 'New chat', createdAt: 't' }] }));
+    // The app sends a chat nobody has named untitled; the page names it.
+    host.deliver('state', emptyState({ activeConversationId: 'conv-2', conversations: [{ id: 'conv-2', title: '', createdAt: 't' }] }));
     expect(screen.getByRole('heading', { name: 'Chats' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Open chat: Conversation 1' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Open chat: New chat' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open chat: New chat' })).toHaveTextContent('New chat');
     await userEvent.click(screen.getByRole('button', { name: 'New chat' }));
     expect(host.lastOfType('create_conversation')).toBeTruthy();
   });

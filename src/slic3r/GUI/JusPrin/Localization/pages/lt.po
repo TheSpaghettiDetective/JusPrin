@@ -1,0 +1,4784 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-11-14 21:25-0800\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: lt\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
+
+# AI Translated
+#. A photo's attribution: the title, author, link and licence are the photo's own
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "“{firstTitle}” by {author}, {firstSource}, {license}. Cropped."
+msgstr "„{firstTitle}“, autorius {author}, {firstSource}, {license}. Apkarpyta."
+
+# AI Translated
+#. A photo's attribution: the title, author, link and licence are the photo's own
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "“{secondTitle}” by {author}, {secondSource}, {license}. Cropped and resized."
+msgstr "„{secondTitle}“, autorius {author}, {secondSource}, {license}. Apkarpyta, pakeistas dydis."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "“Found” means JusPrin found the app or its settings file here, not that the app is signed in. You can connect one that wasn’t found."
+msgstr "„Rasta“ reiškia, kad JusPrin čia rado programą arba jos nustatymų failą, o ne tai, kad programoje prisijungta. Galite prijungti ir nerastą programą."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "“Open in slicer” buttons on model sites"
+msgstr "Mygtukai „Atverti pjaustyklėje“ modelių svetainėse"
+
+# AI Translated
+#: src/components/MarkdownMessage.tsx
+msgid "[Image: {description}]"
+msgstr "[Paveikslėlis: {description}]"
+
+# AI Translated
+#: src/components/MarkdownMessage.tsx
+msgid "[Image: description unavailable]"
+msgstr "[Paveikslėlis: aprašymas nepasiekiamas]"
+
+# AI Translated
+#. placeholder {0}: otherShown.length
+#: src/components/AddPrinterForm.tsx
+msgid "{0, plural, =1 {One filament made for other printers does.} other {# filaments made for other printers do.}}"
+msgstr "{0, plural, =1 {Atitinka viena gija, skirta kitiems spausdintuvams.} one {Atitinka # gija, skirta kitiems spausdintuvams.} few {Atitinka # gijos, skirtos kitiems spausdintuvams.} many {Atitinka # gijos, skirtos kitiems spausdintuvams.} other {Atitinka # gijų, skirtų kitiems spausdintuvams.}}"
+
+# AI Translated
+#. placeholder {0}: otherShown.length
+#: src/components/AddPrinterForm.tsx
+msgid "{0, plural, =1 {Show it} other {Show them}}"
+msgstr "{0, plural, =1 {Rodyti ją} one {Rodyti jas} few {Rodyti jas} many {Rodyti jas} other {Rodyti jas}}"
+
+# AI Translated
+#. placeholder {0}: fitting.length - RESULT_LIMIT
+#: src/components/AddPrinterForm.tsx
+msgid "{0, plural, one {# more match. Type more to narrow the list.} other {# more match. Type more to narrow the list.}}"
+msgstr "{0, plural, one {Dar # atitikmuo. Įveskite daugiau, kad susiaurintumėte sąrašą.} few {Dar # atitikmenys. Įveskite daugiau, kad susiaurintumėte sąrašą.} many {Dar # atitikmens. Įveskite daugiau, kad susiaurintumėte sąrašą.} other {Dar # atitikmenų. Įveskite daugiau, kad susiaurintumėte sąrašą.}}"
+
+# AI Translated
+#. placeholder {0}: others.length
+#: src/components/AddPrinterForm.tsx
+msgid "{0, plural, one {# more. Picking one saves a copy for the {modelName}.} other {# more. Picking one saves a copy for the {modelName}.}}"
+msgstr "{0, plural, one {Dar #. Pasirinkus vieną, išsaugoma kopija spausdintuvui {modelName}.} few {Dar #. Pasirinkus vieną, išsaugoma kopija spausdintuvui {modelName}.} many {Dar #. Pasirinkus vieną, išsaugoma kopija spausdintuvui {modelName}.} other {Dar #. Pasirinkus vieną, išsaugoma kopija spausdintuvui {modelName}.}}"
+
+# AI Translated
+#. placeholder {0}: otherShown.length
+#: src/components/AddPrinterForm.tsx
+msgid "{0, plural, one {# of them match your search. Picking one saves a copy for the {modelName}.} other {# of them match your search. Picking one saves a copy for the {modelName}.}}"
+msgstr "{0, plural, one {# iš jų atitinka jūsų paiešką. Pasirinkus vieną, išsaugoma kopija spausdintuvui {modelName}.} few {# iš jų atitinka jūsų paiešką. Pasirinkus vieną, išsaugoma kopija spausdintuvui {modelName}.} many {# iš jų atitinka jūsų paiešką. Pasirinkus vieną, išsaugoma kopija spausdintuvui {modelName}.} other {# iš jų atitinka jūsų paiešką. Pasirinkus vieną, išsaugoma kopija spausdintuvui {modelName}.}}"
+
+# AI Translated
+#. placeholder {0}: found.length
+#: src/components/Guide.tsx
+msgid "{0, plural, one {Found in # section} other {Found in # sections}}"
+msgstr "{0, plural, one {Rasta: # skyrius} few {Rasta: # skyriai} many {Rasta: # skyriaus} other {Rasta: # skyrių}}"
+
+# AI Translated
+#. placeholder {0}: chosen.length
+#: src/components/OrcaImport.tsx
+msgid "{0, plural, one {Import # printer} other {Import # printers}}"
+msgstr "{0, plural, one {Importuoti # spausdintuvą} few {Importuoti # spausdintuvus} many {Importuoti # spausdintuvo} other {Importuoti # spausdintuvų}}"
+
+# AI Translated
+#. placeholder {0}: others.length
+#: src/components/AddPrinterForm.tsx
+msgid "{0, plural, one {None of the # match your search either.} other {None of the # match your search either.}}"
+msgstr "{0, plural, one {Nė vienas iš jų (#) taip pat neatitinka jūsų paieškos.} few {Nė vienas iš jų (#) taip pat neatitinka jūsų paieškos.} many {Nė vienas iš jų (#) taip pat neatitinka jūsų paieškos.} other {Nė vienas iš jų (#) taip pat neatitinka jūsų paieškos.}}"
+
+# AI Translated
+#. placeholder {0}: printers.length
+#: src/components/OrcaImport.tsx
+msgid "{0, plural, one {The # imported printers are now in the printer menu at the top of the window.} other {The # imported printers are now in the printer menu at the top of the window.}}"
+msgstr "{0, plural, one {# importuotas spausdintuvas dabar yra spausdintuvų meniu lango viršuje.} few {# importuoti spausdintuvai dabar yra spausdintuvų meniu lango viršuje.} many {# importuoto spausdintuvo dabar yra spausdintuvų meniu lango viršuje.} other {# importuotų spausdintuvų dabar yra spausdintuvų meniu lango viršuje.}}"
+
+# AI Translated
+#. placeholder {0}: signup.granted
+#: src/credits.ts
+msgid "{0, plural, one {You got {granted} free credit for signing up, good until {until}.} other {You got {granted} free credits for signing up, good until {until}.}}"
+msgstr "{0, plural, one {Už registraciją gavote {granted} nemokamą kreditą, galiojantį iki {until}.} few {Už registraciją gavote {granted} nemokamus kreditus, galiojančius iki {until}.} many {Už registraciją gavote {granted} nemokamo kredito, galiojančio iki {until}.} other {Už registraciją gavote {granted} nemokamų kreditų, galiojančių iki {until}.}}"
+
+# AI Translated
+#: src/credits.ts
+msgid "{about, plural, one {About # credit left} other {About # credits left}}"
+msgstr "{about, plural, one {Liko apie # kreditą} few {Liko apie # kreditus} many {Liko apie # kredito} other {Liko apie # kreditų}}"
+
+# AI Translated
+#. Grams of filament
+#: src/components/SetupCard.tsx
+msgid "{amount} g"
+msgstr "{amount} g"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{app} keeps its own copy."
+msgstr "{app} pasilieka savo kopiją."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{app} keeps these in {path}"
+msgstr "{app} juos laiko čia: {path}"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "{app} keeps these in {source}"
+msgstr "{app} juos laiko čia: {source}"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{app} printers"
+msgstr "{app} spausdintuvai"
+
+# AI Translated
+#: src/components/AttachmentChip.tsx
+msgid "{bytes} B"
+msgstr "{bytes} B"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "{changed, plural, one {# setting differs from the presets.} other {# settings differ from the presets.}}"
+msgstr "{changed, plural, one {# nustatymas skiriasi nuo profilių.} few {# nustatymai skiriasi nuo profilių.} many {# nustatymo skiriasi nuo profilių.} other {# nustatymų skiriasi nuo profilių.}}"
+
+# AI Translated
+#: src/credits.ts
+msgid "{cost, plural, one {{n} credit a message} other {{n} credits a message}}"
+msgstr "{cost, plural, one {{n} kreditas už žinutę} few {{n} kreditai už žinutę} many {{n} kredito už žinutę} other {{n} kreditų už žinutę}}"
+
+# AI Translated
+#: src/credits.ts
+msgid "{cost, plural, one {Each message you send in this chat costs {n} credit.} other {Each message you send in this chat costs {n} credits.}}"
+msgstr "{cost, plural, one {Kiekviena šiame pokalbyje išsiųsta žinutė kainuoja {n} kreditą.} few {Kiekviena šiame pokalbyje išsiųsta žinutė kainuoja {n} kreditus.} many {Kiekviena šiame pokalbyje išsiųsta žinutė kainuoja {n} kredito.} other {Kiekviena šiame pokalbyje išsiųsta žinutė kainuoja {n} kreditų.}}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{count, plural, one {{count} G-code} other {{count} G-codes}}"
+msgstr "{count, plural, one {{count} G-code failas} few {{count} G-code failai} many {{count} G-code failo} other {{count} G-code failų}}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{count, plural, one {{count} print} other {{count} prints}}"
+msgstr "{count, plural, one {{count} spausdinimas} few {{count} spausdinimai} many {{count} spausdinimo} other {{count} spausdinimų}}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{count, plural, one {{count} printing now} other {{count} printing now}}"
+msgstr "{count, plural, one {{count} šiuo metu spausdina} few {{count} šiuo metu spausdina} many {{count} šiuo metu spausdina} other {{count} šiuo metu spausdina}}"
+
+# AI Translated
+#: src/credits.ts
+msgid "{count, plural, one {{n} credit left} other {{n} credits left}}"
+msgstr "{count, plural, one {Liko {n} kreditas} few {Liko {n} kreditai} many {Liko {n} kredito} other {Liko {n} kreditų}}"
+
+# AI Translated
+#: src/credits.ts
+msgid "{count, plural, one {{n} credit} other {{n} credits}}"
+msgstr "{count, plural, one {{n} kreditas} few {{n} kreditai} many {{n} kredito} other {{n} kreditų}}"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "{count, plural, one {# action} other {# actions}}"
+msgstr "{count, plural, one {# veiksmas} few {# veiksmai} many {# veiksmo} other {# veiksmų}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{count, plural, one {# changed} other {# changed}}"
+msgstr "{count, plural, one {# pakeistas} few {# pakeisti} many {# pakeisto} other {# pakeistų}}"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "{count, plural, one {# model} other {# models}}"
+msgstr "{count, plural, one {# modelis} few {# modeliai} many {# modelio} other {# modelių}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{count, plural, one {# own setting} other {# own settings}}"
+msgstr "{count, plural, one {# nuosavas nustatymas} few {# nuosavi nustatymai} many {# nuosavo nustatymo} other {# nuosavų nustatymų}}"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{count, plural, one {# setting} other {# settings}}"
+msgstr "{count, plural, one {# nustatymas} few {# nustatymai} many {# nustatymo} other {# nustatymų}}"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "{count, plural, one {+{n} credit} other {+{n} credits}}"
+msgstr "{count, plural, one {+{n} kreditas} few {+{n} kreditai} many {+{n} kredito} other {+{n} kreditų}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{count, plural, one {Negative part} other {Negative parts}}"
+msgstr "{count, plural, one {Neigiama dalis} few {Neigiamos dalys} many {Neigiamos dalys} other {Neigiamos dalys}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{count, plural, one {Part} other {Parts}}"
+msgstr "{count, plural, one {Dalis} few {Dalys} many {Dalys} other {Dalys}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{count, plural, one {Support blocker} other {Support blockers}}"
+msgstr "{count, plural, one {Atramų blokatorius} few {Atramų blokatoriai} many {Atramų blokatoriai} other {Atramų blokatoriai}}"
+
+# AI Translated
+# Needs human review: Upstream renders 'Support enforcer' as the plural noun 'Priverstinės atramos', so singular and plural read the same; check this heading.
+#: src/components/AllSettings.tsx
+msgid "{count, plural, one {Support enforcer} other {Support enforcers}}"
+msgstr "{count, plural, one {Priverstinės atramos} few {Priverstinės atramos} many {Priverstinės atramos} other {Priverstinės atramos}}"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "{count, plural, one {Worked for {elapsed} · # action} other {Worked for {elapsed} · # actions}}"
+msgstr "{count, plural, one {Dirbo {elapsed} · # veiksmas} few {Dirbo {elapsed} · # veiksmai} many {Dirbo {elapsed} · # veiksmo} other {Dirbo {elapsed} · # veiksmų}}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{credits, plural, one {{credits} credit added} other {{credits} credits added}}"
+msgstr "{credits, plural, one {Pridėtas {credits} kreditas} few {Pridėti {credits} kreditai} many {Pridėta {credits} kredito} other {Pridėta {credits} kreditų}}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "{credits, plural, one {To send this and get {credits} credit, add a photo of the printed object, write what happened, and pick how it came out.} other {To send this and get {credits} credits, add a photo of the printed object, write what happened, and pick how it came out.}}"
+msgstr "{credits, plural, one {Kad tai išsiųstumėte ir gautumėte {credits} kreditą, pridėkite išspausdinto objekto nuotrauką, aprašykite, kas nutiko, ir pasirinkite, koks buvo rezultatas.} few {Kad tai išsiųstumėte ir gautumėte {credits} kreditus, pridėkite išspausdinto objekto nuotrauką, aprašykite, kas nutiko, ir pasirinkite, koks buvo rezultatas.} many {Kad tai išsiųstumėte ir gautumėte {credits} kredito, pridėkite išspausdinto objekto nuotrauką, aprašykite, kas nutiko, ir pasirinkite, koks buvo rezultatas.} other {Kad tai išsiųstumėte ir gautumėte {credits} kreditų, pridėkite išspausdinto objekto nuotrauką, aprašykite, kas nutiko, ir pasirinkite, koks buvo rezultatas.}}"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+#: src/components/Preferences.tsx
+msgid "{days, plural, one {# day ago} other {# days ago}}"
+msgstr "{days, plural, one {prieš # dieną} few {prieš # dienas} many {prieš # dienos} other {prieš # dienų}}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "{days, plural, one {Last connected {days} day ago} other {Last connected {days} days ago}}"
+msgstr "{days, plural, one {Paskutinį kartą prisijungta prieš {days} dieną} few {Paskutinį kartą prisijungta prieš {days} dienas} many {Paskutinį kartą prisijungta prieš {days} dienos} other {Paskutinį kartą prisijungta prieš {days} dienų}}"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "{defaultLabel}, until your preset is saved"
+msgstr "{defaultLabel}, kol bus išsaugotas jūsų profilis"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{exports, plural, =1 {Exported once, never sent to a printer} one {Exported {exports} times, never sent to a printer} other {Exported {exports} times, never sent to a printer}}"
+msgstr "{exports, plural, =1 {Eksportuota kartą, niekada nesiųsta į spausdintuvą} one {Eksportuota {exports} kartą, niekada nesiųsta į spausdintuvą} few {Eksportuota {exports} kartus, niekada nesiųsta į spausdintuvą} many {Eksportuota {exports} karto, niekada nesiųsta į spausdintuvą} other {Eksportuota {exports} kartų, niekada nesiųsta į spausdintuvą}}"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "{failed, plural, one {# failed} other {# failed}}"
+msgstr "{failed, plural, one {# nepavyko} few {# nepavyko} many {# nepavyko} other {# nepavyko}}"
+
+# AI Translated
+#: src/App.tsx
+msgid "{filament} settings"
+msgstr "{filament} nustatymai"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{filaments, plural, one {# filament wasn’t imported. It stays in {app}.} other {# filaments weren’t imported. They stay in {app}.}}"
+msgstr "{filaments, plural, one {# gija neimportuota. Ji lieka programoje {app}.} few {# gijos neimportuotos. Jos lieka programoje {app}.} many {# gijos neimportuota. Jos lieka programoje {app}.} other {# gijų neimportuota. Jos lieka programoje {app}.}}"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{filaments, plural, one {# filament} other {# filaments}} and {settings, plural, one {# print setting} other {# print settings}} weren’t imported. They stay in {app}."
+msgstr "{filaments, plural, one {# gija} few {# gijos} many {# gijos} other {# gijų}} ir {settings, plural, one {# spausdinimo nustatymų profilis} few {# spausdinimo nustatymų profiliai} many {# spausdinimo nustatymų profilio} other {# spausdinimo nustatymų profilių}} neimportuoti. Jie lieka programoje {app}."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "{filaments, plural, one {Also brings {filaments} filament.} other {Also brings {filaments} filaments.}}"
+msgstr "{filaments, plural, one {Taip pat perkeliama {filaments} gija.} few {Taip pat perkeliamos {filaments} gijos.} many {Taip pat perkeliama {filaments} gijos.} other {Taip pat perkeliama {filaments} gijų.}}"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{filaments, plural, one {Also imported: # filament ({filamentList}).} other {Also imported: # filaments ({filamentList}).}}"
+msgstr "{filaments, plural, one {Taip pat importuota: # gija ({filamentList}).} few {Taip pat importuota: # gijos ({filamentList}).} many {Taip pat importuota: # gijos ({filamentList}).} other {Taip pat importuota: # gijų ({filamentList}).}}"
+
+# AI Translated
+#: src/components/GcodeMarker.tsx
+msgid "{fileName} · exported"
+msgstr "{fileName} · eksportuota"
+
+# AI Translated
+#. The file formats Home opens: STL, 3MF, STEP, OBJ, AMF, SVG or ZIP.
+#: ../HomeUI/src/App.tsx
+msgid "{formats} or {lastFormat}."
+msgstr "{formats} arba {lastFormat}."
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{gcodes, plural, one {{gcodes} G-code, never sent to a printer} other {{gcodes} G-codes, never sent to a printer}}"
+msgstr "{gcodes, plural, one {{gcodes} G-code failas, niekada nesiųstas į spausdintuvą} few {{gcodes} G-code failai, niekada nesiųsti į spausdintuvą} many {{gcodes} G-code failo, niekada nesiųsto į spausdintuvą} other {{gcodes} G-code failų, niekada nesiųstų į spausdintuvą}}"
+
+# AI Translated
+#. Grams of filament
+#: ../HomeUI/src/history.ts
+msgid "{grams} g"
+msgstr "{grams} g"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "{hours, plural, one {# hour ago} other {# hours ago}}"
+msgstr "{hours, plural, one {prieš # valandą} few {prieš # valandas} many {prieš # valandos} other {prieš # valandų}}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "{hours, plural, one {Last connected {hours}h ago} other {Last connected {hours}h ago}}"
+msgstr "{hours, plural, one {Paskutinį kartą prisijungta prieš {hours} val.} few {Paskutinį kartą prisijungta prieš {hours} val.} many {Paskutinį kartą prisijungta prieš {hours} val.} other {Paskutinį kartą prisijungta prieš {hours} val.}}"
+
+# AI Translated
+#. A duration in hours and minutes, abbreviated: 2h 04m
+#: ../HomeUI/src/history.ts
+msgid "{hours}h {mins}m"
+msgstr "{hours} val. {mins} min"
+
+# AI Translated
+#. Time left in a print, hours and minutes abbreviated: 2h 14m left
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "{hours}h {mins}m left"
+msgstr "Liko {hours} val. {mins} min"
+
+# AI Translated
+#. {job} is the file printing
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "{job}, {percent} percent"
+msgstr "{job}, {percent} proc."
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+#: src/components/AttachmentChip.tsx
+msgid "{kilobytes} KB"
+msgstr "{kilobytes} KB"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{label} {from} → <0>{to}</0>"
+msgstr "{label} {from} → <0>{to}</0>"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "{label}: {text}"
+msgstr "{label}: {text}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{layers, plural, one {{layers} layer} other {{layers} layers}}"
+msgstr "{layers, plural, one {{layers} sluoksnis} few {{layers} sluoksniai} many {{layers} sluoksnio} other {{layers} sluoksnių}}"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+#: src/components/Preferences.tsx
+msgid "{left} of {of} left"
+msgstr "Liko {left} iš {of}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{list} and {name}"
+msgstr "{list} ir {name}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+#: src/components/AttachmentChip.tsx
+msgid "{megabytes} MB"
+msgstr "{megabytes} MB"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "{minimum, plural, one {Write at least {minimum} character ({length} so far).} other {Write at least {minimum} characters ({length} so far).}}"
+msgstr "{minimum, plural, one {Parašykite bent {minimum} simbolį (kol kas {length}).} few {Parašykite bent {minimum} simbolius (kol kas {length}).} many {Parašykite bent {minimum} simbolio (kol kas {length}).} other {Parašykite bent {minimum} simbolių (kol kas {length}).}}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "{minutes, plural, one {# minute ago} other {# minutes ago}}"
+msgstr "{minutes, plural, one {prieš # minutę} few {prieš # minutes} many {prieš # minutės} other {prieš # minučių}}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "{minutes, plural, one {Last connected {minutes} min ago} other {Last connected {minutes} min ago}}"
+msgstr "{minutes, plural, one {Paskutinį kartą prisijungta prieš {minutes} min.} few {Paskutinį kartą prisijungta prieš {minutes} min.} many {Paskutinį kartą prisijungta prieš {minutes} min.} other {Paskutinį kartą prisijungta prieš {minutes} min.}}"
+
+# AI Translated
+#. A duration in minutes, abbreviated: 34m
+#: ../HomeUI/src/history.ts
+msgid "{minutes}m"
+msgstr "{minutes} min"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "{minutes}m {seconds}s"
+msgstr "{minutes} min {seconds} s"
+
+# AI Translated
+#. Time left in a print, minutes abbreviated: 14m left
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "{minutes}m left"
+msgstr "Liko {minutes} min"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "{more, plural, one {{preset} with {filament} and # other filament.} other {{preset} with {filament} and # other filaments.}}"
+msgstr "{more, plural, one {{preset} su {filament} ir dar # gija.} few {{preset} su {filament} ir dar # gijomis.} many {{preset} su {filament} ir dar # gijos.} other {{preset} su {filament} ir dar # gijų.}}"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "{more, plural, one {Made for the {first}, {second} and # other printer. Picking it saves a copy for the {modelName}.} other {Made for the {first}, {second} and # other printers. Picking it saves a copy for the {modelName}.}}"
+msgstr "{more, plural, one {Skirta {first}, {second} ir dar # spausdintuvui. Pasirinkus, išsaugoma kopija spausdintuvui {modelName}.} few {Skirta {first}, {second} ir dar # spausdintuvams. Pasirinkus, išsaugoma kopija spausdintuvui {modelName}.} many {Skirta {first}, {second} ir dar # spausdintuvo. Pasirinkus, išsaugoma kopija spausdintuvui {modelName}.} other {Skirta {first}, {second} ir dar # spausdintuvų. Pasirinkus, išsaugoma kopija spausdintuvui {modelName}.}}"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "{more, plural, one {Opened {name} and # more as a new project} other {Opened {name} and # more as a new project}}"
+msgstr "{more, plural, one {Kaip naujas projektas atverta {name} ir dar #} few {Kaip naujas projektas atverta {name} ir dar #} many {Kaip naujas projektas atverta {name} ir dar #} other {Kaip naujas projektas atverta {name} ir dar #}}"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "{more, plural, one {Opened {name} and # more} other {Opened {name} and # more}}"
+msgstr "{more, plural, one {Atverta {name} ir dar #} few {Atverta {name} ir dar #} many {Atverta {name} ir dar #} other {Atverta {name} ir dar #}}"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "{more, plural, one {Opened a file and # more as a new project} other {Opened a file and # more as a new project}}"
+msgstr "{more, plural, one {Kaip naujas projektas atvertas failas ir dar #} few {Kaip naujas projektas atvertas failas ir dar #} many {Kaip naujas projektas atvertas failas ir dar #} other {Kaip naujas projektas atvertas failas ir dar #}}"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "{more, plural, one {Opened a file and # more} other {Opened a file and # more}}"
+msgstr "{more, plural, one {Atvertas failas ir dar #} few {Atvertas failas ir dar #} many {Atvertas failas ir dar #} other {Atvertas failas ir dar #}}"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "{more, plural, one {Your preset, made for the {first}, {second} and # other printer. Picking it saves a copy for the {modelName}.} other {Your preset, made for the {first}, {second} and # other printers. Picking it saves a copy for the {modelName}.}}"
+msgstr "{more, plural, one {Jūsų profilis, skirtas {first}, {second} ir dar # spausdintuvui. Pasirinkus jį, išsaugoma kopija spausdintuvui {modelName}.} few {Jūsų profilis, skirtas {first}, {second} ir dar # spausdintuvams. Pasirinkus jį, išsaugoma kopija spausdintuvui {modelName}.} many {Jūsų profilis, skirtas {first}, {second} ir dar # spausdintuvo. Pasirinkus jį, išsaugoma kopija spausdintuvui {modelName}.} other {Jūsų profilis, skirtas {first}, {second} ir dar # spausdintuvų. Pasirinkus jį, išsaugoma kopija spausdintuvui {modelName}.}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{morePlate, plural, one {Bed type set on this plate · # more plate setting} other {Bed type set on this plate · # more plate settings}}"
+msgstr "{morePlate, plural, one {Šiai plokštei nustatytas pagrindo tipas · dar # plokštės nustatymas} few {Šiai plokštei nustatytas pagrindo tipas · dar # plokštės nustatymai} many {Šiai plokštei nustatytas pagrindo tipas · dar # plokštės nustatymo} other {Šiai plokštei nustatytas pagrindo tipas · dar # plokštės nustatymų}}"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "{name} API key"
+msgstr "{name} API raktas"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "{name} can see this project"
+msgstr "{name} mato šį projektą"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{name} has settings of its own."
+msgstr "{name} turi savų nustatymų."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{name} is now in the printer menu at the top of the window."
+msgstr "{name} dabar yra spausdintuvų meniu lango viršuje."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "{name} isn’t installed."
+msgstr "Programa {name} neįdiegta."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{name} prints with the project’s settings and sets nothing of its own."
+msgstr "{name}: spausdinama pagal projekto nustatymus, savų nustatymų nėra."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "{name} rejected this key. Nothing was saved."
+msgstr "{name} atmetė šį raktą. Niekas neišsaugota."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{name} uses the project’s settings and sets nothing of its own."
+msgstr "{name}: naudojami projekto nustatymai, savų nustatymų nėra."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{names} have settings of their own."
+msgstr "{names} turi savų nustatymų."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{newPrinters, plural, one {JusPrin found # printer in {app} that it doesn’t have yet.} other {JusPrin found # printers in {app} that it doesn’t have yet.}}"
+msgstr "{newPrinters, plural, one {JusPrin programoje {app} rado # spausdintuvą, kurio dar neturi.} few {JusPrin programoje {app} rado # spausdintuvus, kurių dar neturi.} many {JusPrin programoje {app} rado # spausdintuvo, kurių dar neturi.} other {JusPrin programoje {app} rado # spausdintuvų, kurių dar neturi.}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{nozzles} mm nozzle"
+msgstr "{nozzles} mm purkštukas"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{objectCount, plural, one {# object} other {# objects}}"
+msgstr "{objectCount, plural, one {# objektas} few {# objektai} many {# objekto} other {# objektų}}"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "{onlySize} mm, the only size it comes with"
+msgstr "{onlySize} mm – vienintelis galimas dydis"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{own, plural, one {{name} sets # setting of its own; the rest is the project’s.} other {{name} sets # settings of its own; the rest is the project’s.}}"
+msgstr "{own, plural, one {{name} turi # nuosavą nustatymą; kiti – projekto.} few {{name} turi # nuosavus nustatymus; kiti – projekto.} many {{name} turi # nuosavo nustatymo; kiti – projekto.} other {{name} turi # nuosavų nustatymų; kiti – projekto.}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{own, plural, one {{name} uses the project’s settings, except for # setting of its own.} other {{name} uses the project’s settings, except for # settings of its own.}}"
+msgstr "{own, plural, one {{name} naudoja projekto nustatymus, išskyrus # nuosavą nustatymą.} few {{name} naudoja projekto nustatymus, išskyrus # nuosavus nustatymus.} many {{name} naudoja projekto nustatymus, išskyrus # nuosavo nustatymo.} other {{name} naudoja projekto nustatymus, išskyrus # nuosavų nustatymų.}}"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "{plan} credits"
+msgstr "{plan} kreditai"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{plateOwn, plural, one {# setting set on this plate} other {# settings set on this plate}}"
+msgstr "{plateOwn, plural, one {# šios plokštės nustatymas} few {# šios plokštės nustatymai} many {# šios plokštės nustatymo} other {# šios plokštės nustatymų}}"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "{preset} with {filament}."
+msgstr "{preset} su {filament}."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "{printer}, {size} mm nozzle"
+msgstr "{printer}, {size} mm purkštukas"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "{printerName} settings"
+msgstr "{printerName} nustatymai"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{printers, plural, one {# printer wasn’t imported. It stays in {app}.} other {# printers weren’t imported. They stay in {app}.}}"
+msgstr "{printers, plural, one {# spausdintuvas neimportuotas. Jis lieka programoje {app}.} few {# spausdintuvai neimportuoti. Jie lieka programoje {app}.} many {# spausdintuvo neimportuota. Jie lieka programoje {app}.} other {# spausdintuvų neimportuota. Jie lieka programoje {app}.}}"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{printers, plural, one {# printer} other {# printers}} and {filaments, plural, one {# filament} other {# filaments}} weren’t imported. They stay in {app}."
+msgstr "{printers, plural, one {# spausdintuvas} few {# spausdintuvai} many {# spausdintuvo} other {# spausdintuvų}} ir {filaments, plural, one {# gija} few {# gijos} many {# gijos} other {# gijų}} neimportuoti. Jie lieka programoje {app}."
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{printers, plural, one {# printer} other {# printers}} and {settings, plural, one {# print setting} other {# print settings}} weren’t imported. They stay in {app}."
+msgstr "{printers, plural, one {# spausdintuvas} few {# spausdintuvai} many {# spausdintuvo} other {# spausdintuvų}} ir {settings, plural, one {# spausdinimo nustatymų profilis} few {# spausdinimo nustatymų profiliai} many {# spausdinimo nustatymų profilio} other {# spausdinimo nustatymų profilių}} neimportuoti. Jie lieka programoje {app}."
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{printers, plural, one {# printer} other {# printers}}, {filaments, plural, one {# filament} other {# filaments}} and {settings, plural, one {# print setting} other {# print settings}} weren’t imported. They stay in {app}."
+msgstr "{printers, plural, one {# spausdintuvas} few {# spausdintuvai} many {# spausdintuvo} other {# spausdintuvų}}, {filaments, plural, one {# gija} few {# gijos} many {# gijos} other {# gijų}} ir {settings, plural, one {# spausdinimo nustatymų profilis} few {# spausdinimo nustatymų profiliai} many {# spausdinimo nustatymų profilio} other {# spausdinimo nustatymų profilių}} neimportuoti. Jie lieka programoje {app}."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{processChanges, plural, one {# change from the preset} other {# changes from the preset}}"
+msgstr "{processChanges, plural, one {# pakeitimas, palyginti su profiliu} few {# pakeitimai, palyginti su profiliu} many {# pakeitimo, palyginti su profiliu} other {# pakeitimų, palyginti su profiliu}}"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "{reason} Nothing was saved."
+msgstr "{reason} Niekas neišsaugota."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{regions, plural, one {{name} has settings of its own in # region: {names}.} other {{name} has settings of its own in # regions: {names}.}}"
+msgstr "{regions, plural, one {{name} turi savų nustatymų šioje srityje: {names}.} few {{name} turi savų nustatymų šiose srityse (#): {names}.} many {{name} turi savų nustatymų šiose srityse (#): {names}.} other {{name} turi savų nustatymų šiose srityse (#): {names}.}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{regions, plural, one {{name} uses the project’s settings, except in # region: {names}.} other {{name} uses the project’s settings, except in # regions: {names}.}}"
+msgstr "{regions, plural, one {{name} naudoja projekto nustatymus, išskyrus šią sritį: {names}.} few {{name} naudoja projekto nustatymus, išskyrus šias sritis (#): {names}.} many {{name} naudoja projekto nustatymus, išskyrus šias sritis (#): {names}.} other {{name} naudoja projekto nustatymus, išskyrus šias sritis (#): {names}.}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{regions, plural, one {{names} · # region} other {{names} · # regions}}"
+msgstr "{regions, plural, one {{names} · # sritis} few {{names} · # sritys} many {{names} · # srities} other {{names} · # sričių}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{regions, plural, one {{where} · # region · project: {projectValue}} other {{where} · # regions · project: {projectValue}}}"
+msgstr "{regions, plural, one {{where} · # sritis · projekte: {projectValue}} few {{where} · # sritys · projekte: {projectValue}} many {{where} · # srities · projekte: {projectValue}} other {{where} · # sričių · projekte: {projectValue}}}"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{remaining, plural, one {See the other # →} other {See the other # →}}"
+msgstr "{remaining, plural, one {Žiūrėti likusį (#) →} few {Žiūrėti likusius (#) →} many {Žiūrėti likusius (#) →} other {Žiūrėti likusius (#) →}}"
+
+# AI Translated
+#. {remaining} is a duration, 2h 34m
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "{remaining} left"
+msgstr "Liko {remaining}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{reportCredits, plural, one {Share how it printed and get {reportCredits} credit} other {Share how it printed and get {reportCredits} credits}}"
+msgstr "{reportCredits, plural, one {Papasakokite, kaip pavyko spaudinys, ir gaukite {reportCredits} kreditą} few {Papasakokite, kaip pavyko spaudinys, ir gaukite {reportCredits} kreditus} many {Papasakokite, kaip pavyko spaudinys, ir gaukite {reportCredits} kredito} other {Papasakokite, kaip pavyko spaudinys, ir gaukite {reportCredits} kreditų}}"
+
+# AI Translated
+#. A duration in seconds, abbreviated: 45s
+#: ../HomeUI/src/history.ts
+msgid "{secs}s"
+msgstr "{secs} s"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{sends, plural, =1 {Sent once} one {Sent {sends} times} other {Sent {sends} times}}"
+msgstr "{sends, plural, =1 {Išsiųsta kartą} one {Išsiųsta {sends} kartą} few {Išsiųsta {sends} kartus} many {Išsiųsta {sends} karto} other {Išsiųsta {sends} kartų}}"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{settings, plural, one {# print setting wasn’t imported. It stays in {app}.} other {# print settings weren’t imported. They stay in {app}.}}"
+msgstr "{settings, plural, one {# spausdinimo nustatymų profilis neimportuotas. Jis lieka programoje {app}.} few {# spausdinimo nustatymų profiliai neimportuoti. Jie lieka programoje {app}.} many {# spausdinimo nustatymų profilio neimportuota. Jie lieka programoje {app}.} other {# spausdinimo nustatymų profilių neimportuota. Jie lieka programoje {app}.}}"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "{settings, plural, one {Also brings {settings} print setting.} other {Also brings {settings} print settings.}}"
+msgstr "{settings, plural, one {Taip pat perkeliamas {settings} spausdinimo nustatymų profilis.} few {Taip pat perkeliami {settings} spausdinimo nustatymų profiliai.} many {Taip pat perkeliama {settings} spausdinimo nustatymų profilio.} other {Taip pat perkeliama {settings} spausdinimo nustatymų profilių.}}"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{settings, plural, one {Also imported: # print setting ({settingList}).} other {Also imported: # print settings ({settingList}).}}"
+msgstr "{settings, plural, one {Taip pat importuota: # spausdinimo nustatymų profilis ({settingList}).} few {Taip pat importuota: # spausdinimo nustatymų profiliai ({settingList}).} many {Taip pat importuota: # spausdinimo nustatymų profilio ({settingList}).} other {Taip pat importuota: # spausdinimo nustatymų profilių ({settingList}).}}"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{shown, plural, one {# setting} other {# settings}}"
+msgstr "{shown, plural, one {# nustatymas} few {# nustatymai} many {# nustatymo} other {# nustatymų}}"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "{size} mm"
+msgstr "{size} mm"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "{size} mm nozzle"
+msgstr "{size} mm purkštukas"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{skipped, plural, =1 {There is nothing to import. JusPrin already has everything in this {app} folder except the item with the warning sign, which it can’t import.} other {There is nothing to import. JusPrin already has everything in this {app} folder except the # items with the warning sign, which it can’t import.}}"
+msgstr "{skipped, plural, =1 {Nėra ką importuoti. JusPrin jau turi viską, kas yra šiame {app} aplanke, išskyrus elementą su įspėjimo ženklu, kurio importuoti negali.} one {Nėra ką importuoti. JusPrin jau turi viską, kas yra šiame {app} aplanke, išskyrus # elementą su įspėjimo ženklu, kurio importuoti negali.} few {Nėra ką importuoti. JusPrin jau turi viską, kas yra šiame {app} aplanke, išskyrus # elementus su įspėjimo ženklu, kurių importuoti negali.} many {Nėra ką importuoti. JusPrin jau turi viską, kas yra šiame {app} aplanke, išskyrus # elemento su įspėjimo ženklu, kurių importuoti negali.} other {Nėra ką importuoti. JusPrin jau turi viską, kas yra šiame {app} aplanke, išskyrus # elementų su įspėjimo ženklu, kurių importuoti negali.}}"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{skipped, plural, =1 {When you import, JusPrin copies it and skips the item with the warning sign.} other {When you import, JusPrin copies it and skips the # items with the warning sign.}}"
+msgstr "{skipped, plural, =1 {Importuojant JusPrin jį nukopijuos ir praleis elementą su įspėjimo ženklu.} one {Importuojant JusPrin jį nukopijuos ir praleis # elementą su įspėjimo ženklu.} few {Importuojant JusPrin jį nukopijuos ir praleis # elementus su įspėjimo ženklu.} many {Importuojant JusPrin jį nukopijuos ir praleis # elemento su įspėjimo ženklu.} other {Importuojant JusPrin jį nukopijuos ir praleis # elementų su įspėjimo ženklu.}}"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{skipped, plural, =1 {When you import, JusPrin copies it with its filaments and print settings and skips the item with the warning sign.} other {When you import, JusPrin copies it with its filaments and print settings and skips the # items with the warning sign.}}"
+msgstr "{skipped, plural, =1 {Importuojant JusPrin jį nukopijuos kartu su jo gijomis ir spausdinimo nustatymais ir praleis elementą su įspėjimo ženklu.} one {Importuojant JusPrin jį nukopijuos kartu su jo gijomis ir spausdinimo nustatymais ir praleis # elementą su įspėjimo ženklu.} few {Importuojant JusPrin jį nukopijuos kartu su jo gijomis ir spausdinimo nustatymais ir praleis # elementus su įspėjimo ženklu.} many {Importuojant JusPrin jį nukopijuos kartu su jo gijomis ir spausdinimo nustatymais ir praleis # elemento su įspėjimo ženklu.} other {Importuojant JusPrin jį nukopijuos kartu su jo gijomis ir spausdinimo nustatymais ir praleis # elementų su įspėjimo ženklu.}}"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{skipped, plural, =1 {When you import, JusPrin copies them and skips the item with the warning sign.} other {When you import, JusPrin copies them and skips the # items with the warning sign.}}"
+msgstr "{skipped, plural, =1 {Importuojant JusPrin juos nukopijuos ir praleis elementą su įspėjimo ženklu.} one {Importuojant JusPrin juos nukopijuos ir praleis # elementą su įspėjimo ženklu.} few {Importuojant JusPrin juos nukopijuos ir praleis # elementus su įspėjimo ženklu.} many {Importuojant JusPrin juos nukopijuos ir praleis # elemento su įspėjimo ženklu.} other {Importuojant JusPrin juos nukopijuos ir praleis # elementų su įspėjimo ženklu.}}"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{skipped, plural, =1 {When you import, JusPrin copies them with their filaments and print settings and skips the item with the warning sign.} other {When you import, JusPrin copies them with their filaments and print settings and skips the # items with the warning sign.}}"
+msgstr "{skipped, plural, =1 {Importuojant JusPrin juos nukopijuos kartu su jų gijomis ir spausdinimo nustatymais ir praleis elementą su įspėjimo ženklu.} one {Importuojant JusPrin juos nukopijuos kartu su jų gijomis ir spausdinimo nustatymais ir praleis # elementą su įspėjimo ženklu.} few {Importuojant JusPrin juos nukopijuos kartu su jų gijomis ir spausdinimo nustatymais ir praleis # elementus su įspėjimo ženklu.} many {Importuojant JusPrin juos nukopijuos kartu su jų gijomis ir spausdinimo nustatymais ir praleis # elemento su įspėjimo ženklu.} other {Importuojant JusPrin juos nukopijuos kartu su jų gijomis ir spausdinimo nustatymais ir praleis # elementų su įspėjimo ženklu.}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{slots, plural, one {# slot, side by side} other {# slots, side by side}}"
+msgstr "{slots, plural, one {# lizdas, greta vienas kito} few {# lizdai, greta vienas kito} many {# lizdo, greta vienas kito} other {# lizdų, greta vienas kito}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{slots, plural, one {# slot} other {# slots}}"
+msgstr "{slots, plural, one {# lizdas} few {# lizdai} many {# lizdo} other {# lizdų}}"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{steps, plural, one {# step merged} other {# steps merged}}"
+msgstr "{steps, plural, one {Sujungtas # žingsnis} few {Sujungti # žingsniai} many {Sujungta # žingsnio} other {Sujungta # žingsnių}}"
+
+# AI Translated
+#: src/components/WorkCard.tsx
+msgid "{times, plural, one {# time} other {# times}}"
+msgstr "{times, plural, one {# kartą} few {# kartus} many {# karto} other {# kartų}}"
+
+# AI Translated
+#: src/components/ToolActivityCard.tsx
+#: src/components/WorkCard.tsx
+msgid "{title} progress"
+msgstr "{title}: eiga"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{total, plural, one {{shown} of # setting} other {{shown} of # settings}}"
+msgstr "{total, plural, one {{shown} iš # nustatymo} few {{shown} iš # nustatymų} many {{shown} iš # nustatymo} other {{shown} iš # nustatymų}}"
+
+# AI Translated
+# Needs human review: Check what {tier} is filled with (a model tier name) and that the parenthesis reads right.
+#: src/credits.ts
+msgid "{total, plural, one {You have {n} credit; this {tier} chat needs {needed} a message.} other {You have {n} credits; this {tier} chat needs {needed} a message.}}"
+msgstr "{total, plural, one {Turite {n} kreditą; šiam pokalbiui ({tier}) reikia {needed} už žinutę.} few {Turite {n} kreditus; šiam pokalbiui ({tier}) reikia {needed} už žinutę.} many {Turite {n} kredito; šiam pokalbiui ({tier}) reikia {needed} už žinutę.} other {Turite {n} kreditų; šiam pokalbiui ({tier}) reikia {needed} už žinutę.}}"
+
+# AI Translated
+#: src/credits.ts
+msgid "{total, plural, one {You have {n} credit.} other {You have {n} credits.}}"
+msgstr "{total, plural, one {Turite {n} kreditą.} few {Turite {n} kreditus.} many {Turite {n} kredito.} other {Turite {n} kreditų.}}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "{total} left"
+msgstr "Liko {total}"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "{total}s"
+msgstr "{total} s"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "{weeks, plural, one {# week ago} other {# weeks ago}}"
+msgstr "{weeks, plural, one {prieš # savaitę} few {prieš # savaites} many {prieš # savaitės} other {prieš # savaičių}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{where} · project: {projectValue}"
+msgstr "{where} · projekte: {projectValue}"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{who}, {location}"
+msgstr "{who}, {location}"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{who}, in {preset}"
+msgstr "{who}, profilyje {preset}"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "+ Add printer"
+msgstr "+ Pridėti spausdintuvą"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "<0>No filament matches “{search}”,</0> for the {modelName} or any other printer JusPrin has profiles for."
+msgstr "<0>Nė viena gija neatitinka „{search}“</0> – nei skirta spausdintuvui {modelName}, nei jokiam kitam spausdintuvui, kurio profilius turi JusPrin."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "<0>Tip:</0> a photo is the fastest way. Use <1>+</1> below, or drop a picture of the printer, its nameplate or the box into this panel."
+msgstr "<0>Patarimas:</0> greičiausia – nuotrauka. Naudokite <1>+</1> žemiau arba numeskite į šį skydelį spausdintuvo, jo vardinės plokštelės ar dėžės nuotrauką."
+
+# AI Translated
+#. A print time, as in ~2h 05m
+#: src/components/SetupCard.tsx
+msgid "~{hours}h {rest}m"
+msgstr "~{hours} val. {rest} min"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "~{minutes} min"
+msgstr "~{minutes} min"
+
+# AI Translated
+#: src/components/AttachmentChip.tsx
+msgid "3D model"
+msgstr "3D modelis"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "3D model (STL, 3MF, STEP)"
+msgstr "3D modelis (STL, 3MF, STEP)"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "3D view"
+msgstr "3D vaizdas"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "3MF projects"
+msgstr "3MF projektai"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "A chat keeps the model and thinking level it started with. Start a new chat to change them."
+msgstr "Pokalbis išlaiko modelį ir mąstymo lygį, su kuriais buvo pradėtas. Norėdami juos pakeisti, pradėkite naują pokalbį."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "A chat keeps the model it started with."
+msgstr "Pokalbis išlaiko modelį, su kuriuo buvo pradėtas."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "A new name has to differ from the old one by more than capitalization."
+msgstr "Naujas pavadinimas turi skirtis nuo senojo ne tik didžiosiomis ir mažosiomis raidėmis."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "A printer name can’t contain any of these characters: < > [ ] : / \\ | ? * \""
+msgstr "Spausdintuvo pavadinime negali būti šių simbolių: < > [ ] : / \\ | ? * \""
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "A saved chat’s setup: the settings that differed from the presets when it was saved."
+msgstr "Išsaugoto pokalbio sąranka: nustatymai, kurie išsaugojimo metu skyrėsi nuo profilių."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Access code"
+msgstr "Prieigos kodas"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Account"
+msgstr "Paskyra"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Actions"
+msgstr "Veiksmai"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Actions for {printerName}"
+msgstr "{printerName} veiksmai"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Add {name} key"
+msgstr "Pridėti {name} raktą"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Add a key above, or sign in under Account, to choose the model new chats start with."
+msgstr "Pridėkite raktą aukščiau arba prisijunkite skiltyje „Paskyra“, kad galėtumėte pasirinkti modelį, kuriuo pradedami nauji pokalbiai."
+
+# AI Translated
+#: src/App.tsx
+msgid "add a note, or just send"
+msgstr "pridėkite pastabą arba tiesiog išsiųskite"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Add a printer"
+msgstr "Pridėti spausdintuvą"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Add key"
+msgstr "Pridėti raktą"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Add the {modelName} and continue"
+msgstr "Pridėti {modelName} ir tęsti"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Add your printer"
+msgstr "Pridėkite savo spausdintuvą"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Added: <0>{name}</0>"
+msgstr "Pridėta: <0>{name}</0>"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Advanced / developer details"
+msgstr "Išplėstinė / kūrėjo informacija"
+
+# AI Translated
+#: src/credits.ts
+msgid "After that, 50 free credits a month. No card needed."
+msgstr "Vėliau – 50 nemokamų kreditų per mėnesį. Kortelės nereikia."
+
+# AI Translated
+#. The name of the AI chat feature, as a panel title
+#. Who opened a file: the AI
+#: ../HomeUI/src/components/AgentGroup.tsx
+#: ../HomeUI/src/components/AgentGroup.tsx
+#: src/components/ChangeRows.tsx
+#: src/components/ChangeRows.tsx
+#: src/components/MessageList.tsx
+#: src/components/Panels.tsx
+msgid "AI"
+msgstr "DI"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "AI changes"
+msgstr "DI pakeitimai"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "AI conversation"
+msgstr "DI pokalbis"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "AI fixing a print that came out stringy"
+msgstr "DI taiso spaudinį, kuris išėjo su siūleliais"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "AI is not available"
+msgstr "DI nepasiekiamas"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "AI is responding…"
+msgstr "DI atsako…"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "AI setting changes"
+msgstr "DI nustatymų pakeitimai"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "AI settings"
+msgstr "DI nustatymai"
+
+# AI Translated
+#: ../HomeUI/src/components/AgentGroup.tsx
+msgid "AI setup won’t show here again. You can set it up later in <0>Preferences</0>, under the gear at the top right."
+msgstr "DI sąranka čia nebebus rodoma. Ją galite atlikti vėliau skiltyje <0>Parinktys</0>, paspaudę krumpliaratį viršuje dešinėje."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "AI tool"
+msgstr "DI įrankis"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "AI tool can see this project"
+msgstr "DI įrankis mato šį projektą"
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "AI turns what you want — <0>“make it strong, it’ll bear weight”</0> — into the hundreds of settings underneath, and shows you what it changed."
+msgstr "DI tai, ko norite – <0>„padaryk tvirtą, jis laikys svorį“</0>, – paverčia šimtais po tuo slypinčių nustatymų ir parodo, ką pakeitė."
+
+# AI Translated
+#. {provider} is the AI company, such as Anthropic or OpenAI
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "AI uses your {provider} key"
+msgstr "DI naudoja jūsų {provider} raktą"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "AI working"
+msgstr "DI dirba"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "All"
+msgstr "Visi"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "all projects, all printers"
+msgstr "visi projektai, visi spausdintuvai"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/SetupCard.tsx
+msgid "All settings"
+msgstr "Visi nustatymai"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Allow this AI tool to read and change the open project?"
+msgstr "Leisti šiam DI įrankiui skaityti ir keisti atvertą projektą?"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Already have an account?"
+msgstr "Jau turite paskyrą?"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "Already in JusPrin"
+msgstr "Jau yra JusPrin"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Also .stp and .drc files."
+msgstr "Taip pat .stp ir .drc failai."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Also brings {filaments, plural, one {{filaments} filament} other {{filaments} filaments}} and {settings, plural, one {{settings} print setting} other {{settings} print settings}}."
+msgstr "Taip pat perkeliama {filaments, plural, one {{filaments} gija} few {{filaments} gijos} many {{filaments} gijos} other {{filaments} gijų}} ir {settings, plural, one {{settings} spausdinimo nustatymų profilis} few {{settings} spausdinimo nustatymų profiliai} many {{settings} spausdinimo nustatymų profilio} other {{settings} spausdinimo nustatymų profilių}}."
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "Also imported: {filaments, plural, one {# filament} other {# filaments}} ({filamentList}) and {settings, plural, one {# print setting} other {# print settings}} ({settingList})."
+msgstr "Taip pat importuota: {filaments, plural, one {# gija} few {# gijos} many {# gijos} other {# gijų}} ({filamentList}) ir {settings, plural, one {# spausdinimo nustatymų profilis} few {# spausdinimo nustatymų profiliai} many {# spausdinimo nustatymų profilio} other {# spausdinimo nustatymų profilių}} ({settingList})."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Another printer is already named “{trimmed}”."
+msgstr "Kitas spausdintuvas jau pavadintas „{trimmed}“."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Any plan ends, and the credits on {email} are removed with everything JusPrin keeps for this account. This can’t be undone."
+msgstr "Visi planai nutraukiami, o paskyros {email} kreditai pašalinami kartu su viskuo, ką JusPrin saugo šiai paskyrai. To atšaukti negalima."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Any plan ends, and the credits on this account are removed with everything JusPrin keeps for this account. This can’t be undone."
+msgstr "Visi planai nutraukiami, o šios paskyros kreditai pašalinami kartu su viskuo, ką JusPrin saugo šiai paskyrai. To atšaukti negalima."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "API key"
+msgstr "API raktas"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Appearance"
+msgstr "Išvaizda"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Arguments"
+msgstr "Argumentai"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Arrange plate"
+msgstr "Išdėstyti plokštę"
+
+# AI Translated
+#: src/App.tsx
+msgid "Ask about this filament or request a change…"
+msgstr "Klauskite apie šią giją arba paprašykite pakeitimo…"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Ask about this print or request a change…"
+msgstr "Klauskite apie šį spausdinimą arba paprašykite pakeitimo…"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Ask AI about printer settings…"
+msgstr "Klausti DI apie spausdintuvo nustatymus…"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Ask anything about connecting it"
+msgstr "Klauskite bet ko apie jo prijungimą"
+
+# AI Translated
+#: src/App.tsx
+msgid "Ask current chat about this"
+msgstr "Klausti apie tai dabartiniame pokalbyje"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Ask it about the open project."
+msgstr "Klauskite jo apie atvertą projektą."
+
+# AI Translated
+#: src/App.tsx
+msgid "ask, or steer this chat…"
+msgstr "klauskite arba nukreipkite šį pokalbį…"
+
+# AI Translated
+#. How far a paused print got: at 27%
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "at {rounded}%"
+msgstr "ties {rounded}%"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Attach a file"
+msgstr "Pridėti failą"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Automatic checks are off."
+msgstr "Automatiniai tikrinimai išjungti."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+#: ../HomeUI/src/components/Onboarding.tsx
+#: ../HomeUI/src/components/PrintHistory.tsx
+#: src/components/AddPrinterForm.tsx
+msgctxt "navigation"
+msgid "Back"
+msgstr "Atgal"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Back to chat"
+msgstr "Atgal į pokalbį"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+#: src/components/ChatNavigation.tsx
+msgid "Back to chats"
+msgstr "Atgal į pokalbius"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Back to Home"
+msgstr "Atgal į pradžią"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+#: src/components/SetupLocalTool.tsx
+msgid "Back to setup options"
+msgstr "Atgal į sąrankos parinktis"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Back to the project"
+msgstr "Atgal į projektą"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Backup: <0>{backup}</0>"
+msgstr "Atsarginė kopija: <0>{backup}</0>"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Bambu plug-in installed"
+msgstr "Bambu papildinys įdiegtas"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Bambu plug-in needed"
+msgstr "Reikalingas Bambu papildinys"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Bed type set on this plate"
+msgstr "Šiai plokštei nustatytas pagrindo tipas"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Billed by your provider, not JusPrin. Stored on this computer only."
+msgstr "Mokestį ima jūsų teikėjas, o ne JusPrin. Saugoma tik šiame kompiuteryje."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Billing and usage"
+msgstr "Mokėjimai ir naudojimas"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Bought credits"
+msgstr "Pirkti kreditai"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+#: src/components/PrinterPicker.tsx
+msgid "Brand"
+msgstr "Gamintojas"
+
+# AI Translated
+# Needs human review: Rendering of the feature name 'Bring Your Own AI' (BYOAI); check it reads as a name in Preferences.
+#: src/components/Preferences.tsx
+msgid "Bring Your Own AI"
+msgstr "Savas DI"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Bring Your Own AI: an API key or an AI app you already pay for. No JusPrin account needed. Set up as many as you like; each chat picks a model from them."
+msgstr "Savas DI: API raktas arba DI programa, už kurią jau mokate. JusPrin paskyros nereikia. Nustatykite tiek, kiek norite; kiekvienas pokalbis pasirenka modelį iš jų."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Bring your printers from {app}?"
+msgstr "Perkelti spausdintuvus iš {app}?"
+
+# AI Translated
+#: src/App.tsx
+msgid "Browse the full printer list"
+msgstr "Naršyti visą spausdintuvų sąrašą"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Built-in printer and filament profiles"
+msgstr "Integruoti spausdintuvų ir gijų profiliai"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "By continuing you agree to the <0>Terms</0> and <1>Privacy Policy</1>."
+msgstr "Tęsdami sutinkate su <0>Sąlygomis</0> ir <1>Privatumo politika</1>."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Calibrate…"
+msgstr "Kalibruoti…"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Camera view of {name}"
+msgstr "{name} kameros vaizdas"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Can’t be stopped once started; it takes a moment."
+msgstr "Pradėjus sustabdyti negalima; tai užtrunka akimirką."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterPickerHost.tsx
+msgid "Can’t find your printer? <0>Ask AI</0>"
+msgstr "Nerandate savo spausdintuvo? <0>Paklauskite DI</0>"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "Can’t import"
+msgstr "Negalima importuoti"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Can’t write {path}."
+msgstr "Nepavyksta įrašyti {path}."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Can’t write the settings file."
+msgstr "Nepavyksta įrašyti nustatymų failo."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+#: ../HomeUI/src/components/PrinterMenu.tsx
+#: src/App.tsx
+#: src/App.tsx
+#: src/components/AddPrinterForm.tsx
+#: src/components/AddPrinterForm.tsx
+#: src/components/AddPrinterForm.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/ChangeRows.tsx
+#: src/components/ChatNavigation.tsx
+#: src/components/ChatNavigation.tsx
+#: src/components/OrcaImport.tsx
+#: src/components/OrcaImport.tsx
+#: src/components/Preferences.tsx
+#: src/components/PrinterPanel.tsx
+#: src/components/SetupLocalTool.tsx
+#: src/components/SignInDoor.tsx
+#: src/components/ToolActivityCard.tsx
+#: src/components/WorkCard.tsx
+msgid "Cancel"
+msgstr "Atšaukti"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+#: src/components/WorkCard.tsx
+msgid "Cancelled"
+msgstr "Atšaukta"
+
+# AI Translated
+#: src/components/ToolActivityCard.tsx
+msgid "Cancelled — nothing was changed"
+msgstr "Atšaukta – niekas nepakeista"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+#: src/components/SignInDoor.tsx
+#: src/components/SignInDoor.tsx
+msgid "Change email"
+msgstr "Keisti el. paštą"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Change…"
+msgstr "Keisti…"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Changed"
+msgstr "Pakeisti"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "changed outside JusPrin, checked just now"
+msgstr "pakeista ne JusPrin, ką tik patikrinta"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Changes"
+msgstr "Pakeitimai"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Changes every window, including the 3D view."
+msgstr "Keičia visus langus, įskaitant 3D vaizdą."
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Chat actions"
+msgstr "Pokalbio veiksmai"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Chat title"
+msgstr "Pokalbio pavadinimas"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Chats"
+msgstr "Pokalbiai"
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "Chatting here needs AI."
+msgstr "Kad galėtumėte čia kalbėtis, reikia DI."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Check key"
+msgstr "Tikrinti raktą"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Check now"
+msgstr "Tikrinti dabar"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Check plan"
+msgstr "Patikrinti planą"
+
+# AI Translated
+#: src/components/Guide.tsx
+msgid "Check the spelling or try other words. You can also ask AI: choose Ask AI… in the Help menu."
+msgstr "Patikrinkite rašybą arba pabandykite kitus žodžius. Taip pat galite paklausti DI: meniu „Pagalba“ pasirinkite „Klausti DI…“."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Check your email."
+msgstr "Patikrinkite el. paštą."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Checking for a newer version"
+msgstr "Tikrinama, ar yra naujesnė versija"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Checking with {name}…"
+msgstr "Tikrinama per {name}…"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Checking your account…"
+msgstr "Tikrinama jūsų paskyra…"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Checking…"
+msgstr "Tikrinama…"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "Choose a brand"
+msgstr "Pasirinkite gamintoją"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "Choose a model"
+msgstr "Pasirinkite modelį"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "Choose a photo…"
+msgstr "Pasirinkti nuotrauką…"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "Choose another folder…"
+msgstr "Pasirinkti kitą aplanką…"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Choose my printer"
+msgstr "Pasirinkti savo spausdintuvą"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "Choose the folder…"
+msgstr "Pasirinkti aplanką…"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Clear search"
+msgstr "Išvalyti paiešką"
+
+# AI Translated
+#: src/components/Guide.tsx
+#: src/components/Guide.tsx
+msgid "Clear the search"
+msgstr "Išvalyti paiešką"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+#: src/components/ChatNavigation.tsx
+#: src/components/Composer.tsx
+#: src/components/OrcaImport.tsx
+#: src/components/SetupLocalTool.tsx
+msgid "Close"
+msgstr "Uždaryti"
+
+# AI Translated
+#: src/App.tsx
+msgid "Close chat"
+msgstr "Uždaryti pokalbį"
+
+# AI Translated
+#: src/App.tsx
+msgid "Close this chat?"
+msgstr "Uždaryti šį pokalbį?"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Color painting"
+msgstr "Spalvotas piešimas"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+#: src/components/SetupLocalTool.tsx
+msgid "Connect"
+msgstr "Prijungti"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Connect {name}"
+msgstr "Prijungti {name}"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Connect {printerName}"
+msgstr "Prijungti {printerName}"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/SetupLocalTool.tsx
+msgid "Connect an AI tool you already use"
+msgstr "Prijunkite DI įrankį, kurį jau naudojate"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Connect it to send prints straight from JusPrin"
+msgstr "Prijunkite jį, kad galėtumėte siųsti spausdinti tiesiai iš JusPrin"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+#: ../HomeUI/src/components/PrinterMenu.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/SetupLocalTool.tsx
+msgid "Connect…"
+msgstr "Prijungti…"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+#: src/components/SetupLocalTool.tsx
+msgid "Connected"
+msgstr "Prijungta"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Connecting this printer has failed twice, and a report helps us fix why. It holds what the app saw and this chat, with anything that looks like an access code or API key hidden. Nothing is sent unless you choose to."
+msgstr "Šio spausdintuvo prijungti nepavyko du kartus, o ataskaita padeda mums išsiaiškinti kodėl. Joje yra tai, ką matė programa, ir šis pokalbis; viskas, kas panašu į prieigos kodą ar API raktą, paslėpta. Niekas nesiunčiama, nebent nuspręsite tai padaryti."
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+#: ../HomeUI/src/components/PrinterCard.tsx
+#: src/components/Panels.tsx
+msgid "Connecting…"
+msgstr "Jungiamasi…"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+#: ../HomeUI/src/components/Onboarding.tsx
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Continue"
+msgstr "Tęsti"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Continue with Google"
+msgstr "Tęsti su Google"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Controls"
+msgstr "Valdymas"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+#: src/components/TurnActivity.tsx
+msgid "Copied"
+msgstr "Nukopijuota"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+#: src/components/SetupLocalTool.tsx
+msgid "Copy"
+msgstr "Kopijuoti"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Copy details"
+msgstr "Kopijuoti informaciją"
+
+# AI Translated
+#. A material cost with no known currency
+#: src/components/SetupCard.tsx
+msgid "cost {amount}"
+msgstr "kaina {amount}"
+
+# AI Translated
+#: src/components/AttachmentChip.tsx
+msgid "Could not be attached"
+msgstr "Nepavyko pridėti"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "Couldn’t load the model list"
+msgstr "Nepavyko įkelti modelių sąrašo"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Couldn’t reach {name} to check this key. Nothing was saved. Try again."
+msgstr "Nepavyko pasiekti {name}, kad būtų patikrintas šis raktas. Niekas neišsaugota. Bandykite dar kartą."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Couldn’t reach GitHub"
+msgstr "Nepavyko pasiekti GitHub"
+
+# AI Translated
+#. {checked} is how long ago, such as "just now", "2 hours ago" or "yesterday".
+#: src/components/Preferences.tsx
+msgid "Couldn’t reach GitHub · last checked {checked}"
+msgstr "Nepavyko pasiekti GitHub · paskutinį kartą tikrinta {checked}"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Create a filament preset"
+msgstr "Sukurti gijos profilį"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Create a filament preset…"
+msgstr "Sukurti gijos profilį…"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+#: src/components/BalancePanel.tsx
+msgid "Credits"
+msgstr "Kreditai"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Credits left"
+msgstr "Likę kreditai"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Current setup"
+msgstr "Dabartinė sąranka"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Dark"
+msgstr "Tamsi"
+
+# AI Translated
+#. A thinking level: the model decides
+#: src/components/ModelPickers.tsx
+msgid "Default"
+msgstr "Numatytasis"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Default for the {modelName}"
+msgstr "Numatytasis spausdintuvui {modelName}"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+#: src/components/ChatNavigation.tsx
+msgid "Delete"
+msgstr "Ištrinti"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Delete ‘{title}’ and its messages? Your project and its print history stay as they are. This can't be undone."
+msgstr "Ištrinti pokalbį „{title}“ ir jo žinutes? Jūsų projektas ir jo spausdinimo istorija liks nepakeisti. To atšaukti negalima."
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Delete account"
+msgstr "Ištrinti paskyrą"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Delete account…"
+msgstr "Ištrinti paskyrą…"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Delete chat?"
+msgstr "Ištrinti pokalbį?"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Delete this JusPrin account"
+msgstr "Ištrinti šią JusPrin paskyrą"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Delete your JusPrin account?"
+msgstr "Ištrinti jūsų JusPrin paskyrą?"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Deleted from your filaments. This test uses {earlier} again."
+msgstr "Ištrinta iš jūsų gijų. Šis bandymas vėl naudoja {earlier}."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Deleting…"
+msgstr "Ištrinama…"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+#: src/components/Panels.tsx
+msgid "Diagnostics"
+msgstr "Diagnostika"
+
+# AI Translated
+#: src/App.tsx
+#: src/App.tsx
+msgid "Dismiss error"
+msgstr "Paslėpti klaidos pranešimą"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Document (PDF)"
+msgstr "Dokumentas (PDF)"
+
+# AI Translated
+#: ../HomeUI/src/components/AgentGroup.tsx
+msgid "Don’t show again"
+msgstr "Daugiau nerodyti"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+#: src/components/SetupLocalTool.tsx
+#: src/components/ToolActivityCard.tsx
+#: src/components/WorkCard.tsx
+msgid "Done"
+msgstr "Atlikta"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Double-clicking a .3mf file opens it here."
+msgstr "Dukart spustelėjus .3mf failą, jis atveriamas čia."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Download"
+msgstr "Atsisiųsti"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Downloads"
+msgstr "Atsisiuntimai"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Drop a model or project here"
+msgstr "Numeskite modelį ar projektą čia"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Drop a model or project to start"
+msgstr "Numeskite modelį ar projektą, kad pradėtumėte"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "e.g. \"bambu a1 mini\" or \"not sure, the small one\""
+msgstr "pvz., „bambu a1 mini“ arba „nežinau, tas mažasis“"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "e.g. \"I put a 0.6 nozzle on it\" or \"loaded black PETG\""
+msgstr "pvz., „uždėjau 0,6 purkštuką“ arba „įdėjau juodą PETG“"
+
+# AI Translated
+# Needs human review: 'Standard' and 'Expert' are the two model tier names; check they match the model picker.
+#: src/credits.ts
+msgid "Each message you send costs credits: Standard {STANDARD_MESSAGE_CREDITS}, Expert {EXPERT_MESSAGE_CREDITS}."
+msgstr "Kiekviena išsiųsta žinutė kainuoja kreditų: Standartinis – {STANDARD_MESSAGE_CREDITS}, Ekspertinis – {EXPERT_MESSAGE_CREDITS}."
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Earlier setup"
+msgstr "Ankstesnė sąranka"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Earlier setup — saved with this conversation"
+msgstr "Ankstesnė sąranka – išsaugota su šiuo pokalbiu"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Email"
+msgstr "El. paštas"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Email me a 6-digit code"
+msgstr "Atsiųsti man 6 skaitmenų kodą el. paštu"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Ends {ends}."
+msgstr "Baigiasi {ends}."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Ends any plan and removes this account’s credits and everything JusPrin keeps for it on its servers."
+msgstr "Nutraukia visus planus ir pašalina šios paskyros kreditus bei viską, ką JusPrin jai saugo savo serveriuose."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Enter a name for the printer."
+msgstr "Įveskite spausdintuvo pavadinimą."
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Enter a title of 1–120 characters."
+msgstr "Įveskite 1–120 simbolių pavadinimą."
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Error"
+msgstr "Klaida"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+#: src/components/SetupCard.tsx
+msgid "Estimate unavailable"
+msgstr "Įvertis nepasiekiamas"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Every chat can pick a model from these providers in its message box."
+msgstr "Kiekvienas pokalbis savo žinutės laukelyje gali pasirinkti šių teikėjų modelį."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Every filament for the {modelName}"
+msgstr "Visos gijos spausdintuvui {modelName}"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "Every printer in this {app} folder is already in JusPrin, so there is nothing to import."
+msgstr "Visi spausdintuvai šiame {app} aplanke jau yra JusPrin, todėl nėra ką importuoti."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Every project saves itself as you work"
+msgstr "Kiekvienas projektas išsisaugo pats, kol dirbate"
+
+# AI Translated
+#: src/App.tsx
+msgid "Excerpt: “{quoted}”"
+msgstr "Ištrauka: „{quoted}“"
+
+# AI Translated
+#. The more capable kind of AI model
+#: src/credits.ts
+msgid "Expert"
+msgstr "Ekspertinis"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Expires {date}"
+msgstr "Galioja iki {date}"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Expiring credits are used first."
+msgstr "Pirmiausia naudojami baigiantys galioti kreditai."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Export again"
+msgstr "Eksportuoti dar kartą"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Export…"
+msgstr "Eksportuoti…"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Exported {file}"
+msgstr "Eksportuota: {file}"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "External tool"
+msgstr "Išorinis įrankis"
+
+# AI Translated
+#. A thinking level of the AI model
+#: src/components/ModelPickers.tsx
+msgid "Extra high"
+msgstr "Labai aukštas"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Failed"
+msgstr "Nepavyko"
+
+# AI Translated
+#. A thinking level of the AI model
+#: src/components/ModelPickers.tsx
+msgid "Fast"
+msgstr "Greitas"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "filament"
+msgstr "gija"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Filament"
+msgstr "Gija"
+
+# AI Translated
+#: src/App.tsx
+msgid "Filament settings"
+msgstr "Gijos nustatymai"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Filaments"
+msgstr "Gijos"
+
+# AI Translated
+#. The kind of an attached file of no known kind
+#: src/components/AttachmentChip.tsx
+msgid "File"
+msgstr "Failas"
+
+# AI Translated
+#. Button: add a filter to the list
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Filter"
+msgstr "Filtruoti"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Find a language"
+msgstr "Rasti kalbą"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Finish in your browser."
+msgstr "Užbaikite naršyklėje."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Finished"
+msgstr "Baigta"
+
+# AI Translated
+#. {day} is a short weekday (Sun) or a date (Oct 20)
+#: ../HomeUI/src/history.ts
+msgid "finished {day}"
+msgstr "baigta {day}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "finished today"
+msgstr "baigta šiandien"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "finished yesterday"
+msgstr "baigta vakar"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Follows the selection in the 3D view."
+msgstr "Atitinka pasirinkimą 3D vaizde."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Follows the selection in the 3D view. Shown: only what {shownName} sets itself."
+msgstr "Atitinka pasirinkimą 3D vaizde. Rodoma: tik paties {shownName} nustatymai."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Follows the selection in the 3D view. Shown: what {shownName} sets itself, and its objects."
+msgstr "Atitinka pasirinkimą 3D vaizde. Rodoma: paties {shownName} nustatymai ir jo objektai."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "For sizes, positions and distances."
+msgstr "Dydžiams, padėtims ir atstumams."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "For the {modelName}"
+msgstr "Spausdintuvui {modelName}"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Forgot password"
+msgstr "Pamiršau slaptažodį"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Found on this computer"
+msgstr "Rasta šiame kompiuteryje"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+#: src/components/PrinterPicker.tsx
+msgid "Found on your network"
+msgstr "Rasta jūsų tinkle"
+
+# AI Translated
+#. What a door costs: nothing
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Free"
+msgstr "Nemokamai"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Free credits"
+msgstr "Nemokami kreditai"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "From before the last change."
+msgstr "Iš būsenos prieš paskutinį pakeitimą."
+
+# AI Translated
+#: src/App.tsx
+msgid "From earlier chat “{title}” (saved {saved}):"
+msgstr "Iš ankstesnio pokalbio „{title}“ (išsaugota {saved}):"
+
+# AI Translated
+#: src/App.tsx
+msgid "From earlier chat “{title}”:"
+msgstr "Iš ankstesnio pokalbio „{title}“:"
+
+# AI Translated
+#: src/components/AccountBox.tsx
+msgid "From JusPrin"
+msgstr "Iš JusPrin"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "from the preset"
+msgstr "iš profilio"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "From the printer: {value}"
+msgstr "Iš spausdintuvo: {value}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Full release notes on GitHub"
+msgstr "Visos versijos pastabos GitHub"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Fuzzy skin painting"
+msgstr "Grublėto paviršiaus piešimas"
+
+# AI Translated
+#. {signupCredits} is the credits a new account is given, 500
+#: ../HomeUI/src/components/AgentGroup.tsx
+msgid "Get {signupCredits} free credits for JusPrin’s AI, which specializes in 3D printing."
+msgstr "Gaukite {signupCredits} nemokamų kreditų JusPrin DI, kuris specializuojasi 3D spausdinime."
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+#: src/components/Composer.tsx
+#: src/components/Composer.tsx
+#: src/components/MessageList.tsx
+#: src/components/Preferences.tsx
+msgid "Get more credits"
+msgstr "Gauti daugiau kreditų"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/MessageList.tsx
+#: src/components/ModelPickers.tsx
+#: src/components/SignInDoor.tsx
+msgid "Get the new version…"
+msgstr "Gauti naują versiją…"
+
+# AI Translated
+#: src/credits.ts
+msgid "Good for your first month: about {standardMessages} Standard or {expertMessages} Expert messages."
+msgstr "Užteks pirmam mėnesiui: apie {standardMessages} standartinių arba {expertMessages} ekspertinių žinučių."
+
+# AI Translated
+#: src/components/Guide.tsx
+msgid "Guide pages"
+msgstr "Vadovo puslapiai"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Height range"
+msgstr "Aukščio diapazonas"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Help me find the code"
+msgstr "Padėkite rasti kodą"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Help me find the key"
+msgstr "Padėkite rasti raktą"
+
+# AI Translated
+#: ../HomeUI/src/components/AgentGroup.tsx
+msgid "Hide"
+msgstr "Slėpti"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "Hide details"
+msgstr "Slėpti informaciją"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+#: src/components/ChatNavigation.tsx
+msgid "Hide the AI panel"
+msgstr "Slėpti DI skydelį"
+
+# AI Translated
+#. A thinking level of the AI model
+#: src/components/ModelPickers.tsx
+msgid "High"
+msgstr "Aukštas"
+
+# AI Translated
+#: src/components/GcodeMarker.tsx
+msgid "history"
+msgstr "istorija"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "How did it come out?"
+msgstr "Kaip pavyko?"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "If {app} keeps its settings somewhere else, choose that folder."
+msgstr "Jei {app} nustatymus laiko kitur, pasirinkite tą aplanką."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "If you skip, files are sliced for a stand-in printer with a 250 mm bed, not for yours. Add your printer before you print anything. You can do that later on the home screen."
+msgstr "Jei praleisite, failai bus sluoksniuojami pakaitiniam spausdintuvui su 250 mm pagrindu, o ne jūsiškiam. Prieš ką nors spausdindami, pridėkite savo spausdintuvą. Tai galėsite padaryti vėliau pradžios ekrane."
+
+# AI Translated
+#. The kind of an attached file
+#: src/components/AttachmentChip.tsx
+msgid "Image"
+msgstr "Paveikslėlis"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+#: src/components/OrcaImport.tsx
+msgid "Import"
+msgstr "Importuoti"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Import from {app}…"
+msgstr "Importuoti iš {app}…"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+#: src/components/OrcaImportLists.tsx
+msgid "Imported"
+msgstr "Importuota"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "Imported as ‘{renamedTo}’"
+msgstr "Importuota kaip „{renamedTo}“"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Imported from {app}"
+msgstr "Importuota iš {app}"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+#: src/components/OrcaImport.tsx
+msgid "Importing…"
+msgstr "Importuojama…"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Inches"
+msgstr "Coliai"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Install it, or copy the command and run it later."
+msgstr "Įdiekite ją arba nukopijuokite komandą ir paleiskite vėliau."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Install plug-in"
+msgstr "Įdiegti papildinį"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Instead of toward the middle of the view."
+msgstr "Užuot artinus link vaizdo vidurio."
+
+# AI Translated
+#: src/components/WorkCard.tsx
+msgid "Interrupted when the project was closed"
+msgstr "Nutraukta uždarius projektą"
+
+# AI Translated
+#: src/components/WorkCard.tsx
+msgid "It did not finish."
+msgstr "Neužbaigta."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "It didn’t work"
+msgstr "Nepavyko"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "It worked"
+msgstr "Pavyko"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Its earlier values are back."
+msgstr "Grąžintos ankstesnės jo reikšmės."
+
+# AI Translated
+#: src/components/MessageList.tsx
+#: src/components/MessageList.tsx
+msgid "Jump to latest"
+msgstr "Pereiti į naujausią"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "JusPrin {latest} is available"
+msgstr "Išleista JusPrin {latest}"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+msgid "JusPrin account"
+msgstr "JusPrin paskyra"
+
+# AI Translated
+#: src/components/FileNotesCard.tsx
+msgid "JusPrin answered No to this question."
+msgstr "JusPrin į šį klausimą atsakė „Ne“."
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "JusPrin asks what the part is for, then plans the print for your {firstPrinter}."
+msgstr "JusPrin paklausia, kam skirta detalė, tada suplanuoja spausdinimą spausdintuvui {firstPrinter}."
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "JusPrin asks what the part is for, then plans the print."
+msgstr "JusPrin paklausia, kam skirta detalė, tada suplanuoja spausdinimą."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "JusPrin can run this for you, or you can copy it and run it yourself."
+msgstr "JusPrin gali tai paleisti už jus, arba galite nukopijuoti ir paleisti patys."
+
+# AI Translated
+#: src/App.tsx
+msgid "JusPrin can't find the project version this chat was working on, so this chat can't continue. Start a new chat to keep working."
+msgstr "JusPrin neranda projekto versijos, su kuria dirbo šis pokalbis, todėl šio pokalbio tęsti negalima. Norėdami dirbti toliau, pradėkite naują pokalbį."
+
+# AI Translated
+#: src/components/FileNotesCard.tsx
+msgid "JusPrin chose Cancel for this question."
+msgstr "JusPrin šiam klausimui pasirinko „Atšaukti“."
+
+# AI Translated
+#: src/components/FileNotesCard.tsx
+msgid "JusPrin closed this without answering it."
+msgstr "JusPrin tai uždarė be atsakymo."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "JusPrin copies these printers with their filaments and print settings. {app} keeps its own copy."
+msgstr "JusPrin nukopijuoja šiuos spausdintuvus kartu su jų gijomis ir spausdinimo nustatymais. {app} pasilieka savo kopiją."
+
+# AI Translated
+#: src/App.tsx
+msgid "JusPrin couldn't put the project back. Open the project again from Home to keep working on it."
+msgstr "JusPrin nepavyko grąžinti projekto. Norėdami toliau su juo dirbti, vėl atverkite projektą iš pradžios ekrano."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "JusPrin didn’t find {app}’s folder on this computer."
+msgstr "JusPrin šiame kompiuteryje nerado {app} aplanko."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "JusPrin found a filament and print settings in {app} that it doesn’t have yet."
+msgstr "JusPrin programoje {app} rado giją ir spausdinimo nustatymus, kurių dar neturi."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "JusPrin found a filament in {app} that it doesn’t have yet."
+msgstr "JusPrin programoje {app} rado giją, kurios dar neturi."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "JusPrin found filaments and print settings in {app} that it doesn’t have yet."
+msgstr "JusPrin programoje {app} rado gijų ir spausdinimo nustatymų, kurių dar neturi."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "JusPrin found filaments in {app} that it doesn’t have yet."
+msgstr "JusPrin programoje {app} rado gijų, kurių dar neturi."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "JusPrin found no {app} printers in this folder."
+msgstr "JusPrin šiame aplanke nerado {app} spausdintuvų."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "JusPrin found print settings in {app} that it doesn’t have yet."
+msgstr "JusPrin programoje {app} rado spausdinimo nustatymų, kurių dar neturi."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "JusPrin keeps up to 200 versions of each project, about 4 GB at most. Pinned versions are always kept."
+msgstr "JusPrin saugo iki 200 kiekvieno projekto versijų, daugiausia apie 4 GB. Prisegtos versijos išsaugomos visada."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "JusPrin makes filament presets for printers that are already set up, so the {modelName} is added first. Then the Create filament window opens. Tick the {modelName} there, and JusPrin puts your new preset in slot 1."
+msgstr "JusPrin kuria gijų profilius jau nustatytiems spausdintuvams, todėl pirmiausia pridedamas {modelName}. Tada atsiveria langas „Sukurti giją“. Ten pažymėkite {modelName}, ir JusPrin įdės jūsų naują profilį į 1 lizdą."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "JusPrin prepares every print to fit your printer’s bed and nozzle. You can add more printers later."
+msgstr "JusPrin kiekvieną spausdinimą paruošia taip, kad jis tiktų jūsų spausdintuvo pagrindui ir purkštukui. Daugiau spausdintuvų galėsite pridėti vėliau."
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "JusPrin slices it for your {firstPrinter}."
+msgstr "JusPrin jį sluoksniuoja spausdintuvui {firstPrinter}."
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "JusPrin slices it."
+msgstr "JusPrin jį sluoksniuoja."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "JusPrin tries again tomorrow, or the next time it starts."
+msgstr "JusPrin bandys dar kartą rytoj arba kitą kartą paleidus programą."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "JusPrin will edit"
+msgstr "JusPrin redaguos"
+
+# AI Translated
+#. placeholder {0}: appearance.restartFor
+#: src/components/Preferences.tsx
+msgid "JusPrin will use {0} after it restarts."
+msgstr "Paleista iš naujo, JusPrin naudos kalbą: {0}."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "JusPrin’s AI specializes in 3D printing. It sets up your prints, explains your settings and fixes what goes wrong."
+msgstr "JusPrin DI specializuojasi 3D spausdinime. Jis paruošia jūsų spausdinimus, paaiškina nustatymus ir ištaiso tai, kas nepavyksta."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "JusPrin's connection helper is missing."
+msgstr "Trūksta JusPrin ryšio pagalbinės programos."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "just now"
+msgstr "ką tik"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Just slice for now"
+msgstr "Kol kas tik sluoksniuoti"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Keep JusPrin open while {name} uses it — the helper doesn’t launch it."
+msgstr "Laikykite JusPrin atvertą, kol {name} ją naudoja – pagalbinė programa jos nepaleidžia."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Keep JusPrin open while the AI tool uses it — the helper doesn’t launch it."
+msgstr "Laikykite JusPrin atvertą, kol DI įrankis ją naudoja – pagalbinė programa jos nepaleidžia."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Keep JusPrin open while you use {name}; the helper doesn’t launch it. Restarting JusPrin later won’t need this again."
+msgstr "Laikykite JusPrin atvertą, kol naudojate {name}; pagalbinė programa jos nepaleidžia. Vėliau paleidus JusPrin iš naujo, šito daryti nebereikės."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Keeps <0>{hint}</0> until the new key passes"
+msgstr "Išlaiko <0>{hint}</0>, kol naujas raktas bus patikrintas"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Kept file changed on disk · slice again to print it"
+msgstr "Išsaugotas failas diske pasikeitė · sluoksniuokite iš naujo, kad jį išspausdintumėte"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Key saved on this computer"
+msgstr "Raktas išsaugotas šiame kompiuteryje"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Language"
+msgstr "Kalba"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Last connected just now"
+msgstr "Paskutinį kartą prisijungta ką tik"
+
+# AI Translated
+#. {day} is a short weekday (Sun) or a date (Oct 20)
+#: ../HomeUI/src/history.ts
+msgid "last finished {day}"
+msgstr "paskutinį kartą baigta {day}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "last finished today"
+msgstr "paskutinį kartą baigta šiandien"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "last finished yesterday"
+msgstr "paskutinį kartą baigta vakar"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "last print finished"
+msgstr "paskutinis spausdinimas baigtas"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Last week"
+msgstr "Praėjusią savaitę"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Later"
+msgstr "Vėliau"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Left-drag"
+msgstr "Vilkimas kairiuoju"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Let an AI app on this computer, such as Claude Desktop, work with the open project. JusPrin adds itself to that app’s settings."
+msgstr "Leiskite šiame kompiuteryje esančiai DI programai, pvz., Claude Desktop, dirbti su atvertu projektu. JusPrin įsitraukia į tos programos nustatymus."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Light"
+msgstr "Šviesi"
+
+# AI Translated
+#. On a camera picture: it shows the printer as it is now
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "LIVE"
+msgstr "TIESIOGIAI"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Live URL (developer only — this can change after restart)"
+msgstr "Tiesioginis URL (tik kūrėjams – po paleidimo iš naujo gali pasikeisti)"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterPickerHost.tsx
+msgid "Loading JusPrin’s settings for this printer…"
+msgstr "Įkeliami JusPrin nustatymai šiam spausdintuvui…"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "Loading models…"
+msgstr "Įkeliami modeliai…"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Loading print history…"
+msgstr "Įkeliama spausdinimo istorija…"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Local work never needs an account. Your own API key or AI tool works without one; set those up in the <0>BYOAI</0> section."
+msgstr "Vietiniam darbui paskyros niekada nereikia. Jūsų API raktas ar DI įrankis veikia ir be jos; juos nustatykite skiltyje <0>BYOAI</0>."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Look again"
+msgstr "Ieškoti dar kartą"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Look at the change again before saving."
+msgstr "Prieš išsaugodami, dar kartą peržiūrėkite pakeitimą."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "Looked in {path}"
+msgstr "Ieškota: {path}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Looking for a newer version on GitHub…"
+msgstr "Ieškoma naujesnės versijos GitHub…"
+
+# AI Translated
+#. A thinking level of the AI model
+#: src/components/ModelPickers.tsx
+msgid "Low"
+msgstr "Žemas"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+#: src/components/AddPrinterForm.tsx
+msgid "Made for other printers"
+msgstr "Skirta kitiems spausdintuvams"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Made for other printers. Picking it saves a copy for the {modelName}."
+msgstr "Skirta kitiems spausdintuvams. Pasirinkus, išsaugoma kopija spausdintuvui {modelName}."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Made for the {first} and {second}. Picking it saves a copy for the {modelName}."
+msgstr "Skirta {first} ir {second}. Pasirinkus, išsaugoma kopija spausdintuvui {modelName}."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Made for the {first}. Picking it saves a copy for the {modelName}."
+msgstr "Skirta {first}. Pasirinkus, išsaugoma kopija spausdintuvui {modelName}."
+
+# AI Translated
+#. {made} is the printer, filament and print settings, joined by ·
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Made with {made}"
+msgstr "Naudota: {made}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "matches, checked just now"
+msgstr "sutampa, ką tik patikrinta"
+
+# AI Translated
+#. A thinking level of the AI model: the most
+#: src/components/ModelPickers.tsx
+msgid "Max"
+msgstr "Maksimalus"
+
+# AI Translated
+#. A thinking level of the AI model
+#: src/components/ModelPickers.tsx
+msgid "Medium"
+msgstr "Vidutinis"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Message AI"
+msgstr "Žinutė DI"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Middle-drag"
+msgstr "Vilkimas viduriniuoju"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Millimetres"
+msgstr "Milimetrai"
+
+# AI Translated
+#. A thinking level of the AI model
+#: src/components/ModelPickers.tsx
+msgid "Minimal"
+msgstr "Minimalus"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Model"
+msgstr "Modelis"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+#: src/components/PrinterPicker.tsx
+msgctxt "printer"
+msgid "Model"
+msgstr "Modelis"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Modifier"
+msgstr "Modifikatorius"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "More preferences…"
+msgstr "Daugiau parinkčių…"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterPickerHost.tsx
+msgid "Most printers ship with 0.4 mm."
+msgstr "Dauguma spausdintuvų tiekiami su 0,4 mm purkštuku."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Mouse"
+msgstr "Pelė"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Mouse buttons"
+msgstr "Pelės mygtukai"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Mouse: drag to turn, right-drag to pan. Touchpad: Alt-drag to turn, Shift-drag to pan."
+msgstr "Pelė: vilkite, kad pasuktumėte, vilkite dešiniuoju mygtuku, kad paslinktumėte. Jutiklinis kilimėlis: vilkite laikydami Alt, kad pasuktumėte, laikydami Shift – kad paslinktumėte."
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Move"
+msgstr "Perkelti"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Moving the view"
+msgstr "Vaizdo valdymas"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Multimaterial"
+msgstr "Kelios medžiagos"
+
+# AI Translated
+#. Sort order: by name
+#: ../HomeUI/src/App.tsx
+msgid "Name"
+msgstr "Pavadinimas"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Needs attention"
+msgstr "Reikia dėmesio"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Never expire"
+msgstr "Niekada nesibaigia"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "New"
+msgstr "Naujas"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "New {name} key"
+msgstr "Naujas {name} raktas"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+#: src/components/ChatNavigation.tsx
+#: src/components/ChatNavigation.tsx
+msgid "New chat"
+msgstr "Naujas pokalbis"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "New chats start with"
+msgstr "Nauji pokalbiai pradedami su"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "New filament"
+msgstr "Nauja gija"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "New filaments and print settings"
+msgstr "Naujos gijos ir spausdinimo nustatymai"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "New JusPrin versions"
+msgstr "Naujos JusPrin versijos"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "New print settings"
+msgstr "Nauji spausdinimo nustatymai"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Next"
+msgstr "Toliau"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "No AI configured · using the selected preset."
+msgstr "DI nesukonfigūruotas · naudojamas pasirinktas profilis."
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "No AI configured."
+msgstr "DI nesukonfigūruotas."
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "No AI connected"
+msgstr "DI neprijungtas"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "No brand matches “{text}”"
+msgstr "Nė vienas gamintojas neatitinka „{text}“"
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "No bridge messages recorded."
+msgstr "Ryšio žinučių neužfiksuota."
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "No chats yet. Start a new chat about this project."
+msgstr "Pokalbių dar nėra. Pradėkite naują pokalbį apie šį projektą."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "No filament for the {modelName} matches “{search}”."
+msgstr "Nė viena gija spausdintuvui {modelName} neatitinka „{search}“."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "No G-codes match."
+msgstr "Nė vienas G-code neatitinka."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "No JusPrin entry yet — this adds one."
+msgstr "JusPrin įrašo dar nėra – tai jį pridės."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "No key"
+msgstr "Rakto nėra"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "No language matches “{query}”"
+msgstr "Nė viena kalba neatitinka „{query}“"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "No messages yet"
+msgstr "Žinučių dar nėra"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "No model matches “{text}”"
+msgstr "Nė vienas modelis neatitinka „{text}“"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "No models match “{query}”."
+msgstr "Nė vienas modelis neatitinka „{query}“."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "No plan"
+msgstr "Plano nėra"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "No printer yet"
+msgstr "Spausdintuvo dar nėra"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "No projects match “{typed}”."
+msgstr "Nė vienas projektas neatitinka „{typed}“."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "No report was sent."
+msgstr "Ataskaita nebuvo išsiųsta."
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "No settings read from the project"
+msgstr "Iš projekto nenuskaityta jokių nustatymų"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "No settings to show: the selected printer is not an FFF printer."
+msgstr "Nėra ką rodyti: pasirinktas spausdintuvas nėra FFF spausdintuvas."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/ChangeRows.tsx
+msgid "none"
+msgstr "nėra"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "None"
+msgstr "Nėra"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Not checked yet"
+msgstr "Dar netikrinta"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Not chosen yet"
+msgstr "Dar nepasirinkta"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Not connected"
+msgstr "Neprijungtas"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "not found"
+msgstr "nerasta"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Not found on this computer"
+msgstr "Šiame kompiuteryje nerasta"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "Not imported"
+msgstr "Neimportuota"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Not in the list?"
+msgstr "Nėra sąraše?"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Not kept for this printer · slice again to print it"
+msgstr "Šiam spausdintuvui nesaugoma · sluoksniuokite iš naujo, kad išspausdintumėte"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Not listening yet"
+msgstr "Dar nelaukia prisijungimų"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+#: src/components/PrinterPanel.tsx
+msgid "Not now"
+msgstr "Ne dabar"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Not run"
+msgstr "Nevykdyta"
+
+# AI Translated
+#: src/components/ProposalCard.tsx
+msgid "Not saved"
+msgstr "Neišsaugota"
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "NOT SET UP"
+msgstr "NENUSTATYTA"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Not sliced yet"
+msgstr "Dar nesluoksniuota"
+
+# AI Translated
+#: src/components/FileNotesCard.tsx
+#: src/components/FileNotesCard.tsx
+msgid "Notes about this file"
+msgstr "Pastabos apie šį failą"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Nothing"
+msgstr "Nieko"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Nothing happened?"
+msgstr "Nieko neįvyko?"
+
+# AI Translated
+#: src/components/Guide.tsx
+msgid "Nothing in the guide mentions “{search}”."
+msgstr "Vadove nėra nieko apie „{search}“."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Nothing printed or exported yet."
+msgstr "Dar niekas neišspausdinta ir neeksportuota."
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+#: src/components/PrinterPicker.tsx
+msgid "Nozzle"
+msgstr "Purkštukas"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Object"
+msgstr "Objektas"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Object settings changed"
+msgstr "Objekto nustatymai pakeisti"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Objects"
+msgstr "Objektai"
+
+# AI Translated
+#. A thinking level of the AI model: no thinking
+#: src/components/ModelPickers.tsx
+msgid "Off"
+msgstr "Išjungta"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Offline"
+msgstr "Neprisijungęs"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "On"
+msgstr "Įjungta"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "On the network"
+msgstr "Tinkle"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Once a day JusPrin asks GitHub for its list of releases. GitHub sees your IP address, as with any web page. Nothing about you or your projects is sent."
+msgstr "Kartą per dieną JusPrin paprašo GitHub išleistų versijų sąrašo. GitHub mato jūsų IP adresą, kaip ir bet kuris tinklalapis. Jokia informacija apie jus ar jūsų projektus nesiunčiama."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Online"
+msgstr "Prisijungęs"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Open chat: {title}"
+msgstr "Atverti pokalbį: {title}"
+
+# AI Translated
+#: src/App.tsx
+msgid "Open filament settings"
+msgstr "Atverti gijos nustatymus"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Open in chat"
+msgstr "Atverti pokalbyje"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Open it in the 3D view, or choose it above, to see them."
+msgstr "Kad juos pamatytumėte, atverkite jį 3D vaizde arba pasirinkite aukščiau."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Open one in the 3D view, or choose it above, to see them."
+msgstr "Kad juos pamatytumėte, atverkite vieną iš jų 3D vaizde arba pasirinkite aukščiau."
+
+# AI Translated
+#: src/App.tsx
+msgid "Open printer settings"
+msgstr "Atverti spausdintuvo nustatymus"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Open printer window"
+msgstr "Atverti spausdintuvo langą"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Open the browser again"
+msgstr "Vėl atverti naršyklę"
+
+# AI Translated
+#: src/App.tsx
+msgid "Open the project again to keep working."
+msgstr "Kad galėtumėte dirbti toliau, vėl atverkite projektą."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Open with JusPrin"
+msgstr "Atverti su JusPrin"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Open…"
+msgstr "Atverti…"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Opened {name}"
+msgstr "Atverta: {name}"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Opened {name} as a new project"
+msgstr "Kaip naujas projektas atverta: {name}"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Opened a file"
+msgstr "Atvertas failas"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Opened a file as a new project"
+msgstr "Failas atvertas kaip naujas projektas"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Opens the release page on GitHub"
+msgstr "Atveria išleistos versijos puslapį GitHub"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+#: src/components/SignInDoor.tsx
+msgid "or"
+msgstr "arba"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Or type your own answer…"
+msgstr "Arba įrašykite savo atsakymą…"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Other ways:"
+msgstr "Kiti būdai:"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Others"
+msgstr "Kita"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Pan"
+msgstr "Slinkti"
+
+# AI Translated
+#. How a print came out: it partly worked
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "Partly"
+msgstr "Iš dalies"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+#: src/components/SignInDoor.tsx
+msgid "Password"
+msgstr "Slaptažodis"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Paste"
+msgstr "Įklijuoti"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Paste the new key"
+msgstr "Įklijuokite naują raktą"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Paste your {name} key ({prefix}…)"
+msgstr "Įklijuokite savo {name} raktą ({prefix}…)"
+
+# AI Translated
+#. A printer status: the print is paused
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Paused"
+msgstr "Pristabdyta"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Photo"
+msgstr "Nuotrauka"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Photo credits"
+msgstr "Nuotraukų autoriai"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "Photo of the printed object"
+msgstr "Išspausdinto objekto nuotrauka"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Photo or image"
+msgstr "Nuotrauka arba paveikslėlis"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Picking one saves a copy for the {modelName}."
+msgstr "Pasirinkus vieną, išsaugoma kopija spausdintuvui {modelName}."
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Plan credits"
+msgstr "Plano kreditai"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Plan needs another look"
+msgstr "Planą reikia peržiūrėti"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Plate"
+msgstr "Spausdinimo plokštė"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgctxt "build plate"
+msgid "Plate"
+msgstr "Pagrindas"
+
+# AI Translated
+#: src/components/GcodeMarker.tsx
+msgid "Plate {plateNumber}"
+msgstr "Plokštė {plateNumber}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Preference sections"
+msgstr "Parinkčių skiltys"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Preferences"
+msgstr "Parinktys"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Preferences (Ctrl+,)"
+msgstr "Parinktys (Ctrl+,)"
+
+# AI Translated
+#: src/PreferencesApp.tsx
+msgid "Preferences could not reach JusPrin"
+msgstr "Parinktims nepavyko pasiekti JusPrin"
+
+# AI Translated
+#. A setting’s project value: whatever the preset says
+#: src/components/AllSettings.tsx
+msgid "preset"
+msgstr "pagal profilį"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Preset: {preset}"
+msgstr "Profilis: {preset}"
+
+# AI Translated
+#: src/calibration.ts
+msgid "Pressure advance steps not kept in the file"
+msgstr "Pressure Advance žingsniai faile neišsaugoti"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Print again"
+msgstr "Spausdinti dar kartą"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Print history"
+msgstr "Spausdinimo istorija"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Printables and Thingiverse send the model straight here."
+msgstr "Printables ir Thingiverse modelį siunčia tiesiai čia."
+
+# AI Translated
+#. A filament setting’s value: the printer’s value is used
+#: src/components/AllSettings.tsx
+#: src/components/ChangeRows.tsx
+msgid "printer"
+msgstr "pagal spausdintuvą"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Printer"
+msgstr "Spausdintuvas"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Printer actions"
+msgstr "Spausdintuvo veiksmai"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Printer last reported {observed}"
+msgstr "Spausdintuvas paskutinį kartą pranešė {observed}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Printer name"
+msgstr "Spausdintuvo pavadinimas"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Printer settings…"
+msgstr "Spausdintuvo nustatymai…"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Printer: {name}"
+msgstr "Spausdintuvas: {name}"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Printers"
+msgstr "Spausdintuvai"
+
+# AI Translated
+#: src/App.tsx
+msgid "Printers already added stay added. The chat can't be opened again."
+msgstr "Jau pridėti spausdintuvai lieka pridėti. Pokalbio atverti dar kartą negalima."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Printing"
+msgstr "Spausdinama"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "process"
+msgstr "procesas"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Process"
+msgstr "Procesas"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Project chats"
+msgstr "Projekto pokalbiai"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Project: {name}"
+msgstr "Projektas: {name}"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Projects"
+msgstr "Projektai"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Projects & files"
+msgstr "Projektai ir failai"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Projects and files"
+msgstr "Projektai ir failai"
+
+# AI Translated
+#: src/App.tsx
+msgid "Put the project back to {savedMoment}?"
+msgstr "Grąžinti projektą į {savedMoment} būseną?"
+
+# AI Translated
+#: src/App.tsx
+msgid "Put the project back to when this chat was saved?"
+msgstr "Grąžinti projektą į būseną, kai šis pokalbis buvo išsaugotas?"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Quality"
+msgstr "Kokybė"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Rather use JusPrin’s own AI, which specializes in 3D printing? Sign up in <0>Account</0>."
+msgstr "Norite naudoti JusPrin DI, kuris specializuojasi 3D spausdinime? Užsiregistruokite skiltyje <0>Paskyra</0>."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Reading the printer list…"
+msgstr "Skaitomas spausdintuvų sąrašas…"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Reading the settings…"
+msgstr "Skaitomi nustatymai…"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Reading this printer’s profiles…"
+msgstr "Skaitomi šio spausdintuvo profiliai…"
+
+# AI Translated
+#. A printer status: idle and ready to print
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Ready"
+msgstr "Paruoštas"
+
+# AI Translated
+#. Sort order: the most recently saved first
+#: ../HomeUI/src/App.tsx
+msgid "Recent"
+msgstr "Naujausi"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Reconnect"
+msgstr "Prisijungti iš naujo"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Redo: {step}"
+msgstr "Perdaryti: {step}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Region"
+msgstr "Sritis"
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "Registered JusPrin account, your own key, or an AI tool you already use."
+msgstr "Registruota JusPrin paskyra, jūsų raktas arba DI įrankis, kurį jau naudojate."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Reinstall or rebuild JusPrin, then try again."
+msgstr "Iš naujo įdiekite arba sukompiliuokite JusPrin, tada bandykite dar kartą."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Release notes"
+msgstr "Versijos pastabos"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Released {released} · you have {current}"
+msgstr "Išleista {released} · jūsų versija {current}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+#: ../HomeUI/src/components/PrintReportForm.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/AllSettings.tsx
+#: src/components/AttachmentChip.tsx
+msgid "Remove"
+msgstr "Pašalinti"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Remove “{printerName}”? Its printer settings will be deleted. Your projects stay."
+msgstr "Pašalinti „{printerName}“? Jo spausdintuvo nustatymai bus ištrinti. Jūsų projektai liks."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Remove {lowered}"
+msgstr "Pašalinti {lowered}"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Remove {name} key"
+msgstr "Pašalinti {name} raktą"
+
+# AI Translated
+#: src/components/AttachmentChip.tsx
+msgid "Remove {title}"
+msgstr "Pašalinti {title}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Remove filter {label}"
+msgstr "Pašalinti filtrą {label}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Remove printer?"
+msgstr "Pašalinti spausdintuvą?"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Remove printer…"
+msgstr "Pašalinti spausdintuvą…"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Removed from your printers."
+msgstr "Pašalinta iš jūsų spausdintuvų."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Removed: <0>{name}</0>"
+msgstr "Pašalinta: <0>{name}</0>"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Removed: <0>{preset}</0>"
+msgstr "Pašalinta: <0>{preset}</0>"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+#: src/components/ChatNavigation.tsx
+msgid "Rename"
+msgstr "Pervardyti"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Rename chat"
+msgstr "Pervardyti pokalbį"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Rename printer"
+msgstr "Pervardyti spausdintuvą"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Renews {renews}."
+msgstr "Pratęsiama {renews}."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Replace"
+msgstr "Pakeisti"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Replace {name} key"
+msgstr "Pakeisti {name} raktą"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Replace it with a working key, or remove it."
+msgstr "Pakeiskite jį veikiančiu raktu arba pašalinkite."
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Reply…"
+msgstr "Atsakyti…"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Report credits"
+msgstr "Ataskaitų kreditai"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Report sent"
+msgstr "Ataskaita išsiųsta"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Restart {name} if it was already running."
+msgstr "Jei programa {name} jau veikė, paleiskite ją iš naujo."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Restart now"
+msgstr "Paleisti iš naujo dabar"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Restart the AI tool if it was already running."
+msgstr "Jei DI įrankis jau veikė, paleiskite jį iš naujo."
+
+# AI Translated
+#: src/App.tsx
+#: src/App.tsx
+msgid "Restore and resume"
+msgstr "Atkurti ir tęsti"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Restore the model and project settings from this saved point. Your current model is saved in Version history first. Conversation, exported files, completed prints, and printer activity stay as they are."
+msgstr "Atkurti modelio ir projekto nustatymus iš šio išsaugoto taško. Dabartinis modelis pirmiausia išsaugomas versijų istorijoje. Pokalbis, eksportuoti failai, užbaigti spausdinimai ir spausdintuvo veikla lieka nepakeisti."
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Result"
+msgstr "Rezultatas"
+
+# AI Translated
+#: src/App.tsx
+msgid "Resume saved setup"
+msgstr "Tęsti išsaugotą sąranką"
+
+# AI Translated
+#: src/components/MessageList.tsx
+#: src/components/MessageList.tsx
+#: src/components/Panels.tsx
+msgid "Retry"
+msgstr "Kartoti"
+
+# AI Translated
+#: src/App.tsx
+msgid "Return to active chat"
+msgstr "Grįžti į aktyvų pokalbį"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Reverse scroll-wheel zoom"
+msgstr "Atvirkštinis mastelio keitimas pelės ratuku"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+#: src/components/ChangeRows.tsx
+#: src/components/ChangeRows.tsx
+#: src/components/ChangeRows.tsx
+#: src/components/ChangeRows.tsx
+msgid "Revert to here"
+msgstr "Grąžinti iki čia"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+#: src/components/ChangeRows.tsx
+msgid "Revert to here?"
+msgstr "Grąžinti iki čia?"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Review"
+msgstr "Peržiūrėti"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Review again"
+msgstr "Peržiūrėti dar kartą"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Review its progress and results in this panel."
+msgstr "Jo eigą ir rezultatus peržiūrėkite šiame skydelyje."
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Right-drag"
+msgstr "Vilkimas dešiniuoju"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Running it yourself? Paste it in a terminal, then restart {name}."
+msgstr "Paleisite patys? Įklijuokite tai terminale, tada iš naujo paleiskite {name}."
+
+# AI Translated
+#: src/components/ToolActivityCard.tsx
+#: src/components/WorkCard.tsx
+msgid "Running…"
+msgstr "Vykdoma…"
+
+# AI Translated
+#: src/components/ToolActivityCard.tsx
+msgid "Running… · {percent}%"
+msgstr "Vykdoma… · {percent}%"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "same as project"
+msgstr "kaip projekte"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+#: src/components/ChatNavigation.tsx
+msgid "Save"
+msgstr "Išsaugoti"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Save downloaded models to"
+msgstr "Atsisiųstus modelius išsaugoti į"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Saved {saved}"
+msgstr "Išsaugota {saved}"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Saved sliced snapshot"
+msgstr "Išsaugota sluoksniuota momentinė kopija"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Saved with this chat. The canvas shows your current project."
+msgstr "Išsaugota su šiuo pokalbiu. 3D vaizde rodomas jūsų dabartinis projektas."
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Saved: <0>{preset}</0>"
+msgstr "Išsaugota: <0>{preset}</0>"
+
+# AI Translated
+#: src/components/ProposalCard.tsx
+msgid "Saving…"
+msgstr "Išsaugoma…"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Scroll up to zoom out."
+msgstr "Slinkite aukštyn, kad nutolintumėte."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Seam painting"
+msgstr "Siūlių piešimas"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+#: src/components/AddPrinterForm.tsx
+msgid "Search brand or material"
+msgstr "Ieškoti gamintojo ar medžiagos"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "Search brands"
+msgstr "Ieškoti gamintojų"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "Search models"
+msgstr "Ieškoti modelių"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgctxt "printer"
+msgid "Search models"
+msgstr "Ieškoti modelių"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Search prints"
+msgstr "Ieškoti spausdinimų"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+#: ../HomeUI/src/App.tsx
+msgid "Search projects"
+msgstr "Ieškoti projektų"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Search settings"
+msgstr "Ieškoti nustatymų"
+
+# AI Translated
+#: src/components/Guide.tsx
+#: src/components/Guide.tsx
+msgid "Search the guide"
+msgstr "Ieškoti vadove"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "See prices"
+msgstr "Žiūrėti kainas"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "See usage"
+msgstr "Žiūrėti naudojimą"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Send"
+msgstr "Siųsti"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+#: src/components/SignInDoor.tsx
+msgid "Send a new code"
+msgstr "Siųsti naują kodą"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Send a report to the JusPrin developers?"
+msgstr "Siųsti ataskaitą JusPrin kūrėjams?"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Send message"
+msgstr "Siųsti žinutę"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+#: src/components/PrinterPanel.tsx
+msgid "Send report"
+msgstr "Siųsti ataskaitą"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Sending a code to {address}…"
+msgstr "Siunčiamas kodas adresu {address}…"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Sending isn’t built yet, so nothing has left this computer. The report is saved at {path}."
+msgstr "Siuntimas dar neįdiegtas, todėl niekas neišėjo iš šio kompiuterio. Ataskaita išsaugota: {path}."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "Sending…"
+msgstr "Siunčiama…"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Sent · {when}. Saved snapshot: the canvas shows your current project."
+msgstr "Išsiųsta · {when}. Išsaugota momentinė kopija: 3D vaizde rodomas jūsų dabartinis projektas."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Sent to {printer}"
+msgstr "Išsiųsta į {printer}"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Sent to {printer} · {when}. Saved snapshot: the canvas shows your current project."
+msgstr "Išsiųsta į {printer} · {when}. Išsaugota momentinė kopija: 3D vaizde rodomas jūsų dabartinis projektas."
+
+# AI Translated
+#. {time} is a clock time, or a day and a time
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Sent to {printer} at {time}"
+msgstr "Išsiųsta į {printer} {time}"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Sent to {printer}. Saved snapshot: the canvas shows your current project."
+msgstr "Išsiųsta į {printer}. Išsaugota momentinė kopija: 3D vaizde rodomas jūsų dabartinis projektas."
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Sent. Saved snapshot: the canvas shows your current project."
+msgstr "Išsiųsta. Išsaugota momentinė kopija: 3D vaizde rodomas jūsų dabartinis projektas."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Set on this plate"
+msgstr "Nustatyta šiai plokštei"
+
+# AI Translated
+#: ../HomeUI/src/components/AgentGroup.tsx
+#: src/components/ChatNavigation.tsx
+#: src/components/Panels.tsx
+#: src/components/Panels.tsx
+msgid "Set up AI"
+msgstr "Nustatyti DI"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "setting up an ordinary print"
+msgstr "įprasto spausdinimo paruošimas"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Settings might have changed; inspect them before retrying."
+msgstr "Nustatymai galėjo pasikeisti; prieš kartodami juos patikrinkite."
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Setup summary"
+msgstr "Sąrankos santrauka"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "Show details"
+msgstr "Rodyti informaciją"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Show fewer"
+msgstr "Rodyti mažiau"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Show filaments made for other printers"
+msgstr "Rodyti gijas, skirtas kitiems spausdintuvams"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Show file"
+msgstr "Rodyti failą"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Show folder"
+msgstr "Rodyti aplanką"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Showing"
+msgstr "Rodoma"
+
+# AI Translated
+#: src/components/MessageList.tsx
+#: src/components/SignInDoor.tsx
+#: src/components/SignInDoor.tsx
+msgid "Sign in"
+msgstr "Prisijungti"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Sign in again to keep using AI with your JusPrin account."
+msgstr "Prisijunkite iš naujo, kad galėtumėte toliau naudoti DI su JusPrin paskyra."
+
+# AI Translated
+#: src/App.tsx
+#: src/components/ChatNavigation.tsx
+msgid "Sign in or add a key to chat with AI"
+msgstr "Prisijunkite arba pridėkite raktą, kad galėtumėte kalbėtis su DI"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+#: src/components/SignInDoor.tsx
+msgid "Sign in with Google instead"
+msgstr "Verčiau prisijungti su Google"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Sign out"
+msgstr "Atsijungti"
+
+# AI Translated
+#: src/credits.ts
+msgid "Sign up and get {signupCredits} free credits"
+msgstr "Užsiregistruokite ir gaukite {signupCredits} nemokamų kreditų"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Sign up free"
+msgstr "Užsiregistruoti nemokamai"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Sign up to use AI, or skip it and just slice."
+msgstr "Užsiregistruokite, kad galėtumėte naudoti DI, arba praleiskite ir tiesiog sluoksniuokite."
+
+# AI Translated
+#: src/components/CodeField.tsx
+msgid "Sign-in code"
+msgstr "Prisijungimo kodas"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Sign-up credits"
+msgstr "Registracijos kreditai"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Signed in"
+msgstr "Prisijungta"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Signed in · AI unavailable"
+msgstr "Prisijungta · DI nepasiekiamas"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Signed in as {address}"
+msgstr "Prisijungta kaip {address}"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Signed in as {address} · AI unavailable"
+msgstr "Prisijungta kaip {address} · DI nepasiekiamas"
+
+# AI Translated
+#: ../HomeUI/src/components/AgentGroup.tsx
+#: ../HomeUI/src/components/Onboarding.tsx
+#: ../HomeUI/src/components/Onboarding.tsx
+#: ../HomeUI/src/components/Onboarding.tsx
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Signed in as {email}"
+msgstr "Prisijungta kaip {email}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Signing out keeps your projects, printers and API keys on this computer."
+msgstr "Atsijungus, jūsų projektai, spausdintuvai ir API raktai lieka šiame kompiuteryje."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Signing you in…"
+msgstr "Prisijungiama…"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Skip — choose a filament later"
+msgstr "Praleisti – giją pasirinkti vėliau"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Skip — start with {defaultLabel}"
+msgstr "Praleisti – pradėti su {defaultLabel}"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Skip for now"
+msgstr "Kol kas praleisti"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Skip this version"
+msgstr "Praleisti šią versiją"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Slice again to update"
+msgstr "Sluoksniuokite iš naujo, kad atnaujintumėte"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Slice to see time and filament"
+msgstr "Sluoksniuokite, kad pamatytumėte laiką ir gijos kiekį"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Sliced & sent"
+msgstr "Sluoksniuota ir išsiųsta"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Slot"
+msgstr "Lizdas"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Slot {slot}"
+msgstr "Lizdas {slot}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Slot {slot} · {preset}"
+msgstr "Lizdas {slot} · {preset}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Slot {slot} overrides the printer’s {value}."
+msgstr "Lizdo {slot} reikšmė pakeičia spausdintuvo reikšmę {value}."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Slot {slot} preset: {preset}"
+msgstr "Lizdo {slot} profilis: {preset}"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Slot 1"
+msgstr "Lizdas 1"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Smooth mesh"
+msgstr "Glotninti tinklą"
+
+# AI Translated
+#: src/components/FileNotesCard.tsx
+msgid "Some notes from opening the file aren't shown."
+msgstr "Kai kurios pastabos, gautos atveriant failą, nerodomos."
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Sort projects"
+msgstr "Rūšiuoti projektus"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "Specializes in 3D printing"
+msgstr "Specializuojasi 3D spausdinime"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Speed"
+msgstr "Greitis"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Staged attachments"
+msgstr "Paruošti priedai"
+
+# AI Translated
+#. The cheaper kind of AI model
+#: src/credits.ts
+msgid "Standard"
+msgstr "Standartinis"
+
+# AI Translated
+#: src/components/AttachmentChip.tsx
+msgid "Standard can’t see pictures, so this one will not be sent."
+msgstr "Standartinis modelis nemato paveikslėlių, todėl šis nebus išsiųstas."
+
+# AI Translated
+#: src/components/Guide.tsx
+msgid "Start of the page"
+msgstr "Puslapio pradžia"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Start with {defaultLabel} instead"
+msgstr "Verčiau pradėti su {defaultLabel}"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Starting Home."
+msgstr "Paleidžiamas pradžios ekranas."
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "Starting the AI panel."
+msgstr "Paleidžiamas DI skydelis."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Stays on this computer."
+msgstr "Lieka šiame kompiuteryje."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Step {step} of {steps}"
+msgstr "{step} žingsnis iš {steps}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "STL and STEP models"
+msgstr "STL ir STEP modeliai"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Stop"
+msgstr "Sustabdyti"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Stop generating"
+msgstr "Sustabdyti generavimą"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Stopped before it finished."
+msgstr "Sustabdyta nebaigus."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Strength"
+msgstr "Stiprumas"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Suggested for the {modelName}"
+msgstr "Siūloma spausdintuvui {modelName}"
+
+# AI Translated
+#. The settings page for support structures
+#: src/components/AllSettings.tsx
+msgid "Support"
+msgstr "Atramos"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Support painting"
+msgstr "Atramų piešimas"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Switched to <0>{label}</0>"
+msgstr "Perjungta į <0>{label}</0>"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Takes effect when JusPrin restarts. Your project is saved first."
+msgstr "Įsigalioja paleidus JusPrin iš naujo. Projektas pirmiausia išsaugomas."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Technical output"
+msgstr "Techninė išvestis"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "Tell us how it printed"
+msgstr "Papasakokite, kaip pavyko spausdinimas"
+
+# AI Translated
+#: src/calibration.ts
+msgid "Temperature steps not kept in the file"
+msgstr "Temperatūros žingsniai faile neišsaugoti"
+
+# AI Translated
+#. The kind of an attached file: a text file
+#: src/components/AttachmentChip.tsx
+msgid "Text"
+msgstr "Tekstas"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "That code is wrong."
+msgstr "Neteisingas kodas."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "That code no longer works. We can send a new one."
+msgstr "Šis kodas nebegalioja. Galime atsiųsti naują."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "That password is wrong."
+msgstr "Neteisingas slaptažodis."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "The {modelName} profile’s default"
+msgstr "Numatytasis {modelName} profilio nustatymas"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "The account couldn’t be deleted. Check your internet connection, then try again."
+msgstr "Nepavyko ištrinti paskyros. Patikrinkite interneto ryšį, tada bandykite dar kartą."
+
+# AI Translated
+#: src/App.tsx
+msgid "The action could not be completed."
+msgstr "Nepavyko atlikti veiksmo."
+
+# AI Translated
+#: src/components/ToolActivityCard.tsx
+msgid "The action failed."
+msgstr "Veiksmas nepavyko."
+
+# AI Translated
+#: src/App.tsx
+msgid "The AI chat didn't start. Try again, and restart JusPrin if it keeps happening."
+msgstr "DI pokalbis neprasidėjo. Bandykite dar kartą, o jei tai kartojasi, paleiskite JusPrin iš naujo."
+
+# AI Translated
+#: src/App.tsx
+msgid "The AI panel could not connect"
+msgstr "Nepavyko prijungti DI skydelio"
+
+# AI Translated
+#: src/App.tsx
+msgid "The AI panel could not reach JusPrin"
+msgstr "DI skydeliui nepavyko pasiekti JusPrin"
+
+# AI Translated
+#: src/App.tsx
+msgid "The AI panel has no connection to JusPrin"
+msgstr "DI skydelis neturi ryšio su JusPrin"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "The AI slicer that helps you get better prints."
+msgstr "DI pjaustyklė, padedanti gauti geresnius spaudinius."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "The app continues on its own once the browser is done."
+msgstr "Kai naršyklėje baigsite, programa tęs darbą pati."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "The Create filament window opens"
+msgstr "Atsiveria langas „Sukurti giją“"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "The file changed since you reviewed it."
+msgstr "Failas pasikeitė nuo tada, kai jį peržiūrėjote."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "The file is invalid or not writable. Fix it, then try again."
+msgstr "Failas netinkamas arba į jį negalima rašyti. Pataisykite jį ir bandykite dar kartą."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "The file is on the printer but was not started."
+msgstr "Failas yra spausdintuve, bet spausdinimas nepradėtas."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "The full preferences window from OrcaSlicer, which JusPrin is built on."
+msgstr "Visas OrcaSlicer, kurio pagrindu sukurta JusPrin, parinkčių langas."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "The key could not be checked. Nothing was saved."
+msgstr "Nepavyko patikrinti rakto. Niekas neišsaugota."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "The open project still uses the same printer as before. {app}’s own files were not changed."
+msgstr "Atvertas projektas vis dar naudoja tą patį spausdintuvą kaip anksčiau. Programos {app} failai nebuvo pakeisti."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "The printer hasn’t confirmed it got the file."
+msgstr "Spausdintuvas nepatvirtino, kad gavo failą."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "the printer profile’s default, until your preset is saved"
+msgstr "spausdintuvo profilio numatytoji reikšmė, kol bus išsaugotas jūsų profilis"
+
+# AI Translated
+#: src/components/ToolActivityCard.tsx
+msgid "The project changed before this could run. Ask AI again."
+msgstr "Projektas pasikeitė anksčiau, nei tai buvo paleista. Paklauskite DI dar kartą."
+
+# AI Translated
+#: src/App.tsx
+msgid "The project has changed since this chat. To continue here, JusPrin puts the project back the way it was then."
+msgstr "Nuo šio pokalbio projektas pasikeitė. Kad galėtumėte tęsti čia, JusPrin grąžins projektą į tuometinę būseną."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "The provider a chat uses receives your messages, the open project’s settings and anything you attach. JusPrin doesn’t send your keys anywhere else."
+msgstr "Pokalbio naudojamas teikėjas gauna jūsų žinutes, atverto projekto nustatymus ir viską, ką pridedate. JusPrin jūsų raktų niekur kitur nesiunčia."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "The provider rejected this key"
+msgstr "Teikėjas atmetė šį raktą"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "The report could not be saved."
+msgstr "Nepavyko išsaugoti ataskaitos."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "The report couldn’t be sent. Check your connection and try again."
+msgstr "Nepavyko išsiųsti ataskaitos. Patikrinkite ryšį ir bandykite dar kartą."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "The setup command failed."
+msgstr "Sąrankos komanda nepavyko."
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Theme"
+msgstr "Tema"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Then"
+msgstr "Tada"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "Thinking"
+msgstr "Mąstymas"
+
+# AI Translated
+#: src/App.tsx
+msgid "This AI panel does not match this JusPrin build"
+msgstr "Šis DI skydelis neatitinka šios JusPrin versijos"
+
+# AI Translated
+#: src/App.tsx
+msgid "This chat is inactive. Resume from its saved setup to continue."
+msgstr "Šis pokalbis neaktyvus. Kad jį tęstumėte, atnaujinkite jį iš išsaugotos sąrankos."
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "This chat is still working. Stop it or let it finish, then delete it."
+msgstr "Šis pokalbis dar vykdomas. Sustabdykite jį arba palaukite, kol baigsis, tada ištrinkite."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "This G-code is no longer kept. Open the project and slice it to print it again."
+msgstr "Šis G-code nebesaugomas. Atverkite projektą ir sluoksniuokite jį, kad išspausdintumėte dar kartą."
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "This is an internal connection inside JusPrin, not a network service. The 3D canvas and all other controls keep working."
+msgstr "Tai vidinis ryšys JusPrin viduje, o ne tinklo paslauga. 3D vaizdas ir visi kiti valdikliai toliau veikia."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "This JusPrin build cannot list the settings."
+msgstr "Ši JusPrin versija negali pateikti nustatymų sąrašo."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "This key works now, but JusPrin couldn’t save it."
+msgstr "Šis raktas dabar veikia, bet JusPrin nepavyko jo išsaugoti."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "This tool isn’t installed."
+msgstr "Šis įrankis neįdiegtas."
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "This version of JusPrin can no longer connect to JusPrin accounts."
+msgstr "Ši JusPrin versija nebegali prisijungti prie JusPrin paskyrų."
+
+# AI Translated
+#: src/OrcaImportApp.tsx
+msgid "This window could not reach JusPrin"
+msgstr "Šiam langui nepavyko pasiekti JusPrin"
+
+# AI Translated
+#. A thinking level of the AI model
+#: src/components/ModelPickers.tsx
+msgid "Thorough"
+msgstr "Kruopštus"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Time & material estimates recomputing…"
+msgstr "Perskaičiuojami laiko ir medžiagų įverčiai…"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Timed out."
+msgstr "Baigėsi laikas."
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+#: ../HomeUI/src/savedDate.ts
+msgid "Today"
+msgstr "Šiandien"
+
+# AI Translated
+#. {time} is a clock time, 14:22
+#: ../HomeUI/src/history.ts
+msgid "Today {time}"
+msgstr "Šiandien {time}"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Too many codes were sent to this address. Try again in an hour."
+msgstr "Šiuo adresu išsiųsta per daug kodų. Bandykite po valandos."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Too many tries. Wait a few minutes, or email me a code."
+msgstr "Per daug bandymų. Palaukite kelias minutes arba paprašykite kodo el. paštu."
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Tool"
+msgstr "Įrankis"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Touchpad"
+msgstr "Jutiklinis kilimėlis"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "troubleshooting, tricky models, anything you’d ask a person"
+msgstr "trikčių šalinimas, sudėtingi modeliai, viskas, ko klaustumėte žmogaus"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+#: src/components/Preferences.tsx
+msgid "Try again"
+msgstr "Bandyti dar kartą"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Try again."
+msgstr "Bandykite dar kartą."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Turn freely"
+msgstr "Laisvas sukimas"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Turn the view"
+msgstr "Vaizdo sukimas"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Turn the view in any direction. Off keeps the bed level."
+msgstr "Sukite vaizdą bet kuria kryptimi. Išjungus pagrindas lieka horizontalus."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Type the code from the email. You can open it on your phone."
+msgstr "Įveskite kodą iš el. laiško. Jį galite atverti telefone."
+
+# AI Translated
+#: src/components/MessageList.tsx
+#: src/components/PrinterPanel.tsx
+msgid "Undo"
+msgstr "Atšaukti"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Undo: {step}"
+msgstr "Atšaukti: {step}"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Undone: <0>{preset}</0>"
+msgstr "Atšaukta: <0>{preset}</0>"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Units"
+msgstr "Vienetai"
+
+# AI Translated
+#. The kind of an attached file the app cannot read
+#: src/components/AttachmentChip.tsx
+msgid "Unsupported"
+msgstr "Nepalaikomas"
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "Until then JusPrin slices from the preset, exactly as it always has."
+msgstr "Iki tol JusPrin sluoksniuoja pagal profilį, lygiai kaip visada."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Until you add yours, files are sliced for a 250 mm Klipper printer and may not print on other printers."
+msgstr "Kol nepridėsite savo spausdintuvo, failai sluoksniuojami 250 mm Klipper spausdintuvui ir gali netikti kitiems spausdintuvams."
+
+# AI Translated
+#. {checked} is how long ago, such as "just now", "2 hours ago" or "yesterday".
+#: src/components/Preferences.tsx
+msgid "Up to date · checked {checked}"
+msgstr "Naujausia versija · tikrinta {checked}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Update available"
+msgstr "Yra atnaujinimas"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Update with each JusPrin release. Your own presets never change."
+msgstr "Atnaujinami su kiekviena JusPrin versija. Jūsų profiliai niekada nesikeičia."
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Updates"
+msgstr "Atnaujinimai"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Updates come from the Microsoft Store."
+msgstr "Atnaujinimai gaunami iš Microsoft Store."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Use a password instead"
+msgstr "Verčiau naudoti slaptažodį"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Use an email code instead"
+msgstr "Verčiau naudoti el. pašto kodą"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Use project value"
+msgstr "Naudoti projekto reikšmę"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Use project value for {label}"
+msgstr "Naudoti projekto reikšmę: {label}"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Use your own AI account"
+msgstr "Naudoti savo DI paskyrą"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Variable layer height"
+msgstr "Kintamas sluoksnio aukštis"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Version history"
+msgstr "Versijų istorija"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "We sent a 6-digit code to {address}."
+msgstr "Išsiuntėme 6 skaitmenų kodą adresu {address}."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "We sent a new code to {address}."
+msgstr "Išsiuntėme naują kodą adresu {address}."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "We’ll email you a code."
+msgstr "Atsiųsime jums kodą el. paštu."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "What happened"
+msgstr "Kas nutiko"
+
+# AI Translated
+#: src/App.tsx
+msgid "What should we do with this in the current project?"
+msgstr "Ką su tuo daryti dabartiniame projekte?"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "What the report holds"
+msgstr "Kas yra ataskaitoje"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "What to check for"
+msgstr "Ką tikrinti"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "What to do next"
+msgstr "Ką daryti toliau"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "What to expect"
+msgstr "Ko tikėtis"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "When you import, JusPrin copies it with its filaments and print settings."
+msgstr "Importuojant JusPrin jį nukopijuos kartu su jo gijomis ir spausdinimo nustatymais."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "When you import, JusPrin copies it."
+msgstr "Importuojant JusPrin jį nukopijuos."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "When you import, JusPrin copies them with their filaments and print settings."
+msgstr "Importuojant JusPrin juos nukopijuos kartu su jų gijomis ir spausdinimo nustatymais."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "When you import, JusPrin copies them."
+msgstr "Importuojant JusPrin juos nukopijuos."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Which filament do you want to start with?"
+msgstr "Su kokia gija norite pradėti?"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Which plate is on it?"
+msgstr "Koks pagrindas jame uždėtas?"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Which printer do you have?"
+msgstr "Kokį spausdintuvą turite?"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Which printer?"
+msgstr "Koks spausdintuvas?"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Which settings"
+msgstr "Kurie nustatymai"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Whole object"
+msgstr "Visas objektas"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Whole project"
+msgstr "Visas projektas"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "With a JusPrin account, JusPrin receives your messages, the open project’s settings and anything you attach, and passes them on to the model provider it uses."
+msgstr "Naudojant JusPrin paskyrą, JusPrin gauna jūsų žinutes, atverto projekto nustatymus ir viską, ką pridedate, ir perduoda juos savo naudojamam modelio teikėjui."
+
+# AI Translated
+#: src/components/MessageList.tsx
+#: src/components/TurnActivity.tsx
+msgid "Working on it…"
+msgstr "Dirbama…"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Writing settings…"
+msgstr "Įrašomi nustatymai…"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "yesterday"
+msgstr "vakar"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+#: ../HomeUI/src/savedDate.ts
+#: src/components/ChatNavigation.tsx
+msgid "Yesterday"
+msgstr "Vakar"
+
+# AI Translated
+#. {time} is a clock time, 19:40
+#: ../HomeUI/src/history.ts
+msgid "Yesterday {time}"
+msgstr "Vakar {time}"
+
+# AI Translated
+#. Who opened a file: the person
+#: src/components/ChangeRows.tsx
+#: src/components/MessageList.tsx
+msgid "you"
+msgstr "jūs"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "You can connect it later."
+msgstr "Galite jį prijungti vėliau."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "You can prepare prints with this printer before installing the Bambu plug-in."
+msgstr "Su šiuo spausdintuvu spausdinimus galite ruošti dar neįdiegę Bambu papildinio."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "You have {current}"
+msgstr "Jūsų versija: {current}"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "You won’t need to set this up again after a normal JusPrin restart."
+msgstr "Po įprasto JusPrin paleidimo iš naujo šito nustatyti nebereikės."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "You’ll need to add it again after JusPrin restarts."
+msgstr "Paleidus JusPrin iš naujo, jį reikės pridėti dar kartą."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Your account and AI setup stay intact. Your own key or AI tool still works meanwhile."
+msgstr "Jūsų paskyra ir DI sąranka lieka nepakeistos. Jūsų raktas ar DI įrankis kol kas veikia."
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Your account, keys, and the model new chats start with"
+msgstr "Jūsų paskyra, raktai ir modelis, kuriuo pradedami nauji pokalbiai"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Your API key, or Claude Code or Claude Desktop"
+msgstr "Jūsų API raktas arba Claude Code ar Claude Desktop"
+
+# AI Translated
+#: src/App.tsx
+msgid "Your current version stays in Version history."
+msgstr "Dabartinė versija lieka versijų istorijoje."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+#: src/components/AddPrinterForm.tsx
+msgid "Your filaments"
+msgstr "Jūsų gijos"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Your other settings stay as they are. The existing file is backed up first."
+msgstr "Kiti jūsų nustatymai lieka nepakeisti. Pirmiausia sukuriama esamo failo atsarginė kopija."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+msgid "Your own API key"
+msgstr "Jūsų API raktas"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Your preset"
+msgstr "Jūsų profilis"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Your preset, based on {base}"
+msgstr "Jūsų profilis, sukurtas pagal {base}"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Your preset, made for other printers. Picking it saves a copy for the {modelName}."
+msgstr "Jūsų profilis, skirtas kitiems spausdintuvams. Pasirinkus jį, išsaugoma kopija spausdintuvui {modelName}."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Your preset, made for the {first} and {second}. Picking it saves a copy for the {modelName}."
+msgstr "Jūsų profilis, skirtas {first} ir {second}. Pasirinkus jį, išsaugoma kopija spausdintuvui {modelName}."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Your preset, made for the {first}. Picking it saves a copy for the {modelName}."
+msgstr "Jūsų profilis, skirtas {first}. Pasirinkus jį, išsaugoma kopija spausdintuvui {modelName}."
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Your projects will appear here, most recent first."
+msgstr "Čia bus rodomi jūsų projektai, naujausi pirmiausia."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "your provider"
+msgstr "jūsų teikėjas"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Your sign-in for {address} has ended"
+msgstr "Paskyros {address} prisijungimas baigėsi"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Your sign-in for this account has ended"
+msgstr "Šios paskyros prisijungimas baigėsi"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Zoom toward the pointer"
+msgstr "Artinti link žymeklio"

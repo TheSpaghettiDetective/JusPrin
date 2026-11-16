@@ -1,13 +1,16 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ConversationInfo, PrinterSessionPayload } from '../bridge/protocol';
+import { plural, t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { dateLocale } from '../i18n';
 
 function ChatIcon() {
   return <span className="jp-icon jp-icon-message-circle" aria-hidden="true" />;
 }
 
 function NewChat({ busy, onCreate }: { busy: boolean; onCreate: () => void }) {
-  return <button className="chat-icon" aria-label="New chat" title="New chat" disabled={busy} onClick={onCreate}>
+  return <button className="chat-icon" aria-label={t`New chat`} title={t`New chat`} disabled={busy} onClick={onCreate}>
     <span className="jp-icon jp-icon-plus" aria-hidden="true" />
   </button>;
 }
@@ -16,8 +19,8 @@ function NewChat({ busy, onCreate }: { busy: boolean; onCreate: () => void }) {
 // in the page makes the conversation controls and pane toggle one header row;
 // the native project header owns the other half while the pane is hidden.
 export function AgentPaneToggle({ onCollapse }: { onCollapse: () => void }) {
-  return <button className="chat-icon agent-pane-toggle" aria-label="Hide the AI panel"
-    title="Hide the AI panel" onClick={onCollapse}>
+  return <button className="chat-icon agent-pane-toggle" aria-label={t`Hide the AI panel`}
+    title={t`Hide the AI panel`} onClick={onCollapse}>
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <rect x="4" y="5" width="16" height="14" rx="1" />
       <path d="M14 5v14" />
@@ -152,7 +155,8 @@ export function ActionMenu({ label, items, buttonRef, icon = 'ellipsis', text, p
   const restart = () => { setQuery(''); setActiveKey(current && rowKey(current)); };
   const toggle = () => { restart(); setOpen(!open); };
   const pick = (item: MenuItem) => { setOpen(false); item.onSelect(); };
-  const name = text === undefined ? label : `${label}: ${text}`;
+  // TRN: a picker's accessible name, its menu's name then its choice ("Model: Claude Sonnet").
+  const name = text === undefined ? label : t`${label}: ${text}`;
 
   return <div className={['chat-actions', above && 'chat-actions--above', appearance === 'select' && 'chat-actions--select', className]
     .filter(Boolean).join(' ')}
@@ -281,7 +285,7 @@ export function TaskHeader({ title, closeTip, onClose, children }: {
   children?: ReactNode;
 }) {
   return <header className="task-header">
-    <button type="button" className="task-close" aria-label="Close" title={closeTip ?? 'Close'} onClick={onClose}>
+    <button type="button" className="task-close" aria-label={t`Close`} title={closeTip ?? t`Close`} onClick={onClose}>
       <span className="jp-icon jp-icon-close" aria-hidden="true" />
     </button>
     <h1 title={title}>{title}</h1>
@@ -291,9 +295,10 @@ export function TaskHeader({ title, closeTip, onClose, children }: {
 
 // The printer chat's task, as the menu command that opens it words it.
 export function printerTaskTitle(session: PrinterSessionPayload | null): string {
-  if (session?.mode === 'connect' && session.printerName) return `Connect ${session.printerName}`;
-  if (session?.mode === 'change' && session.printerName) return `${session.printerName} settings`;
-  return 'Add a printer';
+  const printerName = session?.printerName;
+  if (session?.mode === 'connect' && printerName) return t`Connect ${printerName}`;
+  if (session?.mode === 'change' && printerName) return t`${printerName} settings`;
+  return t`Add a printer`;
 }
 
 interface HeaderProps {
@@ -321,35 +326,35 @@ export function ChatHeader({ title, busy, onBack, onCreate, onRename, onDelete, 
 
   return <>
     <header className="chat-header">
-      <button className="chat-back chat-icon" aria-label="Back to chats" title="Back to chats" onClick={onBack}>
+      <button className="chat-back chat-icon" aria-label={t`Back to chats`} title={t`Back to chats`} onClick={onBack}>
         <span className="jp-icon jp-icon-chevron-left" aria-hidden="true" />
       </button>
       <h1 title={title}>{title}</h1>
       <NewChat busy={busy} onCreate={onCreate} />
-      <ActionMenu label="Chat actions" buttonRef={menuButton} items={[
-        { label: 'Rename', onSelect: () => { setName(title); setEditing('rename'); } },
-        { label: 'Delete', danger: true, disabled: busy, onSelect: () => setEditing('delete') },
+      <ActionMenu label={t`Chat actions`} buttonRef={menuButton} items={[
+        { label: t`Rename`, onSelect: () => { setName(title); setEditing('rename'); } },
+        { label: t`Delete`, danger: true, disabled: busy, onSelect: () => setEditing('delete') },
       ]} />
       <AgentPaneToggle onCollapse={onCollapse} />
     </header>
-    {editing && <Dialog title={editing === 'rename' ? 'Rename chat' : 'Delete chat?'} onClose={closeDialog}>
+    {editing && <Dialog title={editing === 'rename' ? t`Rename chat` : t`Delete chat?`} onClose={closeDialog}>
       {editing === 'rename' ? <form onSubmit={(event) => {
         event.preventDefault();
         if (validName) { onRename(name.trim()); closeDialog(); }
       }}>
         <div className="chat-dialog-field">
-          <label htmlFor="chat-title-input">Chat title</label>
+          <label htmlFor="chat-title-input"><Trans>Chat title</Trans></label>
           <input id="chat-title-input" ref={renameInput} value={name} aria-invalid={!validName}
             aria-describedby={validName ? undefined : 'chat-title-error'} onChange={(event) => setName(event.target.value)} />
-          {!validName && <p id="chat-title-error" className="chat-dialog-field-error" role="alert">Enter a title of 1–120 characters.</p>}
+          {!validName && <p id="chat-title-error" className="chat-dialog-field-error" role="alert"><Trans>Enter a title of 1–120 characters.</Trans></p>}
         </div>
-        <div className="chat-dialog-buttons"><button type="button" onClick={closeDialog}>Cancel</button>
-          <button className="primary" disabled={!validName} type="submit">Save</button></div>
+        <div className="chat-dialog-buttons"><button type="button" onClick={closeDialog}><Trans>Cancel</Trans></button>
+          <button className="primary" disabled={!validName} type="submit"><Trans>Save</Trans></button></div>
       </form> : <>
-        <p>Delete ‘{title}’ and its messages? Your project and its print history stay as they are. This can't be undone.</p>
-        {busy && <p className="chat-dialog-note">This chat is still working. Stop it or let it finish, then delete it.</p>}
-        <div className="chat-dialog-buttons"><button onClick={closeDialog}>Cancel</button>
-          <button className="danger" disabled={busy} onClick={() => { onDelete(); closeDialog(); }}>Delete</button></div>
+        <p><Trans>Delete ‘{title}’ and its messages? Your project and its print history stay as they are. This can't be undone.</Trans></p>
+        {busy && <p className="chat-dialog-note"><Trans>This chat is still working. Stop it or let it finish, then delete it.</Trans></p>}
+        <div className="chat-dialog-buttons"><button onClick={closeDialog}><Trans>Cancel</Trans></button>
+          <button className="danger" disabled={busy} onClick={() => { onDelete(); closeDialog(); }}><Trans>Delete</Trans></button></div>
       </>}
     </Dialog>}
   </>;
@@ -360,13 +365,18 @@ export function chatTimestamp(timestamp: string, now = new Date()): string {
   if (Number.isNaN(date.getTime())) return '';
   const day = (value: Date) => Date.UTC(value.getFullYear(), value.getMonth(), value.getDate());
   const days = Math.max(0, Math.round((day(now) - day(date)) / 86400000));
-  if (days === 0) return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-  if (days === 1) return 'Yesterday';
-  if (days < 7) return `${days} days ago`;
-  if (days < 14) return 'Last week';
-  if (days < 28) return `${Math.floor(days / 7)} weeks ago`;
-  return date.toLocaleDateString([], { month: 'short', day: 'numeric', ...(date.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}) });
+  if (days === 0) return date.toLocaleTimeString(dateLocale(undefined), { hour: '2-digit', minute: '2-digit', hour12: false });
+  if (days === 1) return t`Yesterday`;
+  if (days < 7) return plural(days, { one: '# day ago', other: '# days ago' });
+  if (days < 14) return t`Last week`;
+  const weeks = Math.floor(days / 7);
+  if (days < 28) return plural(weeks, { one: '# week ago', other: '# weeks ago' });
+  return date.toLocaleDateString(dateLocale(undefined), { month: 'short', day: 'numeric', ...(date.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}) });
 }
+
+const chatLabel = (title: string) => t`Open chat: ${title}`;
+// The app sends a chat nobody has named yet untitled.
+export const chatTitle = (chat?: ConversationInfo) => chat?.title || t`New chat`;
 
 export function ChatList({ conversations, activeId, busy, agentUnavailable, onSwitch, onCreate, onConfigure, onCollapse }: {
   conversations: ConversationInfo[];
@@ -380,17 +390,17 @@ export function ChatList({ conversations, activeId, busy, agentUnavailable, onSw
 }) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => { const timer = window.setInterval(() => setNow(new Date()), 60000); return () => clearInterval(timer); }, []);
-  return <section className="chat-list-pane" aria-label="Project chats">
-    <header className="chat-list-header"><h1>Chats</h1><NewChat busy={busy} onCreate={onCreate} />
+  return <section className="chat-list-pane" aria-label={t`Project chats`}>
+    <header className="chat-list-header"><h1><Trans>Chats</Trans></h1><NewChat busy={busy} onCreate={onCreate} />
       <AgentPaneToggle onCollapse={onCollapse} /></header>
     <div className="chat-list-scroll">
-      {conversations.length === 0 && <p className="chat-list-empty">No chats yet. Start a new chat about this project.</p>}
+      {conversations.length === 0 && <p className="chat-list-empty"><Trans>No chats yet. Start a new chat about this project.</Trans></p>}
       {conversations.map((chat) => {
-        const preview = (chat.preview || 'No messages yet').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/[*#`_]/g, '').replace(/\s+/g, ' ');
+        const preview = (chat.preview || t`No messages yet`).replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/[*#`_]/g, '').replace(/\s+/g, ' ');
         return <button key={chat.id} className={`chat-list-row${chat.id === activeId ? ' selected' : ''}`}
-          aria-current={chat.id === activeId ? 'true' : undefined} aria-label={`Open chat: ${chat.title}`}
+          aria-current={chat.id === activeId ? 'true' : undefined} aria-label={chatLabel(chatTitle(chat))}
           onClick={() => onSwitch(chat.id)}>
-          <span className="chat-list-row-top"><ChatIcon /><strong title={chat.title}>{chat.title}</strong>
+          <span className="chat-list-row-top"><ChatIcon /><strong title={chatTitle(chat)}>{chatTitle(chat)}</strong>
             <time dateTime={chat.updatedAt || chat.createdAt} title={chat.updatedAt || chat.createdAt}>{chatTimestamp(chat.updatedAt || chat.createdAt, now)}</time></span>
           <span className="chat-list-preview">{preview}</span>
         </button>;
@@ -400,8 +410,8 @@ export function ChatList({ conversations, activeId, busy, agentUnavailable, onSw
       <button className="configure-agent" onClick={onConfigure} disabled={busy}>
         <span className="jp-icon jp-icon-settings" aria-hidden="true" />
         <span>
-          <strong>{agentUnavailable ? 'Set up AI' : 'AI settings'}</strong>
-          <small>{agentUnavailable ? 'Sign in or add a key to chat with AI' : 'Your account, keys, and the model new chats start with'}</small>
+          <strong>{agentUnavailable ? t`Set up AI` : t`AI settings`}</strong>
+          <small>{agentUnavailable ? t`Sign in or add a key to chat with AI` : t`Your account, keys, and the model new chats start with`}</small>
         </span>
       </button>
     </footer>

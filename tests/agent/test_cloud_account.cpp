@@ -245,7 +245,7 @@ TEST_CASE("a token the browser brings back is checked, stored and handed over as
     CHECK(f.machine.pumps > 0);
 }
 
-TEST_CASE("a sign-in from a release the server no longer serves fails with the server's update words", "[agent][account]")
+TEST_CASE("a sign-in from a release the server no longer serves fails with the app's update words", "[agent][account]")
 {
     Fixture f;
     REQUIRE(f.sign_in->start(CloudBrowserStart::Google));
@@ -256,7 +256,7 @@ TEST_CASE("a sign-in from a release the server no longer serves fails with the s
     REQUIRE(outcome.has_value());
     CHECK(outcome->kind == CloudSignInOutcome::Kind::Failed);
     CHECK(outcome->error.code == "update_required");
-    CHECK(outcome->error.message == "Update to 2.1.0.");
+    CHECK_THAT(outcome->error.message, ContainsSubstring("can no longer connect to JusPrin accounts"));
     CHECK_FALSE(outcome->error.retryable);
     CHECK_FALSE(f.stored.has_value());
 }
@@ -612,7 +612,9 @@ TEST_CASE("the gateway's 402 reaches the page in its own words and numbers", "[a
     request.request_id = "turn";
     request.user_text  = "hello";
     REQUIRE(agent->start(request));
-    const json body = json::parse(R"({"type":"error","error":{"code":"credits_exhausted","message":"This message needs 5 credits; you have 3."},
+    // The sentence is the app's, from the gateway's numbers: the gateway's
+    // own message is English whatever the app's language.
+    const json body = json::parse(R"({"type":"error","error":{"code":"credits_exhausted","message":"The server's English."},
                                       "balance":3,"cost":5,"plan":null})");
     callbacks.back()(AgentHttpEvent{AgentHttpEvent::Kind::Error, body.dump(), "HTTP error", 402});
     std::optional<AgentEvent> event = drain(*agent);
@@ -623,7 +625,26 @@ TEST_CASE("the gateway's 402 reaches the page in its own words and numbers", "[a
     CHECK_FALSE(event->error->retryable);
 }
 
-TEST_CASE("a release the server no longer serves is told to update, in the server's words, with no retry", "[agent][account]")
+TEST_CASE("a message that costs one credit says so in the singular", "[agent][account]")
+{
+    std::vector<AgentHttpRequest>             requests;
+    std::vector<IAgentHttpTransport::EventFn> callbacks;
+    AgentServicePtr                           agent = account_agent(kFormatResponses, requests, callbacks);
+    AgentRequest                              request;
+    JusPrinTest::kept_nowhere(request);
+    request.request_id = "turn";
+    request.user_text  = "hello";
+    REQUIRE(agent->start(request));
+    const json body = json::parse(R"({"type":"error","error":{"code":"credits_exhausted","message":"The server's English."},
+                                      "balance":0,"cost":1,"plan":null})");
+    callbacks.back()(AgentHttpEvent{AgentHttpEvent::Kind::Error, body.dump(), "HTTP error", 402});
+    std::optional<AgentEvent> event = drain(*agent);
+    REQUIRE(event.has_value());
+    REQUIRE(event->error.has_value());
+    CHECK(event->error->message == "This message needs 1 credit; you have 0.");
+}
+
+TEST_CASE("a release the server no longer serves is told to update, in the app's words, with no retry", "[agent][account]")
 {
     const auto failure = [](const std::string& body) {
         std::vector<AgentHttpRequest>             requests;
@@ -643,9 +664,9 @@ TEST_CASE("a release the server no longer serves is told to update, in the serve
     const AgentError told = failure(R"({"type":"error","error":{"code":"update_required","message":"Update to 2.1.0."},
                                         "minimumVersion":"2.1.0"})");
     CHECK(told.code == "update_required");
-    CHECK(told.message == "Update to 2.1.0.");
+    // The app's own sentence, which the app's language translates; the server's is English.
+    CHECK_THAT(told.message, ContainsSubstring("can no longer connect to JusPrin accounts"));
     CHECK_FALSE(told.retryable);
-    // Without the server's words, the app's own.
     const AgentError bare = failure("");
     CHECK(bare.code == "update_required");
     CHECK_THAT(bare.message, ContainsSubstring("can no longer connect to JusPrin accounts"));
@@ -1053,7 +1074,7 @@ TEST_CASE("an email sign-in from a release the server no longer serves ends with
     REQUIRE(outcome.has_value());
     CHECK(outcome->kind == CloudSignInOutcome::Kind::Failed);
     CHECK(outcome->error.code == "update_required");
-    CHECK(outcome->error.message == "Update to 2.1.0.");
+    CHECK_THAT(outcome->error.message, ContainsSubstring("can no longer connect to JusPrin accounts"));
     CHECK(f.sign_in->phase() == CloudSignInPhase::Idle);
     CHECK_FALSE(f.stored.has_value());
 }

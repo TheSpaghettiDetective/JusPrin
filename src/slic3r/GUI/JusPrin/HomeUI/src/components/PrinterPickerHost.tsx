@@ -8,6 +8,7 @@
 import { useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { Trans } from '@lingui/react/macro';
 import type { Root } from 'react-dom/client';
 import agentStyles from '../../../AgentUI/src/styles.css?inline';
 import { PrinterPicker } from '../../../AgentUI/src/components/PrinterPicker';
@@ -55,17 +56,19 @@ export function PrinterPickerHost({ form, pick, onPick, onAskAgent, reading }: P
 
   useEffect(() => {
     const askAgent: ReactNode = onAskAgent && <p className="printer-form-note">
-      Can’t find your printer?{' '}
-      <button type="button" className="panel-link-button" onClick={onAskAgent}>Ask AI</button>
+      <Trans>
+        Can’t find your printer?{' '}
+        <button type="button" className="panel-link-button" onClick={onAskAgent}>Ask AI</button>
+      </Trans>
     </p>;
     root.current?.render(<div className="chat-dialog printer-form onboarding-picker">
       <PrinterPicker form={form} pick={pick} onPick={onPick} underMenus={askAgent} nozzleUnit
         nozzleNote={reading ? (
           <p className="printer-form-note onboarding-reading" role="status">
             <span className="jp-icon jp-icon-rotate-cw turn-activity-spinner" aria-hidden="true" />
-            Loading JusPrin’s settings for this printer…
+            <Trans>Loading JusPrin’s settings for this printer…</Trans>
           </p>
-        ) : <p className="printer-form-note">Most printers ship with 0.4 mm.</p>} />
+        ) : <p className="printer-form-note"><Trans>Most printers ship with 0.4 mm.</Trans></p>} />
     </div>);
   });
 

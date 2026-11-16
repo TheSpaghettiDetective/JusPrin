@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 import { McpCatalogPayload, McpPreviewPayload, McpStatusPayload, McpToolInfo } from '../bridge/protocol';
 import { ToolGroup } from './AgentConnection';
 
@@ -7,8 +9,8 @@ import { ToolGroup } from './AgentConnection';
 function SetupScreenTitle({ label, onBack }: { label: string; onBack: () => void }) {
   return (
     <div className="setup-title-row">
-      <button type="button" className="chat-icon chat-back" onClick={onBack} aria-label="Back to setup options"
-        title="Back to setup options">
+      <button type="button" className="chat-icon chat-back" onClick={onBack} aria-label={t`Back to setup options`}
+        title={t`Back to setup options`}>
         <span className="jp-icon jp-icon-chevron-left" aria-hidden="true" />
       </button>
       <h1 className="setup-title">{label}</h1>
@@ -35,24 +37,24 @@ export interface SetupLocalToolProps {
 
 function errorCopy(status: McpStatusPayload, tool?: McpToolInfo, path?: string): { title: string; body: string } {
   const code = status.error?.code ?? '';
-  const name = tool?.name ?? 'This tool';
+  const name = tool?.name;
   if (code === 'helper_missing')
-    return { title: "JusPrin's connection helper is missing.", body: 'Reinstall or rebuild JusPrin, then try again.' };
+    return { title: t`JusPrin's connection helper is missing.`, body: t`Reinstall or rebuild JusPrin, then try again.` };
   if (code === 'cli_missing')
     return {
-      title: `${name} isn’t installed.`,
-      body: 'Install it, or copy the command and run it later.',
+      title: name ? t`${name} isn’t installed.` : t`This tool isn’t installed.`,
+      body: t`Install it, or copy the command and run it later.`,
     };
   if (code === 'stale_preview')
-    return { title: 'The file changed since you reviewed it.', body: 'Look at the change again before saving.' };
+    return { title: t`The file changed since you reviewed it.`, body: t`Look at the change again before saving.` };
   if (code === 'timeout')
-    return { title: 'Timed out.', body: 'Settings might have changed; inspect them before retrying.' };
+    return { title: t`Timed out.`, body: t`Settings might have changed; inspect them before retrying.` };
   if (code === 'write_failed')
     return {
-      title: `Can’t write ${path ?? 'the settings file'}.`,
-      body: 'The file is invalid or not writable. Fix it, then try again.',
+      title: path ? t`Can’t write ${path}.` : t`Can’t write the settings file.`,
+      body: t`The file is invalid or not writable. Fix it, then try again.`,
     };
-  return { title: 'The setup command failed.', body: status.error?.message ?? status.diagnostic ?? 'Try again.' };
+  return { title: t`The setup command failed.`, body: status.error?.message ?? status.diagnostic ?? t`Try again.` };
 }
 
 // The error lives on the screen that produced it, in the slot above the
@@ -85,24 +87,24 @@ function SetupInlineError({
         {!bodyIsDiagnostic && <p>{copy.body}</p>}
         {tool && (code === 'write_failed' || code === 'timeout') && (
           <button type="button" className="link" onClick={() => onReveal(tool.id)}>
-            Show file
+            {t`Show file`}
           </button>
         )}
         {tool && code === 'cli_missing' && (
           <button type="button" className="link" onClick={() => copyText(tool.text)}>
-            Copy
+            {t`Copy`}
           </button>
         )}
         {tool && code === 'stale_preview' && (
           <button type="button" className="link" onClick={() => onReviewAgain(tool.id)}>
-            Review again
+            {t`Review again`}
           </button>
         )}
       </div>
       {diagnostic && (
         <div className="setup-error-details">
           <button type="button" onClick={() => setDetails(!details)}>
-            <span className={`jp-icon jp-icon-chevron-${details ? 'down' : 'right'}`} aria-hidden="true" /> Technical output
+            <span className={`jp-icon jp-icon-chevron-${details ? 'down' : 'right'}`} aria-hidden="true" /> {t`Technical output`}
           </button>
           {details && <pre>{diagnostic}</pre>}
         </div>
@@ -217,79 +219,82 @@ export function SetupLocalTool({
   if (step === 'saving') {
     return (
       <div className="pane-state setup" data-testid="setup-local-saving">
-        <h1>{tool?.name ?? 'AI tool'}</h1>
-        <p>Writing settings…</p>
+        <h1>{tool?.name ?? t`AI tool`}</h1>
+        <p>{t`Writing settings…`}</p>
         <div className="setup-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={40}>
           <span style={{ width: '40%' }} />
         </div>
-        <p className="footnote">Can’t be stopped once started; it takes a moment.</p>
+        <p className="footnote">{t`Can’t be stopped once started; it takes a moment.`}</p>
       </div>
     );
   }
 
   if (step === 'saved') {
-    const name = tool?.name ?? 'the AI tool';
+    const name = tool?.name;
+    const backup = status.backup;
     return (
       <div className="pane-state setup" data-testid="setup-local-saved">
         <p className="setup-kicker">
           <span className="jp-icon jp-icon-circle-check" aria-hidden="true" />
-          Connected
+          {t`Connected`}
         </p>
-        <h1>{tool?.name ?? 'AI tool'} can see this project</h1>
-        {status.backup && (
+        <h1>{name ? t`${name} can see this project` : t`AI tool can see this project`}</h1>
+        {backup && (
           <p className="setup-path">
-            Backup: <span>{status.backup}</span>
+            <Trans>Backup: <span>{backup}</span></Trans>
           </p>
         )}
-        <p className="setup-eyebrow">What to expect</p>
+        <p className="setup-eyebrow">{t`What to expect`}</p>
         <ul className="setup-expect">
-          <li>Keep JusPrin open while {name} uses it — the helper doesn’t launch it.</li>
-          <li>You won’t need to set this up again after a normal JusPrin restart.</li>
+          <li>{name
+            ? t`Keep JusPrin open while ${name} uses it — the helper doesn’t launch it.`
+            : t`Keep JusPrin open while the AI tool uses it — the helper doesn’t launch it.`}</li>
+          <li>{t`You won’t need to set this up again after a normal JusPrin restart.`}</li>
         </ul>
-        <p className="setup-eyebrow">What to do next</p>
+        <p className="setup-eyebrow">{t`What to do next`}</p>
         <ol className="setup-expect">
-          <li>Restart {name} if it was already running.</li>
-          <li>Ask it about the open project.</li>
-          <li>Review its progress and results in this panel.</li>
+          <li>{name ? t`Restart ${name} if it was already running.` : t`Restart the AI tool if it was already running.`}</li>
+          <li>{t`Ask it about the open project.`}</li>
+          <li>{t`Review its progress and results in this panel.`}</li>
         </ol>
         <button className="primary" onClick={onDone}>
-          Done
+          {t`Done`}
         </button>
       </div>
     );
   }
 
   if (step === 'prepare' && tool) {
+    const name = tool.name;
     return (
       <div className="pane-state setup" data-testid="setup-local-prepare">
         <SetupScreenTitle label={tool.name} onBack={toList} />
-        <p>JusPrin can run this for you, or you can copy it and run it yourself.</p>
+        <p>{t`JusPrin can run this for you, or you can copy it and run it yourself.`}</p>
         <div className="setup-command">
           <pre>{tool.text}</pre>
           <button type="button" className="link" onClick={() => copyCommand(tool.text)}>
-            {copied ? 'Copied' : 'Copy'}
+            {copied ? t`Copied` : t`Copy`}
           </button>
         </div>
-        <p className="setup-manual">Running it yourself? Paste it in a terminal, then restart {tool.name}.</p>
+        <p className="setup-manual">{t`Running it yourself? Paste it in a terminal, then restart ${name}.`}</p>
         <p className="footnote">
-          Keep JusPrin open while you use {tool.name}; the helper doesn’t launch it. Restarting JusPrin later won’t need
-          this again.
+          {t`Keep JusPrin open while you use ${name}; the helper doesn’t launch it. Restarting JusPrin later won’t need this again.`}
         </p>
         {errorSlot}
         <div className="setup-actions">
           <button className="primary" onClick={() => connect(tool.id)} disabled={!catalog?.helperPresent}>
-            Connect…
+            {t`Connect…`}
           </button>
-          <button onClick={toList}>Close</button>
+          <button onClick={toList}>{t`Close`}</button>
         </div>
         <div className="setup-advanced">
           <button type="button" onClick={() => setAdvanced(!advanced)}>
-            <span className={`jp-icon jp-icon-chevron-${advanced ? 'down' : 'right'}`} aria-hidden="true" /> Advanced / developer details
+            <span className={`jp-icon jp-icon-chevron-${advanced ? 'down' : 'right'}`} aria-hidden="true" /> {t`Advanced / developer details`}
           </button>
           {advanced && (
             <>
-              <p>Live URL (developer only — this can change after restart)</p>
-              <pre>{catalog?.liveUrl || 'Not listening yet'}</pre>
+              <p>{t`Live URL (developer only — this can change after restart)`}</p>
+              <pre>{catalog?.liveUrl || t`Not listening yet`}</pre>
               {catalog?.startupError && <p className="setup-error-inline">{catalog.startupError}</p>}
             </>
           )}
@@ -301,23 +306,23 @@ export function SetupLocalTool({
   if (step === 'review') {
     return (
       <div className="pane-state setup" data-testid="setup-local-review">
-        <SetupScreenTitle label={tool?.name ?? 'Review'} onBack={toList} />
+        <SetupScreenTitle label={tool?.name ?? t`Review`} onBack={toList} />
         <p className="setup-consent">
-          Allow this AI tool to read and change the open project?
+          {t`Allow this AI tool to read and change the open project?`}
         </p>
         <p className="setup-path">{preview?.path ?? tool?.configPath}</p>
-        <p className="setup-eyebrow">JusPrin will edit</p>
+        <p className="setup-eyebrow">{t`JusPrin will edit`}</p>
         <div className="setup-diff">
           {preview?.previous === undefined ? (
             // Nothing to compare against on a first connection. Say so, rather
             // than printing an empty object the reader has to interpret.
-            <p className="setup-diff-absent">No JusPrin entry yet — this adds one.</p>
+            <p className="setup-diff-absent">{t`No JusPrin entry yet — this adds one.`}</p>
           ) : (
             <pre className="setup-diff-before">{preview.previous}</pre>
           )}
           <pre className="setup-diff-after">{preview?.next || ''}</pre>
         </div>
-        <p className="footnote">Your other settings stay as they are. The existing file is backed up first.</p>
+        <p className="footnote">{t`Your other settings stay as they are. The existing file is backed up first.`}</p>
         {errorSlot}
         <div className="setup-actions">
           <button
@@ -325,9 +330,9 @@ export function SetupLocalTool({
             onClick={() => selectedId && connect(selectedId)}
             disabled={!preview || !catalog?.helperPresent}
           >
-            Connect
+            {t`Connect`}
           </button>
-          <button onClick={toList}>Cancel</button>
+          <button onClick={toList}>{t`Cancel`}</button>
         </div>
       </div>
     );
@@ -335,7 +340,7 @@ export function SetupLocalTool({
 
   return (
     <div className="pane-state setup" data-testid="setup-local-tools">
-      <SetupScreenTitle label="Connect an AI tool you already use" onBack={onBack} />
+      <SetupScreenTitle label={t`Connect an AI tool you already use`} onBack={onBack} />
       <ToolGroup tools={catalog?.tools ?? []} onConnect={choose} onLookAgain={onRefresh} />
     </div>
   );

@@ -3,6 +3,7 @@
 #include "ShellController.hpp"
 #include "StatusRow.hpp"
 #include "slic3r/GUI/JusPrin/Home/HomeWebView.hpp"
+#include "slic3r/GUI/JusPrin/Support/DecimalText.hpp"
 
 #include "libslic3r/PresetBundle.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
@@ -13,7 +14,7 @@ namespace Slic3r::GUI::JusPrin {
 
 namespace {
 
-wxString nozzle_text(double nozzle) { return wxString::Format("%g mm", nozzle); }
+wxString nozzle_text(double nozzle) { return wxString::Format(_L("%s mm"), wxString::FromUTF8(app_decimal_text(nozzle, 0, 2))); }
 
 HeaderMenuItem separator()
 {
@@ -53,7 +54,7 @@ HeaderMenuItem other_printer(const Home::PrinterEntry& printer)
         break;
     case Home::PrinterStatus::Connecting:
         row.decoration.status      = StatusTone::Neutral;
-        row.decoration.status_word = _L("Connecting") + wxString::FromUTF8("\xE2\x80\xA6");
+        row.decoration.status_word = _L("Connecting…");
         break;
     case Home::PrinterStatus::NotConnected:
         row.decoration.status      = StatusTone::Neutral;
@@ -133,7 +134,7 @@ void PrinterMenu::show_root(const Ptr& self)
         // A print host not read lately: its window can open meanwhile, and
         // says so itself when the page does not load.
         machine.decoration.status      = StatusTone::Neutral;
-        machine.decoration.status_word = _L("Checking connection") + wxString::FromUTF8("\xE2\x80\xA6");
+        machine.decoration.status_word = _L("Checking connection…");
         machine.decoration.trailing    = HeaderIcon::Monitor;
         break;
     case SetupCommands::ConnectionState::NotConnected:

@@ -105,7 +105,7 @@ void PrinterPanel::build_runtime()
         // The printer form is part of the page, so a page that could not
         // load offers OrcaSlicer's own printer list in its place.
         m_web_view->set_error_fallback_actions(
-            _L("Back"), m_conversation->printer_name().empty() ? _L("Browse the full printer list") : _L("Open printer settings"),
+            _L_CONTEXT("Back", "Navigation"), m_conversation->printer_name().empty() ? _L("Browse the full printer list") : _L("Open printer settings"),
             [this] { close(); },
             [this] {
                 if (m_conversation->printer_name().empty())

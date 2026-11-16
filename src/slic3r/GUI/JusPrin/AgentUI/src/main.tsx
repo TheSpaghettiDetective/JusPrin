@@ -1,3 +1,5 @@
+// First: it activates the language ?lang= names before any other module runs.
+import './i18n';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';

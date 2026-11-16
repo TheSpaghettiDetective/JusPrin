@@ -4,6 +4,7 @@
 // and Import printers from JusPrin 1… (this page, boards orca-import-02 to 04). Both pages draw this one markup, with its own stylesheet, so the
 // two cannot drift apart.
 
+import { plural, t } from '@lingui/core/macro';
 import { useId, useState } from 'react';
 import './OrcaImportLists.css';
 
@@ -33,7 +34,7 @@ export function OrcaPrinterList({ app, printers, chosen, onChoose, disabled }: {
   disabled?: boolean;
 }) {
   return (
-    <ul className="orca-import-list" aria-label={`${app} printers`}>
+    <ul className="orca-import-list" aria-label={t`${app} printers`}>
       {printers.map(({ name, already }, index) => (
         <li key={`${name}:${index}`} className={already ? 'orca-import-row orca-import-row--already' : 'orca-import-row'}>
           {!already && chosen && onChoose ? (
@@ -46,7 +47,7 @@ export function OrcaPrinterList({ app, printers, chosen, onChoose, disabled }: {
             <span className={`orca-import-icon ${already ? 'orca-import-icon--check' : 'orca-import-icon--printer'}`} aria-hidden="true" />
             <span className="orca-import-row-name">{name}</span>
           </>}
-          {already && <span className="orca-import-row-status">Already in JusPrin</span>}
+          {already && <span className="orca-import-row-status">{t`Already in JusPrin`}</span>}
         </li>
       ))}
     </ul>
@@ -56,10 +57,12 @@ export function OrcaPrinterList({ app, printers, chosen, onChoose, disabled }: {
 // The filaments and settings an import copies, a row each with its kind on
 // the right, so they read as items of their own and not as a heading.
 export function OrcaNewList({ filaments, processes }: { filaments: string[]; processes: string[] }) {
-  const rows = [...filaments.map((name) => ({ name, kind: 'New filament' })),
-    ...processes.map((name) => ({ name, kind: 'New print settings' }))];
+  const filament = t`New filament`;
+  const settings = t`New print settings`;
+  const rows = [...filaments.map((name) => ({ name, kind: filament })),
+    ...processes.map((name) => ({ name, kind: settings }))];
   return (
-    <ul className="orca-import-list" aria-label="New filaments and print settings">
+    <ul className="orca-import-list" aria-label={t`New filaments and print settings`}>
       {rows.map(({ name, kind }, index) => (
         <li key={`${kind}:${name}:${index}`} className="orca-import-row">
           <span className="orca-import-icon orca-import-icon--new" aria-hidden="true" />
@@ -73,7 +76,8 @@ export function OrcaNewList({ filaments, processes }: { filaments: string[]; pro
 
 function status(line: OrcaImportResultLine) {
   if (!line.imported) return line.reason;
-  return line.renamedTo ? `Imported as ‘${line.renamedTo}’` : 'Imported';
+  const renamedTo = line.renamedTo;
+  return renamedTo ? t`Imported as ‘${renamedTo}’` : t`Imported`;
 }
 
 // Each line with its outcome under the name.
@@ -94,25 +98,63 @@ export function OrcaOutcomeList({ label, lines }: { label: string; lines: OrcaIm
   );
 }
 
-// "2 filaments (Generic PLA, Elegoo PETG)": the ones of a kind that came,
-// counted and named, or empty when none of that kind came.
-function brought(lines: OrcaImportResultLine[], one: string, many: string) {
-  const names = lines.filter((line) => line.imported).map((line) => line.renamedTo || line.name);
-  if (names.length === 0) return '';
-  return `${names.length} ${names.length === 1 ? one : many} (${names.join(', ')})`;
+// The names of the ones of a kind that came, "Generic PLA, Elegoo PETG".
+function brought(lines: OrcaImportResultLine[]) {
+  return lines.filter((line) => line.imported).map((line) => line.renamedTo || line.name);
 }
 
-const KINDS: [OrcaImportResultLine['kind'], string, string][] = [
-  ['printer', 'printer', 'printers'], ['filament', 'filament', 'filaments'], ['process', 'print setting', 'print settings']];
+// "Also imported: 2 filaments (Generic PLA, Elegoo PETG).", or empty when no
+// filament or print setting came.
+function alsoImported(lines: OrcaImportResultLine[]) {
+  const filamentNames = brought(lines.filter((line) => line.kind === 'filament'));
+  const settingNames = brought(lines.filter((line) => line.kind === 'process'));
+  const filaments = filamentNames.length;
+  const settings = settingNames.length;
+  const filamentList = filamentNames.join(', ');
+  const settingList = settingNames.join(', ');
+  if (filaments > 0 && settings > 0)
+    return t`Also imported: ${plural(filaments, { one: '# filament', other: '# filaments' })} (${filamentList}) and ${plural(settings, { one: '# print setting', other: '# print settings' })} (${settingList}).`;
+  if (filaments > 0)
+    return plural(filaments, {
+      one: `Also imported: # filament (${filamentList}).`,
+      other: `Also imported: # filaments (${filamentList}).`,
+    });
+  if (settings > 0)
+    return plural(settings, {
+      one: `Also imported: # print setting (${settingList}).`,
+      other: `Also imported: # print settings (${settingList}).`,
+    });
+  return '';
+}
 
 // "1 filament and 1 print setting weren't imported. They stay in OrcaSlicer."
 function notImported(skipped: OrcaImportResultLine[], app: string) {
-  const counts = KINDS.flatMap(([kind, one, many]) => {
-    const count = skipped.filter((line) => line.kind === kind).length;
-    return count > 0 ? [`${count} ${count === 1 ? one : many}`] : [];
+  const count = (kind: OrcaImportResultLine['kind']) => skipped.filter((line) => line.kind === kind).length;
+  const printers = count('printer');
+  const filaments = count('filament');
+  const settings = count('process');
+  if (printers > 0 && filaments > 0 && settings > 0)
+    return t`${plural(printers, { one: '# printer', other: '# printers' })}, ${plural(filaments, { one: '# filament', other: '# filaments' })} and ${plural(settings, { one: '# print setting', other: '# print settings' })} weren’t imported. They stay in ${app}.`;
+  if (printers > 0 && filaments > 0)
+    return t`${plural(printers, { one: '# printer', other: '# printers' })} and ${plural(filaments, { one: '# filament', other: '# filaments' })} weren’t imported. They stay in ${app}.`;
+  if (printers > 0 && settings > 0)
+    return t`${plural(printers, { one: '# printer', other: '# printers' })} and ${plural(settings, { one: '# print setting', other: '# print settings' })} weren’t imported. They stay in ${app}.`;
+  if (filaments > 0 && settings > 0)
+    return t`${plural(filaments, { one: '# filament', other: '# filaments' })} and ${plural(settings, { one: '# print setting', other: '# print settings' })} weren’t imported. They stay in ${app}.`;
+  if (printers > 0)
+    return plural(printers, {
+      one: `# printer wasn’t imported. It stays in ${app}.`,
+      other: `# printers weren’t imported. They stay in ${app}.`,
+    });
+  if (filaments > 0)
+    return plural(filaments, {
+      one: `# filament wasn’t imported. It stays in ${app}.`,
+      other: `# filaments weren’t imported. They stay in ${app}.`,
+    });
+  return plural(settings, {
+    one: `# print setting wasn’t imported. It stays in ${app}.`,
+    other: `# print settings weren’t imported. They stay in ${app}.`,
   });
-  const what = counts.length > 1 ? `${counts.slice(0, -1).join(', ')} and ${counts[counts.length - 1]}` : counts[0];
-  return skipped.length === 1 ? `${what} wasn’t imported. It stays in ${app}.` : `${what} weren’t imported. They stay in ${app}.`;
 }
 
 // What wasn't imported, as one line under the result; each item's name and
@@ -126,11 +168,11 @@ function NotImported({ app, skipped }: { app: string; skipped: OrcaImportResultL
       <span>{notImported(skipped, app)}</span>
       <button type="button" className="orca-import-details-toggle" aria-expanded={open} aria-controls={detailsId}
         onClick={() => setOpen(!open)}>
-        {open ? 'Hide details' : 'Show details'}
+        {open ? t`Hide details` : t`Show details`}
       </button>
     </div>
     {open && (
-      <ul className="orca-import-details" id={detailsId} aria-label="Not imported">
+      <ul className="orca-import-details" id={detailsId} aria-label={t`Not imported`}>
         {skipped.map((line, index) => (
           <li key={`${line.kind}:${line.name}:${index}`}>
             <span className="orca-import-details-name">{line.name}</span>
@@ -148,12 +190,11 @@ function NotImported({ app, skipped }: { app: string; skipped: OrcaImportResultL
 export function OrcaImportResultLines({ app, lines }: { app: string; lines: OrcaImportResultLine[] }) {
   const printers = lines.filter((line) => line.kind === 'printer' && line.imported);
   const skipped = lines.filter((line) => !line.imported);
-  const also = [brought(lines.filter((line) => line.kind === 'filament'), 'filament', 'filaments'),
-    brought(lines.filter((line) => line.kind === 'process'), 'print setting', 'print settings')].filter(Boolean).join(' and ');
+  const also = alsoImported(lines);
   return (
     <div className="orca-import-result">
-      {printers.length > 0 && <OrcaOutcomeList label="Imported" lines={printers} />}
-      {also && <p className="orca-import-count">Also imported: {also}.</p>}
+      {printers.length > 0 && <OrcaOutcomeList label={t`Imported`} lines={printers} />}
+      {also && <p className="orca-import-count">{also}</p>}
       {skipped.length > 0 && <NotImported app={app} skipped={skipped} />}
     </div>
   );

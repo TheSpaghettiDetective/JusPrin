@@ -9,6 +9,7 @@
 #include "libslic3r/Exception.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpCatalog.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpRuntime.hpp"
+#include "libslic3r/format.hpp"
 
 #include <boost/log/trivial.hpp>
 #include <nlohmann/json.hpp>
@@ -24,6 +25,9 @@
 #include <string_view>
 #include <utility>
 
+// Last: it defines the L marker.
+#include "slic3r/GUI/JusPrin/Support/Translate.hpp"
+
 namespace Slic3r::GUI::JusPrin::Agent {
 
 namespace {
@@ -33,8 +37,11 @@ using nlohmann::json;
 json conversation_list_json(const ProjectStateDocument& document)
 {
     json result = json::array();
+    // A chat nobody has named yet goes untitled: the page names it in the
+    // person's language. The document keeps its English default.
     for (const ConversationInfo& info : document.conversations())
-        result.push_back(json{{"id", info.id}, {"title", info.title}, {"createdAt", info.created_at},
+        result.push_back(json{{"id", info.id}, {"title", document.needs_conversation_title(info.id) ? "" : info.title},
+                              {"createdAt", info.created_at},
                               {"updatedAt", info.updated_at}, {"preview", info.preview}});
     return result;
 }
@@ -172,7 +179,9 @@ json change_json(const ChangeEntry& change)
                 {"createdAt", change.created_at},
                 {"kind", change.kind},
                 {"actor", change.actor},
-                {"label", change.label},
+                // A restore's label is one of the app's own English lines
+                // (ProjectPersistence), shown in the person's language.
+                {"label", change.kind == "restore" ? translated(change.label.c_str()) : change.label},
                 {"location", change.location},
                 {"conversationId", change.conversation_id},
                 {"afterId", change.after_id}};
@@ -1286,11 +1295,11 @@ void AgentHost::handle_hello(const std::string& envelope_id, const std::string& 
 std::optional<AgentError> AgentHost::user_message_refusal() const
 {
     if (m_chat_transition_blocked)
-        return AgentError{"recovery_required", "Project chat is blocked until restoration is recovered.", false};
+        return AgentError{"recovery_required", translated(L("Project chat is blocked until restoration is recovered.")), false};
     if (m_persistence.document().viewed_conversation_id() != m_persistence.document().active_conversation_id())
-        return AgentError{"inactive_conversation", "Return to the active chat or restore this chat before sending.", false};
+        return AgentError{"inactive_conversation", translated(L("Return to the active chat or restore this chat before sending.")), false};
     if (m_setup_pending)
-        return AgentError{"setup_busy", "Finish or cancel AI configuration before sending a message.", false};
+        return AgentError{"setup_busy", translated(L("Finish or cancel AI configuration before sending a message.")), false};
     return std::nullopt;
 }
 
@@ -1339,7 +1348,7 @@ void AgentHost::handle_user_message(const std::string& envelope_id, const std::s
     const json payload = json::parse(payload_json);
     if (payload.contains("conversationId") && payload["conversationId"] !=
         m_persistence.document().active_conversation_id()) {
-        send_bridge_error("stale_conversation", "This message belongs to a different chat.", envelope_id);
+        send_bridge_error("stale_conversation", translated(L("This message belongs to a different chat.")), envelope_id);
         return;
     }
     const std::string client_id = payload.at("clientMessageId").get<std::string>();
@@ -1353,7 +1362,7 @@ void AgentHost::handle_user_message(const std::string& envelope_id, const std::s
 
     // A message must carry text or at least one attachment.
     if (text.empty() && requested_attachments.empty()) {
-        send_bridge_error("invalid_payload", "A message needs text or an attachment.", envelope_id);
+        send_bridge_error("invalid_payload", translated(L("A message needs text or an attachment.")), envelope_id);
         return;
     }
 
@@ -1452,7 +1461,7 @@ void AgentHost::handle_attach_file(const std::string& envelope_id, const std::st
     std::string bytes;
     if (!base64_decode(strip_data_url_prefix(payload.value("dataBase64", "")), bytes)) {
         record.state = "error";
-        record.error = AgentError{"unreadable", "The file could not be read."};
+        record.error = AgentError{"unreadable", translated(L("The file could not be read."))};
         document.add_attachment(record, m_persistence.timestamp());
         m_persistence.commit();
         m_persistence.flush();
@@ -1466,16 +1475,16 @@ void AgentHost::store_file_attachment(AttachmentRecord record, const std::string
 {
     if (bytes.size() > kMaxAttachmentBytes) {
         record.state = "error";
-        record.error = AgentError{"too_large", "This file is too large to attach."};
+        record.error = AgentError{"too_large", translated(L("This file is too large to attach."))};
     } else if (record.kind == "unsupported") {
         record.state = "error";
-        record.error = AgentError{"unsupported_type", "This file type can't be read by AI."};
+        record.error = AgentError{"unsupported_type", translated(L("This file type can't be read by AI."))};
     } else if ((record.kind == "text" || record.kind == "gcode" || record.kind == "svg") && !is_valid_utf8(bytes)) {
         record.state = "error";
-        record.error = AgentError{"not_text", "This file is not readable UTF-8 text."};
+        record.error = AgentError{"not_text", translated(L("This file is not readable UTF-8 text."))};
     } else if (!m_persistence.write_attachment_blob(record.relative_path(), bytes)) {
         record.state = "error";
-        record.error = AgentError{"store_failed", "The attachment could not be stored."};
+        record.error = AgentError{"store_failed", translated(L("The attachment could not be stored."))};
     } else {
         record.size_bytes = bytes.size();
         if (record.kind == "text" || record.kind == "gcode" || record.kind == "svg") {
@@ -1505,20 +1514,20 @@ void AgentHost::handle_pick_attachment(const std::string& envelope_id, const std
     // the extensions classify_attachment() files under that kind.
     FilePickerRequest request;
     if (kind == "image") {
-        request = {"Photo or image", {"png", "jpg", "jpeg", "gif", "webp"}};
+        request = {translated(L("Photo or image")), {"png", "jpg", "jpeg", "gif", "webp"}};
     } else if (kind == "model") {
-        request.description = "3D model";
+        request.description = translated(L("3D model"));
         request.extensions.assign(model_extensions().begin(), model_extensions().end());
     } else if (kind == "gcode") {
         request = {"G-code", {"gcode", "g", "gco"}};
     } else if (kind == "pdf") {
-        request = {"Document (PDF)", {"pdf"}};
+        request = {translated(L("Document (PDF)")), {"pdf"}};
     } else {
         // The page offers a fixed list; any other kind is a broken page.
         throw RuntimeError("jusprin-agent-bridge: pick_attachment names an unknown kind: " + kind);
     }
     if (!m_file_picker) {
-        send_bridge_error("unsupported", "This build cannot open a file dialog.", envelope_id);
+        send_bridge_error("unsupported", translated(L("This build cannot open a file dialog.")), envelope_id);
         return;
     }
     m_file_picker(request, [this, envelope_id](std::vector<std::string> paths) {
@@ -1546,14 +1555,14 @@ void AgentHost::attach_file_from_disk(const std::string& path, const std::string
     if (!size_error && size > kMaxAttachmentBytes) {
         // Refused by its size alone, without reading it.
         record.state = "error";
-        record.error = AgentError{"too_large", "This file is too large to attach."};
+        record.error = AgentError{"too_large", translated(L("This file is too large to attach."))};
     } else {
         std::ifstream in(file, std::ios::binary);
         if (in)
             bytes.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
         if (size_error || !in || in.bad()) {
             record.state = "error";
-            record.error = AgentError{"unreadable", "The file could not be read."};
+            record.error = AgentError{"unreadable", translated(L("The file could not be read."))};
         }
     }
     if (record.state == "error") {
@@ -1615,16 +1624,19 @@ std::string AgentHost::post_assistant_message(const std::string& text)
     message.role  = MessageRole::Assistant;
     message.state = MessageState::Complete;
     message.text  = text;
+    // Set only on the app's own lines, never on the model's replies, so the
+    // next request can send this one as a note (as_sent).
+    message.for_model  = text;
     message.created_at = m_persistence.timestamp();
     document.append_message(conversation_id, message, message.created_at);
     m_persistence.flush();
     // Like a note, this starts nothing: it is a line the panel always says,
-    // and the model reads it as history on the person's first turn.
+    // and the model reads it as a note on the person's first turn.
     send_envelope(Protocol::kMessageAdded, json{{"message", message_json(message)}}.dump());
     return message.id;
 }
 
-std::string AgentHost::post_note(const std::string& text, const std::string& swatch)
+std::string AgentHost::post_note(const std::string& text, const std::string& swatch, const std::string& for_model)
 {
     if (text.empty())
         return {};
@@ -1636,6 +1648,8 @@ std::string AgentHost::post_note(const std::string& text, const std::string& swa
     note.role  = MessageRole::Note;
     note.state = MessageState::Complete;
     note.text  = text;
+    if (for_model != text)
+        note.for_model = for_model;
     note.swatch = swatch;
     note.created_at = m_persistence.timestamp();
     document.append_message(conversation_id, note, note.created_at);
@@ -1693,15 +1707,20 @@ void AgentHost::open_calibration_chat(const CalibrationHandover& handover, bool 
     m_persistence.resolve_pending_boundary();
     ProjectStateDocument& document        = m_persistence.document();
     const std::string     conversation_id = document.active_conversation_id();
-    const std::string     target          = handover.filament.empty() ? handover.printer + " · filament not chosen"
-                                                                          : handover.filament + " on " + handover.printer;
     // Board 4's line, which the page draws; the model reads the fuller words.
     ConversationMessage note;
     note.id    = document.allocate_message_id();
     note.role  = MessageRole::Note;
     note.state = MessageState::Complete;
-    note.text  = "From " + handover.started_from + " · " + target + " · temporary test settings" +
-                (handover.symptom.empty() ? std::string() : " · " + handover.symptom);
+    note.text  = handover.filament.empty() ?
+                     // TRN A calibration chat's first line. %1%: where it was started from, %2%: a printer.
+                     Slic3r::format(translated(L("From %1% · %2% · filament not chosen · temporary test settings")),
+                                    handover.started_from, handover.printer) :
+                     // TRN A calibration chat's first line. %1%: where it was started from, %2%: a filament, %3%: a printer.
+                     Slic3r::format(translated(L("From %1% · %2% on %3% · temporary test settings")), handover.started_from,
+                                    handover.filament, handover.printer);
+    if (!handover.symptom.empty())
+        note.text += " · " + handover.symptom;
     std::string spools;
     for (const std::string& spool : handover.spools)
         spools += (spools.empty() ? "" : ", ") + spool;
@@ -1812,8 +1831,13 @@ void AgentHost::tell_reopened_test()
     note.id    = document.allocate_message_id();
     note.role  = MessageRole::Note;
     note.state = MessageState::Complete;
-    note.text  = (opened_from.empty() ? std::string("Reopened") : "Opened from " + opened_from) + " · generated " + generated +
-                (result.empty() ? std::string() : " · result " + result + " saved");
+    // TRN A reopened calibration test's line. %1%: the day it was made, as "21 Oct 2026".
+    note.text = opened_from.empty() ? Slic3r::format(translated(L("Reopened · generated %1%")), generated) :
+                                      // TRN %1%: where the test was opened from, %2%: the day it was made, as "21 Oct 2026".
+                                      Slic3r::format(translated(L("Opened from %1% · generated %2%")), opened_from, generated);
+    if (!result.empty())
+        // TRN %1% is a calibration result, such as 215 °C.
+        note.text += " · " + Slic3r::format(translated(L("result %1% saved")), result);
     note.for_model = (opened_from.empty() ? std::string("The person reopened") : "The person opened from " + opened_from) +
                      " this calibration test project, a " + (temperature ? "temperature tower" : "pressure-advance " + method) +
                      " from " + start + " to " + end + ", generated on " + generated + "." +
@@ -1886,7 +1910,8 @@ bool AgentHost::slice_ended(const std::string& action_id)
     const WorkspaceSnapshot snapshot  = m_workspace.snapshot();
     const json              arguments = json::parse(activity->arguments_json, nullptr, false);
     const std::string plate_id = arguments.is_object() ? arguments.value("plateId", "") : std::string();
-    std::string text, name = "every plate";
+    // The model reads the English; the thread shows the person's language.
+    std::string text, shown, name = "every plate";
     bool        sliced = true;
     for (const Workspace::WorkspacePlate& plate : snapshot.plates) {
         if (!plate_id.empty() && std::to_string(plate.id.value()) != plate_id)
@@ -1894,22 +1919,33 @@ bool AgentHost::slice_ended(const std::string& action_id)
         if (!plate_id.empty())
             name = plate.name;
         sliced = sliced && plate.sliced;
-        if (text.empty() && plate.slice_failure)
-            text = std::string(plate.slice_failure->kind == Workspace::SliceFailureKind::Refused ?
-                                   "The app did not slice " : "The app stopped the slice of ") +
-                   plate.name + ": " + plate.slice_failure->message;
+        if (text.empty() && plate.slice_failure) {
+            const bool refused = plate.slice_failure->kind == Workspace::SliceFailureKind::Refused;
+            // TRN %1% is a plate's name, %2% why the slice did not succeed.
+            const char* words = refused ? L("The app did not slice %1%: %2%") :
+                                          // TRN %1% is a plate's name, %2% why the slice did not succeed.
+                                          L("The app stopped the slice of %1%: %2%");
+            text  = Slic3r::format(words, plate.name, plate.slice_failure->message);
+            shown = Slic3r::format(translated(words), plate.name, plate.slice_failure->message);
+        }
     }
     // A run that neither sliced nor failed was stopped: nothing to tell.
     if (text.empty() && !sliced)
         return true;
-    if (text.empty())
-        text = "The slice of " + name + " finished.";
+    if (text.empty()) {
+        text  = "The slice of " + name + " finished.";
+        shown = plate_id.empty() ? translated(L("The slice of every plate finished."))
+                                 // TRN %1% is a plate's name.
+                                 : Slic3r::format(translated(L("The slice of %1% finished.")), name);
+    }
 
     ConversationMessage note;
     note.id    = document.allocate_message_id();
     note.role  = MessageRole::Note;
     note.state = MessageState::Complete;
-    note.text  = text;
+    note.text  = shown;
+    if (shown != text)
+        note.for_model = text;
     note.created_at = m_persistence.timestamp();
     document.append_message(conversation_id, note, note.created_at);
     m_persistence.flush();
@@ -1946,11 +1982,11 @@ void AgentHost::end_stream(MessageState state, const char* envelope)
 void AgentHost::handle_retry(const std::string& envelope_id, const std::string& payload_json)
 {
     if (m_chat_transition_blocked) {
-        send_bridge_error("recovery_required", "Project chat is blocked until restoration is recovered.", envelope_id);
+        send_bridge_error("recovery_required", translated(L("Project chat is blocked until restoration is recovered.")), envelope_id);
         return;
     }
     if (m_persistence.document().viewed_conversation_id() != m_persistence.document().active_conversation_id()) {
-        send_bridge_error("inactive_conversation", "Historical replies cannot be retried.", envelope_id);
+        send_bridge_error("inactive_conversation", translated(L("Historical replies cannot be retried.")), envelope_id);
         return;
     }
     cancel_conversation_title();
@@ -1962,7 +1998,7 @@ void AgentHost::handle_retry(const std::string& envelope_id, const std::string& 
     if (!message || message->role != MessageRole::Assistant ||
         (message->state != MessageState::Failed && message->state != MessageState::Stopped) ||
         conversation_id != m_persistence.document().active_conversation_id()) {
-        send_bridge_error("invalid_retry", "Only a failed or stopped assistant message in the active conversation can be retried.",
+        send_bridge_error("invalid_retry", translated(L("Only a failed or stopped assistant message in the active conversation can be retried.")),
                           envelope_id);
         return;
     }
@@ -1971,11 +2007,11 @@ void AgentHost::handle_retry(const std::string& envelope_id, const std::string& 
     const std::vector<ConversationMessage> messages = m_persistence.document().messages(conversation_id);
     if (std::any_of(std::find_if(messages.begin(), messages.end(), [&](const auto& stored) { return stored.id == message_id; }),
                     messages.end(), [&](const auto& stored) { return stored.role == MessageRole::Assistant && stored.id != message_id; })) {
-        send_bridge_error("invalid_retry", "Only the chat's last reply can be retried.", envelope_id);
+        send_bridge_error("invalid_retry", translated(L("Only the chat's last reply can be retried.")), envelope_id);
         return;
     }
     if (agent_busy() || m_setup_pending) {
-        send_bridge_error("busy", "Another reply is currently streaming.", envelope_id);
+        send_bridge_error("busy", translated(L("Another reply is currently streaming.")), envelope_id);
         return;
     }
     ConversationMessage retried = *message;
@@ -2063,11 +2099,11 @@ void AgentHost::handle_work_cancel(const std::string& envelope_id, const std::st
 void AgentHost::handle_tool_cancel(const std::string& envelope_id, const std::string& payload_json)
 {
     if (m_chat_transition_blocked) {
-        send_bridge_error("recovery_required", "Project chat is blocked until restoration is recovered.", envelope_id);
+        send_bridge_error("recovery_required", translated(L("Project chat is blocked until restoration is recovered.")), envelope_id);
         return;
     }
     if (m_persistence.document().viewed_conversation_id() != m_persistence.document().active_conversation_id()) {
-        send_bridge_error("inactive_conversation", "Historical tool actions cannot be changed.", envelope_id);
+        send_bridge_error("inactive_conversation", translated(L("Historical tool actions cannot be changed.")), envelope_id);
         return;
     }
     const json        payload   = json::parse(payload_json, nullptr, false);
@@ -2087,12 +2123,12 @@ void AgentHost::handle_tool_cancel(const std::string& envelope_id, const std::st
 void AgentHost::handle_save_proposal(const std::string& envelope_id, const std::string& payload_json)
 {
     if (m_chat_transition_blocked) {
-        send_bridge_error("recovery_required", "Project chat is blocked until restoration is recovered.", envelope_id);
+        send_bridge_error("recovery_required", translated(L("Project chat is blocked until restoration is recovered.")), envelope_id);
         return;
     }
     ProjectStateDocument& document = m_persistence.document();
     if (document.viewed_conversation_id() != document.active_conversation_id()) {
-        send_bridge_error("inactive_conversation", "Historical tool actions cannot be changed.", envelope_id);
+        send_bridge_error("inactive_conversation", translated(L("Historical tool actions cannot be changed.")), envelope_id);
         return;
     }
     const json          payload   = json::parse(payload_json, nullptr, false);
@@ -2109,7 +2145,7 @@ void AgentHost::handle_save_proposal(const std::string& envelope_id, const std::
                                        [preview](const ConversationMessage& message) { return message.id == preview->correlation_id; });
     if (proposed == messages.end() ||
         std::any_of(std::next(proposed), messages.end(), [](const ConversationMessage& message) { return message.role == MessageRole::User; })) {
-        send_bridge_error("proposal_closed", "This proposal is no longer open. Ask AI again.", envelope_id);
+        send_bridge_error("proposal_closed", translated(L("This proposal is no longer open. Ask AI again.")), envelope_id);
         return;
     }
     if (const std::string refusal = m_tools.approve_proposal(action_id); !refusal.empty())
@@ -2119,13 +2155,13 @@ void AgentHost::handle_save_proposal(const std::string& envelope_id, const std::
 void AgentHost::handle_undo_receipt(const std::string& envelope_id, const std::string& payload_json)
 {
     if (m_chat_transition_blocked) {
-        send_bridge_error("recovery_required", "Project chat is blocked until restoration is recovered.", envelope_id);
+        send_bridge_error("recovery_required", translated(L("Project chat is blocked until restoration is recovered.")), envelope_id);
         return;
     }
     ProjectStateDocument& document = m_persistence.document();
     const std::string     chat     = document.active_conversation_id();
     if (document.viewed_conversation_id() != chat) {
-        send_bridge_error("inactive_conversation", "Historical tool actions cannot be changed.", envelope_id);
+        send_bridge_error("inactive_conversation", translated(L("Historical tool actions cannot be changed.")), envelope_id);
         return;
     }
     const json        payload    = json::parse(payload_json, nullptr, false);
@@ -2142,7 +2178,7 @@ void AgentHost::handle_undo_receipt(const std::string& envelope_id, const std::s
     json                receipt      = json::parse(receipt_note.receipt);
     // A second press that arrived before the page redrew the first.
     if (!receipt.contains("undo") || receipt.value("undone", false)) {
-        send_bridge_error("receipt_closed", "This save can no longer be undone.", envelope_id);
+        send_bridge_error("receipt_closed", translated(L("This save can no longer be undone.")), envelope_id);
         return;
     }
     const json&       undo = receipt["undo"];
@@ -2164,7 +2200,7 @@ void AgentHost::handle_undo_receipt(const std::string& envelope_id, const std::s
         Workspace::SettingsPreview       applied;
         result = preview.valid ? m_workspace.apply_settings(patch, Workspace::previewed_changes(preview), applied)
                                : Workspace::CommandResult::failure(Workspace::WorkspaceError::InvalidSettings,
-                                                                   preview.issues.empty() ? "The earlier values cannot be put back."
+                                                                   preview.issues.empty() ? translated(L("The earlier values cannot be put back."))
                                                                                           : preview.issues.front().message);
     }
     document.set_change_anchor({});
@@ -2215,16 +2251,16 @@ bool AgentHost::checkpoint_active_chat()
 void AgentHost::handle_create_conversation(const std::string& envelope_id, const std::string& payload_json)
 {
     if (m_chat_transition_blocked) {
-        send_bridge_error("recovery_required", "Project chat is blocked until restoration is recovered.", envelope_id);
+        send_bridge_error("recovery_required", translated(L("Project chat is blocked until restoration is recovered.")), envelope_id);
         return;
     }
     cancel_conversation_title();
     if (transition_busy()) {
-        send_bridge_error("busy", "Finish or resolve pending work before creating a chat.", envelope_id);
+        send_bridge_error("busy", translated(L("Finish or resolve pending work before creating a chat.")), envelope_id);
         return;
     }
     if (!checkpoint_active_chat()) {
-        send_bridge_error("save_failed", "The current chat could not be saved.", envelope_id);
+        send_bridge_error("save_failed", translated(L("The current chat could not be saved.")), envelope_id);
         return;
     }
     const json        payload = json::parse(payload_json, nullptr, false);
@@ -2240,7 +2276,7 @@ void AgentHost::handle_create_conversation(const std::string& envelope_id, const
     m_persistence.flush();
     if (m_save_chat_document && !m_save_chat_document()) {
         document.load(before);
-        send_bridge_error("save_failed", "The new chat could not be saved.", envelope_id);
+        send_bridge_error("save_failed", translated(L("The new chat could not be saved.")), envelope_id);
         return;
     }
     send_state(envelope_id);
@@ -2274,7 +2310,7 @@ void AgentHost::handle_switch_conversation(const std::string& envelope_id, const
         // Settle pending saves before comparing: an unsaved edit must not
         // match the last committed version. Preserve the outgoing chat too.
         if (!checkpoint_active_chat()) {
-            send_bridge_error("save_failed", "The current chat could not be saved.", envelope_id);
+            send_bridge_error("save_failed", translated(L("The current chat could not be saved.")), envelope_id);
             send_state(envelope_id);
             return;
         }
@@ -2287,7 +2323,7 @@ void AgentHost::handle_switch_conversation(const std::string& envelope_id, const
             if (m_save_chat_document && !m_save_chat_document()) {
                 document.load(before);
                 m_persistence.flush();
-                send_bridge_error("save_failed", "The selected chat could not be saved.", envelope_id);
+                send_bridge_error("save_failed", translated(L("The selected chat could not be saved.")), envelope_id);
                 send_state(envelope_id);
                 return;
             }
@@ -2300,7 +2336,7 @@ void AgentHost::handle_switch_conversation(const std::string& envelope_id, const
 void AgentHost::handle_restore_conversation(const std::string& envelope_id, const std::string& payload_json)
 {
     if (m_chat_transition_blocked) {
-        send_bridge_error("recovery_required", "Project chat is blocked until restoration is recovered.", envelope_id);
+        send_bridge_error("recovery_required", translated(L("Project chat is blocked until restoration is recovered.")), envelope_id);
         return;
     }
     const json payload = json::parse(payload_json, nullptr, false);
@@ -2308,37 +2344,38 @@ void AgentHost::handle_restore_conversation(const std::string& envelope_id, cons
     if (!payload.is_object() || payload.value("conversationId", "") != document.viewed_conversation_id() ||
         payload.value("activeConversationId", "") != document.active_conversation_id() ||
         payload.value("docRevision", std::uint64_t(0)) != document.doc_revision()) {
-        send_bridge_error("stale_transition", "The project or selected chat changed. Review it again.", envelope_id);
+        send_bridge_error("stale_transition", translated(L("The project or selected chat changed. Review it again.")), envelope_id);
         send_state();
         return;
     }
     if (transition_busy()) {
-        send_bridge_error("busy", "Finish or resolve pending work before resuming a chat.", envelope_id);
+        send_bridge_error("busy", translated(L("Finish or resolve pending work before resuming a chat.")), envelope_id);
         return;
     }
     const std::string target = document.viewed_conversation_id();
     if (target == document.active_conversation_id()) {
-        send_bridge_error("invalid_transition", "This chat is already active.", envelope_id);
+        send_bridge_error("invalid_transition", translated(L("This chat is already active.")), envelope_id);
         return;
     }
     const auto checkpoint = document.chat_checkpoint(target);
     if (!checkpoint || !m_chat_version_exists ||
         !m_chat_version_exists(checkpoint->value("versionId", "")) || !m_restore_chat_version) {
-        send_bridge_error("checkpoint_unavailable", "JusPrin can't find the project version this chat was working on.", envelope_id);
+        send_bridge_error("checkpoint_unavailable", translated(L("JusPrin can't find the project version this chat was working on.")), envelope_id);
         send_state();
         return;
     }
     if (!checkpoint_active_chat()) {
-        send_bridge_error("save_failed", "The current project could not be saved before restoration.", envelope_id);
+        send_bridge_error("save_failed", translated(L("The current project could not be saved before restoration.")), envelope_id);
         return;
     }
     if (!m_restore_chat_version(checkpoint->value("versionId", ""), target)) {
         m_chat_transition_blocked = true;
-        send_bridge_error("restore_failed", "JusPrin couldn't put the project back.", envelope_id);
+        send_bridge_error("restore_failed", translated(L("JusPrin couldn't put the project back.")), envelope_id);
         send_state();
         return;
     }
-    post_note("Restored this chat's saved project setup. Check the current printer and material before printing.");
+    const char* restored = L("Restored this chat's saved project setup. Check the current printer and material before printing.");
+    post_note(translated(restored), {}, restored);
     checkpoint_active_chat();
     send_state(envelope_id);
 }
@@ -2349,7 +2386,7 @@ void AgentHost::handle_rename_conversation(const std::string& envelope_id, const
     const std::string id = payload.at("conversationId").get<std::string>();
     const std::string title = payload.at("title").get<std::string>();
     if (!is_valid_utf8(title) || !m_persistence.document().rename_conversation(id, title)) {
-        send_bridge_error("rename_failed", "Use a non-empty, single-line title of at most 120 characters for an existing chat.",
+        send_bridge_error("rename_failed", translated(L("Use a non-empty, single-line title of at most 120 characters for an existing chat.")),
                           envelope_id);
         return;
     }
@@ -2371,7 +2408,7 @@ void AgentHost::handle_delete_conversation(const std::string& envelope_id, const
     if (agent_busy() || std::any_of(m_tools.activities().begin(), m_tools.activities().end(), [&](const auto& activity) {
             return belongs_to_chat(activity) && !tool_state_terminal(activity.state);
         })) {
-        send_bridge_error("busy", "This chat is still working. Stop it or let it finish, then delete it.", envelope_id);
+        send_bridge_error("busy", translated(L("This chat is still working. Stop it or let it finish, then delete it.")), envelope_id);
         return;
     }
     ProjectStateDocument& document = m_persistence.document();
@@ -2379,13 +2416,13 @@ void AgentHost::handle_delete_conversation(const std::string& envelope_id, const
     const std::string previous_active = document.active_conversation_id();
     const auto removed = document.delete_conversation(id, m_persistence.timestamp());
     if (!removed) {
-        send_bridge_error("unknown_conversation", "This chat no longer exists.", envelope_id);
+        send_bridge_error("unknown_conversation", translated(L("This chat no longer exists.")), envelope_id);
         return;
     }
     if (document.active_conversation_id() != previous_active && !checkpoint_active_chat()) {
         document.load(before);
         m_persistence.flush();
-        send_bridge_error("save_failed", "The replacement chat could not be saved.", envelope_id);
+        send_bridge_error("save_failed", translated(L("The replacement chat could not be saved.")), envelope_id);
         return;
     }
     m_tools.forget_terminal_activities(message_ids);
@@ -2397,7 +2434,7 @@ void AgentHost::handle_delete_conversation(const std::string& envelope_id, const
 void AgentHost::handle_draft_update(const std::string& payload_json)
 {
     if (m_persistence.document().viewed_conversation_id() != m_persistence.document().active_conversation_id()) {
-        send_bridge_error("inactive_conversation", "Historical chats cannot edit the current draft.");
+        send_bridge_error("inactive_conversation", translated(L("Historical chats cannot edit the current draft.")));
         return;
     }
     const json payload = json::parse(payload_json, nullptr, false);
@@ -2443,11 +2480,11 @@ void AgentHost::handle_setup_check_key(const std::string& envelope_id, const std
 {
     cancel_conversation_title();
     if (agent_busy()) {
-        send_bridge_error("busy", "Finish or stop the current reply before configuring AI.", envelope_id);
+        send_bridge_error("busy", translated(L("Finish or stop the current reply before configuring AI.")), envelope_id);
         return;
     }
     if (!m_setup) {
-        send_bridge_error("setup_unavailable", "This build cannot configure an AI provider.", envelope_id);
+        send_bridge_error("setup_unavailable", translated(L("This build cannot configure an AI provider.")), envelope_id);
         return;
     }
     const json payload = json::parse(payload_json);
@@ -2463,7 +2500,7 @@ void AgentHost::handle_setup_check_key(const std::string& envelope_id, const std
         return;
     }
     if (m_setup->busy()) {
-        send_bridge_error("setup_busy", "A credential check is already running.", envelope_id);
+        send_bridge_error("setup_busy", translated(L("A credential check is already running.")), envelope_id);
         return;
     }
 
@@ -2472,7 +2509,7 @@ void AgentHost::handle_setup_check_key(const std::string& envelope_id, const std
     m_setup_pending = credentials;
     if (!m_setup->start_check(credentials)) {
         const AgentError error{"unsupported_provider",
-                               "This build cannot verify a key for that provider yet.", false};
+                               translated(L("This build cannot verify a key for that provider yet.")), false};
         send_setup_status("error", envelope_id, std::nullopt, error);
         m_setup_pending.reset();
         return;
@@ -2495,19 +2532,19 @@ void AgentHost::handle_setup_remove_key(const std::string& envelope_id, const st
     // a key check.
     cancel_conversation_title();
     if (!m_setup) {
-        send_bridge_error("setup_unavailable", "This build cannot configure an AI provider.", envelope_id);
+        send_bridge_error("setup_unavailable", translated(L("This build cannot configure an AI provider.")), envelope_id);
         return;
     }
     if (agent_busy()) {
-        send_bridge_error("busy", "Finish or stop the current reply before removing a key.", envelope_id);
+        send_bridge_error("busy", translated(L("Finish or stop the current reply before removing a key.")), envelope_id);
         return;
     }
     if (m_setup->busy()) {
-        send_bridge_error("setup_busy", "Finish or cancel the key check before removing a key.", envelope_id);
+        send_bridge_error("setup_busy", translated(L("Finish or cancel the key check before removing a key.")), envelope_id);
         return;
     }
     if (!remove_saved_key(json::parse(payload_json).value("provider", ""))) {
-        send_bridge_error("remove_failed", "That key could not be removed.", envelope_id);
+        send_bridge_error("remove_failed", translated(L("That key could not be removed.")), envelope_id);
         return;
     }
     send_setup_keys(envelope_id);
@@ -2624,21 +2661,21 @@ void AgentHost::handle_account_sign_in(const std::string& envelope_id, bool stor
 {
     ICloudSignIn* cloud = m_setup ? m_setup->cloud_sign_in() : nullptr;
     if (cloud == nullptr) {
-        send_bridge_error("setup_unavailable", "This build cannot sign in to a JusPrin account.", envelope_id);
+        send_bridge_error("setup_unavailable", translated(L("This build cannot sign in to a JusPrin account.")), envelope_id);
         return;
     }
     if (agent_busy()) {
-        send_bridge_error("busy", "Finish or stop the current reply before signing in.", envelope_id);
+        send_bridge_error("busy", translated(L("Finish or stop the current reply before signing in.")), envelope_id);
         return;
     }
     if (m_setup->busy() || cloud->phase() != CloudSignInPhase::Idle) {
-        send_bridge_error("setup_busy", "A sign-in or key check is already running.", envelope_id);
+        send_bridge_error("setup_busy", translated(L("A sign-in or key check is already running.")), envelope_id);
         return;
     }
     cancel_conversation_title();
     if (stored) {
         if (!cloud->check_stored()) {
-            send_bridge_error("not_signed_in", "There is no JusPrin account on this computer to check.", envelope_id);
+            send_bridge_error("not_signed_in", translated(L("There is no JusPrin account on this computer to check.")), envelope_id);
             return;
         }
         send_account_status("checking", envelope_id);
@@ -2646,7 +2683,7 @@ void AgentHost::handle_account_sign_in(const std::string& envelope_id, bool stor
     }
     if (!cloud->start(CloudBrowserStart::Google)) {
         send_account_status("idle", envelope_id,
-                            AgentError{"sign_in_failed", "JusPrin couldn't start signing in. Try again.", true});
+                            AgentError{"sign_in_failed", translated(L("JusPrin couldn't start signing in. Try again.")), true});
         return;
     }
     send_account_status("browser", envelope_id);
@@ -2656,15 +2693,15 @@ void AgentHost::handle_account_email(const std::string& envelope_id, const std::
 {
     ICloudSignIn* cloud = m_setup ? m_setup->cloud_sign_in() : nullptr;
     if (cloud == nullptr) {
-        send_bridge_error("setup_unavailable", "This build cannot sign in to a JusPrin account.", envelope_id);
+        send_bridge_error("setup_unavailable", translated(L("This build cannot sign in to a JusPrin account.")), envelope_id);
         return;
     }
     if (agent_busy()) {
-        send_bridge_error("busy", "Finish or stop the current reply before signing in.", envelope_id);
+        send_bridge_error("busy", translated(L("Finish or stop the current reply before signing in.")), envelope_id);
         return;
     }
     if (m_setup->busy() || cloud->phase() != CloudSignInPhase::Idle) {
-        send_bridge_error("setup_busy", "A sign-in or key check is already running.", envelope_id);
+        send_bridge_error("setup_busy", translated(L("A sign-in or key check is already running.")), envelope_id);
         return;
     }
     cancel_conversation_title();
@@ -2672,7 +2709,7 @@ void AgentHost::handle_account_email(const std::string& envelope_id, const std::
     const std::string email = payload.is_object() ? payload.value("email", std::string()) : std::string();
     if (!cloud->start_email(email)) {
         send_account_status("idle", envelope_id,
-                            AgentError{"sign_in_failed", "JusPrin couldn't sign you in. Try again.", true});
+                            AgentError{"sign_in_failed", translated(L("JusPrin couldn't sign you in. Try again.")), true});
         return;
     }
     send_account_status("email", envelope_id);
@@ -2749,7 +2786,7 @@ void AgentHost::pump_account()
         m_rejected_keys.erase(provider);
         send_account_status("idle", {}, std::nullopt, false,
                             outcome->saved ? std::string() :
-                                             "This sign-in could not be saved, so you will have to sign in again next time JusPrin starts.");
+                                             translated(L("This sign-in could not be saved, so you will have to sign in again next time JusPrin starts.")));
         send_setup_keys();
         set_agent(std::move(outcome->service), AgentAvailability::Ready);
         request_account();
@@ -2785,7 +2822,7 @@ void AgentHost::pump_setup()
     // told which one happened rather than discovering it at the next launch.
     std::string warning;
     if (m_setup_pending && !m_setup->commit(*m_setup_pending))
-        warning = "This key could not be saved, so it will have to be entered again next time JusPrin starts.";
+        warning = translated(L("This key could not be saved, so it will have to be entered again next time JusPrin starts."));
 
     send_setup_status("verified", {}, outcome->elapsed_ms, std::nullopt, warning);
     if (m_setup_pending)
@@ -2916,8 +2953,8 @@ void AgentHost::begin_reply(const std::string& user_message_id)
         failed.state       = MessageState::Failed;
         failed.in_reply_to = user_message_id;
         failed.error       = instructions_missing ?
-                                 AgentError{"instructions_missing", "The panel is still loading. Try again in a moment.", true} :
-                                 AgentError{"agent_unavailable", "The AI service is not available.", true};
+                                 AgentError{"instructions_missing", translated(L("The panel is still loading. Try again in a moment.")), true} :
+                                 AgentError{"agent_unavailable", translated(L("The AI service is not available.")), true};
         failed.created_at = m_persistence.timestamp();
         document.append_message(conversation_id, failed, failed.created_at);
         m_persistence.flush();
@@ -2980,7 +3017,7 @@ void AgentHost::begin_stream(ConversationMessage assistant, const std::string& c
     if (asks_setup_check(request.skills) && purpose_recorded(conversation_id))
         mark_setup_checked(request.workspace);
     if (!m_agent || !m_agent->ready() || !m_agent->start(request))
-        fail_stream(AgentError{"agent_unavailable", "The AI service could not start this request.", true});
+        fail_stream(AgentError{"agent_unavailable", translated(L("The AI service could not start this request.")), true});
 }
 
 namespace {
@@ -3008,6 +3045,11 @@ std::optional<RecordItem> as_sent(const ConversationMessage& message)
             item.parts.push_back({RecordPart::Kind::Text, tagged_block("print_issue", message.issue_context)});
     } else if (message.role == MessageRole::Note && !note_text(message).empty())
         item = RecordItem{RecordItem::Kind::Operator, message.id, {}, note_text(message)};
+    // A panel's opening line, which the person saw as the agent's. As a note,
+    // not an assistant turn: Anthropic refuses a chat that opens with one.
+    else if (message.role == MessageRole::Assistant && !message.for_model.empty())
+        item = RecordItem{RecordItem::Kind::Operator, message.id, {},
+                          "Before the person's first message, the chat showed them this line as yours: \"" + message.for_model + "\""};
     else
         return std::nullopt;
     return item;
@@ -3093,11 +3135,12 @@ AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant,
         }
     }
     // Messages before this turn's that the model has not been sent: one whose
-    // turn never reached it, a report, and the app's notes.
+    // turn never reached it, a report, the app's notes and a panel's opening
+    // line. The model's own replies are in the record already.
     for (const ConversationMessage& message : document.messages(conversation_id)) {
         if (message.id == assistant.in_reply_to)
             break;
-        if (message.role != MessageRole::Assistant && !request.record.holds(message.id))
+        if ((message.role != MessageRole::Assistant || !message.for_model.empty()) && !request.record.holds(message.id))
             if (std::optional<RecordItem> item = as_sent(message))
                 request.unsent.push_back(std::move(*item));
     }
@@ -3353,7 +3396,7 @@ void AgentHost::continue_after_tool(const ToolActivity& activity)
     result.image       = activity.image;
     if (!m_agent || !m_agent->continue_after_tool(result)) {
         begin_tool_followup(continuation);
-        fail_stream(AgentError{"agent_continuation_failed", "AI could not receive the native tool result.", true});
+        fail_stream(AgentError{"agent_continuation_failed", translated(L("AI could not receive the native tool result.")), true});
         return;
     }
     begin_tool_followup(continuation);
@@ -3412,7 +3455,7 @@ void AgentHost::pump_stream()
     else if (next->kind == AgentEventKind::Failed) {
         if (next->error && next->error->code == "invalid_credentials")
             note_key_rejected();
-        fail_stream(next->error.value_or(AgentError{"agent_error", "The AI request failed.", true}));
+        fail_stream(next->error.value_or(AgentError{"agent_error", translated(L("The AI request failed.")), true}));
     }
     else if (next->kind == AgentEventKind::Completed)
         complete_stream();
@@ -3449,7 +3492,7 @@ void AgentHost::start_conversation_title(const std::string& conversation_id)
     }
     if (!has_reply) return;
     if (!m_agent->start(request)) {
-        send_bridge_error("title_generation_failed", "The automatic chat title could not be generated. You can rename the chat.");
+        send_bridge_error("title_generation_failed", translated(L("The automatic chat title could not be generated. You can rename the chat.")));
         return;
     }
     m_title = PendingTitle{conversation_id, {}};
@@ -3479,7 +3522,7 @@ void AgentHost::pump_conversation_title()
     // The reply remains usable when this optional metadata request fails;
     // report that failure separately so it is visible and manually recoverable.
     cancel_conversation_title();
-    send_bridge_error("title_generation_failed", "The automatic chat title could not be generated. You can rename the chat.");
+    send_bridge_error("title_generation_failed", translated(L("The automatic chat title could not be generated. You can rename the chat.")));
 }
 
 void AgentHost::start_next_queued_reply()
@@ -3911,9 +3954,10 @@ bool AgentHost::use_chat_model(const std::string& conversation_id, const Convers
             const std::string      name    = profile ? profile->display_name : kept->provider;
             fail_stream(AgentError{"chat_provider_removed",
                                    profile && profile->account_sign_in ?
-                                       "This chat ran on your " + name + " account. Sign in again to continue it, or start a new chat." :
-                                       "This chat ran on " + name + ", and no " + name +
-                                           " API key is set up now. Add the key in the AI settings to continue it, or start a new chat.",
+                                       // TRN %1% is an AI provider's account, such as JusPrin.
+                                       Slic3r::format(translated(L("This chat ran on your %1% account. Sign in again to continue it, or start a new chat.")), name) :
+                                       // TRN %1% is an AI provider, such as OpenAI.
+                                       Slic3r::format(translated(L("This chat ran on %1%, and no %1% API key is set up now. Add the key in the AI settings to continue it, or start a new chat.")), name),
                                    false});
             return false;
         }
@@ -3927,7 +3971,7 @@ bool AgentHost::use_chat_model(const std::string& conversation_id, const Convers
             // for again, and the person can send once it has.
             request_model_lists();
             fail_stream(AgentError{"account_models_unknown",
-                                   "JusPrin hasn't loaded the AI models for your account yet. Try again in a moment.", true});
+                                   translated(L("JusPrin hasn't loaded the AI models for your account yet. Try again in a moment.")), true});
             return false;
         }
     }
@@ -3944,8 +3988,9 @@ bool AgentHost::use_chat_model(const std::string& conversation_id, const Convers
     if (!agent) {
         const ProviderProfile* profile = profile_for(choice.provider);
         fail_stream(AgentError{"provider_not_set_up",
-                               "No " + (profile ? profile->display_name : choice.provider) +
-                                   " API key is set up. Add it in the AI settings, or choose another model.",
+                               // TRN %1% is an AI provider, such as OpenAI.
+                               Slic3r::format(translated(L("No %1% API key is set up. Add it in the AI settings, or choose another model.")),
+                                      profile ? profile->display_name : choice.provider),
                                false});
         return false;
     }
@@ -4011,7 +4056,7 @@ json catalog_settings_json(const std::vector<Workspace::CatalogSetting>& setting
 {
     json rows = json::array();
     for (const Workspace::CatalogSetting& setting : settings) {
-        json row{{"key", setting.key}, {"label", setting.label}, {"page", setting.page}, {"group", setting.group},
+        json row{{"key", setting.key}, {"label", setting.label}, {"page", setting.page}, {"pageLabel", setting.page_label}, {"group", setting.group},
                  {"value", setting.value}, {"display", setting.display}};
         if (setting.preset) {
             row["preset"]        = *setting.preset;
@@ -4166,14 +4211,15 @@ void AgentHost::handle_mcp_preview(const std::string& envelope_id, const std::st
             payload["previous"] = edit.previous.dump(2);
         send_envelope(Protocol::kMcpPreview, payload.dump(), envelope_id);
     } catch (const std::exception& error) {
-        send_mcp_status("error", tool_id, envelope_id, {}, AgentError{"write_failed", error.what(), true});
+        // McpConfigFile's own refusals are English lines marked for translation.
+        send_mcp_status("error", tool_id, envelope_id, {}, AgentError{"write_failed", translated(error.what()), true});
     }
 }
 
 void AgentHost::handle_mcp_connect(const std::string& envelope_id, const std::string& payload_json)
 {
     if (m_mcp_busy) {
-        send_bridge_error("busy", "A connection is already being saved.", envelope_id);
+        send_bridge_error("busy", translated(L("A connection is already being saved.")), envelope_id);
         return;
     }
     const json payload        = json::parse(payload_json);
@@ -4184,18 +4230,18 @@ void AgentHost::handle_mcp_connect(const std::string& envelope_id, const std::st
         throw RuntimeError("jusprin-agent-bridge: mcp_connect names an unknown tool: " + tool_id);
     if (!std::filesystem::is_regular_file(m_mcp_connect.helper_path)) {
         send_mcp_status("error", tool_id, envelope_id, {},
-                        AgentError{"helper_missing", "JusPrin's connection helper is missing. Reinstall or rebuild JusPrin.", true});
+                        AgentError{"helper_missing", translated(L("JusPrin's connection helper is missing. Reinstall or rebuild JusPrin.")), true});
         return;
     }
     if (!m_mcp_connect.launcher_path.empty() && m_mcp_connect.launcher_path != m_mcp_connect.helper_path &&
         !std::filesystem::is_regular_file(m_mcp_connect.launcher_path)) {
         send_mcp_status("error", tool_id, envelope_id, {},
-                        AgentError{"helper_missing", "The AppImage launcher is missing. Reopen the installed AppImage.", true});
+                        AgentError{"helper_missing", translated(L("The AppImage launcher is missing. Reopen the installed AppImage.")), true});
         return;
     }
     if (!found->entry.cli) {
         if (!m_mcp_edit || m_mcp_edit_tool != tool_id) {
-            send_bridge_error("invalid_payload", "Review the change before connecting.", envelope_id);
+            send_bridge_error("invalid_payload", translated(L("Review the change before connecting.")), envelope_id);
             return;
         }
         send_mcp_status("writing", tool_id, envelope_id);
@@ -4209,19 +4255,22 @@ void AgentHost::handle_mcp_connect(const std::string& envelope_id, const std::st
         } catch (const std::exception& error) {
             const std::string text = error.what();
             const char* code = text.find("changed after the preview") != std::string::npos ? "stale_preview" : "write_failed";
-            send_mcp_status("error", tool_id, envelope_id, {}, AgentError{code, text, true});
+            send_mcp_status("error", tool_id, envelope_id, {}, AgentError{code, translated(text.c_str()), true});
         }
         return;
     }
     const auto cli = Mcp::command_on_path(found->entry.id);
     if (cli.empty()) {
         send_mcp_status("error", tool_id, envelope_id, {},
-                        AgentError{"cli_missing", found->entry.name + " isn't installed. Install it, or copy the command and run it later.", true});
+                        AgentError{"cli_missing",
+                                   // TRN %1% is an AI client app, such as Claude Code.
+                                   Slic3r::format(translated(L("%1% isn't installed. Install it, or copy the command and run it later.")), found->entry.name),
+                                   true});
         return;
     }
     if (!m_mcp_cli) {
         send_mcp_status("error", tool_id, envelope_id, {},
-                        AgentError{"command_failed", "This build cannot run the client CLI.", true});
+                        AgentError{"command_failed", translated(L("This build cannot run the client CLI.")), true});
         return;
     }
     std::vector<std::string> arguments{cli};
@@ -4252,7 +4301,7 @@ void AgentHost::handle_reveal_path(const std::string& envelope_id, const std::st
     if (found == items.end())
         throw RuntimeError("jusprin-agent-bridge: reveal_path names an unknown tool: " + tool_id);
     if (!m_reveal_path) {
-        send_bridge_error("unsupported", "This build cannot open a file manager.", envelope_id);
+        send_bridge_error("unsupported", translated(L("This build cannot open a file manager.")), envelope_id);
         return;
     }
     m_reveal_path(found->config_path.u8string());

@@ -7,10 +7,12 @@
 #include "ProviderFactory.hpp"
 #include "libslic3r/AppConfig.hpp"
 #include "libslic3r/Utils.hpp"
+#include "slic3r/GUI/JusPrin/Support/PageLanguage.hpp"
 
 #include <boost/log/trivial.hpp>
 
 #include <cstdlib>
+#include <string>
 #include <utility>
 
 #include <nlohmann/json.hpp>
@@ -254,6 +256,15 @@ CloudSignInPtr make_cloud_sign_in(AppConfig* config)
 
 namespace {
 
+// The account's row with the app's language, so the server's sentences in
+// the answer come back in it.
+ProviderProfile in_app_language(ProviderProfile profile)
+{
+    if (const std::string language = server_language(); !language.empty())
+        profile.headers.push_back({"Accept-Language", language});
+    return profile;
+}
+
 class AppConfigChatModelSource final : public IChatModelSource
 {
 public:
@@ -311,7 +322,7 @@ public:
             if (profile == nullptr || !profile->account_sign_in)
                 continue;
             const std::string token = load_provider_api_key(m_config, provider);
-            Agent::fetch_account(*profile, token, endpoint_for(m_config, *profile), m_cancelled,
+            Agent::fetch_account(in_app_language(*profile), token, endpoint_for(m_config, *profile), m_cancelled,
                                  [post = m_post, done = std::move(done), config = m_config, provider,
                                   token](std::optional<nlohmann::json> account) {
                                      post([done, account = std::move(account), config, provider, token]() mutable {
@@ -330,7 +341,7 @@ public:
     void fetch_account_box(AccountBoxDone done) override
     {
         const std::string url = cloud_server_from_gateway(endpoint_for(m_config, account_provider())) + "/ent/jusprin/v2/account_box";
-        Agent::fetch_account_box(account_provider(), cloud_account_token(m_config), url, m_cancelled,
+        Agent::fetch_account_box(in_app_language(account_provider()), cloud_account_token(m_config), url, m_cancelled,
                                  [post = m_post, done = std::move(done)](std::optional<std::string> html) {
                                      post([done, html = std::move(html)]() mutable { done(std::move(html)); });
                                  });

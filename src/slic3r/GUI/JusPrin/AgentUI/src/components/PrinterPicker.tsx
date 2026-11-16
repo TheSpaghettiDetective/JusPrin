@@ -3,9 +3,12 @@
 // the first launch's printer screen on Home, which draws it in a shadow root
 // of its own (HomeUI PrinterPickerHost). The caller keeps the choice.
 
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 import { useMemo } from 'react';
 import type { ReactNode } from 'react';
 import type { PrinterFormInfo, PrinterFormModel } from '../bridge/protocol';
+import { decimalText } from '../i18n';
 import { ActionMenu } from './ChatNavigation';
 
 export interface PrinterPick {
@@ -44,6 +47,7 @@ export function PrinterPicker({ form, pick, onPick, underMenus, nozzleUnit = fal
   const models = useMemo(() => form.catalog.filter((model) => model.vendorId === vendorId)
     .sort((a, b) => byName(a.model, b.model)), [form.catalog, vendorId]);
   const model = form.catalog.find((entry) => entry.id === catalogId);
+  const onlySize = model ? decimalText(model.nozzles[0], 0, 2) : '';
 
   const chooseModel = (entry: PrinterFormModel, device?: string) =>
     onPick({ vendorId: entry.vendorId, catalogId: entry.id, nozzle: startingNozzle(entry), deviceId: device });
@@ -51,45 +55,51 @@ export function PrinterPicker({ form, pick, onPick, underMenus, nozzleUnit = fal
   return <>
     <div className="printer-form-fields">
       <div className="printer-form-field">
-        <span className="printer-form-label">Brand</span>
-        <ActionMenu label="Brand" appearance="select" text={brands.find((brand) => brand.id === vendorId)?.label ?? 'Choose a brand'}
-          search={{ label: 'Search brands', noMatch: (text) => `No brand matches “${text}”` }}
+        <span className="printer-form-label"><Trans>Brand</Trans></span>
+        <ActionMenu label={t`Brand`} appearance="select" text={brands.find((brand) => brand.id === vendorId)?.label ?? t`Choose a brand`}
+          search={{ label: t`Search brands`, noMatch: (text) => t`No brand matches “${text}”` }}
           items={brands.map((brand) => ({ key: brand.id, label: brand.label, current: brand.id === vendorId,
             onSelect: () => { if (brand.id !== vendorId) onPick({ vendorId: brand.id }); } }))} />
       </div>
       <div className="printer-form-field">
-        <span className="printer-form-label">Model</span>
-        <ActionMenu label="Model" appearance="select" disabled={!vendorId} text={model?.model ?? 'Choose a model'}
-          search={{ label: 'Search models', noMatch: (text) => `No model matches “${text}”` }}
+        {/* "Model" and "Search models" also name AI models (ModelPickers,
+            Preferences), which many languages word differently. */}
+        <span className="printer-form-label">{t({ message: 'Model', context: 'printer' })}</span>
+        <ActionMenu label={t({ message: 'Model', context: 'printer' })} appearance="select" disabled={!vendorId}
+          text={model?.model ?? t`Choose a model`}
+          search={{ label: t({ message: 'Search models', context: 'printer' }), noMatch: (text) => t`No model matches “${text}”` }}
           items={models.map((entry) => ({ key: entry.id, label: entry.model, current: entry.id === catalogId,
             onSelect: () => { if (entry.id !== catalogId) chooseModel(entry); } }))} />
       </div>
       {underMenus}
       {model && <div className="printer-form-field">
-        <span className="printer-form-label">Nozzle</span>
+        <span className="printer-form-label"><Trans>Nozzle</Trans></span>
         {model.nozzles.length > 1
-          ? <div className="jp-segmented printer-form-nozzles" role="radiogroup" aria-label="Nozzle">
-              {model.nozzles.map((size) => <button type="button" key={size} role="radio" aria-checked={size === nozzle}
-                className={size === nozzle ? 'jp-segment selected' : 'jp-segment'} onClick={() => onPick({ ...pick, nozzle: size })}>
-                {nozzleUnit ? `${size} mm` : size}</button>)}
+          ? <div className="jp-segmented printer-form-nozzles" role="radiogroup" aria-label={t`Nozzle`}>
+              {model.nozzles.map((value) => {
+                const size = decimalText(value, 0, 2);
+                return <button type="button" key={value} role="radio" aria-checked={value === nozzle}
+                  className={value === nozzle ? 'jp-segment selected' : 'jp-segment'} onClick={() => onPick({ ...pick, nozzle: value })}>
+                  {nozzleUnit ? t`${size} mm` : size}</button>;
+              })}
             </div>
-          : <p className="printer-form-value">{model.nozzles[0]} mm, the only size it comes with</p>}
+          : <p className="printer-form-value"><Trans>{onlySize} mm, the only size it comes with</Trans></p>}
         {nozzleNote}
       </div>}
     </div>
     {form.nearby.length > 0 && <>
       <hr className="printer-form-rule" />
       <div className="printer-form-found">
-        <span className="section-caption">Found on your network</span>
+        <span className="section-caption"><Trans>Found on your network</Trans></span>
         {form.nearby.map((found) => {
           const entry = form.catalog.find((item) => item.id === found.catalogId);
           return <button type="button" key={found.deviceId} className="printer-form-row" aria-pressed={found.deviceId === deviceId}
             onClick={() => { if (entry) chooseModel(entry, found.deviceId); }}>
             <span className="printer-form-row-name">{entry ? `${entry.brand} ${entry.model}` : found.name} · {found.deviceId}</span>
-            <span className="printer-form-online" aria-label="On the network" />
+            <span className="printer-form-online" aria-label={t`On the network`} />
           </button>;
         })}
-        <p className="printer-form-note printer-form-center">You can connect it later.</p>
+        <p className="printer-form-note printer-form-center"><Trans>You can connect it later.</Trans></p>
       </div>
     </>}
   </>;

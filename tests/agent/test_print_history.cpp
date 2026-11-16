@@ -302,7 +302,7 @@ TEST_CASE("the server's answer to a report", "[print-history]")
     CHECK(print_report_answer(500, "").update_message.empty());
     const PrintReportAnswer outdated = print_report_answer(426, refused("update_required"));
     CHECK(outdated.state == State::Failed);
-    CHECK(outdated.update_message == "x");
+    CHECK_THAT(outdated.update_message, Catch::Matchers::ContainsSubstring("can no longer connect to JusPrin accounts"));
     CHECK(print_report_answer(400, refused("photo_unreadable")).state == State::Failed);
     CHECK(print_report_answer(413, refused("request_too_large")).state == State::Failed);
     CHECK(print_report_answer(0, "").state == State::Failed);

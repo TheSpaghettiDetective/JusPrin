@@ -1,0 +1,4784 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-11-14 21:25-0800\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: uk\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
+
+# AI Translated
+#. A photo's attribution: the title, author, link and licence are the photo's own
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "“{firstTitle}” by {author}, {firstSource}, {license}. Cropped."
+msgstr "«{firstTitle}», автор: {author}, {firstSource}, {license}. Обрізано."
+
+# AI Translated
+#. A photo's attribution: the title, author, link and licence are the photo's own
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "“{secondTitle}” by {author}, {secondSource}, {license}. Cropped and resized."
+msgstr "«{secondTitle}», автор: {author}, {secondSource}, {license}. Обрізано й змінено розмір."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "“Found” means JusPrin found the app or its settings file here, not that the app is signed in. You can connect one that wasn’t found."
+msgstr "«Знайдено» означає, що JusPrin знайшов тут програму або її файл налаштувань, а не те, що в програмі виконано вхід. Можна підключити й ту, яку не знайдено."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "“Open in slicer” buttons on model sites"
+msgstr "Кнопки «Відкрити в слайсері» на сайтах моделей"
+
+# AI Translated
+#: src/components/MarkdownMessage.tsx
+msgid "[Image: {description}]"
+msgstr "[Зображення: {description}]"
+
+# AI Translated
+#: src/components/MarkdownMessage.tsx
+msgid "[Image: description unavailable]"
+msgstr "[Зображення: опис недоступний]"
+
+# AI Translated
+#. placeholder {0}: otherShown.length
+#: src/components/AddPrinterForm.tsx
+msgid "{0, plural, =1 {One filament made for other printers does.} other {# filaments made for other printers do.}}"
+msgstr "{0, plural, =1 {Підходить один філамент, створений для інших принтерів.} one {Підходить # філамент, створений для інших принтерів.} few {Підходять # філаменти, створені для інших принтерів.} many {Підходять # філаментів, створених для інших принтерів.} other {Підходить # філаменту, створеного для інших принтерів.}}"
+
+# AI Translated
+#. placeholder {0}: otherShown.length
+#: src/components/AddPrinterForm.tsx
+msgid "{0, plural, =1 {Show it} other {Show them}}"
+msgstr "{0, plural, =1 {Показати його} one {Показати їх} few {Показати їх} many {Показати їх} other {Показати їх}}"
+
+# AI Translated
+#. placeholder {0}: fitting.length - RESULT_LIMIT
+#: src/components/AddPrinterForm.tsx
+msgid "{0, plural, one {# more match. Type more to narrow the list.} other {# more match. Type more to narrow the list.}}"
+msgstr "{0, plural, one {Ще # збіг. Уведіть більше, щоб звузити список.} few {Ще # збіги. Уведіть більше, щоб звузити список.} many {Ще # збігів. Уведіть більше, щоб звузити список.} other {Ще # збігу. Уведіть більше, щоб звузити список.}}"
+
+# AI Translated
+#. placeholder {0}: others.length
+#: src/components/AddPrinterForm.tsx
+msgid "{0, plural, one {# more. Picking one saves a copy for the {modelName}.} other {# more. Picking one saves a copy for the {modelName}.}}"
+msgstr "{0, plural, one {Ще #. Якщо вибрати один, для {modelName} буде збережено копію.} few {Ще #. Якщо вибрати один, для {modelName} буде збережено копію.} many {Ще #. Якщо вибрати один, для {modelName} буде збережено копію.} other {Ще #. Якщо вибрати один, для {modelName} буде збережено копію.}}"
+
+# AI Translated
+#. placeholder {0}: otherShown.length
+#: src/components/AddPrinterForm.tsx
+msgid "{0, plural, one {# of them match your search. Picking one saves a copy for the {modelName}.} other {# of them match your search. Picking one saves a copy for the {modelName}.}}"
+msgstr "{0, plural, one {# з них відповідає вашому пошуку. Якщо вибрати один, для {modelName} буде збережено копію.} few {# з них відповідають вашому пошуку. Якщо вибрати один, для {modelName} буде збережено копію.} many {# з них відповідають вашому пошуку. Якщо вибрати один, для {modelName} буде збережено копію.} other {# з них відповідає вашому пошуку. Якщо вибрати один, для {modelName} буде збережено копію.}}"
+
+# AI Translated
+#. placeholder {0}: found.length
+#: src/components/Guide.tsx
+msgid "{0, plural, one {Found in # section} other {Found in # sections}}"
+msgstr "{0, plural, one {Знайдено в # розділі} few {Знайдено в # розділах} many {Знайдено в # розділах} other {Знайдено в # розділах}}"
+
+# AI Translated
+#. placeholder {0}: chosen.length
+#: src/components/OrcaImport.tsx
+msgid "{0, plural, one {Import # printer} other {Import # printers}}"
+msgstr "{0, plural, one {Імпортувати # принтер} few {Імпортувати # принтери} many {Імпортувати # принтерів} other {Імпортувати # принтера}}"
+
+# AI Translated
+#. placeholder {0}: others.length
+#: src/components/AddPrinterForm.tsx
+msgid "{0, plural, one {None of the # match your search either.} other {None of the # match your search either.}}"
+msgstr "{0, plural, one {Жоден із цих # теж не відповідає вашому пошуку.} few {Жоден із цих # теж не відповідає вашому пошуку.} many {Жоден із цих # теж не відповідає вашому пошуку.} other {Жоден із цих # теж не відповідає вашому пошуку.}}"
+
+# AI Translated
+#. placeholder {0}: printers.length
+#: src/components/OrcaImport.tsx
+msgid "{0, plural, one {The # imported printers are now in the printer menu at the top of the window.} other {The # imported printers are now in the printer menu at the top of the window.}}"
+msgstr "{0, plural, one {# імпортований принтер тепер у меню принтерів угорі вікна.} few {# імпортовані принтери тепер у меню принтерів угорі вікна.} many {# імпортованих принтерів тепер у меню принтерів угорі вікна.} other {# імпортованого принтера тепер у меню принтерів угорі вікна.}}"
+
+# AI Translated
+#. placeholder {0}: signup.granted
+#: src/credits.ts
+msgid "{0, plural, one {You got {granted} free credit for signing up, good until {until}.} other {You got {granted} free credits for signing up, good until {until}.}}"
+msgstr "{0, plural, one {За реєстрацію ви отримали {granted} безкоштовний кредит, дійсний до {until}.} few {За реєстрацію ви отримали {granted} безкоштовні кредити, дійсні до {until}.} many {За реєстрацію ви отримали {granted} безкоштовних кредитів, дійсних до {until}.} other {За реєстрацію ви отримали {granted} безкоштовного кредиту, дійсного до {until}.}}"
+
+# AI Translated
+#: src/credits.ts
+msgid "{about, plural, one {About # credit left} other {About # credits left}}"
+msgstr "{about, plural, one {Залишився приблизно # кредит} few {Залишилося приблизно # кредити} many {Залишилося приблизно # кредитів} other {Залишилося приблизно # кредиту}}"
+
+# AI Translated
+#. Grams of filament
+#: src/components/SetupCard.tsx
+msgid "{amount} g"
+msgstr "{amount} г"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{app} keeps its own copy."
+msgstr "{app} зберігає власну копію."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{app} keeps these in {path}"
+msgstr "{app} зберігає їх у {path}"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "{app} keeps these in {source}"
+msgstr "{app} зберігає їх у {source}"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{app} printers"
+msgstr "Принтери {app}"
+
+# AI Translated
+#: src/components/AttachmentChip.tsx
+msgid "{bytes} B"
+msgstr "{bytes} Б"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "{changed, plural, one {# setting differs from the presets.} other {# settings differ from the presets.}}"
+msgstr "{changed, plural, one {# налаштування відрізняється від пресетів.} few {# налаштування відрізняються від пресетів.} many {# налаштувань відрізняються від пресетів.} other {# налаштування відрізняється від пресетів.}}"
+
+# AI Translated
+#: src/credits.ts
+msgid "{cost, plural, one {{n} credit a message} other {{n} credits a message}}"
+msgstr "{cost, plural, one {{n} кредит за повідомлення} few {{n} кредити за повідомлення} many {{n} кредитів за повідомлення} other {{n} кредиту за повідомлення}}"
+
+# AI Translated
+#: src/credits.ts
+msgid "{cost, plural, one {Each message you send in this chat costs {n} credit.} other {Each message you send in this chat costs {n} credits.}}"
+msgstr "{cost, plural, one {Кожне повідомлення, яке ви надсилаєте в цьому чаті, коштує {n} кредит.} few {Кожне повідомлення, яке ви надсилаєте в цьому чаті, коштує {n} кредити.} many {Кожне повідомлення, яке ви надсилаєте в цьому чаті, коштує {n} кредитів.} other {Кожне повідомлення, яке ви надсилаєте в цьому чаті, коштує {n} кредиту.}}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{count, plural, one {{count} G-code} other {{count} G-codes}}"
+msgstr "{count, plural, one {{count} файл G-code} few {{count} файли G-code} many {{count} файлів G-code} other {{count} файлу G-code}}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{count, plural, one {{count} print} other {{count} prints}}"
+msgstr "{count, plural, one {{count} друк} few {{count} друки} many {{count} друків} other {{count} друку}}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{count, plural, one {{count} printing now} other {{count} printing now}}"
+msgstr "{count, plural, one {{count} друкується зараз} few {{count} друкуються зараз} many {{count} друкуються зараз} other {{count} друкується зараз}}"
+
+# AI Translated
+#: src/credits.ts
+msgid "{count, plural, one {{n} credit left} other {{n} credits left}}"
+msgstr "{count, plural, one {Залишився {n} кредит} few {Залишилося {n} кредити} many {Залишилося {n} кредитів} other {Залишилося {n} кредиту}}"
+
+# AI Translated
+#: src/credits.ts
+msgid "{count, plural, one {{n} credit} other {{n} credits}}"
+msgstr "{count, plural, one {{n} кредит} few {{n} кредити} many {{n} кредитів} other {{n} кредиту}}"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "{count, plural, one {# action} other {# actions}}"
+msgstr "{count, plural, one {# дія} few {# дії} many {# дій} other {# дії}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{count, plural, one {# changed} other {# changed}}"
+msgstr "{count, plural, one {# змінене} few {# змінені} many {# змінених} other {# зміненого}}"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "{count, plural, one {# model} other {# models}}"
+msgstr "{count, plural, one {# модель} few {# моделі} many {# моделей} other {# моделі}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{count, plural, one {# own setting} other {# own settings}}"
+msgstr "{count, plural, one {# власне налаштування} few {# власні налаштування} many {# власних налаштувань} other {# власного налаштування}}"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{count, plural, one {# setting} other {# settings}}"
+msgstr "{count, plural, one {# налаштування} few {# налаштування} many {# налаштувань} other {# налаштування}}"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "{count, plural, one {+{n} credit} other {+{n} credits}}"
+msgstr "{count, plural, one {+{n} кредит} few {+{n} кредити} many {+{n} кредитів} other {+{n} кредиту}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{count, plural, one {Negative part} other {Negative parts}}"
+msgstr "{count, plural, one {Обʼєм для віднімання} few {Обʼєми для віднімання} many {Обʼєми для віднімання} other {Обʼєми для віднімання}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{count, plural, one {Part} other {Parts}}"
+msgstr "{count, plural, one {Частина} few {Частини} many {Частини} other {Частини}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{count, plural, one {Support blocker} other {Support blockers}}"
+msgstr "{count, plural, one {Блокувальник підтримки} few {Блокувальники підтримки} many {Блокувальники підтримки} other {Блокувальники підтримки}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{count, plural, one {Support enforcer} other {Support enforcers}}"
+msgstr "{count, plural, one {Примусова підтримка} few {Примусові підтримки} many {Примусові підтримки} other {Примусові підтримки}}"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "{count, plural, one {Worked for {elapsed} · # action} other {Worked for {elapsed} · # actions}}"
+msgstr "{count, plural, one {Працював {elapsed} · # дія} few {Працював {elapsed} · # дії} many {Працював {elapsed} · # дій} other {Працював {elapsed} · # дії}}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{credits, plural, one {{credits} credit added} other {{credits} credits added}}"
+msgstr "{credits, plural, one {Додано {credits} кредит} few {Додано {credits} кредити} many {Додано {credits} кредитів} other {Додано {credits} кредиту}}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "{credits, plural, one {To send this and get {credits} credit, add a photo of the printed object, write what happened, and pick how it came out.} other {To send this and get {credits} credits, add a photo of the printed object, write what happened, and pick how it came out.}}"
+msgstr "{credits, plural, one {Щоб надіслати звіт і отримати {credits} кредит, додайте фото надрукованого обʼєкта, опишіть, що сталося, і виберіть, яким вийшов результат.} few {Щоб надіслати звіт і отримати {credits} кредити, додайте фото надрукованого обʼєкта, опишіть, що сталося, і виберіть, яким вийшов результат.} many {Щоб надіслати звіт і отримати {credits} кредитів, додайте фото надрукованого обʼєкта, опишіть, що сталося, і виберіть, яким вийшов результат.} other {Щоб надіслати звіт і отримати {credits} кредиту, додайте фото надрукованого обʼєкта, опишіть, що сталося, і виберіть, яким вийшов результат.}}"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+#: src/components/Preferences.tsx
+msgid "{days, plural, one {# day ago} other {# days ago}}"
+msgstr "{days, plural, one {# день тому} few {# дні тому} many {# днів тому} other {# дня тому}}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "{days, plural, one {Last connected {days} day ago} other {Last connected {days} days ago}}"
+msgstr "{days, plural, one {Останнє підключення: {days} день тому} few {Останнє підключення: {days} дні тому} many {Останнє підключення: {days} днів тому} other {Останнє підключення: {days} дня тому}}"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "{defaultLabel}, until your preset is saved"
+msgstr "{defaultLabel}, доки ваш пресет не збережено"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{exports, plural, =1 {Exported once, never sent to a printer} one {Exported {exports} times, never sent to a printer} other {Exported {exports} times, never sent to a printer}}"
+msgstr "{exports, plural, =1 {Експортовано один раз, на принтер не надсилалося} one {Експортовано {exports} раз, на принтер не надсилалося} few {Експортовано {exports} рази, на принтер не надсилалося} many {Експортовано {exports} разів, на принтер не надсилалося} other {Експортовано {exports} разу, на принтер не надсилалося}}"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "{failed, plural, one {# failed} other {# failed}}"
+msgstr "{failed, plural, one {# не вдалася} few {# не вдалися} many {# не вдалися} other {# не вдалася}}"
+
+# AI Translated
+#: src/App.tsx
+msgid "{filament} settings"
+msgstr "Налаштування {filament}"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{filaments, plural, one {# filament wasn’t imported. It stays in {app}.} other {# filaments weren’t imported. They stay in {app}.}}"
+msgstr "{filaments, plural, one {# філамент не імпортовано. Він залишається в {app}.} few {# філаменти не імпортовано. Вони залишаються в {app}.} many {# філаментів не імпортовано. Вони залишаються в {app}.} other {# філаменту не імпортовано. Вони залишаються в {app}.}}"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{filaments, plural, one {# filament} other {# filaments}} and {settings, plural, one {# print setting} other {# print settings}} weren’t imported. They stay in {app}."
+msgstr "{filaments, plural, one {# філамент} few {# філаменти} many {# філаментів} other {# філаменту}} і {settings, plural, one {# пресет друку} few {# пресети друку} many {# пресетів друку} other {# пресету друку}} не імпортовано. Вони залишаються в {app}."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "{filaments, plural, one {Also brings {filaments} filament.} other {Also brings {filaments} filaments.}}"
+msgstr "{filaments, plural, one {Також переносить {filaments} філамент.} few {Також переносить {filaments} філаменти.} many {Також переносить {filaments} філаментів.} other {Також переносить {filaments} філаменту.}}"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{filaments, plural, one {Also imported: # filament ({filamentList}).} other {Also imported: # filaments ({filamentList}).}}"
+msgstr "{filaments, plural, one {Також імпортовано: # філамент ({filamentList}).} few {Також імпортовано: # філаменти ({filamentList}).} many {Також імпортовано: # філаментів ({filamentList}).} other {Також імпортовано: # філаменту ({filamentList}).}}"
+
+# AI Translated
+#: src/components/GcodeMarker.tsx
+msgid "{fileName} · exported"
+msgstr "{fileName} · експортовано"
+
+# AI Translated
+#. The file formats Home opens: STL, 3MF, STEP, OBJ, AMF, SVG or ZIP.
+#: ../HomeUI/src/App.tsx
+msgid "{formats} or {lastFormat}."
+msgstr "{formats} або {lastFormat}."
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{gcodes, plural, one {{gcodes} G-code, never sent to a printer} other {{gcodes} G-codes, never sent to a printer}}"
+msgstr "{gcodes, plural, one {{gcodes} файл G-code, не надсилався на принтер} few {{gcodes} файли G-code, не надсилалися на принтер} many {{gcodes} файлів G-code, не надсилалися на принтер} other {{gcodes} файлу G-code, не надсилалися на принтер}}"
+
+# AI Translated
+#. Grams of filament
+#: ../HomeUI/src/history.ts
+msgid "{grams} g"
+msgstr "{grams} г"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "{hours, plural, one {# hour ago} other {# hours ago}}"
+msgstr "{hours, plural, one {# годину тому} few {# години тому} many {# годин тому} other {# години тому}}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "{hours, plural, one {Last connected {hours}h ago} other {Last connected {hours}h ago}}"
+msgstr "{hours, plural, one {Останнє підключення: {hours} год тому} few {Останнє підключення: {hours} год тому} many {Останнє підключення: {hours} год тому} other {Останнє підключення: {hours} год тому}}"
+
+# AI Translated
+#. A duration in hours and minutes, abbreviated: 2h 04m
+#: ../HomeUI/src/history.ts
+msgid "{hours}h {mins}m"
+msgstr "{hours} год {mins} хв"
+
+# AI Translated
+#. Time left in a print, hours and minutes abbreviated: 2h 14m left
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "{hours}h {mins}m left"
+msgstr "Залишилося {hours} год {mins} хв"
+
+# AI Translated
+#. {job} is the file printing
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "{job}, {percent} percent"
+msgstr "{job}, {percent} %"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+#: src/components/AttachmentChip.tsx
+msgid "{kilobytes} KB"
+msgstr "{kilobytes} КБ"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{label} {from} → <0>{to}</0>"
+msgstr "{label} {from} → <0>{to}</0>"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "{label}: {text}"
+msgstr "{label}: {text}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{layers, plural, one {{layers} layer} other {{layers} layers}}"
+msgstr "{layers, plural, one {{layers} шар} few {{layers} шари} many {{layers} шарів} other {{layers} шару}}"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+#: src/components/Preferences.tsx
+msgid "{left} of {of} left"
+msgstr "Залишилося {left} з {of}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{list} and {name}"
+msgstr "{list} і {name}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+#: src/components/AttachmentChip.tsx
+msgid "{megabytes} MB"
+msgstr "{megabytes} МБ"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "{minimum, plural, one {Write at least {minimum} character ({length} so far).} other {Write at least {minimum} characters ({length} so far).}}"
+msgstr "{minimum, plural, one {Напишіть щонайменше {minimum} символ (поки що {length}).} few {Напишіть щонайменше {minimum} символи (поки що {length}).} many {Напишіть щонайменше {minimum} символів (поки що {length}).} other {Напишіть щонайменше {minimum} символу (поки що {length}).}}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "{minutes, plural, one {# minute ago} other {# minutes ago}}"
+msgstr "{minutes, plural, one {# хвилину тому} few {# хвилини тому} many {# хвилин тому} other {# хвилини тому}}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "{minutes, plural, one {Last connected {minutes} min ago} other {Last connected {minutes} min ago}}"
+msgstr "{minutes, plural, one {Останнє підключення: {minutes} хв тому} few {Останнє підключення: {minutes} хв тому} many {Останнє підключення: {minutes} хв тому} other {Останнє підключення: {minutes} хв тому}}"
+
+# AI Translated
+#. A duration in minutes, abbreviated: 34m
+#: ../HomeUI/src/history.ts
+msgid "{minutes}m"
+msgstr "{minutes} хв"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "{minutes}m {seconds}s"
+msgstr "{minutes} хв {seconds} с"
+
+# AI Translated
+#. Time left in a print, minutes abbreviated: 14m left
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "{minutes}m left"
+msgstr "Залишилося {minutes} хв"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "{more, plural, one {{preset} with {filament} and # other filament.} other {{preset} with {filament} and # other filaments.}}"
+msgstr "{more, plural, one {{preset} з {filament} і ще # філаментом.} few {{preset} з {filament} і ще # філаментами.} many {{preset} з {filament} і ще # філаментами.} other {{preset} з {filament} і ще # філаменту.}}"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "{more, plural, one {Made for the {first}, {second} and # other printer. Picking it saves a copy for the {modelName}.} other {Made for the {first}, {second} and # other printers. Picking it saves a copy for the {modelName}.}}"
+msgstr "{more, plural, one {Створено для {first}, {second} і ще # принтера. Якщо вибрати його, для {modelName} буде збережено копію.} few {Створено для {first}, {second} і ще # принтерів. Якщо вибрати його, для {modelName} буде збережено копію.} many {Створено для {first}, {second} і ще # принтерів. Якщо вибрати його, для {modelName} буде збережено копію.} other {Створено для {first}, {second} і ще # принтера. Якщо вибрати його, для {modelName} буде збережено копію.}}"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "{more, plural, one {Opened {name} and # more as a new project} other {Opened {name} and # more as a new project}}"
+msgstr "{more, plural, one {Відкрито {name} і ще # як новий проєкт} few {Відкрито {name} і ще # як новий проєкт} many {Відкрито {name} і ще # як новий проєкт} other {Відкрито {name} і ще # як новий проєкт}}"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "{more, plural, one {Opened {name} and # more} other {Opened {name} and # more}}"
+msgstr "{more, plural, one {Відкрито {name} і ще #} few {Відкрито {name} і ще #} many {Відкрито {name} і ще #} other {Відкрито {name} і ще #}}"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "{more, plural, one {Opened a file and # more as a new project} other {Opened a file and # more as a new project}}"
+msgstr "{more, plural, one {Відкрито файл і ще # як новий проєкт} few {Відкрито файл і ще # як новий проєкт} many {Відкрито файл і ще # як новий проєкт} other {Відкрито файл і ще # як новий проєкт}}"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "{more, plural, one {Opened a file and # more} other {Opened a file and # more}}"
+msgstr "{more, plural, one {Відкрито файл і ще #} few {Відкрито файл і ще #} many {Відкрито файл і ще #} other {Відкрито файл і ще #}}"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "{more, plural, one {Your preset, made for the {first}, {second} and # other printer. Picking it saves a copy for the {modelName}.} other {Your preset, made for the {first}, {second} and # other printers. Picking it saves a copy for the {modelName}.}}"
+msgstr "{more, plural, one {Ваш пресет, створений для {first}, {second} і ще # принтера. Якщо вибрати його, для {modelName} буде збережено копію.} few {Ваш пресет, створений для {first}, {second} і ще # принтерів. Якщо вибрати його, для {modelName} буде збережено копію.} many {Ваш пресет, створений для {first}, {second} і ще # принтерів. Якщо вибрати його, для {modelName} буде збережено копію.} other {Ваш пресет, створений для {first}, {second} і ще # принтера. Якщо вибрати його, для {modelName} буде збережено копію.}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{morePlate, plural, one {Bed type set on this plate · # more plate setting} other {Bed type set on this plate · # more plate settings}}"
+msgstr "{morePlate, plural, one {Тип столу задано на цій пластині · ще # налаштування пластини} few {Тип столу задано на цій пластині · ще # налаштування пластини} many {Тип столу задано на цій пластині · ще # налаштувань пластини} other {Тип столу задано на цій пластині · ще # налаштування пластини}}"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "{name} API key"
+msgstr "Ключ API {name}"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "{name} can see this project"
+msgstr "{name} бачить цей проєкт"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{name} has settings of its own."
+msgstr "{name} має власні налаштування."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{name} is now in the printer menu at the top of the window."
+msgstr "{name} тепер у меню принтерів угорі вікна."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "{name} isn’t installed."
+msgstr "{name} не встановлено."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{name} prints with the project’s settings and sets nothing of its own."
+msgstr "{name} друкується з налаштуваннями проєкту й не задає власних."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "{name} rejected this key. Nothing was saved."
+msgstr "Сервіс {name} відхилив цей ключ. Нічого не збережено."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{name} uses the project’s settings and sets nothing of its own."
+msgstr "{name} використовує налаштування проєкту й не задає власних."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{names} have settings of their own."
+msgstr "{names} мають власні налаштування."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{newPrinters, plural, one {JusPrin found # printer in {app} that it doesn’t have yet.} other {JusPrin found # printers in {app} that it doesn’t have yet.}}"
+msgstr "{newPrinters, plural, one {JusPrin знайшов у {app} # принтер, якого ще не має.} few {JusPrin знайшов у {app} # принтери, яких ще не має.} many {JusPrin знайшов у {app} # принтерів, яких ще не має.} other {JusPrin знайшов у {app} # принтера, яких ще не має.}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{nozzles} mm nozzle"
+msgstr "Сопло {nozzles} мм"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{objectCount, plural, one {# object} other {# objects}}"
+msgstr "{objectCount, plural, one {# обʼєкт} few {# обʼєкти} many {# обʼєктів} other {# обʼєкта}}"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "{onlySize} mm, the only size it comes with"
+msgstr "{onlySize} мм, єдиний доступний розмір"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{own, plural, one {{name} sets # setting of its own; the rest is the project’s.} other {{name} sets # settings of its own; the rest is the project’s.}}"
+msgstr "{own, plural, one {{name} задає # власне налаштування; решта — з проєкту.} few {{name} задає # власні налаштування; решта — з проєкту.} many {{name} задає # власних налаштувань; решта — з проєкту.} other {{name} задає # власного налаштування; решта — з проєкту.}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{own, plural, one {{name} uses the project’s settings, except for # setting of its own.} other {{name} uses the project’s settings, except for # settings of its own.}}"
+msgstr "{own, plural, one {{name} використовує налаштування проєкту, крім # власного налаштування.} few {{name} використовує налаштування проєкту, крім # власних налаштувань.} many {{name} використовує налаштування проєкту, крім # власних налаштувань.} other {{name} використовує налаштування проєкту, крім # власного налаштування.}}"
+
+# AI Translated
+# Needs human review: {plan} is a plan's name or amount; check the label reads right next to the balance.
+#: src/components/BalancePanel.tsx
+msgid "{plan} credits"
+msgstr "Кредити {plan}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{plateOwn, plural, one {# setting set on this plate} other {# settings set on this plate}}"
+msgstr "{plateOwn, plural, one {# налаштування задано на цій пластині} few {# налаштування задано на цій пластині} many {# налаштувань задано на цій пластині} other {# налаштування задано на цій пластині}}"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "{preset} with {filament}."
+msgstr "{preset} з {filament}."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "{printer}, {size} mm nozzle"
+msgstr "{printer}, сопло {size} мм"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "{printerName} settings"
+msgstr "Налаштування {printerName}"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{printers, plural, one {# printer wasn’t imported. It stays in {app}.} other {# printers weren’t imported. They stay in {app}.}}"
+msgstr "{printers, plural, one {# принтер не імпортовано. Він залишається в {app}.} few {# принтери не імпортовано. Вони залишаються в {app}.} many {# принтерів не імпортовано. Вони залишаються в {app}.} other {# принтера не імпортовано. Вони залишаються в {app}.}}"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{printers, plural, one {# printer} other {# printers}} and {filaments, plural, one {# filament} other {# filaments}} weren’t imported. They stay in {app}."
+msgstr "{printers, plural, one {# принтер} few {# принтери} many {# принтерів} other {# принтера}} і {filaments, plural, one {# філамент} few {# філаменти} many {# філаментів} other {# філаменту}} не імпортовано. Вони залишаються в {app}."
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{printers, plural, one {# printer} other {# printers}} and {settings, plural, one {# print setting} other {# print settings}} weren’t imported. They stay in {app}."
+msgstr "{printers, plural, one {# принтер} few {# принтери} many {# принтерів} other {# принтера}} і {settings, plural, one {# пресет друку} few {# пресети друку} many {# пресетів друку} other {# пресету друку}} не імпортовано. Вони залишаються в {app}."
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{printers, plural, one {# printer} other {# printers}}, {filaments, plural, one {# filament} other {# filaments}} and {settings, plural, one {# print setting} other {# print settings}} weren’t imported. They stay in {app}."
+msgstr "{printers, plural, one {# принтер} few {# принтери} many {# принтерів} other {# принтера}}, {filaments, plural, one {# філамент} few {# філаменти} many {# філаментів} other {# філаменту}} і {settings, plural, one {# пресет друку} few {# пресети друку} many {# пресетів друку} other {# пресету друку}} не імпортовано. Вони залишаються в {app}."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{processChanges, plural, one {# change from the preset} other {# changes from the preset}}"
+msgstr "{processChanges, plural, one {# зміна відносно пресету} few {# зміни відносно пресету} many {# змін відносно пресету} other {# зміни відносно пресету}}"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "{reason} Nothing was saved."
+msgstr "{reason} Нічого не збережено."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{regions, plural, one {{name} has settings of its own in # region: {names}.} other {{name} has settings of its own in # regions: {names}.}}"
+msgstr "{regions, plural, one {{name} має власні налаштування в # області: {names}.} few {{name} має власні налаштування в # областях: {names}.} many {{name} має власні налаштування в # областях: {names}.} other {{name} має власні налаштування в # області: {names}.}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{regions, plural, one {{name} uses the project’s settings, except in # region: {names}.} other {{name} uses the project’s settings, except in # regions: {names}.}}"
+msgstr "{regions, plural, one {{name} використовує налаштування проєкту, крім # області: {names}.} few {{name} використовує налаштування проєкту, крім # областей: {names}.} many {{name} використовує налаштування проєкту, крім # областей: {names}.} other {{name} використовує налаштування проєкту, крім # області: {names}.}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{regions, plural, one {{names} · # region} other {{names} · # regions}}"
+msgstr "{regions, plural, one {{names} · # область} few {{names} · # області} many {{names} · # областей} other {{names} · # області}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{regions, plural, one {{where} · # region · project: {projectValue}} other {{where} · # regions · project: {projectValue}}}"
+msgstr "{regions, plural, one {{where} · # область · проєкт: {projectValue}} few {{where} · # області · проєкт: {projectValue}} many {{where} · # областей · проєкт: {projectValue}} other {{where} · # області · проєкт: {projectValue}}}"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{remaining, plural, one {See the other # →} other {See the other # →}}"
+msgstr "{remaining, plural, one {Переглянути ще # →} few {Переглянути ще # →} many {Переглянути ще # →} other {Переглянути ще # →}}"
+
+# AI Translated
+#. {remaining} is a duration, 2h 34m
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "{remaining} left"
+msgstr "Залишилося {remaining}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{reportCredits, plural, one {Share how it printed and get {reportCredits} credit} other {Share how it printed and get {reportCredits} credits}}"
+msgstr "{reportCredits, plural, one {Розкажіть, як надрукувалося, і отримайте {reportCredits} кредит} few {Розкажіть, як надрукувалося, і отримайте {reportCredits} кредити} many {Розкажіть, як надрукувалося, і отримайте {reportCredits} кредитів} other {Розкажіть, як надрукувалося, і отримайте {reportCredits} кредиту}}"
+
+# AI Translated
+#. A duration in seconds, abbreviated: 45s
+#: ../HomeUI/src/history.ts
+msgid "{secs}s"
+msgstr "{secs} с"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{sends, plural, =1 {Sent once} one {Sent {sends} times} other {Sent {sends} times}}"
+msgstr "{sends, plural, =1 {Надіслано один раз} one {Надіслано {sends} раз} few {Надіслано {sends} рази} many {Надіслано {sends} разів} other {Надіслано {sends} разу}}"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{settings, plural, one {# print setting wasn’t imported. It stays in {app}.} other {# print settings weren’t imported. They stay in {app}.}}"
+msgstr "{settings, plural, one {# пресет друку не імпортовано. Він залишається в {app}.} few {# пресети друку не імпортовано. Вони залишаються в {app}.} many {# пресетів друку не імпортовано. Вони залишаються в {app}.} other {# пресету друку не імпортовано. Вони залишаються в {app}.}}"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "{settings, plural, one {Also brings {settings} print setting.} other {Also brings {settings} print settings.}}"
+msgstr "{settings, plural, one {Також переносить {settings} пресет друку.} few {Також переносить {settings} пресети друку.} many {Також переносить {settings} пресетів друку.} other {Також переносить {settings} пресету друку.}}"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{settings, plural, one {Also imported: # print setting ({settingList}).} other {Also imported: # print settings ({settingList}).}}"
+msgstr "{settings, plural, one {Також імпортовано: # пресет друку ({settingList}).} few {Також імпортовано: # пресети друку ({settingList}).} many {Також імпортовано: # пресетів друку ({settingList}).} other {Також імпортовано: # пресету друку ({settingList}).}}"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{shown, plural, one {# setting} other {# settings}}"
+msgstr "{shown, plural, one {# налаштування} few {# налаштування} many {# налаштувань} other {# налаштування}}"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "{size} mm"
+msgstr "{size} мм"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "{size} mm nozzle"
+msgstr "Сопло {size} мм"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{skipped, plural, =1 {There is nothing to import. JusPrin already has everything in this {app} folder except the item with the warning sign, which it can’t import.} other {There is nothing to import. JusPrin already has everything in this {app} folder except the # items with the warning sign, which it can’t import.}}"
+msgstr "{skipped, plural, =1 {Імпортувати нічого. JusPrin уже має все з цієї теки {app}, крім елемента з попереджувальним знаком, який неможливо імпортувати.} one {Імпортувати нічого. JusPrin уже має все з цієї теки {app}, крім # елемента з попереджувальним знаком, який неможливо імпортувати.} few {Імпортувати нічого. JusPrin уже має все з цієї теки {app}, крім # елементів з попереджувальним знаком, які неможливо імпортувати.} many {Імпортувати нічого. JusPrin уже має все з цієї теки {app}, крім # елементів з попереджувальним знаком, які неможливо імпортувати.} other {Імпортувати нічого. JusPrin уже має все з цієї теки {app}, крім # елемента з попереджувальним знаком, який неможливо імпортувати.}}"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{skipped, plural, =1 {When you import, JusPrin copies it and skips the item with the warning sign.} other {When you import, JusPrin copies it and skips the # items with the warning sign.}}"
+msgstr "{skipped, plural, =1 {Під час імпорту JusPrin скопіює його й пропустить елемент із попереджувальним знаком.} one {Під час імпорту JusPrin скопіює його й пропустить # елемент із попереджувальним знаком.} few {Під час імпорту JusPrin скопіює його й пропустить # елементи з попереджувальним знаком.} many {Під час імпорту JusPrin скопіює його й пропустить # елементів з попереджувальним знаком.} other {Під час імпорту JusPrin скопіює його й пропустить # елемента з попереджувальним знаком.}}"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{skipped, plural, =1 {When you import, JusPrin copies it with its filaments and print settings and skips the item with the warning sign.} other {When you import, JusPrin copies it with its filaments and print settings and skips the # items with the warning sign.}}"
+msgstr "{skipped, plural, =1 {Під час імпорту JusPrin скопіює його разом із філаментами й пресетами друку та пропустить елемент із попереджувальним знаком.} one {Під час імпорту JusPrin скопіює його разом із філаментами й пресетами друку та пропустить # елемент із попереджувальним знаком.} few {Під час імпорту JusPrin скопіює його разом із філаментами й пресетами друку та пропустить # елементи з попереджувальним знаком.} many {Під час імпорту JusPrin скопіює його разом із філаментами й пресетами друку та пропустить # елементів з попереджувальним знаком.} other {Під час імпорту JusPrin скопіює його разом із філаментами й пресетами друку та пропустить # елемента з попереджувальним знаком.}}"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{skipped, plural, =1 {When you import, JusPrin copies them and skips the item with the warning sign.} other {When you import, JusPrin copies them and skips the # items with the warning sign.}}"
+msgstr "{skipped, plural, =1 {Під час імпорту JusPrin скопіює їх і пропустить елемент із попереджувальним знаком.} one {Під час імпорту JusPrin скопіює їх і пропустить # елемент із попереджувальним знаком.} few {Під час імпорту JusPrin скопіює їх і пропустить # елементи з попереджувальним знаком.} many {Під час імпорту JusPrin скопіює їх і пропустить # елементів з попереджувальним знаком.} other {Під час імпорту JusPrin скопіює їх і пропустить # елемента з попереджувальним знаком.}}"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{skipped, plural, =1 {When you import, JusPrin copies them with their filaments and print settings and skips the item with the warning sign.} other {When you import, JusPrin copies them with their filaments and print settings and skips the # items with the warning sign.}}"
+msgstr "{skipped, plural, =1 {Під час імпорту JusPrin скопіює їх разом з їхніми філаментами й пресетами друку та пропустить елемент із попереджувальним знаком.} one {Під час імпорту JusPrin скопіює їх разом з їхніми філаментами й пресетами друку та пропустить # елемент із попереджувальним знаком.} few {Під час імпорту JusPrin скопіює їх разом з їхніми філаментами й пресетами друку та пропустить # елементи з попереджувальним знаком.} many {Під час імпорту JusPrin скопіює їх разом з їхніми філаментами й пресетами друку та пропустить # елементів з попереджувальним знаком.} other {Під час імпорту JusPrin скопіює їх разом з їхніми філаментами й пресетами друку та пропустить # елемента з попереджувальним знаком.}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{slots, plural, one {# slot, side by side} other {# slots, side by side}}"
+msgstr "{slots, plural, one {# слот поруч} few {# слоти поруч} many {# слотів поруч} other {# слота поруч}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{slots, plural, one {# slot} other {# slots}}"
+msgstr "{slots, plural, one {# слот} few {# слоти} many {# слотів} other {# слота}}"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{steps, plural, one {# step merged} other {# steps merged}}"
+msgstr "{steps, plural, one {# крок обʼєднано} few {# кроки обʼєднано} many {# кроків обʼєднано} other {# кроку обʼєднано}}"
+
+# AI Translated
+#: src/components/WorkCard.tsx
+msgid "{times, plural, one {# time} other {# times}}"
+msgstr "{times, plural, one {# раз} few {# рази} many {# разів} other {# разу}}"
+
+# AI Translated
+#: src/components/ToolActivityCard.tsx
+#: src/components/WorkCard.tsx
+msgid "{title} progress"
+msgstr "{title}: прогрес"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{total, plural, one {{shown} of # setting} other {{shown} of # settings}}"
+msgstr "{total, plural, one {{shown} з # налаштування} few {{shown} з # налаштувань} many {{shown} з # налаштувань} other {{shown} з # налаштування}}"
+
+# AI Translated
+#: src/credits.ts
+msgid "{total, plural, one {You have {n} credit; this {tier} chat needs {needed} a message.} other {You have {n} credits; this {tier} chat needs {needed} a message.}}"
+msgstr "{total, plural, one {У вас {n} кредит; цей чат рівня {tier} потребує {needed} за повідомлення.} few {У вас {n} кредити; цей чат рівня {tier} потребує {needed} за повідомлення.} many {У вас {n} кредитів; цей чат рівня {tier} потребує {needed} за повідомлення.} other {У вас {n} кредиту; цей чат рівня {tier} потребує {needed} за повідомлення.}}"
+
+# AI Translated
+#: src/credits.ts
+msgid "{total, plural, one {You have {n} credit.} other {You have {n} credits.}}"
+msgstr "{total, plural, one {У вас {n} кредит.} few {У вас {n} кредити.} many {У вас {n} кредитів.} other {У вас {n} кредиту.}}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "{total} left"
+msgstr "Залишилося {total}"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "{total}s"
+msgstr "{total} с"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "{weeks, plural, one {# week ago} other {# weeks ago}}"
+msgstr "{weeks, plural, one {# тиждень тому} few {# тижні тому} many {# тижнів тому} other {# тижня тому}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{where} · project: {projectValue}"
+msgstr "{where} · проєкт: {projectValue}"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{who}, {location}"
+msgstr "{who}, {location}"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{who}, in {preset}"
+msgstr "{who}, у {preset}"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "+ Add printer"
+msgstr "+ Додати принтер"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "<0>No filament matches “{search}”,</0> for the {modelName} or any other printer JusPrin has profiles for."
+msgstr "<0>Жоден філамент не відповідає «{search}»,</0> ні для {modelName}, ні для іншого принтера, профілі якого має JusPrin."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "<0>Tip:</0> a photo is the fastest way. Use <1>+</1> below, or drop a picture of the printer, its nameplate or the box into this panel."
+msgstr "<0>Порада:</0> фото — найшвидший спосіб. Скористайтеся <1>+</1> нижче або перетягніть у цю панель знімок принтера, його таблички чи коробки."
+
+# AI Translated
+#. A print time, as in ~2h 05m
+#: src/components/SetupCard.tsx
+msgid "~{hours}h {rest}m"
+msgstr "~{hours} год {rest} хв"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "~{minutes} min"
+msgstr "~{minutes} хв"
+
+# AI Translated
+#: src/components/AttachmentChip.tsx
+msgid "3D model"
+msgstr "3D-модель"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "3D model (STL, 3MF, STEP)"
+msgstr "3D-модель (STL, 3MF, STEP)"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "3D view"
+msgstr "3D-вигляд"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "3MF projects"
+msgstr "Проєкти 3MF"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "A chat keeps the model and thinking level it started with. Start a new chat to change them."
+msgstr "Чат зберігає модель і рівень міркування, з якими його почато. Щоб змінити їх, почніть новий чат."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "A chat keeps the model it started with."
+msgstr "Чат зберігає модель, з якою його почато."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "A new name has to differ from the old one by more than capitalization."
+msgstr "Нова назва має відрізнятися від старої не лише регістром літер."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "A printer name can’t contain any of these characters: < > [ ] : / \\ | ? * \""
+msgstr "Назва принтера не може містити жодного з цих символів: < > [ ] : / \\ | ? * \""
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "A saved chat’s setup: the settings that differed from the presets when it was saved."
+msgstr "Налаштування збереженого чату: параметри, що відрізнялися від пресетів на момент збереження."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Access code"
+msgstr "Код доступу"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Account"
+msgstr "Обліковий запис"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Actions"
+msgstr "Дії"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Actions for {printerName}"
+msgstr "Дії для {printerName}"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Add {name} key"
+msgstr "Додати ключ {name}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Add a key above, or sign in under Account, to choose the model new chats start with."
+msgstr "Додайте ключ вище або увійдіть у розділі «Обліковий запис», щоб вибрати модель, з якою починатимуться нові чати."
+
+# AI Translated
+#: src/App.tsx
+msgid "add a note, or just send"
+msgstr "додайте примітку або просто надішліть"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Add a printer"
+msgstr "Додати принтер"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Add key"
+msgstr "Додати ключ"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Add the {modelName} and continue"
+msgstr "Додати {modelName} і продовжити"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Add your printer"
+msgstr "Додайте свій принтер"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Added: <0>{name}</0>"
+msgstr "Додано: <0>{name}</0>"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Advanced / developer details"
+msgstr "Додатково / відомості для розробників"
+
+# AI Translated
+#: src/credits.ts
+msgid "After that, 50 free credits a month. No card needed."
+msgstr "Після цього — 50 безкоштовних кредитів на місяць. Картка не потрібна."
+
+# AI Translated
+#. The name of the AI chat feature, as a panel title
+#. Who opened a file: the AI
+#: ../HomeUI/src/components/AgentGroup.tsx
+#: ../HomeUI/src/components/AgentGroup.tsx
+#: src/components/ChangeRows.tsx
+#: src/components/ChangeRows.tsx
+#: src/components/MessageList.tsx
+#: src/components/Panels.tsx
+msgid "AI"
+msgstr "ШІ"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "AI changes"
+msgstr "Зміни від ШІ"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "AI conversation"
+msgstr "Розмова з ШІ"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "AI fixing a print that came out stringy"
+msgstr "ШІ виправляє друк, що вийшов із павутинням"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "AI is not available"
+msgstr "ШІ недоступний"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "AI is responding…"
+msgstr "ШІ відповідає…"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "AI setting changes"
+msgstr "Зміни налаштувань від ШІ"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "AI settings"
+msgstr "Налаштування ШІ"
+
+# AI Translated
+#: ../HomeUI/src/components/AgentGroup.tsx
+msgid "AI setup won’t show here again. You can set it up later in <0>Preferences</0>, under the gear at the top right."
+msgstr "Налаштування ШІ більше не зʼявлятиметься тут. Ви можете налаштувати його пізніше в <0>Налаштуваннях</0>, під значком шестірні вгорі праворуч."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "AI tool"
+msgstr "Інструмент ШІ"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "AI tool can see this project"
+msgstr "Інструмент ШІ бачить цей проєкт"
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "AI turns what you want — <0>“make it strong, it’ll bear weight”</0> — into the hundreds of settings underneath, and shows you what it changed."
+msgstr "ШІ перетворює те, що ви хочете, — <0>«зроби міцним, він триматиме вагу»</0> — на сотні налаштувань під капотом і показує, що змінив."
+
+# AI Translated
+#. {provider} is the AI company, such as Anthropic or OpenAI
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "AI uses your {provider} key"
+msgstr "ШІ використовує ваш ключ {provider}"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "AI working"
+msgstr "ШІ працює"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "All"
+msgstr "Усі"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "all projects, all printers"
+msgstr "усі проєкти, усі принтери"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/SetupCard.tsx
+msgid "All settings"
+msgstr "Усі налаштування"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Allow this AI tool to read and change the open project?"
+msgstr "Дозволити цьому інструменту ШІ читати й змінювати відкритий проєкт?"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Already have an account?"
+msgstr "Уже маєте обліковий запис?"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "Already in JusPrin"
+msgstr "Уже в JusPrin"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Also .stp and .drc files."
+msgstr "Також файли .stp і .drc."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Also brings {filaments, plural, one {{filaments} filament} other {{filaments} filaments}} and {settings, plural, one {{settings} print setting} other {{settings} print settings}}."
+msgstr "Також переносить {filaments, plural, one {{filaments} філамент} few {{filaments} філаменти} many {{filaments} філаментів} other {{filaments} філаменту}} і {settings, plural, one {{settings} пресет друку} few {{settings} пресети друку} many {{settings} пресетів друку} other {{settings} пресету друку}}."
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "Also imported: {filaments, plural, one {# filament} other {# filaments}} ({filamentList}) and {settings, plural, one {# print setting} other {# print settings}} ({settingList})."
+msgstr "Також імпортовано: {filaments, plural, one {# філамент} few {# філаменти} many {# філаментів} other {# філаменту}} ({filamentList}) і {settings, plural, one {# пресет друку} few {# пресети друку} many {# пресетів друку} other {# пресету друку}} ({settingList})."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Another printer is already named “{trimmed}”."
+msgstr "Інший принтер уже має назву «{trimmed}»."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Any plan ends, and the credits on {email} are removed with everything JusPrin keeps for this account. This can’t be undone."
+msgstr "Будь-який план буде завершено, а кредити на {email} — видалено разом з усім, що JusPrin зберігає для цього облікового запису. Цю дію неможливо скасувати."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Any plan ends, and the credits on this account are removed with everything JusPrin keeps for this account. This can’t be undone."
+msgstr "Будь-який план буде завершено, а кредити цього облікового запису — видалено разом з усім, що JusPrin зберігає для нього. Цю дію неможливо скасувати."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "API key"
+msgstr "Ключ API"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Appearance"
+msgstr "Вигляд"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Arguments"
+msgstr "Аргументи"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Arrange plate"
+msgstr "Впорядкувати пластину"
+
+# AI Translated
+#: src/App.tsx
+msgid "Ask about this filament or request a change…"
+msgstr "Запитайте про цей філамент або попросіть щось змінити…"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Ask about this print or request a change…"
+msgstr "Запитайте про цей друк або попросіть щось змінити…"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Ask AI about printer settings…"
+msgstr "Запитати ШІ про налаштування принтера…"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Ask anything about connecting it"
+msgstr "Запитайте що завгодно про його підключення"
+
+# AI Translated
+#: src/App.tsx
+msgid "Ask current chat about this"
+msgstr "Запитати про це в поточному чаті"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Ask it about the open project."
+msgstr "Запитуйте його про відкритий проєкт."
+
+# AI Translated
+#: src/App.tsx
+msgid "ask, or steer this chat…"
+msgstr "запитайте або скеруйте цей чат…"
+
+# AI Translated
+#. How far a paused print got: at 27%
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "at {rounded}%"
+msgstr "на {rounded}%"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Attach a file"
+msgstr "Вкласти файл"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Automatic checks are off."
+msgstr "Автоматичні перевірки вимкнено."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+#: ../HomeUI/src/components/Onboarding.tsx
+#: ../HomeUI/src/components/PrintHistory.tsx
+#: src/components/AddPrinterForm.tsx
+msgctxt "navigation"
+msgid "Back"
+msgstr "Назад"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Back to chat"
+msgstr "Назад до чату"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+#: src/components/ChatNavigation.tsx
+msgid "Back to chats"
+msgstr "Назад до чатів"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Back to Home"
+msgstr "Назад на головну"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+#: src/components/SetupLocalTool.tsx
+msgid "Back to setup options"
+msgstr "Назад до варіантів налаштування"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Back to the project"
+msgstr "Назад до проєкту"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Backup: <0>{backup}</0>"
+msgstr "Резервна копія: <0>{backup}</0>"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Bambu plug-in installed"
+msgstr "Плагін Bambu встановлено"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Bambu plug-in needed"
+msgstr "Потрібен плагін Bambu"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Bed type set on this plate"
+msgstr "Тип столу задано на цій пластині"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Billed by your provider, not JusPrin. Stored on this computer only."
+msgstr "Оплату стягує ваш постачальник, а не JusPrin. Зберігається лише на цьому компʼютері."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Billing and usage"
+msgstr "Оплата й використання"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Bought credits"
+msgstr "Придбані кредити"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+#: src/components/PrinterPicker.tsx
+msgid "Brand"
+msgstr "Виробник"
+
+# AI Translated
+# Needs human review: Name of the Bring Your Own AI (BYOAI) option; check the product wants it translated rather than kept in English.
+#: src/components/Preferences.tsx
+msgid "Bring Your Own AI"
+msgstr "Власний ШІ"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Bring Your Own AI: an API key or an AI app you already pay for. No JusPrin account needed. Set up as many as you like; each chat picks a model from them."
+msgstr "Власний ШІ: ключ API або програма ШІ, за яку ви вже платите. Обліковий запис JusPrin не потрібен. Налаштуйте скільки завгодно; кожен чат вибирає модель серед них."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Bring your printers from {app}?"
+msgstr "Перенести ваші принтери з {app}?"
+
+# AI Translated
+#: src/App.tsx
+msgid "Browse the full printer list"
+msgstr "Переглянути повний список принтерів"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Built-in printer and filament profiles"
+msgstr "Вбудовані профілі принтерів і філаментів"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "By continuing you agree to the <0>Terms</0> and <1>Privacy Policy</1>."
+msgstr "Продовжуючи, ви погоджуєтеся з <0>Умовами</0> та <1>Політикою конфіденційності</1>."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Calibrate…"
+msgstr "Калібрувати…"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Camera view of {name}"
+msgstr "Зображення з камери {name}"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Can’t be stopped once started; it takes a moment."
+msgstr "Після запуску зупинити неможливо; це займе мить."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterPickerHost.tsx
+msgid "Can’t find your printer? <0>Ask AI</0>"
+msgstr "Не можете знайти свій принтер? <0>Запитайте ШІ</0>"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "Can’t import"
+msgstr "Неможливо імпортувати"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Can’t write {path}."
+msgstr "Неможливо записати {path}."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Can’t write the settings file."
+msgstr "Неможливо записати файл налаштувань."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+#: ../HomeUI/src/components/PrinterMenu.tsx
+#: src/App.tsx
+#: src/App.tsx
+#: src/components/AddPrinterForm.tsx
+#: src/components/AddPrinterForm.tsx
+#: src/components/AddPrinterForm.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/ChangeRows.tsx
+#: src/components/ChatNavigation.tsx
+#: src/components/ChatNavigation.tsx
+#: src/components/OrcaImport.tsx
+#: src/components/OrcaImport.tsx
+#: src/components/Preferences.tsx
+#: src/components/PrinterPanel.tsx
+#: src/components/SetupLocalTool.tsx
+#: src/components/SignInDoor.tsx
+#: src/components/ToolActivityCard.tsx
+#: src/components/WorkCard.tsx
+msgid "Cancel"
+msgstr "Скасувати"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+#: src/components/WorkCard.tsx
+msgid "Cancelled"
+msgstr "Скасовано"
+
+# AI Translated
+#: src/components/ToolActivityCard.tsx
+msgid "Cancelled — nothing was changed"
+msgstr "Скасовано — нічого не змінено"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+#: src/components/SignInDoor.tsx
+#: src/components/SignInDoor.tsx
+msgid "Change email"
+msgstr "Змінити ел. пошту"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Change…"
+msgstr "Змінити…"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Changed"
+msgstr "Змінено"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "changed outside JusPrin, checked just now"
+msgstr "змінено поза JusPrin, щойно перевірено"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Changes"
+msgstr "Зміни"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Changes every window, including the 3D view."
+msgstr "Змінює всі вікна, зокрема 3D-вигляд."
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Chat actions"
+msgstr "Дії з чатом"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Chat title"
+msgstr "Назва чату"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Chats"
+msgstr "Чати"
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "Chatting here needs AI."
+msgstr "Для чату тут потрібен ШІ."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Check key"
+msgstr "Перевірити ключ"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Check now"
+msgstr "Перевірити зараз"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Check plan"
+msgstr "Перевірити план"
+
+# AI Translated
+#: src/components/Guide.tsx
+msgid "Check the spelling or try other words. You can also ask AI: choose Ask AI… in the Help menu."
+msgstr "Перевірте написання або спробуйте інші слова. Також можна запитати ШІ: виберіть «Запитати ШІ…» в меню «Допомога»."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Check your email."
+msgstr "Перевірте пошту."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Checking for a newer version"
+msgstr "Перевірка наявності новішої версії"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Checking with {name}…"
+msgstr "Перевірка в {name}…"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Checking your account…"
+msgstr "Перевірка вашого облікового запису…"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Checking…"
+msgstr "Перевірка…"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "Choose a brand"
+msgstr "Виберіть виробника"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "Choose a model"
+msgstr "Виберіть модель"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "Choose a photo…"
+msgstr "Вибрати фото…"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "Choose another folder…"
+msgstr "Вибрати іншу теку…"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Choose my printer"
+msgstr "Вибрати мій принтер"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "Choose the folder…"
+msgstr "Вибрати теку…"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Clear search"
+msgstr "Очистити пошук"
+
+# AI Translated
+#: src/components/Guide.tsx
+#: src/components/Guide.tsx
+msgid "Clear the search"
+msgstr "Очистити пошук"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+#: src/components/ChatNavigation.tsx
+#: src/components/Composer.tsx
+#: src/components/OrcaImport.tsx
+#: src/components/SetupLocalTool.tsx
+msgid "Close"
+msgstr "Закрити"
+
+# AI Translated
+#: src/App.tsx
+msgid "Close chat"
+msgstr "Закрити чат"
+
+# AI Translated
+#: src/App.tsx
+msgid "Close this chat?"
+msgstr "Закрити цей чат?"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Color painting"
+msgstr "Фарбування"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+#: src/components/SetupLocalTool.tsx
+msgid "Connect"
+msgstr "Підключити"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Connect {name}"
+msgstr "Підключити {name}"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Connect {printerName}"
+msgstr "Підключити {printerName}"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/SetupLocalTool.tsx
+msgid "Connect an AI tool you already use"
+msgstr "Підключіть інструмент ШІ, яким ви вже користуєтеся"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Connect it to send prints straight from JusPrin"
+msgstr "Підключіть його, щоб надсилати друк прямо з JusPrin"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+#: ../HomeUI/src/components/PrinterMenu.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/SetupLocalTool.tsx
+msgid "Connect…"
+msgstr "Підключити…"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+#: src/components/SetupLocalTool.tsx
+msgid "Connected"
+msgstr "Підключено"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Connecting this printer has failed twice, and a report helps us fix why. It holds what the app saw and this chat, with anything that looks like an access code or API key hidden. Nothing is sent unless you choose to."
+msgstr "Підключити цей принтер двічі не вдалося, а звіт допоможе нам зʼясувати чому. Він містить те, що бачила програма, і цей чат; усе, що схоже на код доступу чи ключ API, приховано. Нічого не буде надіслано, якщо ви самі цього не виберете."
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+#: ../HomeUI/src/components/PrinterCard.tsx
+#: src/components/Panels.tsx
+msgid "Connecting…"
+msgstr "Підключення…"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+#: ../HomeUI/src/components/Onboarding.tsx
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Continue"
+msgstr "Продовжити"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Continue with Google"
+msgstr "Продовжити з Google"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Controls"
+msgstr "Керування"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+#: src/components/TurnActivity.tsx
+msgid "Copied"
+msgstr "Скопійовано"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+#: src/components/SetupLocalTool.tsx
+msgid "Copy"
+msgstr "Копіювати"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Copy details"
+msgstr "Копіювати відомості"
+
+# AI Translated
+#. A material cost with no known currency
+#: src/components/SetupCard.tsx
+msgid "cost {amount}"
+msgstr "вартість {amount}"
+
+# AI Translated
+#: src/components/AttachmentChip.tsx
+msgid "Could not be attached"
+msgstr "Не вдалося вкласти"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "Couldn’t load the model list"
+msgstr "Не вдалося завантажити список моделей"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Couldn’t reach {name} to check this key. Nothing was saved. Try again."
+msgstr "Не вдалося звʼязатися з {name} для перевірки цього ключа. Нічого не збережено. Спробуйте ще раз."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Couldn’t reach GitHub"
+msgstr "Не вдалося звʼязатися з GitHub"
+
+# AI Translated
+#. {checked} is how long ago, such as "just now", "2 hours ago" or "yesterday".
+#: src/components/Preferences.tsx
+msgid "Couldn’t reach GitHub · last checked {checked}"
+msgstr "Не вдалося звʼязатися з GitHub · остання перевірка: {checked}"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Create a filament preset"
+msgstr "Створити пресет філаменту"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Create a filament preset…"
+msgstr "Створити пресет філаменту…"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+#: src/components/BalancePanel.tsx
+msgid "Credits"
+msgstr "Кредити"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Credits left"
+msgstr "Залишок кредитів"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Current setup"
+msgstr "Поточні налаштування"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Dark"
+msgstr "Темна"
+
+# AI Translated
+#. A thinking level: the model decides
+#: src/components/ModelPickers.tsx
+msgid "Default"
+msgstr "Типовий"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Default for the {modelName}"
+msgstr "Типовий для {modelName}"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+#: src/components/ChatNavigation.tsx
+msgid "Delete"
+msgstr "Видалити"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Delete ‘{title}’ and its messages? Your project and its print history stay as they are. This can't be undone."
+msgstr "Видалити «{title}» і його повідомлення? Ваш проєкт та історія друку залишаться без змін. Цю дію неможливо скасувати."
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Delete account"
+msgstr "Видалити обліковий запис"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Delete account…"
+msgstr "Видалити обліковий запис…"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Delete chat?"
+msgstr "Видалити чат?"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Delete this JusPrin account"
+msgstr "Видалити цей обліковий запис JusPrin"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Delete your JusPrin account?"
+msgstr "Видалити ваш обліковий запис JusPrin?"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Deleted from your filaments. This test uses {earlier} again."
+msgstr "Видалено з ваших філаментів. Цей тест знову використовує {earlier}."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Deleting…"
+msgstr "Видалення…"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+#: src/components/Panels.tsx
+msgid "Diagnostics"
+msgstr "Діагностика"
+
+# AI Translated
+#: src/App.tsx
+#: src/App.tsx
+msgid "Dismiss error"
+msgstr "Закрити повідомлення про помилку"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Document (PDF)"
+msgstr "Документ (PDF)"
+
+# AI Translated
+#: ../HomeUI/src/components/AgentGroup.tsx
+msgid "Don’t show again"
+msgstr "Більше не показувати"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+#: src/components/SetupLocalTool.tsx
+#: src/components/ToolActivityCard.tsx
+#: src/components/WorkCard.tsx
+msgid "Done"
+msgstr "Готово"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Double-clicking a .3mf file opens it here."
+msgstr "Подвійне клацання файлу .3mf відкриває його тут."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Download"
+msgstr "Завантажити"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Downloads"
+msgstr "Завантаження"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Drop a model or project here"
+msgstr "Перетягніть сюди модель або проєкт"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Drop a model or project to start"
+msgstr "Перетягніть модель або проєкт, щоб почати"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "e.g. \"bambu a1 mini\" or \"not sure, the small one\""
+msgstr "напр., «bambu a1 mini» або «не знаю, маленький»"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "e.g. \"I put a 0.6 nozzle on it\" or \"loaded black PETG\""
+msgstr "напр., «я поставив сопло 0.6» або «заправив чорний PETG»"
+
+# AI Translated
+#: src/credits.ts
+msgid "Each message you send costs credits: Standard {STANDARD_MESSAGE_CREDITS}, Expert {EXPERT_MESSAGE_CREDITS}."
+msgstr "Кожне надіслане повідомлення коштує кредитів: Стандарт — {STANDARD_MESSAGE_CREDITS}, Експерт — {EXPERT_MESSAGE_CREDITS}."
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Earlier setup"
+msgstr "Попередні налаштування"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Earlier setup — saved with this conversation"
+msgstr "Попередні налаштування — збережені з цією розмовою"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Email"
+msgstr "Ел. пошта"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Email me a 6-digit code"
+msgstr "Надіслати мені 6-значний код"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Ends {ends}."
+msgstr "Завершується {ends}."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Ends any plan and removes this account’s credits and everything JusPrin keeps for it on its servers."
+msgstr "Завершує будь-який план і видаляє кредити цього облікового запису та все, що JusPrin зберігає для нього на своїх серверах."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Enter a name for the printer."
+msgstr "Введіть назву принтера."
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Enter a title of 1–120 characters."
+msgstr "Введіть назву довжиною від 1 до 120 символів."
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Error"
+msgstr "Помилка"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+#: src/components/SetupCard.tsx
+msgid "Estimate unavailable"
+msgstr "Оцінка недоступна"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Every chat can pick a model from these providers in its message box."
+msgstr "Кожен чат може вибрати модель цих постачальників у полі повідомлення."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Every filament for the {modelName}"
+msgstr "Усі філаменти для {modelName}"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "Every printer in this {app} folder is already in JusPrin, so there is nothing to import."
+msgstr "Усі принтери з цієї теки {app} уже є в JusPrin, тому імпортувати нічого."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Every project saves itself as you work"
+msgstr "Кожен проєкт зберігається сам під час роботи"
+
+# AI Translated
+#: src/App.tsx
+msgid "Excerpt: “{quoted}”"
+msgstr "Уривок: «{quoted}»"
+
+# AI Translated
+#. The more capable kind of AI model
+#: src/credits.ts
+msgid "Expert"
+msgstr "Експерт"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Expires {date}"
+msgstr "Діє до {date}"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Expiring credits are used first."
+msgstr "Кредити з терміном дії використовуються першими."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Export again"
+msgstr "Експортувати ще раз"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Export…"
+msgstr "Експортувати…"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Exported {file}"
+msgstr "Експортовано {file}"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "External tool"
+msgstr "Зовнішній інструмент"
+
+# AI Translated
+#. A thinking level of the AI model
+#: src/components/ModelPickers.tsx
+msgid "Extra high"
+msgstr "Дуже високий"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Failed"
+msgstr "Не вдалося"
+
+# AI Translated
+#. A thinking level of the AI model
+#: src/components/ModelPickers.tsx
+msgid "Fast"
+msgstr "Швидкий"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "filament"
+msgstr "філамент"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Filament"
+msgstr "Філамент"
+
+# AI Translated
+#: src/App.tsx
+msgid "Filament settings"
+msgstr "Налаштування філаменту"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Filaments"
+msgstr "Філаменти"
+
+# AI Translated
+#. The kind of an attached file of no known kind
+#: src/components/AttachmentChip.tsx
+msgid "File"
+msgstr "Файл"
+
+# AI Translated
+#. Button: add a filter to the list
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Filter"
+msgstr "Фільтр"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Find a language"
+msgstr "Знайти мову"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Finish in your browser."
+msgstr "Завершіть у браузері."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Finished"
+msgstr "Завершено"
+
+# AI Translated
+#. {day} is a short weekday (Sun) or a date (Oct 20)
+#: ../HomeUI/src/history.ts
+msgid "finished {day}"
+msgstr "завершено {day}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "finished today"
+msgstr "завершено сьогодні"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "finished yesterday"
+msgstr "завершено вчора"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Follows the selection in the 3D view."
+msgstr "Відповідає вибраному в 3D-вигляді."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Follows the selection in the 3D view. Shown: only what {shownName} sets itself."
+msgstr "Відповідає вибраному в 3D-вигляді. Показано: лише те, що задає сам {shownName}."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Follows the selection in the 3D view. Shown: what {shownName} sets itself, and its objects."
+msgstr "Відповідає вибраному в 3D-вигляді. Показано: те, що задає сам {shownName}, і його обʼєкти."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "For sizes, positions and distances."
+msgstr "Для розмірів, положень і відстаней."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "For the {modelName}"
+msgstr "Для {modelName}"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Forgot password"
+msgstr "Забули пароль"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Found on this computer"
+msgstr "Знайдено на цьому компʼютері"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+#: src/components/PrinterPicker.tsx
+msgid "Found on your network"
+msgstr "Знайдено у вашій мережі"
+
+# AI Translated
+#. What a door costs: nothing
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Free"
+msgstr "Безкоштовно"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Free credits"
+msgstr "Безкоштовні кредити"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "From before the last change."
+msgstr "Стан до останньої зміни."
+
+# AI Translated
+#: src/App.tsx
+msgid "From earlier chat “{title}” (saved {saved}):"
+msgstr "З попереднього чату «{title}» (збережено {saved}):"
+
+# AI Translated
+#: src/App.tsx
+msgid "From earlier chat “{title}”:"
+msgstr "З попереднього чату «{title}»:"
+
+# AI Translated
+#: src/components/AccountBox.tsx
+msgid "From JusPrin"
+msgstr "Від JusPrin"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "from the preset"
+msgstr "з пресету"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "From the printer: {value}"
+msgstr "З принтера: {value}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Full release notes on GitHub"
+msgstr "Повні нотатки до випуску на GitHub"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Fuzzy skin painting"
+msgstr "Малювання шорсткої поверхні"
+
+# AI Translated
+#. {signupCredits} is the credits a new account is given, 500
+#: ../HomeUI/src/components/AgentGroup.tsx
+msgid "Get {signupCredits} free credits for JusPrin’s AI, which specializes in 3D printing."
+msgstr "Отримайте {signupCredits} безкоштовних кредитів для ШІ JusPrin, що спеціалізується на 3D-друці."
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+#: src/components/Composer.tsx
+#: src/components/Composer.tsx
+#: src/components/MessageList.tsx
+#: src/components/Preferences.tsx
+msgid "Get more credits"
+msgstr "Отримати більше кредитів"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/MessageList.tsx
+#: src/components/ModelPickers.tsx
+#: src/components/SignInDoor.tsx
+msgid "Get the new version…"
+msgstr "Отримати нову версію…"
+
+# AI Translated
+#: src/credits.ts
+msgid "Good for your first month: about {standardMessages} Standard or {expertMessages} Expert messages."
+msgstr "Вистачить на перший місяць: приблизно {standardMessages} повідомлень Стандарт або {expertMessages} повідомлень Експерт."
+
+# AI Translated
+#: src/components/Guide.tsx
+msgid "Guide pages"
+msgstr "Сторінки посібника"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Height range"
+msgstr "Діапазон висот"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Help me find the code"
+msgstr "Допоможіть знайти код"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Help me find the key"
+msgstr "Допоможіть знайти ключ"
+
+# AI Translated
+#: ../HomeUI/src/components/AgentGroup.tsx
+msgid "Hide"
+msgstr "Приховати"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "Hide details"
+msgstr "Приховати подробиці"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+#: src/components/ChatNavigation.tsx
+msgid "Hide the AI panel"
+msgstr "Приховати панель ШІ"
+
+# AI Translated
+#. A thinking level of the AI model
+#: src/components/ModelPickers.tsx
+msgid "High"
+msgstr "Високий"
+
+# AI Translated
+#: src/components/GcodeMarker.tsx
+msgid "history"
+msgstr "історія"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "How did it come out?"
+msgstr "Як вийшов результат?"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "If {app} keeps its settings somewhere else, choose that folder."
+msgstr "Якщо {app} зберігає налаштування деінде, виберіть ту теку."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "If you skip, files are sliced for a stand-in printer with a 250 mm bed, not for yours. Add your printer before you print anything. You can do that later on the home screen."
+msgstr "Якщо пропустити, файли нарізатимуться для тимчасового принтера зі столом 250 мм, а не для вашого. Додайте свій принтер, перш ніж щось друкувати. Це можна зробити пізніше на головному екрані."
+
+# AI Translated
+#. The kind of an attached file
+#: src/components/AttachmentChip.tsx
+msgid "Image"
+msgstr "Зображення"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+#: src/components/OrcaImport.tsx
+msgid "Import"
+msgstr "Імпортувати"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Import from {app}…"
+msgstr "Імпортувати з {app}…"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+#: src/components/OrcaImportLists.tsx
+msgid "Imported"
+msgstr "Імпортовано"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "Imported as ‘{renamedTo}’"
+msgstr "Імпортовано як «{renamedTo}»"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Imported from {app}"
+msgstr "Імпортовано з {app}"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+#: src/components/OrcaImport.tsx
+msgid "Importing…"
+msgstr "Імпорт…"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Inches"
+msgstr "Дюйми"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Install it, or copy the command and run it later."
+msgstr "Установіть його або скопіюйте команду й виконайте її пізніше."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Install plug-in"
+msgstr "Установити плагін"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Instead of toward the middle of the view."
+msgstr "Замість наближення до центру вигляду."
+
+# AI Translated
+#: src/components/WorkCard.tsx
+msgid "Interrupted when the project was closed"
+msgstr "Перервано, коли проєкт закрили"
+
+# AI Translated
+#: src/components/WorkCard.tsx
+msgid "It did not finish."
+msgstr "Не завершилося."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "It didn’t work"
+msgstr "Не вдалося"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "It worked"
+msgstr "Вдалося"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Its earlier values are back."
+msgstr "Попередні значення повернуто."
+
+# AI Translated
+#: src/components/MessageList.tsx
+#: src/components/MessageList.tsx
+msgid "Jump to latest"
+msgstr "До останніх повідомлень"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "JusPrin {latest} is available"
+msgstr "Доступна версія JusPrin {latest}"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+msgid "JusPrin account"
+msgstr "Обліковий запис JusPrin"
+
+# AI Translated
+#: src/components/FileNotesCard.tsx
+msgid "JusPrin answered No to this question."
+msgstr "JusPrin відповів «Ні» на це запитання."
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "JusPrin asks what the part is for, then plans the print for your {firstPrinter}."
+msgstr "JusPrin запитає, для чого ця деталь, а потім спланує друк для вашого {firstPrinter}."
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "JusPrin asks what the part is for, then plans the print."
+msgstr "JusPrin запитає, для чого ця деталь, а потім спланує друк."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "JusPrin can run this for you, or you can copy it and run it yourself."
+msgstr "JusPrin може виконати це за вас, або ви можете скопіювати й виконати самі."
+
+# AI Translated
+#: src/App.tsx
+msgid "JusPrin can't find the project version this chat was working on, so this chat can't continue. Start a new chat to keep working."
+msgstr "JusPrin не може знайти версію проєкту, з якою працював цей чат, тому його не можна продовжити. Щоб працювати далі, почніть новий чат."
+
+# AI Translated
+#: src/components/FileNotesCard.tsx
+msgid "JusPrin chose Cancel for this question."
+msgstr "JusPrin вибрав «Скасувати» для цього запитання."
+
+# AI Translated
+#: src/components/FileNotesCard.tsx
+msgid "JusPrin closed this without answering it."
+msgstr "JusPrin закрив це, не відповівши."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "JusPrin copies these printers with their filaments and print settings. {app} keeps its own copy."
+msgstr "JusPrin копіює ці принтери разом з їхніми філаментами й пресетами друку. {app} зберігає власну копію."
+
+# AI Translated
+#: src/App.tsx
+msgid "JusPrin couldn't put the project back. Open the project again from Home to keep working on it."
+msgstr "JusPrin не вдалося відновити проєкт. Щоб продовжити роботу, відкрийте проєкт знову з головної сторінки."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "JusPrin didn’t find {app}’s folder on this computer."
+msgstr "JusPrin не знайшов теку {app} на цьому компʼютері."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "JusPrin found a filament and print settings in {app} that it doesn’t have yet."
+msgstr "JusPrin знайшов у {app} філамент і пресети друку, яких ще не має."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "JusPrin found a filament in {app} that it doesn’t have yet."
+msgstr "JusPrin знайшов у {app} філамент, якого ще не має."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "JusPrin found filaments and print settings in {app} that it doesn’t have yet."
+msgstr "JusPrin знайшов у {app} філаменти й пресети друку, яких ще не має."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "JusPrin found filaments in {app} that it doesn’t have yet."
+msgstr "JusPrin знайшов у {app} філаменти, яких ще не має."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "JusPrin found no {app} printers in this folder."
+msgstr "JusPrin не знайшов принтерів {app} у цій теці."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "JusPrin found print settings in {app} that it doesn’t have yet."
+msgstr "JusPrin знайшов у {app} пресети друку, яких ще не має."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "JusPrin keeps up to 200 versions of each project, about 4 GB at most. Pinned versions are always kept."
+msgstr "JusPrin зберігає до 200 версій кожного проєкту, щонайбільше близько 4 ГБ. Закріплені версії зберігаються завжди."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "JusPrin makes filament presets for printers that are already set up, so the {modelName} is added first. Then the Create filament window opens. Tick the {modelName} there, and JusPrin puts your new preset in slot 1."
+msgstr "JusPrin створює пресети філаменту для вже налаштованих принтерів, тому спершу буде додано {modelName}. Потім відкриється вікно створення філаменту. Позначте там {modelName}, і JusPrin помістить ваш новий пресет у слот 1."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "JusPrin prepares every print to fit your printer’s bed and nozzle. You can add more printers later."
+msgstr "JusPrin готує кожен друк під стіл і сопло вашого принтера. Більше принтерів можна додати пізніше."
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "JusPrin slices it for your {firstPrinter}."
+msgstr "JusPrin наріже його для вашого {firstPrinter}."
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "JusPrin slices it."
+msgstr "JusPrin наріже його."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "JusPrin tries again tomorrow, or the next time it starts."
+msgstr "JusPrin спробує ще раз завтра або під час наступного запуску."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "JusPrin will edit"
+msgstr "JusPrin змінить"
+
+# AI Translated
+#. placeholder {0}: appearance.restartFor
+#: src/components/Preferences.tsx
+msgid "JusPrin will use {0} after it restarts."
+msgstr "JusPrin використає {0} після перезапуску."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "JusPrin’s AI specializes in 3D printing. It sets up your prints, explains your settings and fixes what goes wrong."
+msgstr "ШІ JusPrin спеціалізується на 3D-друці. Він налаштовує ваш друк, пояснює налаштування та виправляє те, що йде не так."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "JusPrin's connection helper is missing."
+msgstr "Бракує помічника підключення JusPrin."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "just now"
+msgstr "щойно"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Just slice for now"
+msgstr "Поки що просто нарізати"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Keep JusPrin open while {name} uses it — the helper doesn’t launch it."
+msgstr "Не закривайте JusPrin, поки {name} ним користується, — помічник його не запускає."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Keep JusPrin open while the AI tool uses it — the helper doesn’t launch it."
+msgstr "Не закривайте JusPrin, поки інструмент ШІ ним користується, — помічник його не запускає."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Keep JusPrin open while you use {name}; the helper doesn’t launch it. Restarting JusPrin later won’t need this again."
+msgstr "Не закривайте JusPrin, поки користуєтеся {name}; помічник його не запускає. Після перезапуску JusPrin цього робити знову не доведеться."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Keeps <0>{hint}</0> until the new key passes"
+msgstr "Зберігає <0>{hint}</0>, доки новий ключ не пройде перевірку"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Kept file changed on disk · slice again to print it"
+msgstr "Збережений файл змінився на диску · наріжте ще раз, щоб надрукувати"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Key saved on this computer"
+msgstr "Ключ збережено на цьому компʼютері"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Language"
+msgstr "Мова"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Last connected just now"
+msgstr "Останнє підключення: щойно"
+
+# AI Translated
+#. {day} is a short weekday (Sun) or a date (Oct 20)
+#: ../HomeUI/src/history.ts
+msgid "last finished {day}"
+msgstr "востаннє завершено {day}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "last finished today"
+msgstr "востаннє завершено сьогодні"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "last finished yesterday"
+msgstr "востаннє завершено вчора"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "last print finished"
+msgstr "останній друк завершено"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Last week"
+msgstr "Минулого тижня"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Later"
+msgstr "Пізніше"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Left-drag"
+msgstr "Перетягування лівою кнопкою"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Let an AI app on this computer, such as Claude Desktop, work with the open project. JusPrin adds itself to that app’s settings."
+msgstr "Дозвольте програмі ШІ на цьому компʼютері, як-от Claude Desktop, працювати з відкритим проєктом. JusPrin додасть себе до налаштувань цієї програми."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Light"
+msgstr "Світла"
+
+# AI Translated
+#. On a camera picture: it shows the printer as it is now
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "LIVE"
+msgstr "НАЖИВО"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Live URL (developer only — this can change after restart)"
+msgstr "Поточна URL-адреса (лише для розробників — може змінитися після перезапуску)"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterPickerHost.tsx
+msgid "Loading JusPrin’s settings for this printer…"
+msgstr "Завантаження налаштувань JusPrin для цього принтера…"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "Loading models…"
+msgstr "Завантаження моделей…"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Loading print history…"
+msgstr "Завантаження історії друку…"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Local work never needs an account. Your own API key or AI tool works without one; set those up in the <0>BYOAI</0> section."
+msgstr "Для локальної роботи обліковий запис не потрібен. Власний ключ API чи інструмент ШІ працює без нього; налаштуйте їх у розділі <0>BYOAI</0>."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Look again"
+msgstr "Пошукати ще раз"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Look at the change again before saving."
+msgstr "Перегляньте зміну ще раз перед збереженням."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "Looked in {path}"
+msgstr "Пошук виконано в {path}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Looking for a newer version on GitHub…"
+msgstr "Пошук новішої версії на GitHub…"
+
+# AI Translated
+#. A thinking level of the AI model
+#: src/components/ModelPickers.tsx
+msgid "Low"
+msgstr "Низький"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+#: src/components/AddPrinterForm.tsx
+msgid "Made for other printers"
+msgstr "Створено для інших принтерів"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Made for other printers. Picking it saves a copy for the {modelName}."
+msgstr "Створено для інших принтерів. Якщо вибрати його, для {modelName} буде збережено копію."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Made for the {first} and {second}. Picking it saves a copy for the {modelName}."
+msgstr "Створено для {first} і {second}. Якщо вибрати його, для {modelName} буде збережено копію."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Made for the {first}. Picking it saves a copy for the {modelName}."
+msgstr "Створено для {first}. Якщо вибрати його, для {modelName} буде збережено копію."
+
+# AI Translated
+#. {made} is the printer, filament and print settings, joined by ·
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Made with {made}"
+msgstr "Створено з: {made}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "matches, checked just now"
+msgstr "збігається, щойно перевірено"
+
+# AI Translated
+#. A thinking level of the AI model: the most
+#: src/components/ModelPickers.tsx
+msgid "Max"
+msgstr "Максимальний"
+
+# AI Translated
+#. A thinking level of the AI model
+#: src/components/ModelPickers.tsx
+msgid "Medium"
+msgstr "Середній"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Message AI"
+msgstr "Повідомлення для ШІ"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Middle-drag"
+msgstr "Перетягування середньою кнопкою"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Millimetres"
+msgstr "Міліметри"
+
+# AI Translated
+#. A thinking level of the AI model
+#: src/components/ModelPickers.tsx
+msgid "Minimal"
+msgstr "Мінімальний"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Model"
+msgstr "Модель"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+#: src/components/PrinterPicker.tsx
+msgctxt "printer"
+msgid "Model"
+msgstr "Модель"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Modifier"
+msgstr "Модифікатор"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "More preferences…"
+msgstr "Більше налаштувань…"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterPickerHost.tsx
+msgid "Most printers ship with 0.4 mm."
+msgstr "Більшість принтерів постачається із соплом 0,4 мм."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Mouse"
+msgstr "Миша"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Mouse buttons"
+msgstr "Кнопки миші"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Mouse: drag to turn, right-drag to pan. Touchpad: Alt-drag to turn, Shift-drag to pan."
+msgstr "Миша: перетягування — обертання, перетягування правою кнопкою — панорамування. Сенсорна панель: Alt + перетягування — обертання, Shift + перетягування — панорамування."
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Move"
+msgstr "Переміщення"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Moving the view"
+msgstr "Рух вигляду"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Multimaterial"
+msgstr "Багатоматеріальний друк"
+
+# AI Translated
+#. Sort order: by name
+#: ../HomeUI/src/App.tsx
+msgid "Name"
+msgstr "Назва"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Needs attention"
+msgstr "Потребує уваги"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Never expire"
+msgstr "Безстрокові"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "New"
+msgstr "Новий"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "New {name} key"
+msgstr "Новий ключ {name}"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+#: src/components/ChatNavigation.tsx
+#: src/components/ChatNavigation.tsx
+msgid "New chat"
+msgstr "Новий чат"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "New chats start with"
+msgstr "Нові чати починаються з"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "New filament"
+msgstr "Новий філамент"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "New filaments and print settings"
+msgstr "Нові філаменти й пресети друку"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "New JusPrin versions"
+msgstr "Нові версії JusPrin"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "New print settings"
+msgstr "Нові пресети друку"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Next"
+msgstr "Далі"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "No AI configured · using the selected preset."
+msgstr "ШІ не налаштовано · використовується вибраний пресет."
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "No AI configured."
+msgstr "ШІ не налаштовано."
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "No AI connected"
+msgstr "ШІ не підключено"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "No brand matches “{text}”"
+msgstr "Жоден виробник не відповідає «{text}»"
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "No bridge messages recorded."
+msgstr "Повідомлень мосту не записано."
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "No chats yet. Start a new chat about this project."
+msgstr "Чатів ще немає. Почніть новий чат про цей проєкт."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "No filament for the {modelName} matches “{search}”."
+msgstr "Жоден філамент для {modelName} не відповідає «{search}»."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "No G-codes match."
+msgstr "Немає відповідних файлів G-code."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "No JusPrin entry yet — this adds one."
+msgstr "Запису JusPrin ще немає — буде додано новий."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "No key"
+msgstr "Немає ключа"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "No language matches “{query}”"
+msgstr "Жодна мова не відповідає «{query}»"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "No messages yet"
+msgstr "Повідомлень ще немає"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "No model matches “{text}”"
+msgstr "Жодна модель не відповідає «{text}»"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "No models match “{query}”."
+msgstr "Жодна модель не відповідає «{query}»."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "No plan"
+msgstr "Без плану"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "No printer yet"
+msgstr "Принтера ще немає"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "No projects match “{typed}”."
+msgstr "Жоден проєкт не відповідає «{typed}»."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "No report was sent."
+msgstr "Звіт не надіслано."
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "No settings read from the project"
+msgstr "З проєкту не прочитано жодних налаштувань"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "No settings to show: the selected printer is not an FFF printer."
+msgstr "Немає налаштувань для показу: вибраний принтер не є FFF-принтером."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/ChangeRows.tsx
+msgid "none"
+msgstr "немає"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "None"
+msgstr "Немає"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Not checked yet"
+msgstr "Ще не перевірено"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Not chosen yet"
+msgstr "Ще не вибрано"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Not connected"
+msgstr "Не підключено"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "not found"
+msgstr "не знайдено"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Not found on this computer"
+msgstr "Не знайдено на цьому компʼютері"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "Not imported"
+msgstr "Не імпортовано"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Not in the list?"
+msgstr "Немає в списку?"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Not kept for this printer · slice again to print it"
+msgstr "Не збережено для цього принтера · наріжте ще раз, щоб надрукувати"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Not listening yet"
+msgstr "Ще не прослуховує"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+#: src/components/PrinterPanel.tsx
+msgid "Not now"
+msgstr "Не зараз"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Not run"
+msgstr "Не виконано"
+
+# AI Translated
+#: src/components/ProposalCard.tsx
+msgid "Not saved"
+msgstr "Не збережено"
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "NOT SET UP"
+msgstr "НЕ НАЛАШТОВАНО"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Not sliced yet"
+msgstr "Ще не нарізано"
+
+# AI Translated
+#: src/components/FileNotesCard.tsx
+#: src/components/FileNotesCard.tsx
+msgid "Notes about this file"
+msgstr "Примітки до цього файлу"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Nothing"
+msgstr "Нічого"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Nothing happened?"
+msgstr "Нічого не сталося?"
+
+# AI Translated
+#: src/components/Guide.tsx
+msgid "Nothing in the guide mentions “{search}”."
+msgstr "У посібнику немає згадок про «{search}»."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Nothing printed or exported yet."
+msgstr "Ще нічого не надруковано й не експортовано."
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+#: src/components/PrinterPicker.tsx
+msgid "Nozzle"
+msgstr "Сопло"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Object"
+msgstr "Обʼєкт"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Object settings changed"
+msgstr "Налаштування обʼєкта змінено"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Objects"
+msgstr "Обʼєкти"
+
+# AI Translated
+#. A thinking level of the AI model: no thinking
+#: src/components/ModelPickers.tsx
+msgid "Off"
+msgstr "Вимкнено"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Offline"
+msgstr "Не в мережі"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "On"
+msgstr "Увімкнено"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "On the network"
+msgstr "У мережі"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Once a day JusPrin asks GitHub for its list of releases. GitHub sees your IP address, as with any web page. Nothing about you or your projects is sent."
+msgstr "Раз на день JusPrin запитує в GitHub список випусків. GitHub бачить вашу IP-адресу, як і будь-яка вебсторінка. Нічого про вас чи ваші проєкти не надсилається."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Online"
+msgstr "У мережі"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Open chat: {title}"
+msgstr "Відкрити чат: {title}"
+
+# AI Translated
+#: src/App.tsx
+msgid "Open filament settings"
+msgstr "Відкрити налаштування філаменту"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Open in chat"
+msgstr "Відкрити в чаті"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Open it in the 3D view, or choose it above, to see them."
+msgstr "Щоб побачити їх, відкрийте його в 3D-вигляді або виберіть вище."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Open one in the 3D view, or choose it above, to see them."
+msgstr "Щоб побачити їх, відкрийте один із них у 3D-вигляді або виберіть вище."
+
+# AI Translated
+#: src/App.tsx
+msgid "Open printer settings"
+msgstr "Відкрити налаштування принтера"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Open printer window"
+msgstr "Відкрити вікно принтера"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Open the browser again"
+msgstr "Відкрити браузер ще раз"
+
+# AI Translated
+#: src/App.tsx
+msgid "Open the project again to keep working."
+msgstr "Щоб продовжити роботу, відкрийте проєкт ще раз."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Open with JusPrin"
+msgstr "Відкривати в JusPrin"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Open…"
+msgstr "Відкрити…"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Opened {name}"
+msgstr "Відкрито {name}"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Opened {name} as a new project"
+msgstr "Відкрито {name} як новий проєкт"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Opened a file"
+msgstr "Відкрито файл"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Opened a file as a new project"
+msgstr "Відкрито файл як новий проєкт"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Opens the release page on GitHub"
+msgstr "Відкриває сторінку випуску на GitHub"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+#: src/components/SignInDoor.tsx
+msgid "or"
+msgstr "або"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Or type your own answer…"
+msgstr "Або введіть власну відповідь…"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Other ways:"
+msgstr "Інші способи:"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Others"
+msgstr "Інші"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Pan"
+msgstr "Панорамування"
+
+# AI Translated
+#. How a print came out: it partly worked
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "Partly"
+msgstr "Частково"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+#: src/components/SignInDoor.tsx
+msgid "Password"
+msgstr "Пароль"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Paste"
+msgstr "Вставити"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Paste the new key"
+msgstr "Вставте новий ключ"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Paste your {name} key ({prefix}…)"
+msgstr "Вставте свій ключ {name} ({prefix}…)"
+
+# AI Translated
+#. A printer status: the print is paused
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Paused"
+msgstr "Призупинено"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Photo"
+msgstr "Фото"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Photo credits"
+msgstr "Авторство фото"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "Photo of the printed object"
+msgstr "Фото надрукованого обʼєкта"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Photo or image"
+msgstr "Фото або зображення"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Picking one saves a copy for the {modelName}."
+msgstr "Якщо вибрати його, для {modelName} буде збережено копію."
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Plan credits"
+msgstr "Кредити плану"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Plan needs another look"
+msgstr "План потрібно переглянути"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Plate"
+msgstr "Пластина"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgctxt "build plate"
+msgid "Plate"
+msgstr "Пластина"
+
+# AI Translated
+#: src/components/GcodeMarker.tsx
+msgid "Plate {plateNumber}"
+msgstr "Пластина {plateNumber}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Preference sections"
+msgstr "Розділи налаштувань"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Preferences"
+msgstr "Налаштування"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Preferences (Ctrl+,)"
+msgstr "Налаштування (Ctrl+,)"
+
+# AI Translated
+#: src/PreferencesApp.tsx
+msgid "Preferences could not reach JusPrin"
+msgstr "Налаштуванням не вдалося звʼязатися з JusPrin"
+
+# AI Translated
+#. A setting’s project value: whatever the preset says
+#: src/components/AllSettings.tsx
+msgid "preset"
+msgstr "пресет"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Preset: {preset}"
+msgstr "Пресет: {preset}"
+
+# AI Translated
+#: src/calibration.ts
+msgid "Pressure advance steps not kept in the file"
+msgstr "Кроки Pressure Advance не збережено у файлі"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Print again"
+msgstr "Надрукувати ще раз"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Print history"
+msgstr "Історія друку"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Printables and Thingiverse send the model straight here."
+msgstr "Printables і Thingiverse надсилають модель прямо сюди."
+
+# AI Translated
+#. A filament setting’s value: the printer’s value is used
+#: src/components/AllSettings.tsx
+#: src/components/ChangeRows.tsx
+msgid "printer"
+msgstr "принтер"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Printer"
+msgstr "Принтер"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Printer actions"
+msgstr "Дії з принтером"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Printer last reported {observed}"
+msgstr "Принтер востаннє повідомив: {observed}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Printer name"
+msgstr "Назва принтера"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Printer settings…"
+msgstr "Налаштування принтера…"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Printer: {name}"
+msgstr "Принтер: {name}"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Printers"
+msgstr "Принтери"
+
+# AI Translated
+#: src/App.tsx
+msgid "Printers already added stay added. The chat can't be opened again."
+msgstr "Уже додані принтери залишаться. Чат не можна відкрити знову."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Printing"
+msgstr "Друкує"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "process"
+msgstr "процес"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Process"
+msgstr "Процес"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Project chats"
+msgstr "Чати проєкту"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Project: {name}"
+msgstr "Проєкт: {name}"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Projects"
+msgstr "Проєкти"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Projects & files"
+msgstr "Проєкти й файли"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Projects and files"
+msgstr "Проєкти й файли"
+
+# AI Translated
+# Needs human review: {savedMoment} is a formatted date and time; check the phrase reads right with it.
+#: src/App.tsx
+msgid "Put the project back to {savedMoment}?"
+msgstr "Повернути проєкт до стану на {savedMoment}?"
+
+# AI Translated
+#: src/App.tsx
+msgid "Put the project back to when this chat was saved?"
+msgstr "Повернути проєкт до стану на момент збереження цього чату?"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Quality"
+msgstr "Якість"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Rather use JusPrin’s own AI, which specializes in 3D printing? Sign up in <0>Account</0>."
+msgstr "Хочете натомість використовувати власний ШІ JusPrin, що спеціалізується на 3D-друці? Зареєструйтеся в розділі <0>Обліковий запис</0>."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Reading the printer list…"
+msgstr "Читання списку принтерів…"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Reading the settings…"
+msgstr "Читання налаштувань…"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Reading this printer’s profiles…"
+msgstr "Читання профілів цього принтера…"
+
+# AI Translated
+#. A printer status: idle and ready to print
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Ready"
+msgstr "Готовий"
+
+# AI Translated
+#. Sort order: the most recently saved first
+#: ../HomeUI/src/App.tsx
+msgid "Recent"
+msgstr "Нещодавні"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Reconnect"
+msgstr "Підключити знову"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Redo: {step}"
+msgstr "Повторити: {step}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Region"
+msgstr "Область"
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "Registered JusPrin account, your own key, or an AI tool you already use."
+msgstr "Зареєстрований обліковий запис JusPrin, власний ключ або інструмент ШІ, яким ви вже користуєтеся."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Reinstall or rebuild JusPrin, then try again."
+msgstr "Перевстановіть або перезберіть JusPrin і спробуйте ще раз."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Release notes"
+msgstr "Нотатки до випуску"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Released {released} · you have {current}"
+msgstr "Випущено {released} · у вас {current}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+#: ../HomeUI/src/components/PrintReportForm.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/AllSettings.tsx
+#: src/components/AttachmentChip.tsx
+msgid "Remove"
+msgstr "Вилучити"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Remove “{printerName}”? Its printer settings will be deleted. Your projects stay."
+msgstr "Вилучити «{printerName}»? Його налаштування принтера буде видалено. Ваші проєкти залишаться."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Remove {lowered}"
+msgstr "Вилучити «{lowered}»"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Remove {name} key"
+msgstr "Вилучити ключ {name}"
+
+# AI Translated
+#: src/components/AttachmentChip.tsx
+msgid "Remove {title}"
+msgstr "Вилучити {title}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Remove filter {label}"
+msgstr "Вилучити фільтр {label}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Remove printer?"
+msgstr "Вилучити принтер?"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Remove printer…"
+msgstr "Вилучити принтер…"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Removed from your printers."
+msgstr "Вилучено з ваших принтерів."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Removed: <0>{name}</0>"
+msgstr "Вилучено: <0>{name}</0>"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Removed: <0>{preset}</0>"
+msgstr "Вилучено: <0>{preset}</0>"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+#: src/components/ChatNavigation.tsx
+msgid "Rename"
+msgstr "Перейменувати"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Rename chat"
+msgstr "Перейменувати чат"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Rename printer"
+msgstr "Перейменувати принтер"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Renews {renews}."
+msgstr "Поновлюється {renews}."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Replace"
+msgstr "Замінити"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Replace {name} key"
+msgstr "Замінити ключ {name}"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Replace it with a working key, or remove it."
+msgstr "Замініть його робочим ключем або вилучіть."
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Reply…"
+msgstr "Відповісти…"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Report credits"
+msgstr "Кредити за звіти"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Report sent"
+msgstr "Звіт надіслано"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Restart {name} if it was already running."
+msgstr "Перезапустіть {name}, якщо він уже працював."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Restart now"
+msgstr "Перезапустити зараз"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Restart the AI tool if it was already running."
+msgstr "Перезапустіть інструмент ШІ, якщо він уже працював."
+
+# AI Translated
+#: src/App.tsx
+#: src/App.tsx
+msgid "Restore and resume"
+msgstr "Відновити й продовжити"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Restore the model and project settings from this saved point. Your current model is saved in Version history first. Conversation, exported files, completed prints, and printer activity stay as they are."
+msgstr "Відновити модель і налаштування проєкту з цієї точки збереження. Поточну модель спершу буде збережено в історії версій. Розмова, експортовані файли, завершені друки та дії принтера залишаться без змін."
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Result"
+msgstr "Результат"
+
+# AI Translated
+#: src/App.tsx
+msgid "Resume saved setup"
+msgstr "Продовжити зі збереженими налаштуваннями"
+
+# AI Translated
+#: src/components/MessageList.tsx
+#: src/components/MessageList.tsx
+#: src/components/Panels.tsx
+msgid "Retry"
+msgstr "Повторити"
+
+# AI Translated
+#: src/App.tsx
+msgid "Return to active chat"
+msgstr "Повернутися до активного чату"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Reverse scroll-wheel zoom"
+msgstr "Обернути напрямок масштабування коліщатком"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+#: src/components/ChangeRows.tsx
+#: src/components/ChangeRows.tsx
+#: src/components/ChangeRows.tsx
+#: src/components/ChangeRows.tsx
+msgid "Revert to here"
+msgstr "Повернутися до цього місця"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+#: src/components/ChangeRows.tsx
+msgid "Revert to here?"
+msgstr "Повернутися до цього місця?"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Review"
+msgstr "Переглянути"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Review again"
+msgstr "Переглянути ще раз"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Review its progress and results in this panel."
+msgstr "Стежте за ходом і результатами в цій панелі."
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Right-drag"
+msgstr "Перетягування правою кнопкою"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Running it yourself? Paste it in a terminal, then restart {name}."
+msgstr "Виконуєте самі? Вставте це в термінал, а потім перезапустіть {name}."
+
+# AI Translated
+#: src/components/ToolActivityCard.tsx
+#: src/components/WorkCard.tsx
+msgid "Running…"
+msgstr "Виконується…"
+
+# AI Translated
+#: src/components/ToolActivityCard.tsx
+msgid "Running… · {percent}%"
+msgstr "Виконується… · {percent}%"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "same as project"
+msgstr "як у проєкті"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+#: src/components/ChatNavigation.tsx
+msgid "Save"
+msgstr "Зберегти"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Save downloaded models to"
+msgstr "Зберігати завантажені моделі в"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Saved {saved}"
+msgstr "Збережено {saved}"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Saved sliced snapshot"
+msgstr "Збережений знімок нарізки"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Saved with this chat. The canvas shows your current project."
+msgstr "Збережено з цим чатом. На полотні показано ваш поточний проєкт."
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Saved: <0>{preset}</0>"
+msgstr "Збережено: <0>{preset}</0>"
+
+# AI Translated
+#: src/components/ProposalCard.tsx
+msgid "Saving…"
+msgstr "Збереження…"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Scroll up to zoom out."
+msgstr "Прокрутка вгору — віддалення."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Seam painting"
+msgstr "Малювання шва"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+#: src/components/AddPrinterForm.tsx
+msgid "Search brand or material"
+msgstr "Пошук бренду або матеріалу"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "Search brands"
+msgstr "Пошук виробників"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "Search models"
+msgstr "Пошук моделей"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgctxt "printer"
+msgid "Search models"
+msgstr "Пошук моделей"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Search prints"
+msgstr "Пошук друків"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+#: ../HomeUI/src/App.tsx
+msgid "Search projects"
+msgstr "Пошук проєктів"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Search settings"
+msgstr "Пошук налаштувань"
+
+# AI Translated
+#: src/components/Guide.tsx
+#: src/components/Guide.tsx
+msgid "Search the guide"
+msgstr "Пошук у посібнику"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "See prices"
+msgstr "Переглянути ціни"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "See usage"
+msgstr "Переглянути використання"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Send"
+msgstr "Надіслати"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+#: src/components/SignInDoor.tsx
+msgid "Send a new code"
+msgstr "Надіслати новий код"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Send a report to the JusPrin developers?"
+msgstr "Надіслати звіт розробникам JusPrin?"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Send message"
+msgstr "Надіслати повідомлення"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+#: src/components/PrinterPanel.tsx
+msgid "Send report"
+msgstr "Надіслати звіт"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Sending a code to {address}…"
+msgstr "Надсилання коду на {address}…"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Sending isn’t built yet, so nothing has left this computer. The report is saved at {path}."
+msgstr "Надсилання ще не реалізовано, тому з цього компʼютера нічого не надіслано. Звіт збережено в {path}."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "Sending…"
+msgstr "Надсилання…"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Sent · {when}. Saved snapshot: the canvas shows your current project."
+msgstr "Надіслано · {when}. Збережений знімок: на полотні показано ваш поточний проєкт."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Sent to {printer}"
+msgstr "Надіслано на {printer}"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Sent to {printer} · {when}. Saved snapshot: the canvas shows your current project."
+msgstr "Надіслано на {printer} · {when}. Збережений знімок: на полотні показано ваш поточний проєкт."
+
+# AI Translated
+#. {time} is a clock time, or a day and a time
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Sent to {printer} at {time}"
+msgstr "Надіслано на {printer} о {time}"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Sent to {printer}. Saved snapshot: the canvas shows your current project."
+msgstr "Надіслано на {printer}. Збережений знімок: на полотні показано ваш поточний проєкт."
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Sent. Saved snapshot: the canvas shows your current project."
+msgstr "Надіслано. Збережений знімок: на полотні показано ваш поточний проєкт."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Set on this plate"
+msgstr "Задано на цій пластині"
+
+# AI Translated
+#: ../HomeUI/src/components/AgentGroup.tsx
+#: src/components/ChatNavigation.tsx
+#: src/components/Panels.tsx
+#: src/components/Panels.tsx
+msgid "Set up AI"
+msgstr "Налаштувати ШІ"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "setting up an ordinary print"
+msgstr "налаштування звичайного друку"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Settings might have changed; inspect them before retrying."
+msgstr "Налаштування могли змінитися; перегляньте їх, перш ніж повторювати."
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Setup summary"
+msgstr "Підсумок налаштувань"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "Show details"
+msgstr "Показати подробиці"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Show fewer"
+msgstr "Показати менше"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Show filaments made for other printers"
+msgstr "Показати філаменти, створені для інших принтерів"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Show file"
+msgstr "Показати файл"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Show folder"
+msgstr "Показати теку"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Showing"
+msgstr "Показано"
+
+# AI Translated
+#: src/components/MessageList.tsx
+#: src/components/SignInDoor.tsx
+#: src/components/SignInDoor.tsx
+msgid "Sign in"
+msgstr "Увійти"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Sign in again to keep using AI with your JusPrin account."
+msgstr "Увійдіть знову, щоб і далі користуватися ШІ з обліковим записом JusPrin."
+
+# AI Translated
+#: src/App.tsx
+#: src/components/ChatNavigation.tsx
+msgid "Sign in or add a key to chat with AI"
+msgstr "Увійдіть або додайте ключ, щоб спілкуватися з ШІ"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+#: src/components/SignInDoor.tsx
+msgid "Sign in with Google instead"
+msgstr "Натомість увійти через Google"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Sign out"
+msgstr "Вийти"
+
+# AI Translated
+#: src/credits.ts
+msgid "Sign up and get {signupCredits} free credits"
+msgstr "Зареєструйтеся й отримайте {signupCredits} безкоштовних кредитів"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Sign up free"
+msgstr "Зареєструватися безкоштовно"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Sign up to use AI, or skip it and just slice."
+msgstr "Зареєструйтеся, щоб користуватися ШІ, або пропустіть це й просто нарізайте."
+
+# AI Translated
+#: src/components/CodeField.tsx
+msgid "Sign-in code"
+msgstr "Код входу"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Sign-up credits"
+msgstr "Кредити за реєстрацію"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Signed in"
+msgstr "Вхід виконано"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Signed in · AI unavailable"
+msgstr "Вхід виконано · ШІ недоступний"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Signed in as {address}"
+msgstr "Ви ввійшли як {address}"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Signed in as {address} · AI unavailable"
+msgstr "Ви ввійшли як {address} · ШІ недоступний"
+
+# AI Translated
+#: ../HomeUI/src/components/AgentGroup.tsx
+#: ../HomeUI/src/components/Onboarding.tsx
+#: ../HomeUI/src/components/Onboarding.tsx
+#: ../HomeUI/src/components/Onboarding.tsx
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Signed in as {email}"
+msgstr "Ви ввійшли як {email}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Signing out keeps your projects, printers and API keys on this computer."
+msgstr "Після виходу ваші проєкти, принтери й ключі API залишаться на цьому компʼютері."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Signing you in…"
+msgstr "Вхід…"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Skip — choose a filament later"
+msgstr "Пропустити — вибрати філамент пізніше"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Skip — start with {defaultLabel}"
+msgstr "Пропустити — почати з {defaultLabel}"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Skip for now"
+msgstr "Поки що пропустити"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Skip this version"
+msgstr "Пропустити цю версію"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Slice again to update"
+msgstr "Наріжте ще раз, щоб оновити"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Slice to see time and filament"
+msgstr "Наріжте, щоб побачити час і витрату філаменту"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Sliced & sent"
+msgstr "Нарізано й надіслано"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Slot"
+msgstr "Слот"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Slot {slot}"
+msgstr "Слот {slot}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Slot {slot} · {preset}"
+msgstr "Слот {slot} · {preset}"
+
+# AI Translated
+# Needs human review: {value} is the printer's value being overridden; check the sentence with a real value.
+#: src/components/AllSettings.tsx
+msgid "Slot {slot} overrides the printer’s {value}."
+msgstr "Слот {slot} перевизначає значення принтера: {value}."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Slot {slot} preset: {preset}"
+msgstr "Пресет слота {slot}: {preset}"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Slot 1"
+msgstr "Слот 1"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Smooth mesh"
+msgstr "Згладити сітку"
+
+# AI Translated
+#: src/components/FileNotesCard.tsx
+msgid "Some notes from opening the file aren't shown."
+msgstr "Деякі примітки, отримані під час відкриття файлу, не показано."
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Sort projects"
+msgstr "Сортування проєктів"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "Specializes in 3D printing"
+msgstr "Спеціалізується на 3D-друці"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Speed"
+msgstr "Швидкість"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Staged attachments"
+msgstr "Підготовлені вкладення"
+
+# AI Translated
+#. The cheaper kind of AI model
+#: src/credits.ts
+msgid "Standard"
+msgstr "Стандарт"
+
+# AI Translated
+#: src/components/AttachmentChip.tsx
+msgid "Standard can’t see pictures, so this one will not be sent."
+msgstr "Модель Стандарт не бачить зображень, тому це зображення не буде надіслано."
+
+# AI Translated
+#: src/components/Guide.tsx
+msgid "Start of the page"
+msgstr "Початок сторінки"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Start with {defaultLabel} instead"
+msgstr "Натомість почати з {defaultLabel}"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Starting Home."
+msgstr "Запуск головної сторінки."
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "Starting the AI panel."
+msgstr "Запуск панелі ШІ."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Stays on this computer."
+msgstr "Зберігається на цьому компʼютері."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Step {step} of {steps}"
+msgstr "Крок {step} з {steps}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "STL and STEP models"
+msgstr "Моделі STL і STEP"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Stop"
+msgstr "Зупинити"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Stop generating"
+msgstr "Зупинити генерування"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Stopped before it finished."
+msgstr "Зупинено до завершення."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Strength"
+msgstr "Міцність"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Suggested for the {modelName}"
+msgstr "Рекомендовано для {modelName}"
+
+# AI Translated
+#. The settings page for support structures
+#: src/components/AllSettings.tsx
+msgid "Support"
+msgstr "Підтримки"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Support painting"
+msgstr "Малювання підтримок"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Switched to <0>{label}</0>"
+msgstr "Перемкнено на <0>{label}</0>"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Takes effect when JusPrin restarts. Your project is saved first."
+msgstr "Набуде чинності після перезапуску JusPrin. Спершу ваш проєкт буде збережено."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Technical output"
+msgstr "Технічний вивід"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "Tell us how it printed"
+msgstr "Розкажіть, як надрукувалося"
+
+# AI Translated
+#: src/calibration.ts
+msgid "Temperature steps not kept in the file"
+msgstr "Кроки температури не збережено у файлі"
+
+# AI Translated
+#. The kind of an attached file: a text file
+#: src/components/AttachmentChip.tsx
+msgid "Text"
+msgstr "Текст"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "That code is wrong."
+msgstr "Неправильний код."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "That code no longer works. We can send a new one."
+msgstr "Цей код більше не дійсний. Ми можемо надіслати новий."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "That password is wrong."
+msgstr "Неправильний пароль."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "The {modelName} profile’s default"
+msgstr "Типове значення профілю {modelName}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "The account couldn’t be deleted. Check your internet connection, then try again."
+msgstr "Не вдалося видалити обліковий запис. Перевірте підключення до інтернету й спробуйте ще раз."
+
+# AI Translated
+#: src/App.tsx
+msgid "The action could not be completed."
+msgstr "Не вдалося виконати дію."
+
+# AI Translated
+#: src/components/ToolActivityCard.tsx
+msgid "The action failed."
+msgstr "Дія не вдалася."
+
+# AI Translated
+#: src/App.tsx
+msgid "The AI chat didn't start. Try again, and restart JusPrin if it keeps happening."
+msgstr "Чат з ШІ не запустився. Спробуйте ще раз, а якщо це повторюється, перезапустіть JusPrin."
+
+# AI Translated
+#: src/App.tsx
+msgid "The AI panel could not connect"
+msgstr "Не вдалося підключити панель ШІ"
+
+# AI Translated
+#: src/App.tsx
+msgid "The AI panel could not reach JusPrin"
+msgstr "Панелі ШІ не вдалося звʼязатися з JusPrin"
+
+# AI Translated
+#: src/App.tsx
+msgid "The AI panel has no connection to JusPrin"
+msgstr "Панель ШІ не має зʼєднання з JusPrin"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "The AI slicer that helps you get better prints."
+msgstr "ШІ-слайсер, що допомагає друкувати краще."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "The app continues on its own once the browser is done."
+msgstr "Коли в браузері все буде готово, програма продовжить сама."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "The Create filament window opens"
+msgstr "Відкриється вікно створення філаменту"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "The file changed since you reviewed it."
+msgstr "Файл змінився відтоді, як ви його переглянули."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "The file is invalid or not writable. Fix it, then try again."
+msgstr "Файл недійсний або недоступний для запису. Виправте це й спробуйте ще раз."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "The file is on the printer but was not started."
+msgstr "Файл на принтері, але друк не запущено."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "The full preferences window from OrcaSlicer, which JusPrin is built on."
+msgstr "Повне вікно налаштувань OrcaSlicer, на основі якого створено JusPrin."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "The key could not be checked. Nothing was saved."
+msgstr "Не вдалося перевірити ключ. Нічого не збережено."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "The open project still uses the same printer as before. {app}’s own files were not changed."
+msgstr "Відкритий проєкт і далі використовує той самий принтер, що й раніше. Власні файли {app} не змінено."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "The printer hasn’t confirmed it got the file."
+msgstr "Принтер не підтвердив, що отримав файл."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "the printer profile’s default, until your preset is saved"
+msgstr "типове значення профілю принтера, доки ваш пресет не збережено"
+
+# AI Translated
+#: src/components/ToolActivityCard.tsx
+msgid "The project changed before this could run. Ask AI again."
+msgstr "Проєкт змінився, перш ніж це вдалося виконати. Запитайте ШІ ще раз."
+
+# AI Translated
+#: src/App.tsx
+msgid "The project has changed since this chat. To continue here, JusPrin puts the project back the way it was then."
+msgstr "Проєкт змінився з часу цього чату. Щоб продовжити тут, JusPrin поверне проєкт до тодішнього стану."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "The provider a chat uses receives your messages, the open project’s settings and anything you attach. JusPrin doesn’t send your keys anywhere else."
+msgstr "Постачальник, якого використовує чат, отримує ваші повідомлення, налаштування відкритого проєкту та все, що ви вкладаєте. JusPrin нікуди більше не надсилає ваші ключі."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "The provider rejected this key"
+msgstr "Постачальник відхилив цей ключ"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "The report could not be saved."
+msgstr "Не вдалося зберегти звіт."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "The report couldn’t be sent. Check your connection and try again."
+msgstr "Не вдалося надіслати звіт. Перевірте підключення й спробуйте ще раз."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "The setup command failed."
+msgstr "Команда налаштування не виконалася."
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Theme"
+msgstr "Тема"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Then"
+msgstr "Потім"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "Thinking"
+msgstr "Міркування"
+
+# AI Translated
+#: src/App.tsx
+msgid "This AI panel does not match this JusPrin build"
+msgstr "Ця панель ШІ не відповідає цій збірці JusPrin"
+
+# AI Translated
+#: src/App.tsx
+msgid "This chat is inactive. Resume from its saved setup to continue."
+msgstr "Цей чат неактивний. Щоб продовжити, відновіть його збережені налаштування."
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "This chat is still working. Stop it or let it finish, then delete it."
+msgstr "Цей чат ще працює. Зупиніть його або дочекайтеся завершення, а потім видаліть."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "This G-code is no longer kept. Open the project and slice it to print it again."
+msgstr "Цей G-code більше не зберігається. Відкрийте проєкт і наріжте його, щоб надрукувати знову."
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "This is an internal connection inside JusPrin, not a network service. The 3D canvas and all other controls keep working."
+msgstr "Це внутрішнє зʼєднання всередині JusPrin, а не мережевий сервіс. 3D-полотно та всі інші елементи керування працюють як і раніше."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "This JusPrin build cannot list the settings."
+msgstr "Ця збірка JusPrin не може показати список налаштувань."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "This key works now, but JusPrin couldn’t save it."
+msgstr "Цей ключ працює, але JusPrin не вдалося його зберегти."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "This tool isn’t installed."
+msgstr "Цей інструмент не встановлено."
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "This version of JusPrin can no longer connect to JusPrin accounts."
+msgstr "Ця версія JusPrin більше не може підключатися до облікових записів JusPrin."
+
+# AI Translated
+#: src/OrcaImportApp.tsx
+msgid "This window could not reach JusPrin"
+msgstr "Цьому вікну не вдалося звʼязатися з JusPrin"
+
+# AI Translated
+#. A thinking level of the AI model
+#: src/components/ModelPickers.tsx
+msgid "Thorough"
+msgstr "Ретельний"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Time & material estimates recomputing…"
+msgstr "Оцінки часу й матеріалу перераховуються…"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Timed out."
+msgstr "Час очікування минув."
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+#: ../HomeUI/src/savedDate.ts
+msgid "Today"
+msgstr "Сьогодні"
+
+# AI Translated
+#. {time} is a clock time, 14:22
+#: ../HomeUI/src/history.ts
+msgid "Today {time}"
+msgstr "Сьогодні {time}"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Too many codes were sent to this address. Try again in an hour."
+msgstr "На цю адресу надіслано забагато кодів. Спробуйте ще раз за годину."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Too many tries. Wait a few minutes, or email me a code."
+msgstr "Забагато спроб. Зачекайте кілька хвилин або отримайте код ел. поштою."
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Tool"
+msgstr "Інструмент"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Touchpad"
+msgstr "Сенсорна панель"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "troubleshooting, tricky models, anything you’d ask a person"
+msgstr "усунення проблем, складні моделі, усе, про що ви запитали б людину"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+#: src/components/Preferences.tsx
+msgid "Try again"
+msgstr "Спробувати ще раз"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Try again."
+msgstr "Спробуйте ще раз."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Turn freely"
+msgstr "Вільне обертання"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Turn the view"
+msgstr "Обертання вигляду"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Turn the view in any direction. Off keeps the bed level."
+msgstr "Обертати вигляд у будь-якому напрямку. Якщо вимкнено, стіл залишається горизонтальним."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Type the code from the email. You can open it on your phone."
+msgstr "Введіть код із листа. Його можна відкрити на телефоні."
+
+# AI Translated
+#: src/components/MessageList.tsx
+#: src/components/PrinterPanel.tsx
+msgid "Undo"
+msgstr "Скасувати"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Undo: {step}"
+msgstr "Скасувати: {step}"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Undone: <0>{preset}</0>"
+msgstr "Скасовано: <0>{preset}</0>"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Units"
+msgstr "Одиниці"
+
+# AI Translated
+#. The kind of an attached file the app cannot read
+#: src/components/AttachmentChip.tsx
+msgid "Unsupported"
+msgstr "Не підтримується"
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "Until then JusPrin slices from the preset, exactly as it always has."
+msgstr "До того часу JusPrin нарізає з пресету, точно як завжди."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Until you add yours, files are sliced for a 250 mm Klipper printer and may not print on other printers."
+msgstr "Доки ви не додасте свій принтер, файли нарізатимуться для принтера Klipper зі столом 250 мм і можуть не надрукуватися на інших принтерах."
+
+# AI Translated
+#. {checked} is how long ago, such as "just now", "2 hours ago" or "yesterday".
+#: src/components/Preferences.tsx
+msgid "Up to date · checked {checked}"
+msgstr "Оновлень немає · перевірено {checked}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Update available"
+msgstr "Доступне оновлення"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Update with each JusPrin release. Your own presets never change."
+msgstr "Оновлюються з кожним випуском JusPrin. Ваші власні пресети ніколи не змінюються."
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Updates"
+msgstr "Оновлення"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Updates come from the Microsoft Store."
+msgstr "Оновлення надходять із Microsoft Store."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Use a password instead"
+msgstr "Натомість використати пароль"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Use an email code instead"
+msgstr "Натомість використати код з ел. пошти"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Use project value"
+msgstr "Використати значення проєкту"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Use project value for {label}"
+msgstr "Використати значення проєкту для {label}"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Use your own AI account"
+msgstr "Використати власний обліковий запис ШІ"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Variable layer height"
+msgstr "Змінна висота шару"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Version history"
+msgstr "Історія версій"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "We sent a 6-digit code to {address}."
+msgstr "Ми надіслали 6-значний код на {address}."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "We sent a new code to {address}."
+msgstr "Ми надіслали новий код на {address}."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "We’ll email you a code."
+msgstr "Ми надішлемо вам код ел. поштою."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "What happened"
+msgstr "Що сталося"
+
+# AI Translated
+#: src/App.tsx
+msgid "What should we do with this in the current project?"
+msgstr "Що з цим зробити в поточному проєкті?"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "What the report holds"
+msgstr "Що містить звіт"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "What to check for"
+msgstr "Що перевіряти"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "What to do next"
+msgstr "Що робити далі"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "What to expect"
+msgstr "Чого очікувати"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "When you import, JusPrin copies it with its filaments and print settings."
+msgstr "Під час імпорту JusPrin скопіює його разом із філаментами й пресетами друку."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "When you import, JusPrin copies it."
+msgstr "Під час імпорту JusPrin скопіює його."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "When you import, JusPrin copies them with their filaments and print settings."
+msgstr "Під час імпорту JusPrin скопіює їх разом з їхніми філаментами й пресетами друку."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "When you import, JusPrin copies them."
+msgstr "Під час імпорту JusPrin скопіює їх."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Which filament do you want to start with?"
+msgstr "З якого філаменту хочете почати?"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Which plate is on it?"
+msgstr "Яка пластина на ньому?"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Which printer do you have?"
+msgstr "Який у вас принтер?"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Which printer?"
+msgstr "Який принтер?"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Which settings"
+msgstr "Які налаштування"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Whole object"
+msgstr "Увесь обʼєкт"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Whole project"
+msgstr "Увесь проєкт"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "With a JusPrin account, JusPrin receives your messages, the open project’s settings and anything you attach, and passes them on to the model provider it uses."
+msgstr "З обліковим записом JusPrin ваші повідомлення, налаштування відкритого проєкту та все, що ви вкладаєте, отримує JusPrin і передає постачальнику моделі, якого використовує."
+
+# AI Translated
+#: src/components/MessageList.tsx
+#: src/components/TurnActivity.tsx
+msgid "Working on it…"
+msgstr "Працюю над цим…"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Writing settings…"
+msgstr "Запис налаштувань…"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "yesterday"
+msgstr "вчора"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+#: ../HomeUI/src/savedDate.ts
+#: src/components/ChatNavigation.tsx
+msgid "Yesterday"
+msgstr "Вчора"
+
+# AI Translated
+#. {time} is a clock time, 19:40
+#: ../HomeUI/src/history.ts
+msgid "Yesterday {time}"
+msgstr "Вчора {time}"
+
+# AI Translated
+#. Who opened a file: the person
+#: src/components/ChangeRows.tsx
+#: src/components/MessageList.tsx
+msgid "you"
+msgstr "ви"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "You can connect it later."
+msgstr "Підключити його можна пізніше."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "You can prepare prints with this printer before installing the Bambu plug-in."
+msgstr "Готувати друк для цього принтера можна ще до встановлення плагіна Bambu."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "You have {current}"
+msgstr "У вас {current}"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "You won’t need to set this up again after a normal JusPrin restart."
+msgstr "Після звичайного перезапуску JusPrin налаштовувати це знову не доведеться."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "You’ll need to add it again after JusPrin restarts."
+msgstr "Після перезапуску JusPrin його доведеться додати знову."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Your account and AI setup stay intact. Your own key or AI tool still works meanwhile."
+msgstr "Ваш обліковий запис і налаштування ШІ залишаються без змін. Тим часом ваш власний ключ або інструмент ШІ працює далі."
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Your account, keys, and the model new chats start with"
+msgstr "Ваш обліковий запис, ключі та модель, з якою починаються нові чати"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Your API key, or Claude Code or Claude Desktop"
+msgstr "Ваш ключ API, Claude Code або Claude Desktop"
+
+# AI Translated
+#: src/App.tsx
+msgid "Your current version stays in Version history."
+msgstr "Ваша поточна версія залишиться в історії версій."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+#: src/components/AddPrinterForm.tsx
+msgid "Your filaments"
+msgstr "Ваші філаменти"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Your other settings stay as they are. The existing file is backed up first."
+msgstr "Інші ваші налаштування залишаться без змін. Спершу буде створено резервну копію наявного файлу."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+msgid "Your own API key"
+msgstr "Ваш власний ключ API"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Your preset"
+msgstr "Ваш пресет"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Your preset, based on {base}"
+msgstr "Ваш пресет на основі {base}"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Your preset, made for other printers. Picking it saves a copy for the {modelName}."
+msgstr "Ваш пресет, створений для інших принтерів. Якщо вибрати його, для {modelName} буде збережено копію."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Your preset, made for the {first} and {second}. Picking it saves a copy for the {modelName}."
+msgstr "Ваш пресет, створений для {first} і {second}. Якщо вибрати його, для {modelName} буде збережено копію."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Your preset, made for the {first}. Picking it saves a copy for the {modelName}."
+msgstr "Ваш пресет, створений для {first}. Якщо вибрати його, для {modelName} буде збережено копію."
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Your projects will appear here, most recent first."
+msgstr "Тут зʼявлятимуться ваші проєкти, найновіші — першими."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "your provider"
+msgstr "ваш постачальник"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Your sign-in for {address} has ended"
+msgstr "Ваш сеанс входу для {address} завершився"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Your sign-in for this account has ended"
+msgstr "Ваш сеанс входу для цього облікового запису завершився"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Zoom toward the pointer"
+msgstr "Масштабувати до вказівника"

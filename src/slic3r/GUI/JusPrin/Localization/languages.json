@@ -1,0 +1,29 @@
+{
+  "comment": "The interface languages JusPrin ships: the folders of localization/i18n upstream ships a catalog for. Each code names a catalog file here; tag is the BCP 47 form web pages use for plural rules and fonts.",
+  "source": "en",
+  "languages": [
+    {"code": "en", "tag": "en"},
+    {"code": "ca", "tag": "ca"},
+    {"code": "cs", "tag": "cs"},
+    {"code": "de", "tag": "de"},
+    {"code": "es", "tag": "es"},
+    {"code": "eu", "tag": "eu"},
+    {"code": "fr", "tag": "fr"},
+    {"code": "hu", "tag": "hu"},
+    {"code": "it", "tag": "it"},
+    {"code": "ja", "tag": "ja"},
+    {"code": "ko", "tag": "ko"},
+    {"code": "lt", "tag": "lt"},
+    {"code": "nl", "tag": "nl"},
+    {"code": "pl", "tag": "pl"},
+    {"code": "pt_BR", "tag": "pt-BR"},
+    {"code": "ru", "tag": "ru"},
+    {"code": "sv", "tag": "sv"},
+    {"code": "th", "tag": "th"},
+    {"code": "tr", "tag": "tr"},
+    {"code": "uk", "tag": "uk"},
+    {"code": "vi", "tag": "vi"},
+    {"code": "zh_CN", "tag": "zh-CN"},
+    {"code": "zh_TW", "tag": "zh-TW"}
+  ]
+}

@@ -8,6 +8,8 @@
 // the connection rows of AgentConnection.tsx.
 
 import { useEffect, useState } from 'react';
+import { t, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 import {
   AccountStatusPayload,
   CreditAccount,
@@ -31,22 +33,23 @@ import { MarkdownMessage } from './MarkdownMessage';
 import { Progress } from './Progress';
 import { ActionMenu, Dialog } from './ChatNavigation';
 import { SetupLocalTool } from './SetupLocalTool';
+import { dateLocale } from '../i18n';
 
 // A hint is a second, smaller line under the label, for a label that needs it.
 const SECTIONS: { id: PreferencesSection; label: string; hint?: string; icon: string }[] = [
-  { id: 'account', label: 'Account', icon: 'user' },
-  { id: 'agent', label: 'BYOAI', hint: 'Bring Your Own AI', icon: 'key' },
-  { id: 'appearance', label: 'Appearance', icon: 'palette' },
-  { id: 'view3d', label: '3D view', icon: 'box' },
-  { id: 'projects', label: 'Projects & files', icon: 'folder' },
-  { id: 'updates', label: 'Updates', icon: 'refresh-cw' },
+  { id: 'account', label: t`Account`, icon: 'user' },
+  { id: 'agent', label: 'BYOAI', hint: t`Bring Your Own AI`, icon: 'key' },
+  { id: 'appearance', label: t`Appearance`, icon: 'palette' },
+  { id: 'view3d', label: t`3D view`, icon: 'box' },
+  { id: 'projects', label: t`Projects & files`, icon: 'folder' },
+  { id: 'updates', label: t`Updates`, icon: 'refresh-cw' },
 ];
 
 // What each mouse button's drag can do, in OrcaSlicer's order.
 const DRAG_ACTIONS: { value: DragAction; label: string }[] = [
-  { value: 'rotate', label: 'Turn the view' },
-  { value: 'pan', label: 'Pan' },
-  { value: 'none', label: 'Nothing' },
+  { value: 'rotate', label: t`Turn the view` },
+  { value: 'pan', label: t`Pan` },
+  { value: 'none', label: t`Nothing` },
 ];
 
 export interface PreferencesActions {
@@ -161,8 +164,11 @@ function Segmented<T extends string>({ label, options, value, onChange }: {
   );
 }
 
-function Select<T extends string>({ label, options, value, onChange, searchable = false }: {
-  label: string; options: { value: T; label: string }[]; value: T; onChange: (value: T) => void; searchable?: boolean;
+// `search`, for a long list, is the find field's label and what it says when
+// nothing matches, worded by the caller for what the list holds.
+function Select<T extends string>({ label, options, value, onChange, search }: {
+  label: string; options: { value: T; label: string }[]; value: T; onChange: (value: T) => void;
+  search?: { label: string; noMatch: (query: string) => string };
 }) {
   return (
     <div className="prefs-select">
@@ -176,7 +182,7 @@ function Select<T extends string>({ label, options, value, onChange, searchable 
           current: option.value === value,
           onSelect: () => { if (option.value !== value) onChange(option.value); },
         }))}
-        search={searchable ? { label: `Find a ${label.toLowerCase()}`, noMatch: (query) => `No ${label.toLowerCase()} matches “${query}”` } : undefined}
+        search={search}
       />
     </div>
   );
@@ -199,7 +205,7 @@ function Group({ title, tag, children }: { title: string; tag?: string; children
 // local reading would move it a day west of Greenwich.
 function dayLabel(date: string): string {
   const day = new Date(`${date}T00:00:00Z`);
-  return day.toLocaleDateString('en-GB', {
+  return day.toLocaleDateString(dateLocale('en-GB'), {
     day: 'numeric', month: 'short', timeZone: 'UTC',
     ...(day.getUTCFullYear() !== new Date().getUTCFullYear() ? { year: 'numeric' } : {}),
   });
@@ -213,40 +219,47 @@ function AccountCredits({ account, onOpenPage }: {
   account: CreditAccount; onOpenPage: (page: 'prices' | 'billing') => void;
 }) {
   const rows = balanceRows(account);
+  const renews = account.plan?.renews_at && dayLabel(account.plan.renews_at.slice(0, 10));
+  const ends = account.plan?.ends_at && dayLabel(account.plan.ends_at.slice(0, 10));
+  const total = creditCount(account.credits.total);
   return (
     <>
       <div className="prefs-credits-plan">
         <div className="prefs-row-copy">
-          <span className="prefs-credits-plan-name">{account.plan?.name ?? 'No plan'}</span>
+          <span className="prefs-credits-plan-name">{account.plan?.name ?? t`No plan`}</span>
           <span className="prefs-intro">
             {account.plan
               ? [account.plan.price_line,
-                account.plan.renews_at && `Renews ${dayLabel(account.plan.renews_at.slice(0, 10))}.`,
-                account.plan.ends_at && `Ends ${dayLabel(account.plan.ends_at.slice(0, 10))}.`]
+                renews && t`Renews ${renews}.`,
+                ends && t`Ends ${ends}.`]
                 .filter(Boolean).join(' ')
               : MESSAGE_PRICES}
           </span>
         </div>
         <div className="prefs-credits-plan-actions">
-          <button type="button" onClick={() => onOpenPage('billing')}>Billing and usage</button>
-          <button type="button" className="primary" onClick={() => onOpenPage('prices')}>Get more credits</button>
+          <button type="button" onClick={() => onOpenPage('billing')}>{t`Billing and usage`}</button>
+          <button type="button" className="primary" onClick={() => onOpenPage('prices')}>{t`Get more credits`}</button>
         </div>
       </div>
       <div className="prefs-credits">
         <div className="prefs-credits-card">
-          <strong className="prefs-credits-total">{creditCount(account.credits.total)} left</strong>
-          {rows.map((row) => (
+          <strong className="prefs-credits-total">{t`${total} left`}</strong>
+          {rows.map((row) => {
+            const left = creditNumber(row.left);
+            const of = creditNumber(row.of);
+            return (
             <div key={row.key} className="credit-lot prefs-credits-lot">
               <div className="credit-lot-line">
                 <strong>{row.name}</strong>
-                <span>{creditNumber(row.left)} of {creditNumber(row.of)} left</span>
+                <span>{t`${left} of ${of} left`}</span>
               </div>
               <div className="credit-lot-bar">
                 <div className="credit-lot-fill" style={{ width: `${row.of > 0 ? Math.min(row.left / row.of, 1) * 100 : 0}%` }} />
               </div>
               <span className="credit-lot-date">{row.date}</span>
             </div>
-          ))}
+            );
+          })}
         </div>
         {showsExpiringFirst(rows) && <p className="prefs-note">{EXPIRING_FIRST}</p>}
       </div>
@@ -268,22 +281,24 @@ function DeleteAccount({ email, warning, accountDeleted, onDelete }: {
   const failed = sentAt !== undefined && accountDeleted !== sentAt && accountDeleted?.deleted === false;
   const close = () => { setConfirming(false); setSentAt(undefined); };
   return (
-    <Group title="Delete account">
-      <Row title="Delete this JusPrin account"
-        detail="Ends any plan and removes this account’s credits and everything JusPrin keeps for it on its servers.">
-        <button type="button" className="danger prefs-danger" onClick={() => setConfirming(true)}>Delete account…</button>
+    <Group title={t`Delete account`}>
+      <Row title={t`Delete this JusPrin account`}
+        detail={t`Ends any plan and removes this account’s credits and everything JusPrin keeps for it on its servers.`}>
+        <button type="button" className="danger prefs-danger" onClick={() => setConfirming(true)}>{t`Delete account…`}</button>
       </Row>
       {confirming && (
-        <Dialog title="Delete your JusPrin account?" className="confirmation" onClose={() => { if (!deleting) close(); }}>
+        <Dialog title={t`Delete your JusPrin account?`} className="confirmation" onClose={() => { if (!deleting) close(); }}>
           <p>
-            {warning ?? `Any plan ends, and the credits on ${email ?? 'this account'} are removed with everything JusPrin keeps for this account. This can’t be undone.`}
+            {warning ?? (email
+              ? t`Any plan ends, and the credits on ${email} are removed with everything JusPrin keeps for this account. This can’t be undone.`
+              : t`Any plan ends, and the credits on this account are removed with everything JusPrin keeps for this account. This can’t be undone.`)}
           </p>
-          {failed && <p className="chat-dialog-field-error" role="alert">The account couldn’t be deleted. Check your internet connection, then try again.</p>}
+          {failed && <p className="chat-dialog-field-error" role="alert">{t`The account couldn’t be deleted. Check your internet connection, then try again.`}</p>}
           <div className="chat-dialog-buttons">
-            <button type="button" disabled={deleting} onClick={close}>Cancel</button>
+            <button type="button" disabled={deleting} onClick={close}>{t`Cancel`}</button>
             <button type="button" className="danger decisive" disabled={deleting}
               onClick={() => { setSentAt(accountDeleted); onDelete(); }}>
-              {deleting ? 'Deleting…' : 'Delete account'}
+              {deleting ? t`Deleting…` : t`Delete account`}
             </button>
           </div>
         </Dialog>
@@ -313,8 +328,8 @@ function AccountSection({ savedKeys, account, creditAccount, accountBox, account
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signedIn, ownKey]);
   return (
-    <section className="prefs-section prefs-account" aria-label="Account">
-      <h2 className="prefs-title">Account</h2>
+    <section className="prefs-section prefs-account" aria-label={t`Account`}>
+      <h2 className="prefs-title">{t`Account`}</h2>
       {!ownKey && accountBox && <AccountBox key={accountBox} html={accountBox} />}
       <JusPrinAccount savedKeys={savedKeys} account={account} modelCatalog={modelCatalog} actions={actions} />
       {signedIn && creditAccount && (
@@ -323,20 +338,24 @@ function AccountSection({ savedKeys, account, creditAccount, accountBox, account
       <div className="prefs-callout">
         <span className="jp-icon jp-icon-lock" aria-hidden="true" />
         <p>
-          With a JusPrin account, JusPrin receives your messages, the open project’s settings and anything you attach,
-          and passes them on to the model provider it uses.
+          <Trans>
+            With a JusPrin account, JusPrin receives your messages, the open project’s settings and anything you attach,
+            and passes them on to the model provider it uses.
+          </Trans>
         </p>
       </div>
       {signedIn ? (
         <>
-          <p className="prefs-note">Signing out keeps your projects, printers and API keys on this computer.</p>
+          <p className="prefs-note">{t`Signing out keeps your projects, printers and API keys on this computer.`}</p>
           <DeleteAccount email={savedKeys.find((key) => key.provider === 'jusprin')?.account}
             warning={creditAccount?.delete_warning} accountDeleted={accountDeleted} onDelete={actions.deleteAccount} />
         </>
       ) : (
         <p className="prefs-note">
-          Local work never needs an account. Your own API key or AI tool works without one; set those up in the{' '}
-          <button type="button" className="link prefs-inline-link" onClick={onAgent}>BYOAI</button> section.
+          <Trans>
+            Local work never needs an account. Your own API key or AI tool works without one; set those up in the{' '}
+            <button type="button" className="link prefs-inline-link" onClick={onAgent}>BYOAI</button> section.
+          </Trans>
         </p>
       )}
     </section>
@@ -358,36 +377,42 @@ function AgentSection({ agent, setup, savedKeys, mcpCatalog, actions, onConnectT
       <div className="prefs-head">
         <h2 className="prefs-title">BYOAI</h2>
         <p className="prefs-intro">
-          Bring Your Own AI: an API key or an AI app you already pay for. No JusPrin account needed. Set up as many as
-          you like; each chat picks a model from them.
+          <Trans>
+            Bring Your Own AI: an API key or an AI app you already pay for. No JusPrin account needed. Set up as many as
+            you like; each chat picks a model from them.
+          </Trans>
         </p>
       </div>
       <ProviderKeys heading setup={setup} savedKeys={savedKeys} onCheck={actions.checkKey} onCancel={actions.cancelCheck}
         onRemove={actions.removeKey} />
       <ToolGroup heading tools={mcpCatalog?.tools ?? []} onConnect={onConnectTool} onLookAgain={actions.refreshTools} />
-      <Group title="New chats start with">
+      <Group title={t`New chats start with`}>
         {agent.newChatChoices.length > 0 ? (
-          <Row title="Model" detail="A chat keeps the model it started with.">
-            <Select label="Model" value={agent.newChatProvider} onChange={(provider) => actions.set('newChatProvider', provider)}
+          <Row title={t`Model`} detail={t`A chat keeps the model it started with.`}>
+            <Select label={t`Model`} value={agent.newChatProvider} onChange={(provider) => actions.set('newChatProvider', provider)}
               options={agent.newChatChoices.map((choice) => ({ value: choice.provider,
                 // JusPrin's model id is an alias that means nothing to anyone.
                 label: choice.provider === 'jusprin' ? choice.label : `${choice.model} · ${choice.label}` }))} />
           </Row>
         ) : (
-          <Row title="Model" detail="Add a key above, or sign in under Account, to choose the model new chats start with." />
+          <Row title={t`Model`} detail={t`Add a key above, or sign in under Account, to choose the model new chats start with.`} />
         )}
       </Group>
       <div className="prefs-callout">
         <span className="jp-icon jp-icon-lock" aria-hidden="true" />
         <p>
-          The provider a chat uses receives your messages, the open project’s settings and anything you attach. JusPrin
-          doesn’t send your keys anywhere else.
+          <Trans>
+            The provider a chat uses receives your messages, the open project’s settings and anything you attach. JusPrin
+            doesn’t send your keys anywhere else.
+          </Trans>
         </p>
       </div>
       {!savedKeys.some((key) => key.provider === 'jusprin') && (
         <p className="prefs-note">
-          Rather use JusPrin’s own AI, which specializes in 3D printing? Sign up in{' '}
-          <button type="button" className="link prefs-inline-link" onClick={onAccount}>Account</button>.
+          <Trans>
+            Rather use JusPrin’s own AI, which specializes in 3D printing? Sign up in{' '}
+            <button type="button" className="link prefs-inline-link" onClick={onAccount}>Account</button>.
+          </Trans>
         </p>
       )}
     </section>
@@ -400,29 +425,30 @@ function AppearanceSection({ appearance, set, run }: {
   // "Later" puts the offer away for as long as the same language waits.
   const [later, setLater] = useState<string | null>(null);
   return (
-    <section className="prefs-section" aria-label="Appearance">
-      <h2 className="prefs-title">Appearance</h2>
+    <section className="prefs-section" aria-label={t`Appearance`}>
+      <h2 className="prefs-title">{t`Appearance`}</h2>
       <div>
-        <Row title="Language" detail="Takes effect when JusPrin restarts. Your project is saved first.">
-          <Select label="Language" value={appearance.language} searchable
+        <Row title={t`Language`} detail={t`Takes effect when JusPrin restarts. Your project is saved first.`}>
+          <Select label={t`Language`} value={appearance.language}
+            search={{ label: t`Find a language`, noMatch: (query) => t`No language matches “${query}”` }}
             options={appearance.languages.map((language) => ({ value: language.code, label: language.name }))}
             onChange={(code) => set('language', code)} />
         </Row>
         {appearance.restartFor && later !== appearance.restartFor && (
           <div className="prefs-callout prefs-restart" role="status">
             <span className="jp-icon jp-icon-refresh-cw" aria-hidden="true" />
-            <p>JusPrin will use {appearance.restartFor} after it restarts.</p>
-            <button type="button" className="primary" onClick={() => run('restart')}>Restart now</button>
-            <button type="button" className="link" onClick={() => setLater(appearance.restartFor)}>Later</button>
+            <p><Trans>JusPrin will use {appearance.restartFor} after it restarts.</Trans></p>
+            <button type="button" className="primary" onClick={() => run('restart')}>{t`Restart now`}</button>
+            <button type="button" className="link" onClick={() => setLater(appearance.restartFor)}>{t`Later`}</button>
           </div>
         )}
-        <Row title="Theme" detail="Changes every window, including the 3D view.">
-          <Segmented label="Theme" value={appearance.theme} onChange={(theme) => set('theme', theme)}
-            options={[{ value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]} />
+        <Row title={t`Theme`} detail={t`Changes every window, including the 3D view.`}>
+          <Segmented label={t`Theme`} value={appearance.theme} onChange={(theme) => set('theme', theme)}
+            options={[{ value: 'light', label: t`Light` }, { value: 'dark', label: t`Dark` }]} />
         </Row>
-        <Row title="Units" detail="For sizes, positions and distances.">
-          <Segmented label="Units" value={appearance.units} onChange={(units) => set('units', units)}
-            options={[{ value: 'mm', label: 'Millimetres' }, { value: 'in', label: 'Inches' }]} />
+        <Row title={t`Units`} detail={t`For sizes, positions and distances.`}>
+          <Segmented label={t`Units`} value={appearance.units} onChange={(units) => set('units', units)}
+            options={[{ value: 'mm', label: t`Millimetres` }, { value: 'in', label: t`Inches` }]} />
         </Row>
       </div>
     </section>
@@ -431,29 +457,29 @@ function AppearanceSection({ appearance, set, run }: {
 
 function View3dSection({ view, set }: { view: PreferencesPayload['view3d']; set: PreferencesActions['set'] }) {
   return (
-    <section className="prefs-section" aria-label="3D view">
-      <h2 className="prefs-title">3D view</h2>
-      <Group title="Moving the view">
-        <Row title="Controls" detail="Mouse: drag to turn, right-drag to pan. Touchpad: Alt-drag to turn, Shift-drag to pan.">
-          <Select label="Controls" value={view.navigation} onChange={(style) => set('navigation', style)}
-            options={[{ value: 'mouse', label: 'Mouse' }, { value: 'touchpad', label: 'Touchpad' }]} />
+    <section className="prefs-section" aria-label={t`3D view`}>
+      <h2 className="prefs-title">{t`3D view`}</h2>
+      <Group title={t`Moving the view`}>
+        <Row title={t`Controls`} detail={t`Mouse: drag to turn, right-drag to pan. Touchpad: Alt-drag to turn, Shift-drag to pan.`}>
+          <Select label={t`Controls`} value={view.navigation} onChange={(style) => set('navigation', style)}
+            options={[{ value: 'mouse', label: t`Mouse` }, { value: 'touchpad', label: t`Touchpad` }]} />
         </Row>
-        <Check title="Zoom toward the pointer" detail="Instead of toward the middle of the view." checked={view.zoomToPointer}
+        <Check title={t`Zoom toward the pointer`} detail={t`Instead of toward the middle of the view.`} checked={view.zoomToPointer}
           onChange={(on) => set('zoomToPointer', on)} />
-        <Check title="Reverse scroll-wheel zoom" detail="Scroll up to zoom out." checked={view.reverseZoom}
+        <Check title={t`Reverse scroll-wheel zoom`} detail={t`Scroll up to zoom out.`} checked={view.reverseZoom}
           onChange={(on) => set('reverseZoom', on)} />
-        <Check title="Turn freely" detail="Turn the view in any direction. Off keeps the bed level." checked={view.freeCamera}
+        <Check title={t`Turn freely`} detail={t`Turn the view in any direction. Off keeps the bed level.`} checked={view.freeCamera}
           onChange={(on) => set('freeCamera', on)} />
       </Group>
-      <Group title="Mouse buttons">
-        <Row title="Left-drag">
-          <Select label="Left-drag" value={view.leftDrag} options={DRAG_ACTIONS} onChange={(action) => set('leftDrag', action)} />
+      <Group title={t`Mouse buttons`}>
+        <Row title={t`Left-drag`}>
+          <Select label={t`Left-drag`} value={view.leftDrag} options={DRAG_ACTIONS} onChange={(action) => set('leftDrag', action)} />
         </Row>
-        <Row title="Middle-drag">
-          <Select label="Middle-drag" value={view.middleDrag} options={DRAG_ACTIONS} onChange={(action) => set('middleDrag', action)} />
+        <Row title={t`Middle-drag`}>
+          <Select label={t`Middle-drag`} value={view.middleDrag} options={DRAG_ACTIONS} onChange={(action) => set('middleDrag', action)} />
         </Row>
-        <Row title="Right-drag">
-          <Select label="Right-drag" value={view.rightDrag} options={DRAG_ACTIONS} onChange={(action) => set('rightDrag', action)} />
+        <Row title={t`Right-drag`}>
+          <Select label={t`Right-drag`} value={view.rightDrag} options={DRAG_ACTIONS} onChange={(action) => set('rightDrag', action)} />
         </Row>
       </Group>
     </section>
@@ -462,27 +488,27 @@ function View3dSection({ view, set }: { view: PreferencesPayload['view3d']; set:
 
 function ProjectsSection({ projects, actions }: { projects: PreferencesPayload['projects']; actions: PreferencesActions }) {
   return (
-    <section className="prefs-section" aria-label="Projects and files">
-      <h2 className="prefs-title">Projects &amp; files</h2>
-      <Group title="Version history">
-        <Row title="Every project saves itself as you work"
-          detail="JusPrin keeps up to 200 versions of each project, about 4 GB at most. Pinned versions are always kept.">
-          <button type="button" className="prefs-button" onClick={() => actions.run('show_versions')}>Show folder</button>
+    <section className="prefs-section" aria-label={t`Projects and files`}>
+      <h2 className="prefs-title">{t`Projects & files`}</h2>
+      <Group title={t`Version history`}>
+        <Row title={t`Every project saves itself as you work`}
+          detail={t`JusPrin keeps up to 200 versions of each project, about 4 GB at most. Pinned versions are always kept.`}>
+          <button type="button" className="prefs-button" onClick={() => actions.run('show_versions')}>{t`Show folder`}</button>
         </Row>
       </Group>
-      <Group title="Downloads">
-        <Row title="Save downloaded models to"
-          detail={<code className="prefs-path" title={projects.downloadPath}>{projects.downloadPath || 'Not chosen yet'}</code>}>
-          <button type="button" className="prefs-button" onClick={() => actions.run('choose_downloads')}>Change…</button>
+      <Group title={t`Downloads`}>
+        <Row title={t`Save downloaded models to`}
+          detail={<code className="prefs-path" title={projects.downloadPath}>{projects.downloadPath || t`Not chosen yet`}</code>}>
+          <button type="button" className="prefs-button" onClick={() => actions.run('choose_downloads')}>{t`Change…`}</button>
         </Row>
       </Group>
       {projects.associations && (
-        <Group title="Open with JusPrin" tag="Windows">
-          <Check title="3MF projects" detail="Double-clicking a .3mf file opens it here." checked={projects.open3mf}
+        <Group title={t`Open with JusPrin`} tag="Windows">
+          <Check title={t`3MF projects`} detail={t`Double-clicking a .3mf file opens it here.`} checked={projects.open3mf}
             onChange={(on) => actions.set('open3mf', on)} />
-          <Check title="STL and STEP models" detail="Also .stp and .drc files." checked={projects.openModels}
+          <Check title={t`STL and STEP models`} detail={t`Also .stp and .drc files.`} checked={projects.openModels}
             onChange={(on) => actions.set('openModels', on)} />
-          <Check title="“Open in slicer” buttons on model sites" detail="Printables and Thingiverse send the model straight here."
+          <Check title={t`“Open in slicer” buttons on model sites`} detail={t`Printables and Thingiverse send the model straight here.`}
             checked={projects.openLinks} onChange={(on) => actions.set('openLinks', on)} />
         </Group>
       )}
@@ -493,17 +519,17 @@ function ProjectsSection({ projects, actions }: { projects: PreferencesPayload['
 // "2 hours ago": how long ago the last successful check was.
 export function checkedAgo(checked: number, now: number = Date.now()): string {
   const minutes = Math.floor((now / 1000 - checked) / 60);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return minutes === 1 ? '1 minute ago' : `${minutes} minutes ago`;
+  if (minutes < 1) return t`just now`;
+  if (minutes < 60) return plural(minutes, { one: '# minute ago', other: '# minutes ago' });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
+  if (hours < 24) return plural(hours, { one: '# hour ago', other: '# hours ago' });
   const days = Math.floor(hours / 24);
-  return days === 1 ? 'yesterday' : `${days} days ago`;
+  return days === 1 ? t`yesterday` : plural(days, { one: '# day ago', other: '# days ago' });
 }
 
 function releaseDate(published: string): string {
   const date = new Date(published);
-  return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString(dateLocale(undefined), { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 function UpdateStatus({ updates, actions }: { updates: PreferencesPayload['updates']; actions: PreferencesActions }) {
@@ -513,7 +539,7 @@ function UpdateStatus({ updates, actions }: { updates: PreferencesPayload['updat
       <div className="prefs-card">
         <div className="prefs-row-copy">
           {title}
-          <span className="prefs-row-detail">Updates come from the Microsoft Store.</span>
+          <span className="prefs-row-detail">{t`Updates come from the Microsoft Store.`}</span>
         </div>
       </div>
     );
@@ -521,34 +547,36 @@ function UpdateStatus({ updates, actions }: { updates: PreferencesPayload['updat
   if (updates.available && updates.status !== 'checking') {
     const { available } = updates;
     const released = releaseDate(available.published);
+    const latest = available.version;
+    const current = updates.version;
     return (
       <div className="prefs-card prefs-card--update">
         <div className="prefs-row-copy">
           <span className="prefs-card-title">
             <span className="prefs-dot" aria-hidden="true" />
-            JusPrin {available.version} is available
+            {t`JusPrin ${latest} is available`}
           </span>
           <span className="prefs-row-detail">
-            {released ? `Released ${released} · you have ${updates.version}` : `You have ${updates.version}`}
+            {released ? t`Released ${released} · you have ${current}` : t`You have ${current}`}
           </span>
         </div>
         <div className="prefs-card-actions">
           <button type="button" className="primary" onClick={() => actions.run('open_update')}>
-            Download
+            {t`Download`}
             <span className="jp-icon jp-icon-arrow-up-right" aria-hidden="true" />
           </button>
-          <span className="prefs-card-note">Opens the release page on GitHub</span>
+          <span className="prefs-card-note">{t`Opens the release page on GitHub`}</span>
           <button type="button" className="link prefs-card-end"
             onClick={() => actions.run('skip_update', { version: available.version })}>
-            Skip this version
+            {t`Skip this version`}
           </button>
         </div>
         {available.notes && (
           <div className="prefs-release-notes">
-            <h3 className="prefs-release-notes-title">Release notes</h3>
+            <h3 className="prefs-release-notes-title">{t`Release notes`}</h3>
             <MarkdownMessage>{available.notes}</MarkdownMessage>
             <button type="button" className="link prefs-release-notes-link" onClick={() => actions.run('open_update')}>
-              Full release notes on GitHub
+              {t`Full release notes on GitHub`}
               <span className="jp-icon jp-icon-arrow-up-right" aria-hidden="true" />
             </button>
           </div>
@@ -561,10 +589,10 @@ function UpdateStatus({ updates, actions }: { updates: PreferencesPayload['updat
       <div className="prefs-card">
         <div className="prefs-row-copy">
           {title}
-          <span className="prefs-row-detail">Looking for a newer version on GitHub…</span>
-          <span className="prefs-update-progress"><Progress label="Checking for a newer version" /></span>
+          <span className="prefs-row-detail">{t`Looking for a newer version on GitHub…`}</span>
+          <span className="prefs-update-progress"><Progress label={t`Checking for a newer version`} /></span>
         </div>
-        <button type="button" className="prefs-button" disabled>Checking…</button>
+        <button type="button" className="prefs-button" disabled>{t`Checking…`}</button>
       </div>
     );
   }
@@ -577,14 +605,16 @@ function UpdateStatus({ updates, actions }: { updates: PreferencesPayload['updat
           <span className="prefs-update-line">
             <span className="prefs-dot prefs-dot--warning" aria-hidden="true" />
             <span className="prefs-row-detail">
-              {checked ? `Couldn’t reach GitHub · last checked ${checked}` : 'Couldn’t reach GitHub'}
+              {checked
+                ? t({ message: `Couldn’t reach GitHub · last checked ${checked}`, comment: '{checked} is how long ago, such as "just now", "2 hours ago" or "yesterday".' })
+                : t`Couldn’t reach GitHub`}
             </span>
           </span>
           <span className="prefs-row-hint">
-            {updates.checkUpdates ? 'JusPrin tries again tomorrow, or the next time it starts.' : 'Automatic checks are off.'}
+            {updates.checkUpdates ? t`JusPrin tries again tomorrow, or the next time it starts.` : t`Automatic checks are off.`}
           </span>
         </div>
-        <button type="button" className="prefs-button" onClick={() => actions.run('check_updates')}>Try again</button>
+        <button type="button" className="prefs-button" onClick={() => actions.run('check_updates')}>{t`Try again`}</button>
       </div>
     );
   }
@@ -595,30 +625,32 @@ function UpdateStatus({ updates, actions }: { updates: PreferencesPayload['updat
         {checked ? (
           <span className="prefs-update-line">
             <span className="prefs-dot prefs-dot--success" aria-hidden="true" />
-            <span className="prefs-row-detail">Up to date · checked {checked}</span>
+            <span className="prefs-row-detail">
+              {t({ message: `Up to date · checked ${checked}`, comment: '{checked} is how long ago, such as "just now", "2 hours ago" or "yesterday".' })}
+            </span>
           </span>
         ) : (
-          <span className="prefs-row-detail">Not checked yet</span>
+          <span className="prefs-row-detail">{t`Not checked yet`}</span>
         )}
       </div>
-      <button type="button" className="prefs-button" onClick={() => actions.run('check_updates')}>Check now</button>
+      <button type="button" className="prefs-button" onClick={() => actions.run('check_updates')}>{t`Check now`}</button>
     </div>
   );
 }
 
 function UpdatesSection({ updates, actions }: { updates: PreferencesPayload['updates']; actions: PreferencesActions }) {
   return (
-    <section className="prefs-section" aria-label="Updates">
-      <h2 className="prefs-title">Updates</h2>
+    <section className="prefs-section" aria-label={t`Updates`}>
+      <h2 className="prefs-title">{t`Updates`}</h2>
       <UpdateStatus updates={updates} actions={actions} />
-      <Group title="What to check for">
+      <Group title={t`What to check for`}>
         {updates.status !== 'store' && (
-          <Check title="New JusPrin versions"
-            detail="Once a day JusPrin asks GitHub for its list of releases. GitHub sees your IP address, as with any web page. Nothing about you or your projects is sent."
+          <Check title={t`New JusPrin versions`}
+            detail={t`Once a day JusPrin asks GitHub for its list of releases. GitHub sees your IP address, as with any web page. Nothing about you or your projects is sent.`}
             checked={updates.checkUpdates} onChange={(on) => actions.set('checkUpdates', on)} />
         )}
-        <Row title="Built-in printer and filament profiles"
-          detail="Update with each JusPrin release. Your own presets never change." />
+        <Row title={t`Built-in printer and filament profiles`}
+          detail={t`Update with each JusPrin release. Your own presets never change.`} />
       </Group>
     </section>
   );
@@ -664,7 +696,7 @@ export function Preferences({
 
   return (
     <div className="prefs" data-testid="preferences">
-      <nav className="prefs-nav" aria-label="Preference sections">
+      <nav className="prefs-nav" aria-label={t`Preference sections`}>
         {SECTIONS.map((entry) => (
           <button key={entry.id} type="button" className="prefs-nav-item" aria-current={section === entry.id ? 'page' : undefined}
             onClick={() => go(entry.id)}>
@@ -678,15 +710,15 @@ export function Preferences({
               <span>{entry.label}</span>
             )}
             {entry.id === 'updates' && preferences.updates.available && (
-              <span className="prefs-dot prefs-nav-dot" role="img" aria-label="Update available" />
+              <span className="prefs-dot prefs-nav-dot" role="img" aria-label={t`Update available`} />
             )}
           </button>
         ))}
         <div className="prefs-orca">
           <button type="button" className="link prefs-orca-link" onClick={() => actions.run('orca_preferences')}>
-            More preferences…
+            {t`More preferences…`}
           </button>
-          <p className="prefs-orca-note">The full preferences window from OrcaSlicer, which JusPrin is built on.</p>
+          <p className="prefs-orca-note">{t`The full preferences window from OrcaSlicer, which JusPrin is built on.`}</p>
         </div>
       </nav>
       <main className="prefs-content">

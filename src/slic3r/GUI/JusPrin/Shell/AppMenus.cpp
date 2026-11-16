@@ -183,7 +183,8 @@ void AppMenus::install()
     wxMenu* printer = build_printer();
 #ifdef __APPLE__
     const int view_at = bar->FindMenu(_L("View"));
-    bar->Insert(view_at + 1, print, _L("Print"));
+    // TRN The menu of print actions: Slice plate, Check print…, Print….
+    bar->Insert(view_at + 1, print, _L_CONTEXT("Print", "Menu"));
     m_bar_menus.push_back(print);
     bar->Insert(view_at + 2, printer, _L("Printer"));
     m_bar_menus.push_back(printer);
@@ -192,7 +193,8 @@ void AppMenus::install()
     for (wxMenuItem* item : top_items) {
         items.push_back(item);
         if (item->GetSubMenu() == m_view) {
-            items.push_back(submenu(top, print, _L("Print")));
+            // TRN The menu of print actions: Slice plate, Check print…, Print….
+            items.push_back(submenu(top, print, _L_CONTEXT("Print", "Menu")));
             items.push_back(submenu(top, printer, _L("Printer")));
         }
     }

@@ -1,0 +1,4783 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-11-14 21:25-0800\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: hu\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
+
+# AI Translated
+#. A photo's attribution: the title, author, link and licence are the photo's own
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "“{firstTitle}” by {author}, {firstSource}, {license}. Cropped."
+msgstr "„{firstTitle}”, szerző: {author}, {firstSource}, {license}. Körbevágva."
+
+# AI Translated
+#. A photo's attribution: the title, author, link and licence are the photo's own
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "“{secondTitle}” by {author}, {secondSource}, {license}. Cropped and resized."
+msgstr "„{secondTitle}”, szerző: {author}, {secondSource}, {license}. Körbevágva és átméretezve."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "“Found” means JusPrin found the app or its settings file here, not that the app is signed in. You can connect one that wasn’t found."
+msgstr "A „Megtalálva” azt jelenti, hogy a JusPrin itt megtalálta az alkalmazást vagy a beállításfájlját, nem azt, hogy az alkalmazás be van jelentkezve. Olyat is csatlakoztathatsz, amelyet nem talált meg."
+
+# AI Translated
+# Needs human review: The button name on model sites; check whether those sites show it in English or Hungarian
+#: src/components/Preferences.tsx
+msgid "“Open in slicer” buttons on model sites"
+msgstr "A modelloldalak „Open in slicer” (Megnyitás szeletelőben) gombjai"
+
+# AI Translated
+#: src/components/MarkdownMessage.tsx
+msgid "[Image: {description}]"
+msgstr "[Kép: {description}]"
+
+# AI Translated
+#: src/components/MarkdownMessage.tsx
+msgid "[Image: description unavailable]"
+msgstr "[Kép: nincs elérhető leírás]"
+
+# AI Translated
+# Needs human review: Follows a sentence saying no filament for this printer matches; check the "viszont igen" continuation reads right
+#. placeholder {0}: otherShown.length
+#: src/components/AddPrinterForm.tsx
+msgid "{0, plural, =1 {One filament made for other printers does.} other {# filaments made for other printers do.}}"
+msgstr "{0, plural, =1 {Egy más nyomtatókhoz készült filament viszont igen.} one {# más nyomtatókhoz készült filament viszont igen.} other {# más nyomtatókhoz készült filament viszont igen.}}"
+
+# AI Translated
+#. placeholder {0}: otherShown.length
+#: src/components/AddPrinterForm.tsx
+msgid "{0, plural, =1 {Show it} other {Show them}}"
+msgstr "{0, plural, =1 {Megjelenítés} one {Megjelenítés} other {Megjelenítés}}"
+
+# AI Translated
+#. placeholder {0}: fitting.length - RESULT_LIMIT
+#: src/components/AddPrinterForm.tsx
+msgid "{0, plural, one {# more match. Type more to narrow the list.} other {# more match. Type more to narrow the list.}}"
+msgstr "{0, plural, one {Még # találat. Írj be többet a lista szűkítéséhez.} other {Még # találat. Írj be többet a lista szűkítéséhez.}}"
+
+# AI Translated
+#. placeholder {0}: others.length
+#: src/components/AddPrinterForm.tsx
+msgid "{0, plural, one {# more. Picking one saves a copy for the {modelName}.} other {# more. Picking one saves a copy for the {modelName}.}}"
+msgstr "{0, plural, one {Még #. Ha egyet választasz, a JusPrin másolatot ment belőle ehhez: {modelName}.} other {Még #. Ha egyet választasz, a JusPrin másolatot ment belőle ehhez: {modelName}.}}"
+
+# AI Translated
+#. placeholder {0}: otherShown.length
+#: src/components/AddPrinterForm.tsx
+msgid "{0, plural, one {# of them match your search. Picking one saves a copy for the {modelName}.} other {# of them match your search. Picking one saves a copy for the {modelName}.}}"
+msgstr "{0, plural, one {Ezek közül # egyezik a kereséseddel. Ha egyet választasz, a JusPrin másolatot ment belőle ehhez: {modelName}.} other {Ezek közül # egyezik a kereséseddel. Ha egyet választasz, a JusPrin másolatot ment belőle ehhez: {modelName}.}}"
+
+# AI Translated
+#. placeholder {0}: found.length
+#: src/components/Guide.tsx
+msgid "{0, plural, one {Found in # section} other {Found in # sections}}"
+msgstr "{0, plural, one {# szakaszban található} other {# szakaszban található}}"
+
+# AI Translated
+#. placeholder {0}: chosen.length
+#: src/components/OrcaImport.tsx
+msgid "{0, plural, one {Import # printer} other {Import # printers}}"
+msgstr "{0, plural, one {# nyomtató importálása} other {# nyomtató importálása}}"
+
+# AI Translated
+#. placeholder {0}: others.length
+#: src/components/AddPrinterForm.tsx
+msgid "{0, plural, one {None of the # match your search either.} other {None of the # match your search either.}}"
+msgstr "{0, plural, one {Ez az egy sem egyezik a kereséseddel.} other {Ezek közül (#) sem egyezik egy sem a kereséseddel.}}"
+
+# AI Translated
+#. placeholder {0}: printers.length
+#: src/components/OrcaImport.tsx
+msgid "{0, plural, one {The # imported printers are now in the printer menu at the top of the window.} other {The # imported printers are now in the printer menu at the top of the window.}}"
+msgstr "{0, plural, one {Az importált nyomtató mostantól az ablak tetején lévő nyomtatómenüben található.} other {Az importált nyomtatók (#) mostantól az ablak tetején lévő nyomtatómenüben találhatók.}}"
+
+# AI Translated
+#. placeholder {0}: signup.granted
+#: src/credits.ts
+msgid "{0, plural, one {You got {granted} free credit for signing up, good until {until}.} other {You got {granted} free credits for signing up, good until {until}.}}"
+msgstr "{0, plural, one {Regisztrációért {granted} ingyenes kreditet kaptál, amely eddig érvényes: {until}.} other {Regisztrációért {granted} ingyenes kreditet kaptál, amelyek eddig érvényesek: {until}.}}"
+
+# AI Translated
+#: src/credits.ts
+msgid "{about, plural, one {About # credit left} other {About # credits left}}"
+msgstr "{about, plural, one {Kb. # kredit maradt} other {Kb. # kredit maradt}}"
+
+# AI Translated
+#. Grams of filament
+#: src/components/SetupCard.tsx
+msgid "{amount} g"
+msgstr "{amount} g"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{app} keeps its own copy."
+msgstr "A(z) {app} megtartja a saját példányát."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{app} keeps these in {path}"
+msgstr "A(z) {app} itt tárolja ezeket: {path}"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "{app} keeps these in {source}"
+msgstr "A(z) {app} itt tárolja ezeket: {source}"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{app} printers"
+msgstr "{app}-nyomtatók"
+
+# AI Translated
+#: src/components/AttachmentChip.tsx
+msgid "{bytes} B"
+msgstr "{bytes} B"
+
+# AI Translated
+# Needs human review: "presets" rendered as upstream's "beállítás"; check the sentence is clear on the setup card
+#: src/components/SetupCard.tsx
+msgid "{changed, plural, one {# setting differs from the presets.} other {# settings differ from the presets.}}"
+msgstr "{changed, plural, one {# érték eltér a beállításoktól.} other {# érték eltér a beállításoktól.}}"
+
+# AI Translated
+#: src/credits.ts
+msgid "{cost, plural, one {{n} credit a message} other {{n} credits a message}}"
+msgstr "{cost, plural, one {{n} kredit üzenetenként} other {{n} kredit üzenetenként}}"
+
+# AI Translated
+#: src/credits.ts
+msgid "{cost, plural, one {Each message you send in this chat costs {n} credit.} other {Each message you send in this chat costs {n} credits.}}"
+msgstr "{cost, plural, one {Minden üzenet, amelyet ebben a csevegésben küldesz, {n} kreditbe kerül.} other {Minden üzenet, amelyet ebben a csevegésben küldesz, {n} kreditbe kerül.}}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{count, plural, one {{count} G-code} other {{count} G-codes}}"
+msgstr "{count, plural, one {{count} G-code} other {{count} G-code}}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{count, plural, one {{count} print} other {{count} prints}}"
+msgstr "{count, plural, one {{count} nyomtatás} other {{count} nyomtatás}}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{count, plural, one {{count} printing now} other {{count} printing now}}"
+msgstr "{count, plural, one {{count} nyomtatás folyamatban} other {{count} nyomtatás folyamatban}}"
+
+# AI Translated
+#: src/credits.ts
+msgid "{count, plural, one {{n} credit left} other {{n} credits left}}"
+msgstr "{count, plural, one {{n} kredit maradt} other {{n} kredit maradt}}"
+
+# AI Translated
+#: src/credits.ts
+msgid "{count, plural, one {{n} credit} other {{n} credits}}"
+msgstr "{count, plural, one {{n} kredit} other {{n} kredit}}"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "{count, plural, one {# action} other {# actions}}"
+msgstr "{count, plural, one {# művelet} other {# művelet}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{count, plural, one {# changed} other {# changed}}"
+msgstr "{count, plural, one {# módosítva} other {# módosítva}}"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "{count, plural, one {# model} other {# models}}"
+msgstr "{count, plural, one {# modell} other {# modell}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{count, plural, one {# own setting} other {# own settings}}"
+msgstr "{count, plural, one {# saját beállítás} other {# saját beállítás}}"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{count, plural, one {# setting} other {# settings}}"
+msgstr "{count, plural, one {# beállítás} other {# beállítás}}"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "{count, plural, one {+{n} credit} other {+{n} credits}}"
+msgstr "{count, plural, one {+{n} kredit} other {+{n} kredit}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{count, plural, one {Negative part} other {Negative parts}}"
+msgstr "{count, plural, one {Negatív tárgy} other {Negatív tárgyak}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{count, plural, one {Part} other {Parts}}"
+msgstr "{count, plural, one {Tárgy} other {Tárgyak}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{count, plural, one {Support blocker} other {Support blockers}}"
+msgstr "{count, plural, one {Támasz blokkoló} other {Támasz blokkolók}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{count, plural, one {Support enforcer} other {Support enforcers}}"
+msgstr "{count, plural, one {Támasz kényszerítő} other {Támasz kényszerítők}}"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "{count, plural, one {Worked for {elapsed} · # action} other {Worked for {elapsed} · # actions}}"
+msgstr "{count, plural, one {Munkaidő: {elapsed} · # művelet} other {Munkaidő: {elapsed} · # művelet}}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{credits, plural, one {{credits} credit added} other {{credits} credits added}}"
+msgstr "{credits, plural, one {{credits} kredit jóváírva} other {{credits} kredit jóváírva}}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "{credits, plural, one {To send this and get {credits} credit, add a photo of the printed object, write what happened, and pick how it came out.} other {To send this and get {credits} credits, add a photo of the printed object, write what happened, and pick how it came out.}}"
+msgstr "{credits, plural, one {Ha el szeretnéd küldeni, és {credits} kreditet kapnál, adj hozzá egy fényképet a kinyomtatott tárgyról, írd le, mi történt, és válaszd ki, hogyan sikerült.} other {Ha el szeretnéd küldeni, és {credits} kreditet kapnál, adj hozzá egy fényképet a kinyomtatott tárgyról, írd le, mi történt, és válaszd ki, hogyan sikerült.}}"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+#: src/components/Preferences.tsx
+msgid "{days, plural, one {# day ago} other {# days ago}}"
+msgstr "{days, plural, one {# napja} other {# napja}}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "{days, plural, one {Last connected {days} day ago} other {Last connected {days} days ago}}"
+msgstr "{days, plural, one {Utoljára {days} napja csatlakozott} other {Utoljára {days} napja csatlakozott}}"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "{defaultLabel}, until your preset is saved"
+msgstr "{defaultLabel}, amíg a beállításod nincs mentve"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{exports, plural, =1 {Exported once, never sent to a printer} one {Exported {exports} times, never sent to a printer} other {Exported {exports} times, never sent to a printer}}"
+msgstr "{exports, plural, =1 {Egyszer exportálva, még nem került nyomtatóra} one {{exports} alkalommal exportálva, még nem került nyomtatóra} other {{exports} alkalommal exportálva, még nem került nyomtatóra}}"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "{failed, plural, one {# failed} other {# failed}}"
+msgstr "{failed, plural, one {# sikertelen} other {# sikertelen}}"
+
+# AI Translated
+#: src/App.tsx
+msgid "{filament} settings"
+msgstr "{filament} beállításai"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{filaments, plural, one {# filament wasn’t imported. It stays in {app}.} other {# filaments weren’t imported. They stay in {app}.}}"
+msgstr "{filaments, plural, one {# filament nem lett importálva. A(z) {app} alkalmazásban marad.} other {# filament nem lett importálva. A(z) {app} alkalmazásban maradnak.}}"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{filaments, plural, one {# filament} other {# filaments}} and {settings, plural, one {# print setting} other {# print settings}} weren’t imported. They stay in {app}."
+msgstr "{filaments, plural, one {# filament} other {# filament}} és {settings, plural, one {# nyomtatási beállítás} other {# nyomtatási beállítás}} nem lett importálva. A(z) {app} alkalmazásban maradnak."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "{filaments, plural, one {Also brings {filaments} filament.} other {Also brings {filaments} filaments.}}"
+msgstr "{filaments, plural, one {{filaments} filamentet is áthoz.} other {{filaments} filamentet is áthoz.}}"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{filaments, plural, one {Also imported: # filament ({filamentList}).} other {Also imported: # filaments ({filamentList}).}}"
+msgstr "{filaments, plural, one {Szintén importálva: # filament ({filamentList}).} other {Szintén importálva: # filament ({filamentList}).}}"
+
+# AI Translated
+#: src/components/GcodeMarker.tsx
+msgid "{fileName} · exported"
+msgstr "{fileName} · exportálva"
+
+# AI Translated
+#. The file formats Home opens: STL, 3MF, STEP, OBJ, AMF, SVG or ZIP.
+#: ../HomeUI/src/App.tsx
+msgid "{formats} or {lastFormat}."
+msgstr "{formats} vagy {lastFormat}."
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{gcodes, plural, one {{gcodes} G-code, never sent to a printer} other {{gcodes} G-codes, never sent to a printer}}"
+msgstr "{gcodes, plural, one {{gcodes} G-code, még nem került nyomtatóra} other {{gcodes} G-code, még nem került nyomtatóra}}"
+
+# AI Translated
+#. Grams of filament
+#: ../HomeUI/src/history.ts
+msgid "{grams} g"
+msgstr "{grams} g"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "{hours, plural, one {# hour ago} other {# hours ago}}"
+msgstr "{hours, plural, one {# órája} other {# órája}}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "{hours, plural, one {Last connected {hours}h ago} other {Last connected {hours}h ago}}"
+msgstr "{hours, plural, one {Utoljára {hours} órája csatlakozott} other {Utoljára {hours} órája csatlakozott}}"
+
+# AI Translated
+#. A duration in hours and minutes, abbreviated: 2h 04m
+#: ../HomeUI/src/history.ts
+msgid "{hours}h {mins}m"
+msgstr "{hours} ó {mins} p"
+
+# AI Translated
+#. Time left in a print, hours and minutes abbreviated: 2h 14m left
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "{hours}h {mins}m left"
+msgstr "még {hours} ó {mins} p"
+
+# AI Translated
+#. {job} is the file printing
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "{job}, {percent} percent"
+msgstr "{job}, {percent} százalék"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+#: src/components/AttachmentChip.tsx
+msgid "{kilobytes} KB"
+msgstr "{kilobytes} KB"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{label} {from} → <0>{to}</0>"
+msgstr "{label} {from} → <0>{to}</0>"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "{label}: {text}"
+msgstr "{label}: {text}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{layers, plural, one {{layers} layer} other {{layers} layers}}"
+msgstr "{layers, plural, one {{layers} réteg} other {{layers} réteg}}"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+#: src/components/Preferences.tsx
+msgid "{left} of {of} left"
+msgstr "{left} / {of} maradt"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{list} and {name}"
+msgstr "{list} és {name}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+#: src/components/AttachmentChip.tsx
+msgid "{megabytes} MB"
+msgstr "{megabytes} MB"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "{minimum, plural, one {Write at least {minimum} character ({length} so far).} other {Write at least {minimum} characters ({length} so far).}}"
+msgstr "{minimum, plural, one {Írj legalább {minimum} karaktert (eddig {length}).} other {Írj legalább {minimum} karaktert (eddig {length}).}}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "{minutes, plural, one {# minute ago} other {# minutes ago}}"
+msgstr "{minutes, plural, one {# perce} other {# perce}}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "{minutes, plural, one {Last connected {minutes} min ago} other {Last connected {minutes} min ago}}"
+msgstr "{minutes, plural, one {Utoljára {minutes} perce csatlakozott} other {Utoljára {minutes} perce csatlakozott}}"
+
+# AI Translated
+#. A duration in minutes, abbreviated: 34m
+#: ../HomeUI/src/history.ts
+msgid "{minutes}m"
+msgstr "{minutes} p"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "{minutes}m {seconds}s"
+msgstr "{minutes} p {seconds} mp"
+
+# AI Translated
+#. Time left in a print, minutes abbreviated: 14m left
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "{minutes}m left"
+msgstr "még {minutes} p"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "{more, plural, one {{preset} with {filament} and # other filament.} other {{preset} with {filament} and # other filaments.}}"
+msgstr "{more, plural, one {{preset}, {filament} és # további filament.} other {{preset}, {filament} és # további filament.}}"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "{more, plural, one {Made for the {first}, {second} and # other printer. Picking it saves a copy for the {modelName}.} other {Made for the {first}, {second} and # other printers. Picking it saves a copy for the {modelName}.}}"
+msgstr "{more, plural, one {Ezekhez készült: {first}, {second} és # további nyomtató. Ha ezt választod, a JusPrin másolatot ment belőle ehhez: {modelName}.} other {Ezekhez készült: {first}, {second} és # további nyomtató. Ha ezt választod, a JusPrin másolatot ment belőle ehhez: {modelName}.}}"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "{more, plural, one {Opened {name} and # more as a new project} other {Opened {name} and # more as a new project}}"
+msgstr "{more, plural, one {{name} és # további fájl megnyitva új projektként} other {{name} és # további fájl megnyitva új projektként}}"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "{more, plural, one {Opened {name} and # more} other {Opened {name} and # more}}"
+msgstr "{more, plural, one {{name} és # további fájl megnyitva} other {{name} és # további fájl megnyitva}}"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "{more, plural, one {Opened a file and # more as a new project} other {Opened a file and # more as a new project}}"
+msgstr "{more, plural, one {Egy fájl és # további megnyitva új projektként} other {Egy fájl és # további megnyitva új projektként}}"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "{more, plural, one {Opened a file and # more} other {Opened a file and # more}}"
+msgstr "{more, plural, one {Egy fájl és # további megnyitva} other {Egy fájl és # további megnyitva}}"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "{more, plural, one {Your preset, made for the {first}, {second} and # other printer. Picking it saves a copy for the {modelName}.} other {Your preset, made for the {first}, {second} and # other printers. Picking it saves a copy for the {modelName}.}}"
+msgstr "{more, plural, one {A te beállításod, ezekhez készült: {first}, {second} és # további nyomtató. Ha ezt választod, a JusPrin másolatot ment belőle ehhez: {modelName}.} other {A te beállításod, ezekhez készült: {first}, {second} és # további nyomtató. Ha ezt választod, a JusPrin másolatot ment belőle ehhez: {modelName}.}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{morePlate, plural, one {Bed type set on this plate · # more plate setting} other {Bed type set on this plate · # more plate settings}}"
+msgstr "{morePlate, plural, one {Asztaltípus beállítva ezen a tálcán · még # tálcabeállítás} other {Asztaltípus beállítva ezen a tálcán · még # tálcabeállítás}}"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "{name} API key"
+msgstr "{name} API-kulcs"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "{name} can see this project"
+msgstr "A(z) {name} látja ezt a projektet"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{name} has settings of its own."
+msgstr "A(z) {name} saját beállításokkal rendelkezik."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{name} is now in the printer menu at the top of the window."
+msgstr "A(z) {name} mostantól az ablak tetején lévő nyomtatómenüben található."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "{name} isn’t installed."
+msgstr "A(z) {name} nincs telepítve."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{name} prints with the project’s settings and sets nothing of its own."
+msgstr "A(z) {name} a projekt beállításaival nyomtat, és nem állít be semmit sajátként."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "{name} rejected this key. Nothing was saved."
+msgstr "A(z) {name} elutasította ezt a kulcsot. Semmi sem lett mentve."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{name} uses the project’s settings and sets nothing of its own."
+msgstr "A(z) {name} a projekt beállításait használja, és nem állít be semmit sajátként."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{names} have settings of their own."
+msgstr "A következők saját beállításokkal rendelkeznek: {names}."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{newPrinters, plural, one {JusPrin found # printer in {app} that it doesn’t have yet.} other {JusPrin found # printers in {app} that it doesn’t have yet.}}"
+msgstr "{newPrinters, plural, one {A JusPrin # olyan nyomtatót talált a(z) {app} alkalmazásban, amely még nincs meg benne.} other {A JusPrin # olyan nyomtatót talált a(z) {app} alkalmazásban, amely még nincs meg benne.}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{nozzles} mm nozzle"
+msgstr "{nozzles} mm-es fúvóka"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{objectCount, plural, one {# object} other {# objects}}"
+msgstr "{objectCount, plural, one {# objektum} other {# objektum}}"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "{onlySize} mm, the only size it comes with"
+msgstr "{onlySize} mm, az egyetlen méret, amellyel szállítják"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{own, plural, one {{name} sets # setting of its own; the rest is the project’s.} other {{name} sets # settings of its own; the rest is the project’s.}}"
+msgstr "{own, plural, one {A(z) {name} # saját beállítást használ; a többi a projekté.} other {A(z) {name} # saját beállítást használ; a többi a projekté.}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{own, plural, one {{name} uses the project’s settings, except for # setting of its own.} other {{name} uses the project’s settings, except for # settings of its own.}}"
+msgstr "{own, plural, one {A(z) {name} a projekt beállításait használja, kivéve # saját beállítást.} other {A(z) {name} a projekt beállításait használja, kivéve # saját beállítást.}}"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "{plan} credits"
+msgstr "{plan} előfizetés kreditjei"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{plateOwn, plural, one {# setting set on this plate} other {# settings set on this plate}}"
+msgstr "{plateOwn, plural, one {# beállítás ezen a tálcán megadva} other {# beállítás ezen a tálcán megadva}}"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "{preset} with {filament}."
+msgstr "{preset}, {filament}."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "{printer}, {size} mm nozzle"
+msgstr "{printer}, {size} mm-es fúvóka"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "{printerName} settings"
+msgstr "{printerName} beállításai"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{printers, plural, one {# printer wasn’t imported. It stays in {app}.} other {# printers weren’t imported. They stay in {app}.}}"
+msgstr "{printers, plural, one {# nyomtató nem lett importálva. A(z) {app} alkalmazásban marad.} other {# nyomtató nem lett importálva. A(z) {app} alkalmazásban maradnak.}}"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{printers, plural, one {# printer} other {# printers}} and {filaments, plural, one {# filament} other {# filaments}} weren’t imported. They stay in {app}."
+msgstr "{printers, plural, one {# nyomtató} other {# nyomtató}} és {filaments, plural, one {# filament} other {# filament}} nem lett importálva. A(z) {app} alkalmazásban maradnak."
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{printers, plural, one {# printer} other {# printers}} and {settings, plural, one {# print setting} other {# print settings}} weren’t imported. They stay in {app}."
+msgstr "{printers, plural, one {# nyomtató} other {# nyomtató}} és {settings, plural, one {# nyomtatási beállítás} other {# nyomtatási beállítás}} nem lett importálva. A(z) {app} alkalmazásban maradnak."
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{printers, plural, one {# printer} other {# printers}}, {filaments, plural, one {# filament} other {# filaments}} and {settings, plural, one {# print setting} other {# print settings}} weren’t imported. They stay in {app}."
+msgstr "{printers, plural, one {# nyomtató} other {# nyomtató}}, {filaments, plural, one {# filament} other {# filament}} és {settings, plural, one {# nyomtatási beállítás} other {# nyomtatási beállítás}} nem lett importálva. A(z) {app} alkalmazásban maradnak."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{processChanges, plural, one {# change from the preset} other {# changes from the preset}}"
+msgstr "{processChanges, plural, one {# eltérés a beállítástól} other {# eltérés a beállítástól}}"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "{reason} Nothing was saved."
+msgstr "{reason} Semmi sem lett mentve."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{regions, plural, one {{name} has settings of its own in # region: {names}.} other {{name} has settings of its own in # regions: {names}.}}"
+msgstr "{regions, plural, one {A(z) {name} # területen saját beállításokat használ: {names}.} other {A(z) {name} # területen saját beállításokat használ: {names}.}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{regions, plural, one {{name} uses the project’s settings, except in # region: {names}.} other {{name} uses the project’s settings, except in # regions: {names}.}}"
+msgstr "{regions, plural, one {A(z) {name} a projekt beállításait használja, kivéve # területen: {names}.} other {A(z) {name} a projekt beállításait használja, kivéve # területen: {names}.}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{regions, plural, one {{names} · # region} other {{names} · # regions}}"
+msgstr "{regions, plural, one {{names} · # terület} other {{names} · # terület}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{regions, plural, one {{where} · # region · project: {projectValue}} other {{where} · # regions · project: {projectValue}}}"
+msgstr "{regions, plural, one {{where} · # terület · projekt: {projectValue}} other {{where} · # terület · projekt: {projectValue}}}"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{remaining, plural, one {See the other # →} other {See the other # →}}"
+msgstr "{remaining, plural, one {A további # megtekintése →} other {A további # megtekintése →}}"
+
+# AI Translated
+#. {remaining} is a duration, 2h 34m
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "{remaining} left"
+msgstr "még {remaining}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{reportCredits, plural, one {Share how it printed and get {reportCredits} credit} other {Share how it printed and get {reportCredits} credits}}"
+msgstr "{reportCredits, plural, one {Oszd meg, hogyan sikerült a nyomtatás, és kapj {reportCredits} kreditet} other {Oszd meg, hogyan sikerült a nyomtatás, és kapj {reportCredits} kreditet}}"
+
+# AI Translated
+#. A duration in seconds, abbreviated: 45s
+#: ../HomeUI/src/history.ts
+msgid "{secs}s"
+msgstr "{secs} mp"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{sends, plural, =1 {Sent once} one {Sent {sends} times} other {Sent {sends} times}}"
+msgstr "{sends, plural, =1 {Egyszer elküldve} one {{sends} alkalommal elküldve} other {{sends} alkalommal elküldve}}"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{settings, plural, one {# print setting wasn’t imported. It stays in {app}.} other {# print settings weren’t imported. They stay in {app}.}}"
+msgstr "{settings, plural, one {# nyomtatási beállítás nem lett importálva. A(z) {app} alkalmazásban marad.} other {# nyomtatási beállítás nem lett importálva. A(z) {app} alkalmazásban maradnak.}}"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "{settings, plural, one {Also brings {settings} print setting.} other {Also brings {settings} print settings.}}"
+msgstr "{settings, plural, one {{settings} nyomtatási beállítást is áthoz.} other {{settings} nyomtatási beállítást is áthoz.}}"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{settings, plural, one {Also imported: # print setting ({settingList}).} other {Also imported: # print settings ({settingList}).}}"
+msgstr "{settings, plural, one {Szintén importálva: # nyomtatási beállítás ({settingList}).} other {Szintén importálva: # nyomtatási beállítás ({settingList}).}}"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{shown, plural, one {# setting} other {# settings}}"
+msgstr "{shown, plural, one {# beállítás} other {# beállítás}}"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "{size} mm"
+msgstr "{size} mm"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "{size} mm nozzle"
+msgstr "{size} mm-es fúvóka"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{skipped, plural, =1 {There is nothing to import. JusPrin already has everything in this {app} folder except the item with the warning sign, which it can’t import.} other {There is nothing to import. JusPrin already has everything in this {app} folder except the # items with the warning sign, which it can’t import.}}"
+msgstr "{skipped, plural, =1 {Nincs mit importálni. A JusPrinben már minden megvan ebből a(z) {app} mappából, kivéve a figyelmeztető jellel megjelölt elemet, amelyet nem tud importálni.} one {Nincs mit importálni. A JusPrinben már minden megvan ebből a(z) {app} mappából, kivéve a figyelmeztető jellel megjelölt # elemet, amelyet nem tud importálni.} other {Nincs mit importálni. A JusPrinben már minden megvan ebből a(z) {app} mappából, kivéve a figyelmeztető jellel megjelölt # elemet, amelyeket nem tud importálni.}}"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{skipped, plural, =1 {When you import, JusPrin copies it and skips the item with the warning sign.} other {When you import, JusPrin copies it and skips the # items with the warning sign.}}"
+msgstr "{skipped, plural, =1 {Importáláskor a JusPrin átmásolja, és kihagyja a figyelmeztető jellel megjelölt elemet.} one {Importáláskor a JusPrin átmásolja, és kihagyja a figyelmeztető jellel megjelölt # elemet.} other {Importáláskor a JusPrin átmásolja, és kihagyja a figyelmeztető jellel megjelölt # elemet.}}"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{skipped, plural, =1 {When you import, JusPrin copies it with its filaments and print settings and skips the item with the warning sign.} other {When you import, JusPrin copies it with its filaments and print settings and skips the # items with the warning sign.}}"
+msgstr "{skipped, plural, =1 {Importáláskor a JusPrin átmásolja a filamentjeivel és nyomtatási beállításaival együtt, és kihagyja a figyelmeztető jellel megjelölt elemet.} one {Importáláskor a JusPrin átmásolja a filamentjeivel és nyomtatási beállításaival együtt, és kihagyja a figyelmeztető jellel megjelölt # elemet.} other {Importáláskor a JusPrin átmásolja a filamentjeivel és nyomtatási beállításaival együtt, és kihagyja a figyelmeztető jellel megjelölt # elemet.}}"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{skipped, plural, =1 {When you import, JusPrin copies them and skips the item with the warning sign.} other {When you import, JusPrin copies them and skips the # items with the warning sign.}}"
+msgstr "{skipped, plural, =1 {Importáláskor a JusPrin átmásolja őket, és kihagyja a figyelmeztető jellel megjelölt elemet.} one {Importáláskor a JusPrin átmásolja őket, és kihagyja a figyelmeztető jellel megjelölt # elemet.} other {Importáláskor a JusPrin átmásolja őket, és kihagyja a figyelmeztető jellel megjelölt # elemet.}}"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{skipped, plural, =1 {When you import, JusPrin copies them with their filaments and print settings and skips the item with the warning sign.} other {When you import, JusPrin copies them with their filaments and print settings and skips the # items with the warning sign.}}"
+msgstr "{skipped, plural, =1 {Importáláskor a JusPrin átmásolja őket a filamentjeikkel és nyomtatási beállításaikkal együtt, és kihagyja a figyelmeztető jellel megjelölt elemet.} one {Importáláskor a JusPrin átmásolja őket a filamentjeikkel és nyomtatási beállításaikkal együtt, és kihagyja a figyelmeztető jellel megjelölt # elemet.} other {Importáláskor a JusPrin átmásolja őket a filamentjeikkel és nyomtatási beállításaikkal együtt, és kihagyja a figyelmeztető jellel megjelölt # elemet.}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{slots, plural, one {# slot, side by side} other {# slots, side by side}}"
+msgstr "{slots, plural, one {# férőhely, egymás mellett} other {# férőhely, egymás mellett}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{slots, plural, one {# slot} other {# slots}}"
+msgstr "{slots, plural, one {# férőhely} other {# férőhely}}"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{steps, plural, one {# step merged} other {# steps merged}}"
+msgstr "{steps, plural, one {# lépés összevonva} other {# lépés összevonva}}"
+
+# AI Translated
+#: src/components/WorkCard.tsx
+msgid "{times, plural, one {# time} other {# times}}"
+msgstr "{times, plural, one {# alkalommal} other {# alkalommal}}"
+
+# AI Translated
+#: src/components/ToolActivityCard.tsx
+#: src/components/WorkCard.tsx
+msgid "{title} progress"
+msgstr "{title} folyamata"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{total, plural, one {{shown} of # setting} other {{shown} of # settings}}"
+msgstr "{total, plural, one {{shown} / # beállítás} other {{shown} / # beállítás}}"
+
+# AI Translated
+#: src/credits.ts
+msgid "{total, plural, one {You have {n} credit; this {tier} chat needs {needed} a message.} other {You have {n} credits; this {tier} chat needs {needed} a message.}}"
+msgstr "{total, plural, one {{n} kredited van; ez a(z) {tier} csevegés üzenetenként {needed} kreditet igényel.} other {{n} kredited van; ez a(z) {tier} csevegés üzenetenként {needed} kreditet igényel.}}"
+
+# AI Translated
+#: src/credits.ts
+msgid "{total, plural, one {You have {n} credit.} other {You have {n} credits.}}"
+msgstr "{total, plural, one {{n} kredited van.} other {{n} kredited van.}}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "{total} left"
+msgstr "{total} maradt"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "{total}s"
+msgstr "{total} mp"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "{weeks, plural, one {# week ago} other {# weeks ago}}"
+msgstr "{weeks, plural, one {# hete} other {# hete}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{where} · project: {projectValue}"
+msgstr "{where} · projekt: {projectValue}"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{who}, {location}"
+msgstr "{who}, {location}"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{who}, in {preset}"
+msgstr "{who}, itt: {preset}"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "+ Add printer"
+msgstr "+ Nyomtató hozzáadása"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "<0>No filament matches “{search}”,</0> for the {modelName} or any other printer JusPrin has profiles for."
+msgstr "<0>Egyetlen filament sem egyezik ezzel: „{search}”,</0> sem a(z) {modelName}, sem más olyan nyomtató esetén, amelyhez a JusPrinnek van profilja."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "<0>Tip:</0> a photo is the fastest way. Use <1>+</1> below, or drop a picture of the printer, its nameplate or the box into this panel."
+msgstr "<0>Tipp:</0> a fénykép a leggyorsabb módszer. Használd a lenti <1>+</1> gombot, vagy húzd ebbe a panelbe a nyomtató, az adattáblája vagy a doboza képét."
+
+# AI Translated
+#. A print time, as in ~2h 05m
+#: src/components/SetupCard.tsx
+msgid "~{hours}h {rest}m"
+msgstr "~{hours} ó {rest} p"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "~{minutes} min"
+msgstr "~{minutes} perc"
+
+# AI Translated
+#: src/components/AttachmentChip.tsx
+msgid "3D model"
+msgstr "3D-modell"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "3D model (STL, 3MF, STEP)"
+msgstr "3D-modell (STL, 3MF, STEP)"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "3D view"
+msgstr "3D-nézet"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "3MF projects"
+msgstr "3MF projektek"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "A chat keeps the model and thinking level it started with. Start a new chat to change them."
+msgstr "A csevegés megtartja azt a modellt és gondolkodási szintet, amellyel indult. A módosításukhoz kezdj új csevegést."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "A chat keeps the model it started with."
+msgstr "A csevegés megtartja azt a modellt, amellyel indult."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "A new name has to differ from the old one by more than capitalization."
+msgstr "Az új névnek nemcsak a kis- és nagybetűkben kell különböznie a régitől."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "A printer name can’t contain any of these characters: < > [ ] : / \\ | ? * \""
+msgstr "A nyomtató neve nem tartalmazhatja a következő karaktereket: < > [ ] : / \\ | ? * \""
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "A saved chat’s setup: the settings that differed from the presets when it was saved."
+msgstr "Egy mentett csevegés beállítása: azok a beállítások, amelyek a mentéskor eltértek a kiválasztott beállításoktól."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Access code"
+msgstr "Hozzáférési kód"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Account"
+msgstr "Fiók"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Actions"
+msgstr "Műveletek"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Actions for {printerName}"
+msgstr "Műveletek: {printerName}"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Add {name} key"
+msgstr "{name}-kulcs hozzáadása"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Add a key above, or sign in under Account, to choose the model new chats start with."
+msgstr "Adj meg fent egy kulcsot, vagy jelentkezz be a Fiók részben, hogy kiválaszthasd, melyik modellel induljanak az új csevegések."
+
+# AI Translated
+#: src/App.tsx
+msgid "add a note, or just send"
+msgstr "írj megjegyzést, vagy egyszerűen küldd el"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Add a printer"
+msgstr "Nyomtató hozzáadása"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Add key"
+msgstr "Kulcs hozzáadása"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Add the {modelName} and continue"
+msgstr "{modelName} hozzáadása és folytatás"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Add your printer"
+msgstr "Add hozzá a nyomtatódat"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Added: <0>{name}</0>"
+msgstr "Hozzáadva: <0>{name}</0>"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Advanced / developer details"
+msgstr "Speciális / fejlesztői részletek"
+
+# AI Translated
+#: src/credits.ts
+msgid "After that, 50 free credits a month. No card needed."
+msgstr "Utána havonta 50 ingyenes kredit. Bankkártya nem szükséges."
+
+# AI Translated
+#. The name of the AI chat feature, as a panel title
+#. Who opened a file: the AI
+#: ../HomeUI/src/components/AgentGroup.tsx
+#: ../HomeUI/src/components/AgentGroup.tsx
+#: src/components/ChangeRows.tsx
+#: src/components/ChangeRows.tsx
+#: src/components/MessageList.tsx
+#: src/components/Panels.tsx
+msgid "AI"
+msgstr "AI"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "AI changes"
+msgstr "AI-módosítások"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "AI conversation"
+msgstr "AI-beszélgetés"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "AI fixing a print that came out stringy"
+msgstr "Az AI kijavít egy szálhúzós nyomtatást"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "AI is not available"
+msgstr "Az AI nem érhető el"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "AI is responding…"
+msgstr "Az AI válaszol…"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "AI setting changes"
+msgstr "AI által módosított beállítások"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "AI settings"
+msgstr "AI-beállítások"
+
+# AI Translated
+#: ../HomeUI/src/components/AgentGroup.tsx
+msgid "AI setup won’t show here again. You can set it up later in <0>Preferences</0>, under the gear at the top right."
+msgstr "Az AI beállítása itt többé nem jelenik meg. Később beállíthatod a <0>Beállításokban</0>, a jobb felső sarokban lévő fogaskerék alatt."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "AI tool"
+msgstr "AI-eszköz"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "AI tool can see this project"
+msgstr "Az AI-eszköz látja ezt a projektet"
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "AI turns what you want — <0>“make it strong, it’ll bear weight”</0> — into the hundreds of settings underneath, and shows you what it changed."
+msgstr "Az AI a kívánságodat – <0>„legyen erős, terhelést fog bírni”</0> – lefordítja a mögötte lévő több száz beállításra, és megmutatja, mit módosított."
+
+# AI Translated
+#. {provider} is the AI company, such as Anthropic or OpenAI
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "AI uses your {provider} key"
+msgstr "Az AI a(z) {provider}-kulcsodat használja"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "AI working"
+msgstr "Az AI dolgozik"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "All"
+msgstr "Összes"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "all projects, all printers"
+msgstr "minden projekt, minden nyomtató"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/SetupCard.tsx
+msgid "All settings"
+msgstr "Minden beállítás"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Allow this AI tool to read and change the open project?"
+msgstr "Engedélyezed, hogy ez az AI-eszköz olvassa és módosítsa a megnyitott projektet?"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Already have an account?"
+msgstr "Már van fiókod?"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "Already in JusPrin"
+msgstr "Már megvan a JusPrinben"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Also .stp and .drc files."
+msgstr "A .stp és .drc fájlok is."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Also brings {filaments, plural, one {{filaments} filament} other {{filaments} filaments}} and {settings, plural, one {{settings} print setting} other {{settings} print settings}}."
+msgstr "{filaments, plural, one {{filaments} filamentet} other {{filaments} filamentet}} és {settings, plural, one {{settings} nyomtatási beállítást} other {{settings} nyomtatási beállítást}} is áthoz."
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "Also imported: {filaments, plural, one {# filament} other {# filaments}} ({filamentList}) and {settings, plural, one {# print setting} other {# print settings}} ({settingList})."
+msgstr "Szintén importálva: {filaments, plural, one {# filament} other {# filament}} ({filamentList}) és {settings, plural, one {# nyomtatási beállítás} other {# nyomtatási beállítás}} ({settingList})."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Another printer is already named “{trimmed}”."
+msgstr "Már van „{trimmed}” nevű nyomtató."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Any plan ends, and the credits on {email} are removed with everything JusPrin keeps for this account. This can’t be undone."
+msgstr "Minden előfizetés megszűnik, és a(z) {email} fiókhoz tartozó kreditek törlődnek mindazzal együtt, amit a JusPrin ehhez a fiókhoz tárol. Ez nem vonható vissza."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Any plan ends, and the credits on this account are removed with everything JusPrin keeps for this account. This can’t be undone."
+msgstr "Minden előfizetés megszűnik, és a fiókhoz tartozó kreditek törlődnek mindazzal együtt, amit a JusPrin ehhez a fiókhoz tárol. Ez nem vonható vissza."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "API key"
+msgstr "API-kulcs"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Appearance"
+msgstr "Megjelenés"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Arguments"
+msgstr "Argumentumok"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Arrange plate"
+msgstr "Tálca elrendezése"
+
+# AI Translated
+#: src/App.tsx
+msgid "Ask about this filament or request a change…"
+msgstr "Kérdezz erről a filamentről, vagy kérj módosítást…"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Ask about this print or request a change…"
+msgstr "Kérdezz erről a nyomtatásról, vagy kérj módosítást…"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Ask AI about printer settings…"
+msgstr "Kérdezd az AI-t a nyomtatóbeállításokról…"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Ask anything about connecting it"
+msgstr "Kérdezz bármit a csatlakoztatásáról"
+
+# AI Translated
+#: src/App.tsx
+msgid "Ask current chat about this"
+msgstr "Kérdezd erről az aktuális csevegést"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Ask it about the open project."
+msgstr "Kérdezd a megnyitott projektről."
+
+# AI Translated
+#: src/App.tsx
+msgid "ask, or steer this chat…"
+msgstr "kérdezz, vagy irányítsd ezt a csevegést…"
+
+# AI Translated
+#. How far a paused print got: at 27%
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "at {rounded}%"
+msgstr "{rounded}%-nál"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Attach a file"
+msgstr "Fájl csatolása"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Automatic checks are off."
+msgstr "Az automatikus ellenőrzés ki van kapcsolva."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+#: ../HomeUI/src/components/Onboarding.tsx
+#: ../HomeUI/src/components/PrintHistory.tsx
+#: src/components/AddPrinterForm.tsx
+msgctxt "navigation"
+msgid "Back"
+msgstr "Vissza"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Back to chat"
+msgstr "Vissza a csevegéshez"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+#: src/components/ChatNavigation.tsx
+msgid "Back to chats"
+msgstr "Vissza a csevegésekhez"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Back to Home"
+msgstr "Vissza a Kezdőlapra"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+#: src/components/SetupLocalTool.tsx
+msgid "Back to setup options"
+msgstr "Vissza a beállítási lehetőségekhez"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Back to the project"
+msgstr "Vissza a projekthez"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Backup: <0>{backup}</0>"
+msgstr "Biztonsági mentés: <0>{backup}</0>"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Bambu plug-in installed"
+msgstr "Bambu bővítmény telepítve"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Bambu plug-in needed"
+msgstr "Bambu bővítmény szükséges"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Bed type set on this plate"
+msgstr "Asztaltípus beállítva ezen a tálcán"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Billed by your provider, not JusPrin. Stored on this computer only."
+msgstr "A szolgáltatód számláz, nem a JusPrin. Csak ezen a számítógépen tárolva."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Billing and usage"
+msgstr "Számlázás és használat"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Bought credits"
+msgstr "Vásárolt kreditek"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+#: src/components/PrinterPicker.tsx
+msgid "Brand"
+msgstr "Márka"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Bring Your Own AI"
+msgstr "Saját AI használata"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Bring Your Own AI: an API key or an AI app you already pay for. No JusPrin account needed. Set up as many as you like; each chat picks a model from them."
+msgstr "Saját AI használata: egy API-kulcs vagy egy AI-alkalmazás, amelyért már fizetsz. Nem kell hozzá JusPrin-fiók. Annyit állíthatsz be, amennyit szeretnél; minden csevegés ezek közül választ modellt."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Bring your printers from {app}?"
+msgstr "Áthozod a nyomtatóidat innen: {app}?"
+
+# AI Translated
+#: src/App.tsx
+msgid "Browse the full printer list"
+msgstr "A teljes nyomtatólista böngészése"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Built-in printer and filament profiles"
+msgstr "Beépített nyomtató- és filamentprofilok"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "By continuing you agree to the <0>Terms</0> and <1>Privacy Policy</1>."
+msgstr "A folytatással elfogadod a <0>Felhasználási feltételeket</0> és az <1>Adatvédelmi irányelveket</1>."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Calibrate…"
+msgstr "Kalibrálás…"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Camera view of {name}"
+msgstr "{name} kameraképe"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Can’t be stopped once started; it takes a moment."
+msgstr "Elindítás után nem állítható le; egy kis ideig tart."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterPickerHost.tsx
+msgid "Can’t find your printer? <0>Ask AI</0>"
+msgstr "Nem találod a nyomtatódat? <0>Kérdezd az AI-t</0>"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "Can’t import"
+msgstr "Nem importálható"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Can’t write {path}."
+msgstr "Nem írható: {path}."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Can’t write the settings file."
+msgstr "A beállításfájl nem írható."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+#: ../HomeUI/src/components/PrinterMenu.tsx
+#: src/App.tsx
+#: src/App.tsx
+#: src/components/AddPrinterForm.tsx
+#: src/components/AddPrinterForm.tsx
+#: src/components/AddPrinterForm.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/ChangeRows.tsx
+#: src/components/ChatNavigation.tsx
+#: src/components/ChatNavigation.tsx
+#: src/components/OrcaImport.tsx
+#: src/components/OrcaImport.tsx
+#: src/components/Preferences.tsx
+#: src/components/PrinterPanel.tsx
+#: src/components/SetupLocalTool.tsx
+#: src/components/SignInDoor.tsx
+#: src/components/ToolActivityCard.tsx
+#: src/components/WorkCard.tsx
+msgid "Cancel"
+msgstr "Mégse"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+#: src/components/WorkCard.tsx
+msgid "Cancelled"
+msgstr "Megszakítva"
+
+# AI Translated
+#: src/components/ToolActivityCard.tsx
+msgid "Cancelled — nothing was changed"
+msgstr "Megszakítva – semmi sem módosult"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+#: src/components/SignInDoor.tsx
+#: src/components/SignInDoor.tsx
+msgid "Change email"
+msgstr "E-mail-cím módosítása"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Change…"
+msgstr "Módosítás…"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Changed"
+msgstr "Módosítva"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "changed outside JusPrin, checked just now"
+msgstr "a JusPrinen kívül módosult, épp most ellenőrizve"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Changes"
+msgstr "Módosítások"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Changes every window, including the 3D view."
+msgstr "Minden ablakot módosít, a 3D-nézetet is beleértve."
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Chat actions"
+msgstr "Csevegési műveletek"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Chat title"
+msgstr "Csevegés címe"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Chats"
+msgstr "Csevegések"
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "Chatting here needs AI."
+msgstr "Az itteni csevegéshez AI szükséges."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Check key"
+msgstr "Kulcs ellenőrzése"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Check now"
+msgstr "Ellenőrzés most"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Check plan"
+msgstr "Terv ellenőrzése"
+
+# AI Translated
+#: src/components/Guide.tsx
+msgid "Check the spelling or try other words. You can also ask AI: choose Ask AI… in the Help menu."
+msgstr "Ellenőrizd a helyesírást, vagy próbálj más szavakat. Az AI-t is megkérdezheted: válaszd a Segítség menü Kérdezd az AI-t… parancsát."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Check your email."
+msgstr "Nézd meg az e-mailjeidet."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Checking for a newer version"
+msgstr "Újabb verzió keresése"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Checking with {name}…"
+msgstr "Ellenőrzés a(z) {name} szolgáltatónál…"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Checking your account…"
+msgstr "Fiókod ellenőrzése…"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Checking…"
+msgstr "Ellenőrzés…"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "Choose a brand"
+msgstr "Válassz márkát"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "Choose a model"
+msgstr "Válassz modellt"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "Choose a photo…"
+msgstr "Fénykép kiválasztása…"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "Choose another folder…"
+msgstr "Másik mappa kiválasztása…"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Choose my printer"
+msgstr "A nyomtatóm kiválasztása"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "Choose the folder…"
+msgstr "Mappa kiválasztása…"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Clear search"
+msgstr "Keresés törlése"
+
+# AI Translated
+#: src/components/Guide.tsx
+#: src/components/Guide.tsx
+msgid "Clear the search"
+msgstr "A keresés törlése"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+#: src/components/ChatNavigation.tsx
+#: src/components/Composer.tsx
+#: src/components/OrcaImport.tsx
+#: src/components/SetupLocalTool.tsx
+msgid "Close"
+msgstr "Bezárás"
+
+# AI Translated
+#: src/App.tsx
+msgid "Close chat"
+msgstr "Csevegés bezárása"
+
+# AI Translated
+#: src/App.tsx
+msgid "Close this chat?"
+msgstr "Bezárod ezt a csevegést?"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Color painting"
+msgstr "Színfestés"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+#: src/components/SetupLocalTool.tsx
+msgid "Connect"
+msgstr "Csatlakozás"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Connect {name}"
+msgstr "{name} csatlakoztatása"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Connect {printerName}"
+msgstr "{printerName} csatlakoztatása"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/SetupLocalTool.tsx
+msgid "Connect an AI tool you already use"
+msgstr "Csatlakoztass egy AI-eszközt, amelyet már használsz"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Connect it to send prints straight from JusPrin"
+msgstr "Csatlakoztasd, hogy közvetlenül a JusPrinből küldhess nyomtatásokat"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+#: ../HomeUI/src/components/PrinterMenu.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/SetupLocalTool.tsx
+msgid "Connect…"
+msgstr "Csatlakozás…"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+#: src/components/SetupLocalTool.tsx
+msgid "Connected"
+msgstr "Csatlakoztatva"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Connecting this printer has failed twice, and a report helps us fix why. It holds what the app saw and this chat, with anything that looks like an access code or API key hidden. Nothing is sent unless you choose to."
+msgstr "A nyomtató csatlakoztatása kétszer is sikertelen volt, és egy jelentés segít kideríteni, miért. Tartalmazza, amit az app látott, és ezt a csevegést, a hozzáférési kódnak vagy API-kulcsnak látszó adatok elrejtésével. Semmit sem küldünk el, hacsak te nem döntesz így."
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+#: ../HomeUI/src/components/PrinterCard.tsx
+#: src/components/Panels.tsx
+msgid "Connecting…"
+msgstr "Csatlakozás…"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+#: ../HomeUI/src/components/Onboarding.tsx
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Continue"
+msgstr "Folytatás"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Continue with Google"
+msgstr "Folytatás Google-fiókkal"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Controls"
+msgstr "Vezérlés"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+#: src/components/TurnActivity.tsx
+msgid "Copied"
+msgstr "Másolva"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+#: src/components/SetupLocalTool.tsx
+msgid "Copy"
+msgstr "Másolás"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Copy details"
+msgstr "Részletek másolása"
+
+# AI Translated
+#. A material cost with no known currency
+#: src/components/SetupCard.tsx
+msgid "cost {amount}"
+msgstr "költség: {amount}"
+
+# AI Translated
+#: src/components/AttachmentChip.tsx
+msgid "Could not be attached"
+msgstr "Nem sikerült csatolni"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "Couldn’t load the model list"
+msgstr "A modellek listáját nem sikerült betölteni"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Couldn’t reach {name} to check this key. Nothing was saved. Try again."
+msgstr "Nem sikerült elérni a(z) {name} szolgáltatót a kulcs ellenőrzéséhez. Semmi sem lett mentve. Próbáld újra."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Couldn’t reach GitHub"
+msgstr "A GitHub nem érhető el"
+
+# AI Translated
+#. {checked} is how long ago, such as "just now", "2 hours ago" or "yesterday".
+#: src/components/Preferences.tsx
+msgid "Couldn’t reach GitHub · last checked {checked}"
+msgstr "A GitHub nem érhető el · utolsó ellenőrzés: {checked}"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Create a filament preset"
+msgstr "Filament beállítás létrehozása"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Create a filament preset…"
+msgstr "Filament beállítás létrehozása…"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+#: src/components/BalancePanel.tsx
+msgid "Credits"
+msgstr "Kreditek"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Credits left"
+msgstr "Hátralévő kreditek"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Current setup"
+msgstr "Aktuális beállítás"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Dark"
+msgstr "Sötét"
+
+# AI Translated
+#. A thinking level: the model decides
+#: src/components/ModelPickers.tsx
+msgid "Default"
+msgstr "Alapértelmezett"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Default for the {modelName}"
+msgstr "Alapértelmezett ehhez: {modelName}"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+#: src/components/ChatNavigation.tsx
+msgid "Delete"
+msgstr "Törlés"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Delete ‘{title}’ and its messages? Your project and its print history stay as they are. This can't be undone."
+msgstr "Törlöd a(z) „{title}” csevegést és az üzeneteit? A projekted és a nyomtatási előzményei változatlanok maradnak. Ez nem vonható vissza."
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Delete account"
+msgstr "Fiók törlése"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Delete account…"
+msgstr "Fiók törlése…"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Delete chat?"
+msgstr "Törlöd a csevegést?"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Delete this JusPrin account"
+msgstr "A JusPrin-fiók törlése"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Delete your JusPrin account?"
+msgstr "Törlöd a JusPrin-fiókodat?"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Deleted from your filaments. This test uses {earlier} again."
+msgstr "Törölve a filamentjeid közül. Ez a teszt ismét a(z) {earlier} beállítást használja."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Deleting…"
+msgstr "Törlés…"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+#: src/components/Panels.tsx
+msgid "Diagnostics"
+msgstr "Diagnosztika"
+
+# AI Translated
+#: src/App.tsx
+#: src/App.tsx
+msgid "Dismiss error"
+msgstr "Hiba elvetése"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Document (PDF)"
+msgstr "Dokumentum (PDF)"
+
+# AI Translated
+#: ../HomeUI/src/components/AgentGroup.tsx
+msgid "Don’t show again"
+msgstr "Ne jelenjen meg újra"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+#: src/components/SetupLocalTool.tsx
+#: src/components/ToolActivityCard.tsx
+#: src/components/WorkCard.tsx
+msgid "Done"
+msgstr "Kész"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Double-clicking a .3mf file opens it here."
+msgstr "Egy .3mf fájlra duplán kattintva itt nyílik meg."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Download"
+msgstr "Letöltés"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Downloads"
+msgstr "Letöltések"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Drop a model or project here"
+msgstr "Húzz ide egy modellt vagy projektet"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Drop a model or project to start"
+msgstr "A kezdéshez húzz ide egy modellt vagy projektet"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "e.g. \"bambu a1 mini\" or \"not sure, the small one\""
+msgstr "pl. „bambu a1 mini” vagy „nem tudom, a kicsi”"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "e.g. \"I put a 0.6 nozzle on it\" or \"loaded black PETG\""
+msgstr "pl. „0,6-os fúvókát tettem rá” vagy „fekete PETG van betöltve”"
+
+# AI Translated
+#: src/credits.ts
+msgid "Each message you send costs credits: Standard {STANDARD_MESSAGE_CREDITS}, Expert {EXPERT_MESSAGE_CREDITS}."
+msgstr "Minden elküldött üzenet kreditbe kerül: Normál {STANDARD_MESSAGE_CREDITS}, Szakértő {EXPERT_MESSAGE_CREDITS}."
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Earlier setup"
+msgstr "Korábbi beállítás"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Earlier setup — saved with this conversation"
+msgstr "Korábbi beállítás – ezzel a beszélgetéssel együtt mentve"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Email"
+msgstr "E-mail-cím"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Email me a 6-digit code"
+msgstr "6 jegyű kód küldése e-mailben"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Ends {ends}."
+msgstr "Lejár: {ends}."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Ends any plan and removes this account’s credits and everything JusPrin keeps for it on its servers."
+msgstr "Megszünteti az esetleges előfizetést, és törli a fiók kreditjeit és mindazt, amit a JusPrin a szerverein tárol róla."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Enter a name for the printer."
+msgstr "Adj nevet a nyomtatónak."
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Enter a title of 1–120 characters."
+msgstr "Adj meg egy 1–120 karakteres címet."
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Error"
+msgstr "Hiba"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+#: src/components/SetupCard.tsx
+msgid "Estimate unavailable"
+msgstr "Becslés nem érhető el"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Every chat can pick a model from these providers in its message box."
+msgstr "Minden csevegés az üzenetmezőjében választhat modellt ezektől a szolgáltatóktól."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Every filament for the {modelName}"
+msgstr "Minden filament ehhez: {modelName}"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "Every printer in this {app} folder is already in JusPrin, so there is nothing to import."
+msgstr "Ebben a(z) {app} mappában minden nyomtató megvan már a JusPrinben, így nincs mit importálni."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Every project saves itself as you work"
+msgstr "Minden projekt munka közben automatikusan mentődik"
+
+# AI Translated
+#: src/App.tsx
+msgid "Excerpt: “{quoted}”"
+msgstr "Részlet: „{quoted}”"
+
+# AI Translated
+#. The more capable kind of AI model
+#: src/credits.ts
+msgid "Expert"
+msgstr "Szakértő"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Expires {date}"
+msgstr "Lejár: {date}"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Expiring credits are used first."
+msgstr "A lejáró kreditek használódnak fel először."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Export again"
+msgstr "Újra exportálás"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Export…"
+msgstr "Exportálás…"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Exported {file}"
+msgstr "Exportálva: {file}"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "External tool"
+msgstr "Külső eszköz"
+
+# AI Translated
+#. A thinking level of the AI model
+#: src/components/ModelPickers.tsx
+msgid "Extra high"
+msgstr "Nagyon magas"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Failed"
+msgstr "Sikertelen"
+
+# AI Translated
+#. A thinking level of the AI model
+#: src/components/ModelPickers.tsx
+msgid "Fast"
+msgstr "Gyors"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "filament"
+msgstr "filament"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Filament"
+msgstr "Filament"
+
+# AI Translated
+#: src/App.tsx
+msgid "Filament settings"
+msgstr "Filament beállítások"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Filaments"
+msgstr "Filamentek"
+
+# AI Translated
+#. The kind of an attached file of no known kind
+#: src/components/AttachmentChip.tsx
+msgid "File"
+msgstr "Fájl"
+
+# AI Translated
+#. Button: add a filter to the list
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Filter"
+msgstr "Szűrő"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Find a language"
+msgstr "Nyelv keresése"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Finish in your browser."
+msgstr "Fejezd be a böngésződben."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Finished"
+msgstr "Befejezett"
+
+# AI Translated
+#. {day} is a short weekday (Sun) or a date (Oct 20)
+#: ../HomeUI/src/history.ts
+msgid "finished {day}"
+msgstr "befejezve: {day}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "finished today"
+msgstr "ma fejeződött be"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "finished yesterday"
+msgstr "tegnap fejeződött be"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Follows the selection in the 3D view."
+msgstr "A 3D-nézet kijelölését követi."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Follows the selection in the 3D view. Shown: only what {shownName} sets itself."
+msgstr "A 3D-nézet kijelölését követi. Látható: csak az, amit a(z) {shownName} maga állít be."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Follows the selection in the 3D view. Shown: what {shownName} sets itself, and its objects."
+msgstr "A 3D-nézet kijelölését követi. Látható: amit a(z) {shownName} maga állít be, és az objektumai."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "For sizes, positions and distances."
+msgstr "Méretekhez, pozíciókhoz és távolságokhoz."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "For the {modelName}"
+msgstr "Ehhez: {modelName}"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Forgot password"
+msgstr "Elfelejtett jelszó"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Found on this computer"
+msgstr "Megtalálva ezen a számítógépen"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+#: src/components/PrinterPicker.tsx
+msgid "Found on your network"
+msgstr "Megtalálva a hálózatodon"
+
+# AI Translated
+#. What a door costs: nothing
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Free"
+msgstr "Ingyenes"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Free credits"
+msgstr "Ingyenes kreditek"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "From before the last change."
+msgstr "Az utolsó módosítás előttről."
+
+# AI Translated
+#: src/App.tsx
+msgid "From earlier chat “{title}” (saved {saved}):"
+msgstr "A korábbi „{title}” csevegésből (mentve: {saved}):"
+
+# AI Translated
+#: src/App.tsx
+msgid "From earlier chat “{title}”:"
+msgstr "A korábbi „{title}” csevegésből:"
+
+# AI Translated
+#: src/components/AccountBox.tsx
+msgid "From JusPrin"
+msgstr "A JusPrintől"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "from the preset"
+msgstr "a beállításból"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "From the printer: {value}"
+msgstr "A nyomtatóból: {value}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Full release notes on GitHub"
+msgstr "Teljes kiadási megjegyzések a GitHubon"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Fuzzy skin painting"
+msgstr "Barázdált felület festése"
+
+# AI Translated
+#. {signupCredits} is the credits a new account is given, 500
+#: ../HomeUI/src/components/AgentGroup.tsx
+msgid "Get {signupCredits} free credits for JusPrin’s AI, which specializes in 3D printing."
+msgstr "Szerezz {signupCredits} ingyenes kreditet a JusPrin 3D-nyomtatásra szakosodott AI-jához."
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+#: src/components/Composer.tsx
+#: src/components/Composer.tsx
+#: src/components/MessageList.tsx
+#: src/components/Preferences.tsx
+msgid "Get more credits"
+msgstr "Több kredit szerzése"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/MessageList.tsx
+#: src/components/ModelPickers.tsx
+#: src/components/SignInDoor.tsx
+msgid "Get the new version…"
+msgstr "Az új verzió letöltése…"
+
+# AI Translated
+#: src/credits.ts
+msgid "Good for your first month: about {standardMessages} Standard or {expertMessages} Expert messages."
+msgstr "Az első hónapra elég: kb. {standardMessages} Normál vagy {expertMessages} Szakértő üzenet."
+
+# AI Translated
+#: src/components/Guide.tsx
+msgid "Guide pages"
+msgstr "Útmutató oldalai"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Height range"
+msgstr "Magasságtartomány"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Help me find the code"
+msgstr "Segíts megtalálni a kódot"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Help me find the key"
+msgstr "Segíts megtalálni a kulcsot"
+
+# AI Translated
+#: ../HomeUI/src/components/AgentGroup.tsx
+msgid "Hide"
+msgstr "Elrejtés"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "Hide details"
+msgstr "Részletek elrejtése"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+#: src/components/ChatNavigation.tsx
+msgid "Hide the AI panel"
+msgstr "Az AI-panel elrejtése"
+
+# AI Translated
+#. A thinking level of the AI model
+#: src/components/ModelPickers.tsx
+msgid "High"
+msgstr "Magas"
+
+# AI Translated
+#: src/components/GcodeMarker.tsx
+msgid "history"
+msgstr "előzmények"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "How did it come out?"
+msgstr "Hogyan sikerült?"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "If {app} keeps its settings somewhere else, choose that folder."
+msgstr "Ha a(z) {app} máshol tárolja a beállításait, azt a mappát válaszd."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "If you skip, files are sliced for a stand-in printer with a 250 mm bed, not for yours. Add your printer before you print anything. You can do that later on the home screen."
+msgstr "Ha kihagyod, a fájlok egy 250 mm-es asztalú helyettesítő nyomtatóra lesznek szeletelve, nem a tiédre. Bármi kinyomtatása előtt add hozzá a nyomtatódat. Ezt később is megteheted a kezdőképernyőn."
+
+# AI Translated
+#. The kind of an attached file
+#: src/components/AttachmentChip.tsx
+msgid "Image"
+msgstr "Kép"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+#: src/components/OrcaImport.tsx
+msgid "Import"
+msgstr "Importálás"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Import from {app}…"
+msgstr "Importálás innen: {app}…"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+#: src/components/OrcaImportLists.tsx
+msgid "Imported"
+msgstr "Importálva"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "Imported as ‘{renamedTo}’"
+msgstr "Importálva „{renamedTo}” néven"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Imported from {app}"
+msgstr "Importálva innen: {app}"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+#: src/components/OrcaImport.tsx
+msgid "Importing…"
+msgstr "Importálás…"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Inches"
+msgstr "Hüvelyk"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Install it, or copy the command and run it later."
+msgstr "Telepítsd, vagy másold ki a parancsot, és futtasd később."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Install plug-in"
+msgstr "Bővítmény telepítése"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Instead of toward the middle of the view."
+msgstr "A nézet közepe felé helyett."
+
+# AI Translated
+#: src/components/WorkCard.tsx
+msgid "Interrupted when the project was closed"
+msgstr "Megszakadt, amikor a projekt bezárult"
+
+# AI Translated
+#: src/components/WorkCard.tsx
+msgid "It did not finish."
+msgstr "Nem fejeződött be."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "It didn’t work"
+msgstr "Nem sikerült"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "It worked"
+msgstr "Sikerült"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Its earlier values are back."
+msgstr "A korábbi értékei visszakerültek."
+
+# AI Translated
+#: src/components/MessageList.tsx
+#: src/components/MessageList.tsx
+msgid "Jump to latest"
+msgstr "Ugrás a legújabbra"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "JusPrin {latest} is available"
+msgstr "Elérhető a JusPrin {latest}"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+msgid "JusPrin account"
+msgstr "JusPrin-fiók"
+
+# AI Translated
+#: src/components/FileNotesCard.tsx
+msgid "JusPrin answered No to this question."
+msgstr "A JusPrin Nem választ adott erre a kérdésre."
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "JusPrin asks what the part is for, then plans the print for your {firstPrinter}."
+msgstr "A JusPrin megkérdezi, mire szolgál az alkatrész, majd megtervezi a nyomtatást a(z) {firstPrinter} nyomtatódhoz."
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "JusPrin asks what the part is for, then plans the print."
+msgstr "A JusPrin megkérdezi, mire szolgál az alkatrész, majd megtervezi a nyomtatást."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "JusPrin can run this for you, or you can copy it and run it yourself."
+msgstr "A JusPrin futtathatja helyetted, vagy kimásolhatod, és magad futtathatod."
+
+# AI Translated
+#: src/App.tsx
+msgid "JusPrin can't find the project version this chat was working on, so this chat can't continue. Start a new chat to keep working."
+msgstr "A JusPrin nem találja a projektnek azt a verzióját, amelyen ez a csevegés dolgozott, ezért ez a csevegés nem folytatható. A munka folytatásához kezdj új csevegést."
+
+# AI Translated
+#: src/components/FileNotesCard.tsx
+msgid "JusPrin chose Cancel for this question."
+msgstr "A JusPrin a Mégse lehetőséget választotta ennél a kérdésnél."
+
+# AI Translated
+#: src/components/FileNotesCard.tsx
+msgid "JusPrin closed this without answering it."
+msgstr "A JusPrin megválaszolás nélkül bezárta ezt."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "JusPrin copies these printers with their filaments and print settings. {app} keeps its own copy."
+msgstr "A JusPrin átmásolja ezeket a nyomtatókat a filamentjeikkel és nyomtatási beállításaikkal együtt. A(z) {app} megtartja a saját példányát."
+
+# AI Translated
+#: src/App.tsx
+msgid "JusPrin couldn't put the project back. Open the project again from Home to keep working on it."
+msgstr "A JusPrin nem tudta visszaállítani a projektet. A további munkához nyisd meg újra a projektet a Kezdőlapról."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "JusPrin didn’t find {app}’s folder on this computer."
+msgstr "A JusPrin nem találta a(z) {app} mappáját ezen a számítógépen."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "JusPrin found a filament and print settings in {app} that it doesn’t have yet."
+msgstr "A JusPrin talált a(z) {app} alkalmazásban egy filamentet és nyomtatási beállításokat, amelyek még nincsenek meg benne."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "JusPrin found a filament in {app} that it doesn’t have yet."
+msgstr "A JusPrin talált a(z) {app} alkalmazásban egy filamentet, amely még nincs meg benne."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "JusPrin found filaments and print settings in {app} that it doesn’t have yet."
+msgstr "A JusPrin talált a(z) {app} alkalmazásban filamenteket és nyomtatási beállításokat, amelyek még nincsenek meg benne."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "JusPrin found filaments in {app} that it doesn’t have yet."
+msgstr "A JusPrin talált a(z) {app} alkalmazásban filamenteket, amelyek még nincsenek meg benne."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "JusPrin found no {app} printers in this folder."
+msgstr "A JusPrin nem talált {app}-nyomtatót ebben a mappában."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "JusPrin found print settings in {app} that it doesn’t have yet."
+msgstr "A JusPrin talált a(z) {app} alkalmazásban nyomtatási beállításokat, amelyek még nincsenek meg benne."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "JusPrin keeps up to 200 versions of each project, about 4 GB at most. Pinned versions are always kept."
+msgstr "A JusPrin projektenként legfeljebb 200 verziót őriz meg, összesen legfeljebb kb. 4 GB-ot. A rögzített verziók mindig megmaradnak."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "JusPrin makes filament presets for printers that are already set up, so the {modelName} is added first. Then the Create filament window opens. Tick the {modelName} there, and JusPrin puts your new preset in slot 1."
+msgstr "A JusPrin a már beállított nyomtatókhoz készít filament beállításokat, ezért először a(z) {modelName} kerül hozzáadásra. Ezután megnyílik a Filament létrehozása ablak. Ott jelöld be a(z) {modelName} nyomtatót, és a JusPrin az 1. férőhelyre teszi az új beállításodat."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "JusPrin prepares every print to fit your printer’s bed and nozzle. You can add more printers later."
+msgstr "A JusPrin minden nyomtatást a nyomtatód asztalához és fúvókájához igazít. Később további nyomtatókat is hozzáadhatsz."
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "JusPrin slices it for your {firstPrinter}."
+msgstr "A JusPrin a(z) {firstPrinter} nyomtatódhoz szeleteli."
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "JusPrin slices it."
+msgstr "A JusPrin szeleteli."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "JusPrin tries again tomorrow, or the next time it starts."
+msgstr "A JusPrin holnap vagy a következő indításkor újra megpróbálja."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "JusPrin will edit"
+msgstr "A JusPrin ezt fogja szerkeszteni"
+
+# AI Translated
+#. placeholder {0}: appearance.restartFor
+#: src/components/Preferences.tsx
+msgid "JusPrin will use {0} after it restarts."
+msgstr "A JusPrin újraindítás után ezt a nyelvet használja: {0}."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "JusPrin’s AI specializes in 3D printing. It sets up your prints, explains your settings and fixes what goes wrong."
+msgstr "A JusPrin AI-ja a 3D-nyomtatásra szakosodott. Beállítja a nyomtatásaidat, elmagyarázza a beállításaidat, és kijavítja, ami félresikerül."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "JusPrin's connection helper is missing."
+msgstr "Hiányzik a JusPrin kapcsolódási segédprogramja."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "just now"
+msgstr "épp most"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Just slice for now"
+msgstr "Egyelőre csak szeletelés"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Keep JusPrin open while {name} uses it — the helper doesn’t launch it."
+msgstr "Tartsd nyitva a JusPrint, amíg a(z) {name} használja – a segédprogram nem indítja el."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Keep JusPrin open while the AI tool uses it — the helper doesn’t launch it."
+msgstr "Tartsd nyitva a JusPrint, amíg az AI-eszköz használja – a segédprogram nem indítja el."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Keep JusPrin open while you use {name}; the helper doesn’t launch it. Restarting JusPrin later won’t need this again."
+msgstr "Tartsd nyitva a JusPrint, amíg a(z) {name} eszközt használod; a segédprogram nem indítja el. A JusPrin későbbi újraindításakor erre már nem lesz szükség."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Keeps <0>{hint}</0> until the new key passes"
+msgstr "Megtartja a(z) <0>{hint}</0> kulcsot, amíg az új kulcs át nem megy az ellenőrzésen"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Kept file changed on disk · slice again to print it"
+msgstr "A megőrzött fájl megváltozott a lemezen · a nyomtatáshoz szeleteld újra"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Key saved on this computer"
+msgstr "Kulcs mentve ezen a számítógépen"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Language"
+msgstr "Nyelv"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Last connected just now"
+msgstr "Utoljára épp most csatlakozott"
+
+# AI Translated
+#. {day} is a short weekday (Sun) or a date (Oct 20)
+#: ../HomeUI/src/history.ts
+msgid "last finished {day}"
+msgstr "utolsó nyomtatás: {day}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "last finished today"
+msgstr "utolsó nyomtatás: ma"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "last finished yesterday"
+msgstr "utolsó nyomtatás: tegnap"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "last print finished"
+msgstr "az utolsó nyomtatás befejeződött"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Last week"
+msgstr "Múlt héten"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Later"
+msgstr "Később"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Left-drag"
+msgstr "Húzás bal gombbal"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Let an AI app on this computer, such as Claude Desktop, work with the open project. JusPrin adds itself to that app’s settings."
+msgstr "Engedd, hogy egy ezen a számítógépen futó AI-alkalmazás, például a Claude Desktop, dolgozzon a megnyitott projekttel. A JusPrin felveszi magát az alkalmazás beállításai közé."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Light"
+msgstr "Világos"
+
+# AI Translated
+#. On a camera picture: it shows the printer as it is now
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "LIVE"
+msgstr "ÉLŐ"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Live URL (developer only — this can change after restart)"
+msgstr "Élő URL (csak fejlesztőknek – újraindítás után megváltozhat)"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterPickerHost.tsx
+msgid "Loading JusPrin’s settings for this printer…"
+msgstr "A JusPrin beállításainak betöltése ehhez a nyomtatóhoz…"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "Loading models…"
+msgstr "Modellek betöltése…"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Loading print history…"
+msgstr "Nyomtatási előzmények betöltése…"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Local work never needs an account. Your own API key or AI tool works without one; set those up in the <0>BYOAI</0> section."
+msgstr "A helyi munkához soha nem kell fiók. A saját API-kulcsod vagy AI-eszközöd fiók nélkül is működik; ezeket a <0>BYOAI</0> részben állíthatod be."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Look again"
+msgstr "Keresés újra"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Look at the change again before saving."
+msgstr "Mentés előtt nézd át újra a módosítást."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "Looked in {path}"
+msgstr "Itt keresett: {path}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Looking for a newer version on GitHub…"
+msgstr "Újabb verzió keresése a GitHubon…"
+
+# AI Translated
+#. A thinking level of the AI model
+#: src/components/ModelPickers.tsx
+msgid "Low"
+msgstr "Alacsony"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+#: src/components/AddPrinterForm.tsx
+msgid "Made for other printers"
+msgstr "Más nyomtatókhoz készült"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Made for other printers. Picking it saves a copy for the {modelName}."
+msgstr "Más nyomtatókhoz készült. Ha ezt választod, a JusPrin másolatot ment belőle ehhez: {modelName}."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Made for the {first} and {second}. Picking it saves a copy for the {modelName}."
+msgstr "Ezekhez készült: {first} és {second}. Ha ezt választod, a JusPrin másolatot ment belőle ehhez: {modelName}."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Made for the {first}. Picking it saves a copy for the {modelName}."
+msgstr "Ehhez készült: {first}. Ha ezt választod, a JusPrin másolatot ment belőle ehhez: {modelName}."
+
+# AI Translated
+#. {made} is the printer, filament and print settings, joined by ·
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Made with {made}"
+msgstr "Készült ezzel: {made}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "matches, checked just now"
+msgstr "egyezik, épp most ellenőrizve"
+
+# AI Translated
+#. A thinking level of the AI model: the most
+#: src/components/ModelPickers.tsx
+msgid "Max"
+msgstr "Maximális"
+
+# AI Translated
+#. A thinking level of the AI model
+#: src/components/ModelPickers.tsx
+msgid "Medium"
+msgstr "Közepes"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Message AI"
+msgstr "Üzenet az AI-nak"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Middle-drag"
+msgstr "Húzás középső gombbal"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Millimetres"
+msgstr "Milliméter"
+
+# AI Translated
+#. A thinking level of the AI model
+#: src/components/ModelPickers.tsx
+msgid "Minimal"
+msgstr "Minimális"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Model"
+msgstr "Modell"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+#: src/components/PrinterPicker.tsx
+msgctxt "printer"
+msgid "Model"
+msgstr "Modell"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Modifier"
+msgstr "Módosító"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "More preferences…"
+msgstr "További beállítások…"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterPickerHost.tsx
+msgid "Most printers ship with 0.4 mm."
+msgstr "A legtöbb nyomtató 0,4 mm-es fúvókával érkezik."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Mouse"
+msgstr "Egér"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Mouse buttons"
+msgstr "Egérgombok"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Mouse: drag to turn, right-drag to pan. Touchpad: Alt-drag to turn, Shift-drag to pan."
+msgstr "Egér: húzással forgatás, jobb gombos húzással pásztázás. Érintőpad: Alt+húzással forgatás, Shift+húzással pásztázás."
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Move"
+msgstr "Mozgatás"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Moving the view"
+msgstr "A nézet mozgatása"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Multimaterial"
+msgstr "Többanyagú nyomtatás"
+
+# AI Translated
+#. Sort order: by name
+#: ../HomeUI/src/App.tsx
+msgid "Name"
+msgstr "Név"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Needs attention"
+msgstr "Beavatkozás szükséges"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Never expire"
+msgstr "Soha nem járnak le"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "New"
+msgstr "Új"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "New {name} key"
+msgstr "Új {name}-kulcs"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+#: src/components/ChatNavigation.tsx
+#: src/components/ChatNavigation.tsx
+msgid "New chat"
+msgstr "Új csevegés"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "New chats start with"
+msgstr "Az új csevegések ezzel indulnak"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "New filament"
+msgstr "Új filament"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "New filaments and print settings"
+msgstr "Új filamentek és nyomtatási beállítások"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "New JusPrin versions"
+msgstr "Új JusPrin-verziók"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "New print settings"
+msgstr "Új nyomtatási beállítások"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Next"
+msgstr "Következő"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "No AI configured · using the selected preset."
+msgstr "Nincs beállítva AI · a kiválasztott beállítás használatban."
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "No AI configured."
+msgstr "Nincs beállítva AI."
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "No AI connected"
+msgstr "Nincs csatlakoztatott AI"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "No brand matches “{text}”"
+msgstr "Egyetlen márka sem egyezik ezzel: „{text}”"
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "No bridge messages recorded."
+msgstr "Nincsenek rögzített hídüzenetek."
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "No chats yet. Start a new chat about this project."
+msgstr "Még nincsenek csevegések. Kezdj új csevegést erről a projektről."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "No filament for the {modelName} matches “{search}”."
+msgstr "Egyetlen {modelName}-filament sem egyezik ezzel: „{search}”."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "No G-codes match."
+msgstr "Egyetlen G-code sem egyezik."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "No JusPrin entry yet — this adds one."
+msgstr "Még nincs JusPrin-bejegyzés – ez hozzáad egyet."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "No key"
+msgstr "Nincs kulcs"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "No language matches “{query}”"
+msgstr "Egyetlen nyelv sem egyezik ezzel: „{query}”"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "No messages yet"
+msgstr "Még nincsenek üzenetek"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "No model matches “{text}”"
+msgstr "Egyetlen modell sem egyezik ezzel: „{text}”"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "No models match “{query}”."
+msgstr "Egyetlen modell sem egyezik ezzel: „{query}”."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "No plan"
+msgstr "Nincs előfizetés"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "No printer yet"
+msgstr "Még nincs nyomtató"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "No projects match “{typed}”."
+msgstr "Egyetlen projekt sem egyezik ezzel: „{typed}”."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "No report was sent."
+msgstr "Nem történt jelentésküldés."
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "No settings read from the project"
+msgstr "Nem olvasható be beállítás a projektből"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "No settings to show: the selected printer is not an FFF printer."
+msgstr "Nincs megjeleníthető beállítás: a kiválasztott nyomtató nem FFF nyomtató."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/ChangeRows.tsx
+msgid "none"
+msgstr "nincs"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "None"
+msgstr "Nincs"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Not checked yet"
+msgstr "Még nincs ellenőrizve"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Not chosen yet"
+msgstr "Még nincs kiválasztva"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Not connected"
+msgstr "Nincs csatlakoztatva"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "not found"
+msgstr "nem található"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Not found on this computer"
+msgstr "Nem található ezen a számítógépen"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "Not imported"
+msgstr "Nincs importálva"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Not in the list?"
+msgstr "Nincs a listán?"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Not kept for this printer · slice again to print it"
+msgstr "Ehhez a nyomtatóhoz nincs megőrizve · a nyomtatáshoz szeleteld újra"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Not listening yet"
+msgstr "Még nem figyel"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+#: src/components/PrinterPanel.tsx
+msgid "Not now"
+msgstr "Most nem"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Not run"
+msgstr "Nem futott"
+
+# AI Translated
+#: src/components/ProposalCard.tsx
+msgid "Not saved"
+msgstr "Nincs mentve"
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "NOT SET UP"
+msgstr "NINCS BEÁLLÍTVA"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Not sliced yet"
+msgstr "Még nincs szeletelve"
+
+# AI Translated
+#: src/components/FileNotesCard.tsx
+#: src/components/FileNotesCard.tsx
+msgid "Notes about this file"
+msgstr "Megjegyzések a fájlról"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Nothing"
+msgstr "Semmi"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Nothing happened?"
+msgstr "Nem történt semmi?"
+
+# AI Translated
+#: src/components/Guide.tsx
+msgid "Nothing in the guide mentions “{search}”."
+msgstr "Az útmutatóban semmi sem említi ezt: „{search}”."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Nothing printed or exported yet."
+msgstr "Még semmi sincs kinyomtatva vagy exportálva."
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+#: src/components/PrinterPicker.tsx
+msgid "Nozzle"
+msgstr "Fúvóka"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Object"
+msgstr "Objektum"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Object settings changed"
+msgstr "Objektumbeállítások módosítva"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Objects"
+msgstr "Objektumok"
+
+# AI Translated
+#. A thinking level of the AI model: no thinking
+#: src/components/ModelPickers.tsx
+msgid "Off"
+msgstr "Ki"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Offline"
+msgstr "Offline"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "On"
+msgstr "Be"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "On the network"
+msgstr "A hálózaton"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Once a day JusPrin asks GitHub for its list of releases. GitHub sees your IP address, as with any web page. Nothing about you or your projects is sent."
+msgstr "A JusPrin naponta egyszer lekéri a GitHubtól a kiadások listáját. A GitHub – mint bármely weboldal – látja az IP-címedet. Rólad és a projektjeidről semmilyen adat nem kerül elküldésre."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Online"
+msgstr "Online"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Open chat: {title}"
+msgstr "Csevegés megnyitása: {title}"
+
+# AI Translated
+#: src/App.tsx
+msgid "Open filament settings"
+msgstr "Filament beállítások megnyitása"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Open in chat"
+msgstr "Megnyitás a csevegésben"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Open it in the 3D view, or choose it above, to see them."
+msgstr "A megtekintésükhöz nyisd meg a 3D-nézetben, vagy válaszd ki fent."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Open one in the 3D view, or choose it above, to see them."
+msgstr "A megtekintésükhöz nyiss meg egyet a 3D-nézetben, vagy válaszd ki fent."
+
+# AI Translated
+#: src/App.tsx
+msgid "Open printer settings"
+msgstr "Nyomtatóbeállítások megnyitása"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Open printer window"
+msgstr "Nyomtatóablak megnyitása"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Open the browser again"
+msgstr "Böngésző újbóli megnyitása"
+
+# AI Translated
+#: src/App.tsx
+msgid "Open the project again to keep working."
+msgstr "A munka folytatásához nyisd meg újra a projektet."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Open with JusPrin"
+msgstr "Megnyitás a JusPrinnel"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Open…"
+msgstr "Megnyitás…"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Opened {name}"
+msgstr "{name} megnyitva"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Opened {name} as a new project"
+msgstr "{name} megnyitva új projektként"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Opened a file"
+msgstr "Egy fájl megnyitva"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Opened a file as a new project"
+msgstr "Egy fájl megnyitva új projektként"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Opens the release page on GitHub"
+msgstr "Megnyitja a kiadási oldalt a GitHubon"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+#: src/components/SignInDoor.tsx
+msgid "or"
+msgstr "vagy"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Or type your own answer…"
+msgstr "Vagy írd be a saját válaszodat…"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Other ways:"
+msgstr "Más lehetőségek:"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Others"
+msgstr "Egyéb"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Pan"
+msgstr "Pásztázás"
+
+# AI Translated
+#. How a print came out: it partly worked
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "Partly"
+msgstr "Részben"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+#: src/components/SignInDoor.tsx
+msgid "Password"
+msgstr "Jelszó"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Paste"
+msgstr "Beillesztés"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Paste the new key"
+msgstr "Az új kulcs beillesztése"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Paste your {name} key ({prefix}…)"
+msgstr "Illeszd be a(z) {name}-kulcsodat ({prefix}…)"
+
+# AI Translated
+#. A printer status: the print is paused
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Paused"
+msgstr "Szüneteltetve"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Photo"
+msgstr "Fénykép"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Photo credits"
+msgstr "Fényképek forrása"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "Photo of the printed object"
+msgstr "A kinyomtatott tárgy fényképe"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Photo or image"
+msgstr "Fénykép vagy kép"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Picking one saves a copy for the {modelName}."
+msgstr "Ha egyet választasz, a JusPrin másolatot ment belőle ehhez: {modelName}."
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Plan credits"
+msgstr "Előfizetéssel kapott kreditek"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Plan needs another look"
+msgstr "A terv újbóli átnézésre szorul"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Plate"
+msgstr "Tálca"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgctxt "build plate"
+msgid "Plate"
+msgstr "Tálca"
+
+# AI Translated
+#: src/components/GcodeMarker.tsx
+msgid "Plate {plateNumber}"
+msgstr "{plateNumber}. tálca"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Preference sections"
+msgstr "Beállítási szakaszok"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Preferences"
+msgstr "Beállítások"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Preferences (Ctrl+,)"
+msgstr "Beállítások (Ctrl+,)"
+
+# AI Translated
+#: src/PreferencesApp.tsx
+msgid "Preferences could not reach JusPrin"
+msgstr "A Beállítások nem érte el a JusPrint"
+
+# AI Translated
+#. A setting’s project value: whatever the preset says
+#: src/components/AllSettings.tsx
+msgid "preset"
+msgstr "beállítás"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Preset: {preset}"
+msgstr "Beállítás: {preset}"
+
+# AI Translated
+#: src/calibration.ts
+msgid "Pressure advance steps not kept in the file"
+msgstr "A Pressure Advance lépései nincsenek elmentve a fájlban"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Print again"
+msgstr "Újranyomtatás"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Print history"
+msgstr "Nyomtatási előzmények"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Printables and Thingiverse send the model straight here."
+msgstr "A Printables és a Thingiverse közvetlenül ide küldi a modellt."
+
+# AI Translated
+#. A filament setting’s value: the printer’s value is used
+#: src/components/AllSettings.tsx
+#: src/components/ChangeRows.tsx
+msgid "printer"
+msgstr "nyomtató"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Printer"
+msgstr "Nyomtató"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Printer actions"
+msgstr "Nyomtatóműveletek"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Printer last reported {observed}"
+msgstr "A nyomtató legutóbbi jelentése: {observed}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Printer name"
+msgstr "Nyomtató neve"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Printer settings…"
+msgstr "Nyomtatóbeállítások…"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Printer: {name}"
+msgstr "Nyomtató: {name}"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Printers"
+msgstr "Nyomtatók"
+
+# AI Translated
+#: src/App.tsx
+msgid "Printers already added stay added. The chat can't be opened again."
+msgstr "A már hozzáadott nyomtatók megmaradnak. A csevegés nem nyitható meg újra."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Printing"
+msgstr "Nyomtatás"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "process"
+msgstr "folyamat"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Process"
+msgstr "Folyamat"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Project chats"
+msgstr "Projektcsevegések"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Project: {name}"
+msgstr "Projekt: {name}"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Projects"
+msgstr "Projektek"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Projects & files"
+msgstr "Projektek és fájlok"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Projects and files"
+msgstr "Projektek és fájlok"
+
+# AI Translated
+#: src/App.tsx
+msgid "Put the project back to {savedMoment}?"
+msgstr "Visszaállítod a projektet erre az állapotra: {savedMoment}?"
+
+# AI Translated
+#: src/App.tsx
+msgid "Put the project back to when this chat was saved?"
+msgstr "Visszaállítod a projektet arra az állapotra, amikor ez a csevegés mentésre került?"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Quality"
+msgstr "Minőség"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Rather use JusPrin’s own AI, which specializes in 3D printing? Sign up in <0>Account</0>."
+msgstr "Inkább a JusPrin saját, 3D-nyomtatásra szakosodott AI-ját használnád? Regisztrálj a <0>Fiók</0> részben."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Reading the printer list…"
+msgstr "Nyomtatólista beolvasása…"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Reading the settings…"
+msgstr "Beállítások beolvasása…"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Reading this printer’s profiles…"
+msgstr "A nyomtató profiljainak beolvasása…"
+
+# AI Translated
+#. A printer status: idle and ready to print
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Ready"
+msgstr "Kész"
+
+# AI Translated
+#. Sort order: the most recently saved first
+#: ../HomeUI/src/App.tsx
+msgid "Recent"
+msgstr "Legutóbbi"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Reconnect"
+msgstr "Újracsatlakozás"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Redo: {step}"
+msgstr "Mégis: {step}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Region"
+msgstr "Terület"
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "Registered JusPrin account, your own key, or an AI tool you already use."
+msgstr "Regisztrált JusPrin-fiók, saját kulcs vagy egy AI-eszköz, amelyet már használsz."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Reinstall or rebuild JusPrin, then try again."
+msgstr "Telepítsd vagy fordítsd újra a JusPrint, majd próbáld újra."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Release notes"
+msgstr "Kiadási megjegyzések"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Released {released} · you have {current}"
+msgstr "Megjelent: {released} · a te verziód: {current}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+#: ../HomeUI/src/components/PrintReportForm.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/AllSettings.tsx
+#: src/components/AttachmentChip.tsx
+msgid "Remove"
+msgstr "Eltávolítás"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Remove “{printerName}”? Its printer settings will be deleted. Your projects stay."
+msgstr "Eltávolítod a(z) „{printerName}” nyomtatót? A nyomtatóbeállításai törlődnek. A projektjeid megmaradnak."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Remove {lowered}"
+msgstr "{lowered} eltávolítása"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Remove {name} key"
+msgstr "{name}-kulcs eltávolítása"
+
+# AI Translated
+#: src/components/AttachmentChip.tsx
+msgid "Remove {title}"
+msgstr "{title} eltávolítása"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Remove filter {label}"
+msgstr "{label} szűrő eltávolítása"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Remove printer?"
+msgstr "Eltávolítod a nyomtatót?"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Remove printer…"
+msgstr "Nyomtató eltávolítása…"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Removed from your printers."
+msgstr "Eltávolítva a nyomtatóid közül."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Removed: <0>{name}</0>"
+msgstr "Eltávolítva: <0>{name}</0>"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Removed: <0>{preset}</0>"
+msgstr "Eltávolítva: <0>{preset}</0>"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+#: src/components/ChatNavigation.tsx
+msgid "Rename"
+msgstr "Átnevezés"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Rename chat"
+msgstr "Csevegés átnevezése"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Rename printer"
+msgstr "Nyomtató átnevezése"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Renews {renews}."
+msgstr "Megújul: {renews}."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Replace"
+msgstr "Csere"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Replace {name} key"
+msgstr "{name}-kulcs cseréje"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Replace it with a working key, or remove it."
+msgstr "Cseréld le egy működő kulcsra, vagy távolítsd el."
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Reply…"
+msgstr "Válasz…"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Report credits"
+msgstr "Jelentésért kapott kreditek"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Report sent"
+msgstr "Jelentés elküldve"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Restart {name} if it was already running."
+msgstr "Indítsd újra a(z) {name} alkalmazást, ha már futott."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Restart now"
+msgstr "Újraindítás most"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Restart the AI tool if it was already running."
+msgstr "Indítsd újra az AI-eszközt, ha már futott."
+
+# AI Translated
+#: src/App.tsx
+#: src/App.tsx
+msgid "Restore and resume"
+msgstr "Visszaállítás és folytatás"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Restore the model and project settings from this saved point. Your current model is saved in Version history first. Conversation, exported files, completed prints, and printer activity stay as they are."
+msgstr "A modell és a projektbeállítások visszaállítása erről a mentett pontról. Előtte az aktuális modelled a Verzióelőzményekbe kerül. A beszélgetés, az exportált fájlok, a befejezett nyomtatások és a nyomtató tevékenységei változatlanok maradnak."
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Result"
+msgstr "Eredmény"
+
+# AI Translated
+#: src/App.tsx
+msgid "Resume saved setup"
+msgstr "Mentett beállítás folytatása"
+
+# AI Translated
+#: src/components/MessageList.tsx
+#: src/components/MessageList.tsx
+#: src/components/Panels.tsx
+msgid "Retry"
+msgstr "Újra"
+
+# AI Translated
+#: src/App.tsx
+msgid "Return to active chat"
+msgstr "Vissza az aktív csevegéshez"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Reverse scroll-wheel zoom"
+msgstr "Görgős nagyítás irányának megfordítása"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+#: src/components/ChangeRows.tsx
+#: src/components/ChangeRows.tsx
+#: src/components/ChangeRows.tsx
+#: src/components/ChangeRows.tsx
+msgid "Revert to here"
+msgstr "Visszaállítás eddig a pontig"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+#: src/components/ChangeRows.tsx
+msgid "Revert to here?"
+msgstr "Visszaállítod eddig a pontig?"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Review"
+msgstr "Áttekintés"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Review again"
+msgstr "Újbóli áttekintés"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Review its progress and results in this panel."
+msgstr "Az előrehaladását és az eredményeit ebben a panelben követheted."
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Right-drag"
+msgstr "Húzás jobb gombbal"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Running it yourself? Paste it in a terminal, then restart {name}."
+msgstr "Magad futtatod? Illeszd be egy terminálba, majd indítsd újra a(z) {name} alkalmazást."
+
+# AI Translated
+#: src/components/ToolActivityCard.tsx
+#: src/components/WorkCard.tsx
+msgid "Running…"
+msgstr "Futtatás…"
+
+# AI Translated
+#: src/components/ToolActivityCard.tsx
+msgid "Running… · {percent}%"
+msgstr "Futtatás… · {percent}%"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "same as project"
+msgstr "ugyanaz, mint a projektben"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+#: src/components/ChatNavigation.tsx
+msgid "Save"
+msgstr "Mentés"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Save downloaded models to"
+msgstr "Letöltött modellek mentési helye"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Saved {saved}"
+msgstr "Mentve: {saved}"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Saved sliced snapshot"
+msgstr "Mentett szeletelt pillanatkép"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Saved with this chat. The canvas shows your current project."
+msgstr "Ezzel a csevegéssel együtt mentve. A vászon az aktuális projektedet mutatja."
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Saved: <0>{preset}</0>"
+msgstr "Mentve: <0>{preset}</0>"
+
+# AI Translated
+#: src/components/ProposalCard.tsx
+msgid "Saving…"
+msgstr "Mentés…"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Scroll up to zoom out."
+msgstr "Felfelé görgetéssel kicsinyítés."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Seam painting"
+msgstr "Varratfestés"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+#: src/components/AddPrinterForm.tsx
+msgid "Search brand or material"
+msgstr "Keresés márka vagy anyag szerint"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "Search brands"
+msgstr "Márkák keresése"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "Search models"
+msgstr "Modellek keresése"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgctxt "printer"
+msgid "Search models"
+msgstr "Modellek keresése"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Search prints"
+msgstr "Nyomtatások keresése"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+#: ../HomeUI/src/App.tsx
+msgid "Search projects"
+msgstr "Projektek keresése"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Search settings"
+msgstr "Beállítások keresése"
+
+# AI Translated
+#: src/components/Guide.tsx
+#: src/components/Guide.tsx
+msgid "Search the guide"
+msgstr "Keresés az útmutatóban"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "See prices"
+msgstr "Árak megtekintése"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "See usage"
+msgstr "Használat megtekintése"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Send"
+msgstr "Küldés"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+#: src/components/SignInDoor.tsx
+msgid "Send a new code"
+msgstr "Új kód küldése"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Send a report to the JusPrin developers?"
+msgstr "Küldesz egy jelentést a JusPrin fejlesztőinek?"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Send message"
+msgstr "Üzenet küldése"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+#: src/components/PrinterPanel.tsx
+msgid "Send report"
+msgstr "Jelentés küldése"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Sending a code to {address}…"
+msgstr "Kód küldése ide: {address}…"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Sending isn’t built yet, so nothing has left this computer. The report is saved at {path}."
+msgstr "A küldés funkció még nem készült el, így semmi sem hagyta el ezt a számítógépet. A jelentés itt van mentve: {path}."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "Sending…"
+msgstr "Küldés…"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Sent · {when}. Saved snapshot: the canvas shows your current project."
+msgstr "Elküldve · {when}. Mentett pillanatkép: a vászon az aktuális projektedet mutatja."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Sent to {printer}"
+msgstr "Elküldve ide: {printer}"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Sent to {printer} · {when}. Saved snapshot: the canvas shows your current project."
+msgstr "Elküldve ide: {printer} · {when}. Mentett pillanatkép: a vászon az aktuális projektedet mutatja."
+
+# AI Translated
+#. {time} is a clock time, or a day and a time
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Sent to {printer} at {time}"
+msgstr "Elküldve ide: {printer}, ekkor: {time}"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Sent to {printer}. Saved snapshot: the canvas shows your current project."
+msgstr "Elküldve ide: {printer}. Mentett pillanatkép: a vászon az aktuális projektedet mutatja."
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Sent. Saved snapshot: the canvas shows your current project."
+msgstr "Elküldve. Mentett pillanatkép: a vászon az aktuális projektedet mutatja."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Set on this plate"
+msgstr "Ezen a tálcán beállítva"
+
+# AI Translated
+#: ../HomeUI/src/components/AgentGroup.tsx
+#: src/components/ChatNavigation.tsx
+#: src/components/Panels.tsx
+#: src/components/Panels.tsx
+msgid "Set up AI"
+msgstr "AI beállítása"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "setting up an ordinary print"
+msgstr "egy átlagos nyomtatás beállítása"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Settings might have changed; inspect them before retrying."
+msgstr "A beállítások megváltozhattak; újrapróbálás előtt ellenőrizd őket."
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Setup summary"
+msgstr "Beállítás összefoglalója"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "Show details"
+msgstr "Részletek megjelenítése"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Show fewer"
+msgstr "Kevesebb megjelenítése"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Show filaments made for other printers"
+msgstr "Más nyomtatókhoz készült filamentek megjelenítése"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Show file"
+msgstr "Fájl megjelenítése"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Show folder"
+msgstr "Mappa megjelenítése"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Showing"
+msgstr "Látható"
+
+# AI Translated
+#: src/components/MessageList.tsx
+#: src/components/SignInDoor.tsx
+#: src/components/SignInDoor.tsx
+msgid "Sign in"
+msgstr "Bejelentkezés"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Sign in again to keep using AI with your JusPrin account."
+msgstr "Jelentkezz be újra, hogy továbbra is használhasd az AI-t a JusPrin-fiókoddal."
+
+# AI Translated
+#: src/App.tsx
+#: src/components/ChatNavigation.tsx
+msgid "Sign in or add a key to chat with AI"
+msgstr "Jelentkezz be, vagy adj meg egy kulcsot az AI-jal való csevegéshez"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+#: src/components/SignInDoor.tsx
+msgid "Sign in with Google instead"
+msgstr "Inkább bejelentkezés Google-fiókkal"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Sign out"
+msgstr "Kijelentkezés"
+
+# AI Translated
+#: src/credits.ts
+msgid "Sign up and get {signupCredits} free credits"
+msgstr "Regisztrálj, és kapj {signupCredits} ingyenes kreditet"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Sign up free"
+msgstr "Ingyenes regisztráció"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Sign up to use AI, or skip it and just slice."
+msgstr "Regisztrálj az AI használatához, vagy hagyd ki, és csak szeletelj."
+
+# AI Translated
+#: src/components/CodeField.tsx
+msgid "Sign-in code"
+msgstr "Bejelentkezési kód"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Sign-up credits"
+msgstr "Regisztrációs kreditek"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Signed in"
+msgstr "Bejelentkezve"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Signed in · AI unavailable"
+msgstr "Bejelentkezve · az AI nem érhető el"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Signed in as {address}"
+msgstr "Bejelentkezve mint {address}"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Signed in as {address} · AI unavailable"
+msgstr "Bejelentkezve mint {address} · az AI nem érhető el"
+
+# AI Translated
+#: ../HomeUI/src/components/AgentGroup.tsx
+#: ../HomeUI/src/components/Onboarding.tsx
+#: ../HomeUI/src/components/Onboarding.tsx
+#: ../HomeUI/src/components/Onboarding.tsx
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Signed in as {email}"
+msgstr "Bejelentkezve mint {email}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Signing out keeps your projects, printers and API keys on this computer."
+msgstr "Kijelentkezéskor a projektjeid, nyomtatóid és API-kulcsaid megmaradnak ezen a számítógépen."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Signing you in…"
+msgstr "Bejelentkeztetés…"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Skip — choose a filament later"
+msgstr "Kihagyás – filament kiválasztása később"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Skip — start with {defaultLabel}"
+msgstr "Kihagyás – kezdés ezzel: {defaultLabel}"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Skip for now"
+msgstr "Kihagyás most"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Skip this version"
+msgstr "Ennek a verziónak a kihagyása"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Slice again to update"
+msgstr "A frissítéshez szeleteld újra"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Slice to see time and filament"
+msgstr "Szeleteld az idő és a filament megtekintéséhez"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Sliced & sent"
+msgstr "Szeletelve és elküldve"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Slot"
+msgstr "Férőhely"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Slot {slot}"
+msgstr "{slot}. férőhely"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Slot {slot} · {preset}"
+msgstr "{slot}. férőhely · {preset}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Slot {slot} overrides the printer’s {value}."
+msgstr "A(z) {slot}. férőhely felülírja a nyomtató értékét ({value})."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Slot {slot} preset: {preset}"
+msgstr "{slot}. férőhely beállítása: {preset}"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Slot 1"
+msgstr "1. férőhely"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Smooth mesh"
+msgstr "Háló simítása"
+
+# AI Translated
+#: src/components/FileNotesCard.tsx
+msgid "Some notes from opening the file aren't shown."
+msgstr "A fájl megnyitásakor keletkezett néhány megjegyzés nem látható."
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Sort projects"
+msgstr "Projektek rendezése"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "Specializes in 3D printing"
+msgstr "3D-nyomtatásra szakosodott"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Speed"
+msgstr "Sebesség"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Staged attachments"
+msgstr "Csatolásra váró mellékletek"
+
+# AI Translated
+#. The cheaper kind of AI model
+#: src/credits.ts
+msgid "Standard"
+msgstr "Normál"
+
+# AI Translated
+#: src/components/AttachmentChip.tsx
+msgid "Standard can’t see pictures, so this one will not be sent."
+msgstr "A Normál modell nem lát képeket, ezért ez nem kerül elküldésre."
+
+# AI Translated
+#: src/components/Guide.tsx
+msgid "Start of the page"
+msgstr "Az oldal eleje"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Start with {defaultLabel} instead"
+msgstr "Kezdés inkább ezzel: {defaultLabel}"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Starting Home."
+msgstr "A Kezdőlap indítása."
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "Starting the AI panel."
+msgstr "Az AI-panel indítása."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Stays on this computer."
+msgstr "Ezen a számítógépen marad."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Step {step} of {steps}"
+msgstr "{step}. lépés / {steps}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "STL and STEP models"
+msgstr "STL és STEP modellek"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Stop"
+msgstr "Leállítás"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Stop generating"
+msgstr "Generálás leállítása"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Stopped before it finished."
+msgstr "Befejezés előtt leállt."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Strength"
+msgstr "Szilárdság"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Suggested for the {modelName}"
+msgstr "Javasolt ehhez: {modelName}"
+
+# AI Translated
+#. The settings page for support structures
+#: src/components/AllSettings.tsx
+msgid "Support"
+msgstr "Támasz"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Support painting"
+msgstr "Támaszok festése"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Switched to <0>{label}</0>"
+msgstr "Átváltva erre: <0>{label}</0>"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Takes effect when JusPrin restarts. Your project is saved first."
+msgstr "A JusPrin újraindításakor lép életbe. Előtte a projekted mentésre kerül."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Technical output"
+msgstr "Technikai kimenet"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "Tell us how it printed"
+msgstr "Mondd el, hogyan sikerült a nyomtatás"
+
+# AI Translated
+#: src/calibration.ts
+msgid "Temperature steps not kept in the file"
+msgstr "A hőmérsékletlépések nincsenek elmentve a fájlban"
+
+# AI Translated
+#. The kind of an attached file: a text file
+#: src/components/AttachmentChip.tsx
+msgid "Text"
+msgstr "Szöveg"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "That code is wrong."
+msgstr "Hibás a kód."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "That code no longer works. We can send a new one."
+msgstr "Ez a kód már nem érvényes. Küldhetünk újat."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "That password is wrong."
+msgstr "Hibás a jelszó."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "The {modelName} profile’s default"
+msgstr "A(z) {modelName} profil alapértéke"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "The account couldn’t be deleted. Check your internet connection, then try again."
+msgstr "A fiókot nem sikerült törölni. Ellenőrizd az internetkapcsolatot, majd próbáld újra."
+
+# AI Translated
+#: src/App.tsx
+msgid "The action could not be completed."
+msgstr "A műveletet nem sikerült végrehajtani."
+
+# AI Translated
+#: src/components/ToolActivityCard.tsx
+msgid "The action failed."
+msgstr "A művelet sikertelen volt."
+
+# AI Translated
+#: src/App.tsx
+msgid "The AI chat didn't start. Try again, and restart JusPrin if it keeps happening."
+msgstr "Az AI-csevegés nem indult el. Próbáld újra, és ha ez továbbra is előfordul, indítsd újra a JusPrint."
+
+# AI Translated
+#: src/App.tsx
+msgid "The AI panel could not connect"
+msgstr "Az AI-panel nem tudott csatlakozni"
+
+# AI Translated
+#: src/App.tsx
+msgid "The AI panel could not reach JusPrin"
+msgstr "Az AI-panel nem érte el a JusPrint"
+
+# AI Translated
+#: src/App.tsx
+msgid "The AI panel has no connection to JusPrin"
+msgstr "Az AI-panelnek nincs kapcsolata a JusPrinnel"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "The AI slicer that helps you get better prints."
+msgstr "Az AI-szeletelő, amely segít jobb nyomatokat készíteni."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "The app continues on its own once the browser is done."
+msgstr "Amint a böngészőben végeztél, az app magától folytatja."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "The Create filament window opens"
+msgstr "Megnyílik a Filament létrehozása ablak"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "The file changed since you reviewed it."
+msgstr "A fájl megváltozott, mióta átnézted."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "The file is invalid or not writable. Fix it, then try again."
+msgstr "A fájl érvénytelen vagy nem írható. Javítsd ki, majd próbáld újra."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "The file is on the printer but was not started."
+msgstr "A fájl a nyomtatón van, de nem indult el."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "The full preferences window from OrcaSlicer, which JusPrin is built on."
+msgstr "Az OrcaSlicer teljes beállítási ablaka, amelyre a JusPrin épül."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "The key could not be checked. Nothing was saved."
+msgstr "A kulcsot nem sikerült ellenőrizni. Semmi sem lett mentve."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "The open project still uses the same printer as before. {app}’s own files were not changed."
+msgstr "A megnyitott projekt továbbra is ugyanazt a nyomtatót használja, mint korábban. A(z) {app} saját fájljai nem változtak."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "The printer hasn’t confirmed it got the file."
+msgstr "A nyomtató nem erősítette meg, hogy megkapta a fájlt."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "the printer profile’s default, until your preset is saved"
+msgstr "a nyomtatóprofil alapértéke, amíg a beállításod nincs mentve"
+
+# AI Translated
+#: src/components/ToolActivityCard.tsx
+msgid "The project changed before this could run. Ask AI again."
+msgstr "A projekt megváltozott, mielőtt ez lefuthatott volna. Kérdezd újra az AI-t."
+
+# AI Translated
+#: src/App.tsx
+msgid "The project has changed since this chat. To continue here, JusPrin puts the project back the way it was then."
+msgstr "A projekt megváltozott e csevegés óta. Az itteni folytatáshoz a JusPrin visszaállítja a projektet az akkori állapotára."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "The provider a chat uses receives your messages, the open project’s settings and anything you attach. JusPrin doesn’t send your keys anywhere else."
+msgstr "A csevegés által használt szolgáltató megkapja az üzeneteidet, a megnyitott projekt beállításait és mindent, amit csatolsz. A JusPrin a kulcsaidat sehová máshová nem küldi."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "The provider rejected this key"
+msgstr "A szolgáltató elutasította ezt a kulcsot"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "The report could not be saved."
+msgstr "A jelentést nem sikerült menteni."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "The report couldn’t be sent. Check your connection and try again."
+msgstr "A jelentést nem sikerült elküldeni. Ellenőrizd a kapcsolatot, és próbáld újra."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "The setup command failed."
+msgstr "A beállítási parancs sikertelen volt."
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Theme"
+msgstr "Téma"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Then"
+msgstr "Ezután"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "Thinking"
+msgstr "Gondolkodás"
+
+# AI Translated
+#: src/App.tsx
+msgid "This AI panel does not match this JusPrin build"
+msgstr "Ez az AI-panel nem illik ehhez a JusPrin-verzióhoz"
+
+# AI Translated
+#: src/App.tsx
+msgid "This chat is inactive. Resume from its saved setup to continue."
+msgstr "Ez a csevegés inaktív. A folytatáshoz indítsd a mentett beállításából."
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "This chat is still working. Stop it or let it finish, then delete it."
+msgstr "Ez a csevegés még dolgozik. Állítsd le, vagy várd meg, amíg befejezi, és utána töröld."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "This G-code is no longer kept. Open the project and slice it to print it again."
+msgstr "Ezt a G-code-ot már nem őrizzük. Az újranyomtatáshoz nyisd meg a projektet, és szeleteld."
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "This is an internal connection inside JusPrin, not a network service. The 3D canvas and all other controls keep working."
+msgstr "Ez a JusPrinen belüli kapcsolat, nem hálózati szolgáltatás. A 3D-vászon és minden más vezérlő tovább működik."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "This JusPrin build cannot list the settings."
+msgstr "Ez a JusPrin-verzió nem tudja kilistázni a beállításokat."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "This key works now, but JusPrin couldn’t save it."
+msgstr "Ez a kulcs most működik, de a JusPrin nem tudta menteni."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "This tool isn’t installed."
+msgstr "Ez az eszköz nincs telepítve."
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "This version of JusPrin can no longer connect to JusPrin accounts."
+msgstr "A JusPrin ezen verziója már nem tud csatlakozni a JusPrin-fiókokhoz."
+
+# AI Translated
+#: src/OrcaImportApp.tsx
+msgid "This window could not reach JusPrin"
+msgstr "Ez az ablak nem érte el a JusPrint"
+
+# AI Translated
+#. A thinking level of the AI model
+#: src/components/ModelPickers.tsx
+msgid "Thorough"
+msgstr "Alapos"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Time & material estimates recomputing…"
+msgstr "Idő- és anyagbecslés újraszámolása…"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Timed out."
+msgstr "Időtúllépés."
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+#: ../HomeUI/src/savedDate.ts
+msgid "Today"
+msgstr "Ma"
+
+# AI Translated
+#. {time} is a clock time, 14:22
+#: ../HomeUI/src/history.ts
+msgid "Today {time}"
+msgstr "Ma {time}"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Too many codes were sent to this address. Try again in an hour."
+msgstr "Túl sok kódot küldtünk erre a címre. Próbáld újra egy óra múlva."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Too many tries. Wait a few minutes, or email me a code."
+msgstr "Túl sok próbálkozás. Várj néhány percet, vagy kérj kódot e-mailben."
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Tool"
+msgstr "Eszköz"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Touchpad"
+msgstr "Érintőpad"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "troubleshooting, tricky models, anything you’d ask a person"
+msgstr "hibaelhárítás, trükkös modellek, bármi, amit egy embertől kérdeznél"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+#: src/components/Preferences.tsx
+msgid "Try again"
+msgstr "Próbáld újra"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Try again."
+msgstr "Próbáld újra."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Turn freely"
+msgstr "Szabad forgatás"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Turn the view"
+msgstr "A nézet forgatása"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Turn the view in any direction. Off keeps the bed level."
+msgstr "A nézet forgatása bármely irányba. Kikapcsolva az asztal vízszintes marad."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Type the code from the email. You can open it on your phone."
+msgstr "Írd be az e-mailben kapott kódot. A telefonodon is megnyithatod."
+
+# AI Translated
+#: src/components/MessageList.tsx
+#: src/components/PrinterPanel.tsx
+msgid "Undo"
+msgstr "Visszavonás"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Undo: {step}"
+msgstr "Visszavonás: {step}"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Undone: <0>{preset}</0>"
+msgstr "Visszavonva: <0>{preset}</0>"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Units"
+msgstr "Mértékegységek"
+
+# AI Translated
+#. The kind of an attached file the app cannot read
+#: src/components/AttachmentChip.tsx
+msgid "Unsupported"
+msgstr "Nem támogatott"
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "Until then JusPrin slices from the preset, exactly as it always has."
+msgstr "Addig a JusPrin a beállításból szeletel, pontosan úgy, mint eddig."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Until you add yours, files are sliced for a 250 mm Klipper printer and may not print on other printers."
+msgstr "Amíg nem adod hozzá a sajátodat, a fájlok egy 250 mm-es Klipper nyomtatóra lesznek szeletelve, és más nyomtatókon esetleg nem nyomtathatók ki."
+
+# AI Translated
+#. {checked} is how long ago, such as "just now", "2 hours ago" or "yesterday".
+#: src/components/Preferences.tsx
+msgid "Up to date · checked {checked}"
+msgstr "Naprakész · ellenőrizve: {checked}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Update available"
+msgstr "Frissítés érhető el"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Update with each JusPrin release. Your own presets never change."
+msgstr "Minden JusPrin-kiadással frissülnek. A saját beállításaid soha nem változnak."
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Updates"
+msgstr "Frissítések"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Updates come from the Microsoft Store."
+msgstr "A frissítések a Microsoft Store-ból érkeznek."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Use a password instead"
+msgstr "Inkább jelszó használata"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Use an email code instead"
+msgstr "Inkább e-mailes kód használata"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Use project value"
+msgstr "Projektérték használata"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Use project value for {label}"
+msgstr "Projektérték használata ehhez: {label}"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Use your own AI account"
+msgstr "Saját AI-fiók használata"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Variable layer height"
+msgstr "Változó rétegmagasság"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Version history"
+msgstr "Verzióelőzmények"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "We sent a 6-digit code to {address}."
+msgstr "6 jegyű kódot küldtünk ide: {address}."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "We sent a new code to {address}."
+msgstr "Új kódot küldtünk ide: {address}."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "We’ll email you a code."
+msgstr "E-mailben küldünk egy kódot."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "What happened"
+msgstr "Mi történt"
+
+# AI Translated
+#: src/App.tsx
+msgid "What should we do with this in the current project?"
+msgstr "Mit kezdjünk ezzel az aktuális projektben?"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "What the report holds"
+msgstr "Mit tartalmaz a jelentés"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "What to check for"
+msgstr "Mit keressen"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "What to do next"
+msgstr "Mi a következő lépés"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "What to expect"
+msgstr "Mire számíthatsz"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "When you import, JusPrin copies it with its filaments and print settings."
+msgstr "Importáláskor a JusPrin átmásolja a filamentjeivel és nyomtatási beállításaival együtt."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "When you import, JusPrin copies it."
+msgstr "Importáláskor a JusPrin átmásolja."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "When you import, JusPrin copies them with their filaments and print settings."
+msgstr "Importáláskor a JusPrin átmásolja őket a filamentjeikkel és nyomtatási beállításaikkal együtt."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "When you import, JusPrin copies them."
+msgstr "Importáláskor a JusPrin átmásolja őket."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Which filament do you want to start with?"
+msgstr "Melyik filamenttel szeretnél kezdeni?"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Which plate is on it?"
+msgstr "Melyik tálca van rajta?"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Which printer do you have?"
+msgstr "Milyen nyomtatód van?"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Which printer?"
+msgstr "Melyik nyomtató?"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Which settings"
+msgstr "Mely beállítások"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Whole object"
+msgstr "Teljes objektum"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Whole project"
+msgstr "Teljes projekt"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "With a JusPrin account, JusPrin receives your messages, the open project’s settings and anything you attach, and passes them on to the model provider it uses."
+msgstr "JusPrin-fiók használatakor a JusPrin megkapja az üzeneteidet, a megnyitott projekt beállításait és mindent, amit csatolsz, és továbbítja őket az általa használt modellszolgáltatónak."
+
+# AI Translated
+#: src/components/MessageList.tsx
+#: src/components/TurnActivity.tsx
+msgid "Working on it…"
+msgstr "Dolgozom rajta…"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Writing settings…"
+msgstr "Beállítások írása…"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "yesterday"
+msgstr "tegnap"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+#: ../HomeUI/src/savedDate.ts
+#: src/components/ChatNavigation.tsx
+msgid "Yesterday"
+msgstr "Tegnap"
+
+# AI Translated
+#. {time} is a clock time, 19:40
+#: ../HomeUI/src/history.ts
+msgid "Yesterday {time}"
+msgstr "Tegnap {time}"
+
+# AI Translated
+#. Who opened a file: the person
+#: src/components/ChangeRows.tsx
+#: src/components/MessageList.tsx
+msgid "you"
+msgstr "te"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "You can connect it later."
+msgstr "Később is csatlakoztathatod."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "You can prepare prints with this printer before installing the Bambu plug-in."
+msgstr "A Bambu bővítmény telepítése előtt is előkészíthetsz nyomtatásokat ezzel a nyomtatóval."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "You have {current}"
+msgstr "A te verziód: {current}"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "You won’t need to set this up again after a normal JusPrin restart."
+msgstr "A JusPrin normál újraindítása után ezt nem kell újra beállítanod."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "You’ll need to add it again after JusPrin restarts."
+msgstr "A JusPrin újraindítása után újra hozzá kell adnod."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Your account and AI setup stay intact. Your own key or AI tool still works meanwhile."
+msgstr "A fiókod és az AI beállítása érintetlen marad. A saját kulcsod vagy AI-eszközöd addig is működik."
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Your account, keys, and the model new chats start with"
+msgstr "A fiókod, a kulcsaid és a modell, amellyel az új csevegések indulnak"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Your API key, or Claude Code or Claude Desktop"
+msgstr "A saját API-kulcsod, vagy a Claude Code vagy a Claude Desktop"
+
+# AI Translated
+#: src/App.tsx
+msgid "Your current version stays in Version history."
+msgstr "Az aktuális verziód megmarad a Verzióelőzményekben."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+#: src/components/AddPrinterForm.tsx
+msgid "Your filaments"
+msgstr "Filamentjeid"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Your other settings stay as they are. The existing file is backed up first."
+msgstr "A többi beállításod változatlan marad. A meglévő fájlról előbb biztonsági mentés készül."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+msgid "Your own API key"
+msgstr "Saját API-kulcs"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Your preset"
+msgstr "A te beállításod"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Your preset, based on {base}"
+msgstr "A te beállításod, alapja: {base}"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Your preset, made for other printers. Picking it saves a copy for the {modelName}."
+msgstr "A te beállításod, más nyomtatókhoz készült. Ha ezt választod, a JusPrin másolatot ment belőle ehhez: {modelName}."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Your preset, made for the {first} and {second}. Picking it saves a copy for the {modelName}."
+msgstr "A te beállításod, ezekhez készült: {first} és {second}. Ha ezt választod, a JusPrin másolatot ment belőle ehhez: {modelName}."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Your preset, made for the {first}. Picking it saves a copy for the {modelName}."
+msgstr "A te beállításod, ehhez készült: {first}. Ha ezt választod, a JusPrin másolatot ment belőle ehhez: {modelName}."
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Your projects will appear here, most recent first."
+msgstr "A projektjeid itt jelennek meg, a legutóbbi elöl."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "your provider"
+msgstr "a szolgáltatód"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Your sign-in for {address} has ended"
+msgstr "A(z) {address} fiók bejelentkezése lejárt"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Your sign-in for this account has ended"
+msgstr "Ennek a fióknak a bejelentkezése lejárt"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Zoom toward the pointer"
+msgstr "Nagyítás a mutató felé"

@@ -60,6 +60,11 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Support/AppFolders.cpp
     GUI/JusPrin/Support/AppFolders.hpp
     GUI/JusPrin/Support/Base64.hpp
+    GUI/JusPrin/Support/DecimalText.cpp
+    GUI/JusPrin/Support/DecimalText.hpp
+    GUI/JusPrin/Support/PageLanguage.cpp
+    GUI/JusPrin/Support/PageLanguage.hpp
+    GUI/JusPrin/Support/Translate.hpp
     GUI/JusPrin/PrinterSetup/PrinterSetupTypes.hpp
     GUI/JusPrin/PrinterSetup/PrinterCatalog.cpp
     GUI/JusPrin/PrinterSetup/PrinterCatalog.hpp

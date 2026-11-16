@@ -3,6 +3,7 @@
 // the same bridge as Preferences; each button is a shell_action the window
 // carries out (Home/OrcaImportWindow.cpp).
 
+import { t } from '@lingui/core/macro';
 import { useEffect, useMemo, useReducer } from 'react';
 import { BridgeClient, Transport } from './bridge/client';
 import { initialState, reducer } from './state/store';
@@ -45,7 +46,7 @@ export function OrcaImportApp({ getTransport }: { getTransport: () => Transport 
   if (state.connection !== 'connected' && state.connection !== 'connecting') {
     return (
       <div className="app">
-        <BridgeErrorPane title="This window could not reach JusPrin" detail={state.connectionDetail}
+        <BridgeErrorPane title={t`This window could not reach JusPrin`} detail={state.connectionDetail}
           diagnostics={state.diagnostics} onRetry={() => client.retry()} />
       </div>
     );

@@ -21,12 +21,14 @@
 
 import { ChangeEvent, ClipboardEvent, DragEvent, KeyboardEvent, ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AttachmentInfo, AttachmentPickKind, AttachmentSource, ChatModelChoice, CreditAccount, ModelCatalogPayload } from '../bridge/protocol';
-import { creditCount, lowNotice, sendBlock } from '../credits';
+import { creditNumber, lowNotice, sendBlock } from '../credits';
 import { composerInputMaxHeight } from '../tokens';
 import { AttachmentChip } from './AttachmentChip';
 import { BalancePanel } from './BalancePanel';
 import { ActionMenu } from './ChatNavigation';
 import { findModel, ModelPickers } from './ModelPickers';
+import { plural, t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // What the + menu offers: the four kinds the design names. In the app each
 // opens the operating system's file dialog through the host, which filters
@@ -35,11 +37,11 @@ import { findModel, ModelPickers } from './ModelPickers';
 // that host (review pages, tests). Text and SVG files are accepted too, by
 // dropping them.
 export const ATTACHMENT_CHOICES: readonly { label: string; kind: AttachmentPickKind; accept: string }[] = [
-  { label: 'Photo or image', kind: 'image', accept: '.png,.jpg,.jpeg,.gif,.webp' },
-  { label: '3D model (STL, 3MF, STEP)', kind: 'model',
+  { label: t`Photo or image`, kind: 'image', accept: '.png,.jpg,.jpeg,.gif,.webp' },
+  { label: t`3D model (STL, 3MF, STEP)`, kind: 'model',
     accept: '.stl,.3mf,.step,.stp,.obj,.amf,.oltp,.drc,.ply,.usd,.usda,.usdc,.usdz,.abc' },
   { label: 'G-code', kind: 'gcode', accept: '.gcode,.g,.gco' },
-  { label: 'Document (PDF)', kind: 'pdf', accept: '.pdf' },
+  { label: t`Document (PDF)`, kind: 'pdf', accept: '.pdf' },
 ];
 
 export interface ComposerCredits {
@@ -104,6 +106,12 @@ interface Props {
   onGetNewVersion?: () => void;
   // Words the gateway refused, back in the field once per count.
   returnedDraft?: { text: string; count: number };
+}
+
+// "+1,000 credits" over the box once a purchase has added them.
+function creditsAddedLine(count: number): string {
+  const n = creditNumber(count);
+  return plural(count, { one: `+${n} credit`, other: `+${n} credits` });
 }
 
 export function Composer({
@@ -332,22 +340,22 @@ export function Composer({
       {block && <div className="composer-credits" role="status">
         <span>{block}</span>
         <div className="composer-credits-actions">
-          <button type="button" className="link" onClick={() => credits?.onGetMore()}>Get more credits</button>
+          <button type="button" className="link" onClick={() => credits?.onGetMore()}><Trans>Get more credits</Trans></button>
         </div>
       </div>}
       {!!credits?.creditsAdded && !block && <div className="composer-credits composer-credits--added" role="status">
-        +{creditCount(credits.creditsAdded)}
+        {creditsAddedLine(credits.creditsAdded)}
       </div>}
       {lowShown && <div className="composer-credits composer-credits--low" role="status">
         <span>{low}</span>
-        <button type="button" className="link" onClick={() => credits?.onGetMore()}>Get more credits</button>
-        <button type="button" className="composer-credits-close" aria-label="Close" onClick={() => credits?.onLowNoticeDone()}>
+        <button type="button" className="link" onClick={() => credits?.onGetMore()}><Trans>Get more credits</Trans></button>
+        <button type="button" className="composer-credits-close" aria-label={t`Close`} onClick={() => credits?.onLowNoticeDone()}>
           <span className="jp-icon jp-icon-close" aria-hidden="true" />
         </button>
       </div>}
       <div className="composer-box">
         {attachments.length > 0 && (
-          <div className="composer-attachments" aria-label="Staged attachments">
+          <div className="composer-attachments" aria-label={t`Staged attachments`}>
             {attachments.map((attachment) => (
               <AttachmentChip key={attachment.id} attachment={attachment} onRemove={onRemoveAttachment}
                 notSent={blind && attachment.kind === 'image' && attachment.state === 'staged'} />
@@ -356,21 +364,21 @@ export function Composer({
         )}
         <textarea
           ref={field}
-          aria-label="Message AI"
+          aria-label={t`Message AI`}
           placeholder={
             disabled
-              ? disabledReason ?? 'AI is not available'
+              ? disabledReason ?? t`AI is not available`
               : streaming
-                ? 'AI is responding…'
+                ? t`AI is responding…`
                 : stagedPlaceholder && hasSendable
                   ? stagedPlaceholder
                   : !started && placeholder
                     ? placeholder
                     : choicesOffered
-                      ? 'Or type your own answer…'
+                      ? t`Or type your own answer…`
                       : started
-                        ? 'Reply…'
-                        : 'Ask about this print or request a change…'
+                        ? t`Reply…`
+                        : t`Ask about this print or request a change…`
           }
           value={text}
           disabled={disabled}
@@ -390,7 +398,7 @@ export function Composer({
             {/* Disabled while the Agent responds, like every choice in the
                 toolbar; the field stays open for the next message. */}
             {attachable && (
-              <ActionMenu label="Attach a file" icon="plus" above disabled={disabled || streaming}
+              <ActionMenu label={t`Attach a file`} icon="plus" above disabled={disabled || streaming}
                 items={ATTACHMENT_CHOICES.filter((choice) => !attachKinds || attachKinds.includes(choice.kind))
                   .map((choice) => ({ label: choice.label, onSelect: () => pickFiles(choice) }))} />
             )}
@@ -403,8 +411,8 @@ export function Composer({
               onGetMore={credits!.onGetMore} onSeeUsage={credits!.onSeeUsage} />}
           </div>
           {streaming ? (
-            <button type="button" className="composer-send composer-stop" onClick={onStop} aria-label="Stop generating">
-              Stop
+            <button type="button" className="composer-send composer-stop" onClick={onStop} aria-label={t`Stop generating`}>
+              <Trans>Stop</Trans>
             </button>
           ) : (
             <button
@@ -412,9 +420,9 @@ export function Composer({
               className="composer-send"
               onClick={send}
               disabled={!canSend}
-              aria-label="Send message"
+              aria-label={t`Send message`}
             >
-              Send
+              <Trans>Send</Trans>
             </button>
           )}
         </div>

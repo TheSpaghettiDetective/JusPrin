@@ -194,6 +194,7 @@ wxSizer* AboutWindow::build_version(wxWindow* parent)
     style_label(*base, m_theme, TextRole::BodySmall, palette.text_secondary);
 
     // "Build", then the commit in the monospace face.
+    // TRN A noun: the label before the commit this copy of the app was built from.
     auto* build_label = new wxStaticText(parent, wxID_ANY, _L("Build"));
     style_label(*build_label, m_theme, TextRole::Label, palette.text_secondary);
     auto* build_hash = new wxStaticText(parent, wxID_ANY, wxString::FromUTF8(build_commit_label));

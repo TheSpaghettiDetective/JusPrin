@@ -15,21 +15,33 @@
 import { ChatModelChoice, CreditAccount, ModelCatalogPayload, ModelOptionInfo } from '../bridge/protocol';
 import { messageCostSentence, priceWords } from '../credits';
 import { ActionMenu, MenuItem, MenuSearch, MenuSection } from './ChatNavigation';
+import { plural, t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const EFFORT_LABELS: Record<string, string> = {
-  none: 'Off', minimal: 'Minimal', low: 'Low', medium: 'Medium', high: 'High', xhigh: 'Extra high', max: 'Max',
+  // TRN: how hard the AI model thinks before it answers.
+  none: t({ message: 'Off', comment: 'A thinking level of the AI model: no thinking' }),
+  minimal: t({ message: 'Minimal', comment: 'A thinking level of the AI model' }),
+  low: t({ message: 'Low', comment: 'A thinking level of the AI model' }),
+  medium: t({ message: 'Medium', comment: 'A thinking level of the AI model' }),
+  high: t({ message: 'High', comment: 'A thinking level of the AI model' }),
+  xhigh: t({ message: 'Extra high', comment: 'A thinking level of the AI model' }),
+  max: t({ message: 'Max', comment: 'A thinking level of the AI model: the most' }),
   // JusPrin's own levels, which its gateway maps to the model's.
-  fast: 'Fast', thorough: 'Thorough',
+  fast: t({ message: 'Fast', comment: 'A thinking level of the AI model' }),
+  thorough: t({ message: 'Thorough', comment: 'A thinking level of the AI model' }),
 };
 
 export const SEARCH_FROM = 12;
 
 const TIER_USES: Record<string, string> = {
-  basic: 'setting up an ordinary print',
-  expert: 'troubleshooting, tricky models, anything you’d ask a person',
+  // TRN: what a Standard model is for, under its name in the model menu.
+  basic: t`setting up an ordinary print`,
+  // TRN: what an Expert model is for, under its name in the model menu.
+  expert: t`troubleshooting, tricky models, anything you’d ask a person`,
 };
 
-const MODEL_SEARCH: MenuSearch = { label: 'Search models', noMatch: (query) => `No models match “${query}”.` };
+const MODEL_SEARCH: MenuSearch = { label: t`Search models`, noMatch: (query) => t`No models match “${query}”.` };
 
 export function effortLabel(effort: string): string {
   return EFFORT_LABELS[effort] ?? effort;
@@ -53,8 +65,9 @@ function unlistedLabel(catalog: ModelCatalogPayload, choice: ChatModelChoice): s
 // What follows a provider's name above its models: what JusPrin's own AI is
 // for, or how many models a long list holds.
 function providerDetail(provider: ModelCatalogPayload['providers'][number]): string | undefined {
-  if (provider.id === 'jusprin') return 'Specializes in 3D printing';
-  return provider.models.length > SEARCH_FROM ? `${provider.models.length} models` : undefined;
+  if (provider.id === 'jusprin') return t`Specializes in 3D printing`;
+  const count = provider.models.length;
+  return count > SEARCH_FROM ? plural(count, { one: '# model', other: '# models' }) : undefined;
 }
 
 // Switching model keeps the thinking level when the new model has it, and
@@ -90,14 +103,14 @@ export function modelMenu(catalog: ModelCatalogPayload, choice: ChatModelChoice,
       });
     }
     if (provider.state === 'loading')
-      entries.push({ key: `${provider.id}/loading`, label: 'Loading models…', disabled: true,
+      entries.push({ key: `${provider.id}/loading`, label: t`Loading models…`, disabled: true,
         matches: [provider.label], onSelect: () => {} });
     if (outdated)
-      entries.push({ key: `${provider.id}/update`, label: 'Get the new version…',
-        detail: 'This version of JusPrin can no longer connect to JusPrin accounts.',
+      entries.push({ key: `${provider.id}/update`, label: t`Get the new version…`,
+        detail: t`This version of JusPrin can no longer connect to JusPrin accounts.`,
         matches: [provider.label], onSelect: onGetNewVersion });
     else if (provider.state === 'failed')
-      entries.push({ key: `${provider.id}/failed`, label: provider.updateMessage ?? 'Couldn’t load the model list', disabled: true,
+      entries.push({ key: `${provider.id}/failed`, label: provider.updateMessage ?? t`Couldn’t load the model list`, disabled: true,
         matches: [provider.label], onSelect: () => {} });
   }
   return entries;
@@ -125,11 +138,11 @@ export function ModelPickers({ catalog, choice, disabled, locked = false, accoun
   // Only the model picker gives up width in a narrow pane; the thinking
   // picker drops its "Thinking:" instead (Composer measures which).
   return <div className={locked ? 'composer-pickers composer-pickers--locked' : 'composer-pickers'}>
-    <ActionMenu label="Model" className={priced ? 'composer-model-menu composer-model-menu--priced' : 'composer-model-menu'}
+    <ActionMenu label={t`Model`} className={priced ? 'composer-model-menu composer-model-menu--priced' : 'composer-model-menu'}
       text={model?.label ?? unlistedLabel(catalog, choice)} above
       disabled={disabled || locked} items={models} search={modelCount > SEARCH_FROM ? MODEL_SEARCH : undefined} />
-    {efforts.length > 0 && <ActionMenu label="Thinking" above disabled={disabled || locked} prefixed
-      text={shownEffort ? effortLabel(shownEffort) : 'Default'}
+    {efforts.length > 0 && <ActionMenu label={t`Thinking`} above disabled={disabled || locked} prefixed
+      text={shownEffort ? effortLabel(shownEffort) : t({ message: 'Default', comment: 'A thinking level: the model decides' })}
       items={efforts.map((effort) => ({
         key: effort,
         label: effortLabel(effort),
@@ -137,7 +150,7 @@ export function ModelPickers({ catalog, choice, disabled, locked = false, accoun
         onSelect: () => onChoose({ ...choice, effort }),
       }))} />}
     {locked && <div className="composer-pickers-tooltip" role="tooltip">
-      <p>A chat keeps the model and thinking level it started with. Start a new chat to change them.</p>
+      <p><Trans>A chat keeps the model and thinking level it started with. Start a new chat to change them.</Trans></p>
       {cost && <p>{cost}</p>}
     </div>}
   </div>;

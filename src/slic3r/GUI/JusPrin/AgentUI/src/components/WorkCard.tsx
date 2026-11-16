@@ -6,6 +6,8 @@
 import type { ToolStateName, WorkInfo, WorkStateName } from '../bridge/protocol';
 import { Progress } from './Progress';
 import { ToolStatus } from './ToolActivityCard';
+import { plural, t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 interface Props {
   work: WorkInfo;
@@ -29,17 +31,17 @@ export function workStatus(work: WorkInfo): string {
   const total = work.progress?.total ?? 0;
   switch (work.state) {
     case 'running': {
-      const words = work.detail || 'Running…';
+      const words = work.detail || t`Running…`;
       return total > 0 ? `${words} · ${Math.round((100 * (work.progress?.current ?? 0)) / total)}%` : words;
     }
     case 'done':
-      return 'Done';
+      return t`Done`;
     case 'cancelled':
-      return 'Cancelled';
+      return t`Cancelled`;
     case 'failed':
-      return work.detail || 'It did not finish.';
+      return work.detail || t`It did not finish.`;
     case 'interrupted':
-      return 'Interrupted when the project was closed';
+      return t`Interrupted when the project was closed`;
   }
 }
 
@@ -61,20 +63,21 @@ export function collapseWork(entries: WorkInfo[]): { work: WorkInfo; times: numb
 export function WorkCard({ work, times = 1, onCancel, readOnly = false }: Props) {
   const running = work.state === 'running';
   const total = work.progress?.total ?? 0;
+  const title = work.title;
   return (
     <div className={`tool-card state-${icons[work.state]}`} data-testid={`work-${work.id}`}>
       <div className="tool-title">
         {work.title}
-        {times > 1 && <span className="work-times"> · {times} times</span>}
+        {times > 1 && <span className="work-times"> · {plural(times, { one: '# time', other: '# times' })}</span>}
       </div>
       <ToolStatus state={icons[work.state]}>{workStatus(work)}</ToolStatus>
       {running && (
         <>
-          <Progress label={`${work.title} progress`} value={total > 0 ? work.progress?.current : undefined}
+          <Progress label={t`${title} progress`} value={total > 0 ? work.progress?.current : undefined}
             max={total > 0 ? total : undefined} />
           {work.cancellable && (
             <div className="tool-actions">
-              <button disabled={readOnly} onClick={() => onCancel(work.id)}>Cancel</button>
+              <button disabled={readOnly} onClick={() => onCancel(work.id)}><Trans>Cancel</Trans></button>
             </div>
           )}
         </>

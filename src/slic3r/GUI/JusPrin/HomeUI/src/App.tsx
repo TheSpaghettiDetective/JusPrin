@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
 import type { DragEvent } from 'react';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 import { BridgeClient, ConnectionState, Transport } from './bridge/client';
 import type { HistoryEntry } from './bridge/protocol';
 import { ProjectCard } from './components/ProjectCard';
@@ -133,11 +135,11 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
   if (state.connection !== 'connected' && !state.loaded) {
     return (
       <div className="app connecting">
-        <h1>Connecting…</h1>
-        <p>Starting Home.</p>
+        <h1><Trans>Connecting…</Trans></h1>
+        <p><Trans>Starting Home.</Trans></p>
         {state.connectionDetail && (
           <details>
-            <summary>Diagnostics</summary>
+            <summary><Trans>Diagnostics</Trans></summary>
             <p className="footnote">{state.connectionDetail}</p>
           </details>
         )}
@@ -221,13 +223,13 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
   const newProject = (
     <button type="button" className="button-secondary button-secondary-small" onClick={() => client.send('new_project', {})}>
       <PlusGlyph />
-      New
+      <Trans>New</Trans>
     </button>
   );
   const openFile = (
     <button type="button" className="button-primary" onClick={() => client.send('open_file', {})}>
       <UploadGlyph />
-      Open…
+      <Trans>Open…</Trans>
     </button>
   );
 
@@ -239,12 +241,22 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
   const firstPrinter = state.printers[0]?.name;
   // Without an agent nobody asks what the part is for.
   const agentReady = state.onboarding?.agentConfigured ?? true;
+  // "STL, 3MF, … or ZIP."
+  const formats = FORMATS.slice(0, -1).join(', ');
+  const lastFormat = FORMATS[FORMATS.length - 1];
+  const whatNext = noPrinterYet
+    ? STAND_IN_PRINTER
+    : agentReady
+    ? firstPrinter ? t`JusPrin asks what the part is for, then plans the print for your ${firstPrinter}.`
+      : t`JusPrin asks what the part is for, then plans the print.`
+    : firstPrinter ? t`JusPrin slices it for your ${firstPrinter}.` : t`JusPrin slices it.`;
+  const typed = query.trim();
 
   return (
     <div className="app" onDragOver={(event) => event.preventDefault()} onDrop={openDropped}>
       <header className="home-header">
         <Lockup appearance={state.appearance} className="home-header-lockup" />
-        <button type="button" className="preferences-button" aria-label="Preferences" title="Preferences (Ctrl+,)"
+        <button type="button" className="preferences-button" aria-label={t`Preferences`} title={t`Preferences (Ctrl+,)`}
           onClick={() => client.send('open_preferences', {})}>
           <SettingsGlyph />
         </button>
@@ -253,14 +265,14 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
         <main className="gallery">
           <header className="gallery-header">
             <span className="gallery-title">
-              <span className="section-label">Projects</span>
+              <span className="section-label"><Trans>Projects</Trans></span>
               {!state.projectsProblem && <span className="section-count">{state.projects.length}</span>}
             </span>
             {!firstRun && (
               <div className="gallery-actions">
                 <button type="button" className="history-header-link" onClick={() => openHistory()}>
                   <HistoryGlyph />
-                  Print history
+                  <Trans>Print history</Trans>
                 </button>
                 {searchable && (
                   <>
@@ -268,16 +280,16 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
                       <SearchGlyph />
                       <input
                         type="search"
-                        placeholder="Search projects"
-                        aria-label="Search projects"
+                        placeholder={t`Search projects`}
+                        aria-label={t`Search projects`}
                         value={query}
                         onChange={(event) => setQuery(event.target.value)}
                       />
                     </label>
                     <span className="gallery-sort">
-                      <select aria-label="Sort projects" value={sort} onChange={(event) => setSort(event.target.value as SortOrder)}>
-                        <option value="recent">Recent</option>
-                        <option value="name">Name</option>
+                      <select aria-label={t`Sort projects`} value={sort} onChange={(event) => setSort(event.target.value as SortOrder)}>
+                        <option value="recent">{t({ message: 'Recent', comment: 'Sort order: the most recently saved first' })}</option>
+                        <option value="name">{t({ message: 'Name', comment: 'Sort order: by name' })}</option>
                       </select>
                       <ChevronDownGlyph />
                     </span>
@@ -295,21 +307,17 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
             <section className="first-run">
               <UploadGlyph large />
               <div className="first-run-text">
-                <h2>Drop a model or project to start</h2>
+                <h2><Trans>Drop a model or project to start</Trans></h2>
                 <p>
-                  {FORMATS.slice(0, -1).join(', ')} or {FORMATS[FORMATS.length - 1]}.{' '}
-                  {noPrinterYet
-                    ? STAND_IN_PRINTER
-                    : agentReady
-                    ? `JusPrin asks what the part is for, then plans the print${firstPrinter ? ` for your ${firstPrinter}` : ''}.`
-                    : `JusPrin slices it${firstPrinter ? ` for your ${firstPrinter}` : ''}.`}
+                  {t({ message: `${formats} or ${lastFormat}.`, comment: 'The file formats Home opens: STL, 3MF, STEP, OBJ, AMF, SVG or ZIP.' })}{' '}
+                  {whatNext}
                 </p>
               </div>
               <div className="first-run-actions">
                 {newProject}
                 {openFile}
               </div>
-              <p className="first-run-hint">Your projects will appear here, most recent first.</p>
+              <p className="first-run-hint"><Trans>Your projects will appear here, most recent first.</Trans></p>
             </section>
           ) : (
             <>
@@ -317,7 +325,7 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
                 {/* The whole page takes a drop; this tile is where it says so. */}
                 <button type="button" className="drop-tile" onClick={() => client.send('open_file', {})}>
                   <UploadGlyph large />
-                  <span className="drop-tile-title">Drop a model or project here</span>
+                  <span className="drop-tile-title"><Trans>Drop a model or project here</Trans></span>
                   <span className="drop-tile-formats">{FORMATS.join(' · ')}</span>
                 </button>
                 {shown.map((project) => (
@@ -329,7 +337,7 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
                   />
                 ))}
               </div>
-              {shown.length === 0 && <p className="empty">No projects match “{query.trim()}”.</p>}
+              {shown.length === 0 && <p className="empty"><Trans>No projects match “{typed}”.</Trans></p>}
             </>
           )}
         </main>
@@ -342,7 +350,7 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
               }}
               onOpenPreferences={() => client.send('open_preferences', {})} />
           )}
-          <span className="section-label">Printers</span>
+          <span className="section-label"><Trans>Printers</Trans></span>
           {state.printerError && (
             <p className="printer-error" role="alert">
               {state.printerError.message}
@@ -363,7 +371,7 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
           ))}
           {!noPrinterYet && (
             <button type="button" className="add-printer" onClick={() => client.send('add_printer', {})}>
-              + Add printer
+              <Trans>+ Add printer</Trans>
             </button>
           )}
         </aside>

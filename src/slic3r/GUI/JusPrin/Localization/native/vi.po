@@ -1,0 +1,2299 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the JusPrin package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: JusPrin\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-15 09:46-0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: vi\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+# AI Translated
+msgid "Project chat is blocked until restoration is recovered."
+msgstr "Cuộc trò chuyện của dự án bị khóa cho đến khi khôi phục xong."
+
+# AI Translated
+msgid "Return to the active chat or restore this chat before sending."
+msgstr "Hãy quay lại cuộc trò chuyện đang mở hoặc khôi phục cuộc trò chuyện này trước khi gửi."
+
+# AI Translated
+msgid "Finish or cancel AI configuration before sending a message."
+msgstr "Hãy hoàn tất hoặc hủy thiết lập AI trước khi gửi tin nhắn."
+
+# AI Translated
+msgid "This message belongs to a different chat."
+msgstr "Tin nhắn này thuộc về một cuộc trò chuyện khác."
+
+# AI Translated
+msgid "A message needs text or an attachment."
+msgstr "Tin nhắn cần có nội dung hoặc tệp đính kèm."
+
+# AI Translated
+msgid "The file could not be read."
+msgstr "Không thể đọc file."
+
+# AI Translated
+msgid "This file is too large to attach."
+msgstr "File này quá lớn để đính kèm."
+
+# AI Translated
+msgid "This file type can't be read by AI."
+msgstr "AI không thể đọc loại file này."
+
+# AI Translated
+msgid "This file is not readable UTF-8 text."
+msgstr "File này không phải văn bản UTF-8 đọc được."
+
+# AI Translated
+msgid "The attachment could not be stored."
+msgstr "Không thể lưu tệp đính kèm."
+
+# AI Translated
+msgid "Photo or image"
+msgstr "Ảnh hoặc hình ảnh"
+
+# AI Translated
+msgid "3D model"
+msgstr "Mô hình 3D"
+
+# AI Translated
+msgid "Document (PDF)"
+msgstr "Tài liệu (PDF)"
+
+# AI Translated
+msgid "This build cannot open a file dialog."
+msgstr "Bản dựng này không thể mở hộp thoại chọn file."
+
+# AI Translated
+#. TRN A calibration chat's first line. %1%: where it was started from, %2%: a printer.
+#, boost-format
+msgid "From %1% · %2% · filament not chosen · temporary test settings"
+msgstr "Từ %1% · %2% · chưa chọn filament · cài đặt thử nghiệm tạm thời"
+
+# AI Translated
+#. TRN A calibration chat's first line. %1%: where it was started from, %2%: a filament, %3%: a printer.
+#, boost-format
+msgid "From %1% · %2% on %3% · temporary test settings"
+msgstr "Từ %1% · %2% trên %3% · cài đặt thử nghiệm tạm thời"
+
+# AI Translated
+#. TRN A reopened calibration test's line. %1%: the day it was made, as "21 Oct 2026".
+#, boost-format
+msgid "Reopened · generated %1%"
+msgstr "Đã mở lại · tạo ngày %1%"
+
+# AI Translated
+#. TRN %1%: where the test was opened from, %2%: the day it was made, as "21 Oct 2026".
+#, boost-format
+msgid "Opened from %1% · generated %2%"
+msgstr "Mở từ %1% · tạo ngày %2%"
+
+# AI Translated
+#. TRN %1% is a calibration result, such as 215 °C.
+#, boost-format
+msgid "result %1% saved"
+msgstr "đã lưu kết quả %1%"
+
+# AI Translated
+#. TRN %1% is a plate's name, %2% why the slice did not succeed.
+#, boost-format
+msgid "The app did not slice %1%: %2%"
+msgstr "Ứng dụng đã không slice %1%: %2%"
+
+# AI Translated
+#. TRN %1% is a plate's name, %2% why the slice did not succeed.
+#, boost-format
+msgid "The app stopped the slice of %1%: %2%"
+msgstr "Ứng dụng đã dừng slice %1%: %2%"
+
+# AI Translated
+msgid "The slice of every plate finished."
+msgstr "Đã slice xong mọi plate."
+
+# AI Translated
+#. TRN %1% is a plate's name.
+#, boost-format
+msgid "The slice of %1% finished."
+msgstr "Đã slice xong %1%."
+
+# AI Translated
+msgid "Historical replies cannot be retried."
+msgstr "Không thể thử lại các câu trả lời cũ."
+
+# AI Translated
+msgid "Only a failed or stopped assistant message in the active conversation can be retried."
+msgstr "Chỉ có thể thử lại tin nhắn trợ lý bị lỗi hoặc bị dừng trong cuộc trò chuyện đang mở."
+
+# AI Translated
+msgid "Only the chat's last reply can be retried."
+msgstr "Chỉ có thể thử lại câu trả lời cuối cùng của cuộc trò chuyện."
+
+# AI Translated
+msgid "Another reply is currently streaming."
+msgstr "Một câu trả lời khác đang được truyền."
+
+# AI Translated
+msgid "Historical tool actions cannot be changed."
+msgstr "Không thể thay đổi các thao tác công cụ cũ."
+
+# AI Translated
+msgid "This proposal is no longer open. Ask AI again."
+msgstr "Đề xuất này không còn mở. Hãy hỏi lại AI."
+
+# AI Translated
+msgid "This save can no longer be undone."
+msgstr "Không thể hoàn tác lần lưu này nữa."
+
+# AI Translated
+msgid "The earlier values cannot be put back."
+msgstr "Không thể khôi phục các giá trị trước đó."
+
+# AI Translated
+msgid "Finish or resolve pending work before creating a chat."
+msgstr "Hãy hoàn tất hoặc giải quyết công việc đang chờ trước khi tạo cuộc trò chuyện."
+
+# AI Translated
+msgid "The current chat could not be saved."
+msgstr "Không thể lưu cuộc trò chuyện hiện tại."
+
+# AI Translated
+msgid "The new chat could not be saved."
+msgstr "Không thể lưu cuộc trò chuyện mới."
+
+# AI Translated
+msgid "The selected chat could not be saved."
+msgstr "Không thể lưu cuộc trò chuyện đã chọn."
+
+# AI Translated
+msgid "The project or selected chat changed. Review it again."
+msgstr "Dự án hoặc cuộc trò chuyện đã chọn đã thay đổi. Hãy xem lại."
+
+# AI Translated
+msgid "Finish or resolve pending work before resuming a chat."
+msgstr "Hãy hoàn tất hoặc giải quyết công việc đang chờ trước khi tiếp tục một cuộc trò chuyện."
+
+# AI Translated
+msgid "This chat is already active."
+msgstr "Cuộc trò chuyện này đang mở."
+
+# AI Translated
+msgid "JusPrin can't find the project version this chat was working on."
+msgstr "JusPrin không tìm thấy phiên bản dự án mà cuộc trò chuyện này đang làm việc."
+
+# AI Translated
+msgid "The current project could not be saved before restoration."
+msgstr "Không thể lưu dự án hiện tại trước khi khôi phục."
+
+# AI Translated
+msgid "JusPrin couldn't put the project back."
+msgstr "JusPrin không thể khôi phục dự án."
+
+# AI Translated
+msgid "Restored this chat's saved project setup. Check the current printer and material before printing."
+msgstr "Đã khôi phục thiết lập dự án đã lưu của cuộc trò chuyện này. Hãy kiểm tra máy in và vật liệu hiện tại trước khi in."
+
+# AI Translated
+msgid "Use a non-empty, single-line title of at most 120 characters for an existing chat."
+msgstr "Tiêu đề của cuộc trò chuyện hiện có phải không trống, chỉ một dòng và tối đa 120 ký tự."
+
+# AI Translated
+msgid "This chat is still working. Stop it or let it finish, then delete it."
+msgstr "Cuộc trò chuyện này vẫn đang chạy. Hãy dừng hoặc chờ nó hoàn tất rồi xóa."
+
+# AI Translated
+msgid "This chat no longer exists."
+msgstr "Cuộc trò chuyện này không còn tồn tại."
+
+# AI Translated
+msgid "The replacement chat could not be saved."
+msgstr "Không thể lưu cuộc trò chuyện thay thế."
+
+# AI Translated
+msgid "Historical chats cannot edit the current draft."
+msgstr "Cuộc trò chuyện cũ không thể chỉnh sửa bản nháp hiện tại."
+
+# AI Translated
+msgid "Finish or stop the current reply before configuring AI."
+msgstr "Hãy hoàn tất hoặc dừng câu trả lời hiện tại trước khi thiết lập AI."
+
+# AI Translated
+msgid "This build cannot configure an AI provider."
+msgstr "Bản dựng này không thể thiết lập nhà cung cấp AI."
+
+# AI Translated
+msgid "A credential check is already running."
+msgstr "Đang kiểm tra thông tin xác thực."
+
+# AI Translated
+msgid "This build cannot verify a key for that provider yet."
+msgstr "Bản dựng này chưa thể xác minh khóa cho nhà cung cấp đó."
+
+# AI Translated
+msgid "Finish or stop the current reply before removing a key."
+msgstr "Hãy hoàn tất hoặc dừng câu trả lời hiện tại trước khi xóa khóa."
+
+# AI Translated
+msgid "Finish or cancel the key check before removing a key."
+msgstr "Hãy hoàn tất hoặc hủy việc kiểm tra khóa trước khi xóa khóa."
+
+# AI Translated
+msgid "That key could not be removed."
+msgstr "Không thể xóa khóa đó."
+
+# AI Translated
+msgid "This build cannot sign in to a JusPrin account."
+msgstr "Bản dựng này không thể đăng nhập tài khoản JusPrin."
+
+# AI Translated
+msgid "Finish or stop the current reply before signing in."
+msgstr "Hãy hoàn tất hoặc dừng câu trả lời hiện tại trước khi đăng nhập."
+
+# AI Translated
+msgid "A sign-in or key check is already running."
+msgstr "Đang đăng nhập hoặc kiểm tra khóa."
+
+# AI Translated
+msgid "There is no JusPrin account on this computer to check."
+msgstr "Máy tính này không có tài khoản JusPrin nào để kiểm tra."
+
+# AI Translated
+msgid "JusPrin couldn't start signing in. Try again."
+msgstr "JusPrin không thể bắt đầu đăng nhập. Hãy thử lại."
+
+# AI Translated
+msgid "JusPrin couldn't sign you in. Try again."
+msgstr "JusPrin không thể đăng nhập cho bạn. Hãy thử lại."
+
+# AI Translated
+msgid "This sign-in could not be saved, so you will have to sign in again next time JusPrin starts."
+msgstr "Không thể lưu lần đăng nhập này, nên bạn sẽ phải đăng nhập lại vào lần khởi động JusPrin tiếp theo."
+
+# AI Translated
+msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
+msgstr "Không thể lưu khóa này, nên sẽ phải nhập lại vào lần khởi động JusPrin tiếp theo."
+
+# AI Translated
+msgid "The panel is still loading. Try again in a moment."
+msgstr "Bảng vẫn đang tải. Hãy thử lại sau giây lát."
+
+# AI Translated
+msgid "The AI service is not available."
+msgstr "Dịch vụ AI không khả dụng."
+
+# AI Translated
+msgid "The AI service could not start this request."
+msgstr "Dịch vụ AI không thể bắt đầu yêu cầu này."
+
+# AI Translated
+# Needs human review: "native tool result" = the result of a tool the app ran; check the wording fits.
+msgid "AI could not receive the native tool result."
+msgstr "AI không thể nhận kết quả công cụ của ứng dụng."
+
+# AI Translated
+msgid "The AI request failed."
+msgstr "Yêu cầu AI không thành công."
+
+# AI Translated
+msgid "The automatic chat title could not be generated. You can rename the chat."
+msgstr "Không thể tự tạo tiêu đề cho cuộc trò chuyện. Bạn có thể đổi tên cuộc trò chuyện."
+
+# AI Translated
+#. TRN %1% is an AI provider's account, such as JusPrin.
+#, boost-format
+msgid "This chat ran on your %1% account. Sign in again to continue it, or start a new chat."
+msgstr "Cuộc trò chuyện này chạy trên tài khoản %1% của bạn. Hãy đăng nhập lại để tiếp tục, hoặc bắt đầu cuộc trò chuyện mới."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "This chat ran on %1%, and no %1% API key is set up now. Add the key in the AI settings to continue it, or start a new chat."
+msgstr "Cuộc trò chuyện này chạy trên %1%, và hiện chưa thiết lập khóa API %1% nào. Hãy thêm khóa trong cài đặt AI để tiếp tục, hoặc bắt đầu cuộc trò chuyện mới."
+
+# AI Translated
+msgid "JusPrin hasn't loaded the AI models for your account yet. Try again in a moment."
+msgstr "JusPrin chưa tải xong các mô hình AI cho tài khoản của bạn. Hãy thử lại sau giây lát."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "No %1% API key is set up. Add it in the AI settings, or choose another model."
+msgstr "Chưa thiết lập khóa API %1%. Hãy thêm khóa trong cài đặt AI, hoặc chọn mô hình khác."
+
+# AI Translated
+msgid "A connection is already being saved."
+msgstr "Đang lưu kết nối."
+
+# AI Translated
+msgid "JusPrin's connection helper is missing. Reinstall or rebuild JusPrin."
+msgstr "Thiếu trình hỗ trợ kết nối của JusPrin. Hãy cài đặt lại hoặc dựng lại JusPrin."
+
+# AI Translated
+msgid "The AppImage launcher is missing. Reopen the installed AppImage."
+msgstr "Thiếu trình khởi chạy AppImage. Hãy mở lại AppImage đã cài."
+
+# AI Translated
+msgid "Review the change before connecting."
+msgstr "Hãy xem lại thay đổi trước khi kết nối."
+
+# AI Translated
+#. TRN %1% is an AI client app, such as Claude Code.
+#, boost-format
+msgid "%1% isn't installed. Install it, or copy the command and run it later."
+msgstr "%1% chưa được cài đặt. Hãy cài đặt, hoặc sao chép lệnh để chạy sau."
+
+# AI Translated
+msgid "This build cannot run the client CLI."
+msgstr "Bản dựng này không thể chạy CLI của ứng dụng khách."
+
+# AI Translated
+msgid "This build cannot open a file manager."
+msgstr "Bản dựng này không thể mở trình quản lý file."
+
+# AI Translated
+msgid "The provider did not answer."
+msgstr "Nhà cung cấp không phản hồi."
+
+# AI Translated
+msgid "Attach files"
+msgstr "Đính kèm file"
+
+# AI Translated
+msgid "The AI panel could not connect"
+msgstr "Không thể kết nối bảng AI"
+
+# AI Translated
+msgid "Back to Prepare"
+msgstr "Quay lại Chuẩn bị"
+
+# AI Translated
+msgid "Open filament settings"
+msgstr "Mở cài đặt filament"
+
+# AI Translated
+msgid "The packaged AI page is missing from this build."
+msgstr "Bản dựng này thiếu trang AI đóng gói sẵn."
+
+# AI Translated
+msgid "The system web view could not be created."
+msgstr "Không thể tạo web view của hệ thống."
+
+# AI Translated
+msgid "The AI page failed to load."
+msgstr "Không tải được trang AI."
+
+# AI Translated
+msgid "The AI page did not complete the bridge handshake."
+msgstr "Trang AI chưa hoàn tất bắt tay với cầu nối."
+
+# AI Translated
+msgid "Restart the application to load the AI page."
+msgstr "Hãy khởi động lại ứng dụng để tải trang AI."
+
+# AI Translated
+msgid "This is an internal connection between the application and its AI panel, not a network service."
+msgstr "Đây là kết nối nội bộ giữa ứng dụng và bảng AI, không phải dịch vụ mạng."
+
+# AI Translated
+#. TRN %1% is the web view's own error text.
+#, boost-format
+msgid "Last load error: %1%"
+msgstr "Lỗi tải gần nhất: %1%"
+
+# AI Translated
+#. TRN The messages the app and its AI panel exchanged. %1% and %2% are counts.
+#, boost-format
+msgid "Bridge traffic: %1% sent / %2% received"
+msgstr "Lưu lượng cầu nối: đã gửi %1% / đã nhận %2%"
+
+# AI Translated
+msgid "The AI service returned an unreadable streaming response."
+msgstr "Dịch vụ AI trả về phản hồi truyền trực tiếp không đọc được."
+
+# AI Translated
+msgid "The AI service streamed a delta for a block it never opened."
+msgstr "Dịch vụ AI truyền một phần dữ liệu cho một khối mà nó chưa từng mở."
+
+# AI Translated
+msgid "The AI service sent a tool call whose arguments are not JSON."
+msgstr "Dịch vụ AI gửi một lệnh gọi công cụ có tham số không phải JSON."
+
+# AI Translated
+msgid "The AI service could not complete the response."
+msgstr "Dịch vụ AI không thể hoàn tất phản hồi."
+
+# AI Translated
+#. TRN %1% is the AI service's own reason, in English, such as "cyber".
+#, boost-format
+msgid "The AI service declined to answer (%1%)."
+msgstr "Dịch vụ AI từ chối trả lời (%1%)."
+
+# AI Translated
+msgid "The AI service ended its response for a reason this build does not know."
+msgstr "Dịch vụ AI kết thúc phản hồi vì một lý do mà bản dựng này không biết."
+
+# AI Translated
+msgid "This version of JusPrin can no longer connect to JusPrin accounts. Get the new version to keep using your account."
+msgstr "Phiên bản JusPrin này không còn kết nối được với tài khoản JusPrin. Hãy tải phiên bản mới để tiếp tục dùng tài khoản của bạn."
+
+# AI Translated
+msgid "Signing in didn't finish. Nothing was saved. Try again."
+msgstr "Đăng nhập chưa hoàn tất. Chưa có gì được lưu. Hãy thử lại."
+
+# AI Translated
+msgid "JusPrin couldn't be reached to finish signing in. Try again."
+msgstr "Không thể kết nối tới JusPrin để hoàn tất đăng nhập. Hãy thử lại."
+
+# AI Translated
+msgid "JusPrin has no AI model for this account right now. Try again later."
+msgstr "Hiện JusPrin không có mô hình AI nào cho tài khoản này. Hãy thử lại sau."
+
+# AI Translated
+msgid "Restored an earlier project version"
+msgstr "Đã khôi phục một phiên bản dự án trước đó"
+
+# AI Translated
+msgid "Restored this chat's saved project setup"
+msgstr "Đã khôi phục thiết lập dự án đã lưu của cuộc trò chuyện này"
+
+# AI Translated
+#. TRN The chat list's preview of a message that has only attachments.
+msgid "Attachment"
+msgstr "Tệp đính kèm"
+
+# AI Translated
+msgid "The AI service stopped before finishing its response."
+msgstr "Dịch vụ AI đã dừng trước khi hoàn tất phản hồi."
+
+# AI Translated
+msgid "The AI service kept pausing its response."
+msgstr "Dịch vụ AI liên tục tạm dừng phản hồi."
+
+# AI Translated
+msgid "AI could not be asked to continue its response."
+msgstr "Không thể yêu cầu AI tiếp tục phản hồi."
+
+# AI Translated
+msgid "AI could not be told the results of its tool calls."
+msgstr "Không thể gửi cho AI kết quả các lệnh gọi công cụ."
+
+# AI Translated
+msgid "AI returned an invalid tool call."
+msgstr "AI trả về một lệnh gọi công cụ không hợp lệ."
+
+# AI Translated
+msgid "The AI service ended before a complete response arrived."
+msgstr "Dịch vụ AI đã kết thúc trước khi nhận được phản hồi đầy đủ."
+
+# AI Translated
+msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
+msgstr "Phiên đăng nhập JusPrin của bạn đã hết hạn. Hãy đăng nhập lại trong Tùy chọn rồi thử lại."
+
+# AI Translated
+#, boost-format
+msgid "This message needs %1% credit; you have %2%."
+msgid_plural "This message needs %1% credits; you have %2%."
+msgstr[0] "Tin nhắn này cần %1% tín dụng; bạn có %2%."
+
+# AI Translated
+# Needs human review: "credits" rendered as "tín dụng"; check it matches the wording on the account and pricing pages.
+msgid "You're out of credits."
+msgstr "Bạn đã hết tín dụng."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% API key was rejected. Update the AI configuration and try again."
+msgstr "Khóa API %1% đã bị từ chối. Hãy cập nhật cấu hình AI rồi thử lại."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The request was too large for the %1% service."
+msgstr "Yêu cầu quá lớn đối với dịch vụ %1%."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% service is rate limited. Try again shortly."
+msgstr "Dịch vụ %1% đang giới hạn tần suất. Hãy thử lại sau ít phút."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% service is overloaded. Try again shortly."
+msgstr "Dịch vụ %1% đang quá tải. Hãy thử lại sau ít phút."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% service is temporarily unavailable."
+msgstr "Dịch vụ %1% tạm thời không khả dụng."
+
+# AI Translated
+msgid "The AI request timed out."
+msgstr "Yêu cầu AI đã hết thời gian chờ."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The AI request could not reach the %1% service."
+msgstr "Yêu cầu AI không thể kết nối tới dịch vụ %1%."
+
+# AI Translated
+msgid "The AI service response did not contain valid output."
+msgstr "Phản hồi của dịch vụ AI không chứa kết quả hợp lệ."
+
+# AI Translated
+#. TRN A button that asks the AI to choose another block of a calibration test.
+msgid "Pick another block"
+msgstr "Chọn khối khác"
+
+# AI Translated
+#. TRN A button that asks the AI to choose another tile of a calibration test.
+msgid "Pick another tile"
+msgstr "Chọn ô khác"
+
+# AI Translated
+#. TRN A button that asks the AI to choose another line of a calibration test.
+msgid "Pick another line"
+msgstr "Chọn đường khác"
+
+# AI Translated
+#. TRN A button that asks the AI to choose another corner of a calibration test.
+msgid "Pick another corner"
+msgstr "Chọn góc khác"
+
+# AI Translated
+#. TRN A button that asks the AI to choose another height of a calibration tower.
+msgid "Pick another height"
+msgstr "Chọn chiều cao khác"
+
+# AI Translated
+#. TRN %1% is a preset's name.
+#, boost-format
+msgid "Preset · %1%"
+msgstr "Cài đặt sẵn · %1%"
+
+# AI Translated
+#. TRN %1% is a preset's name.
+#, boost-format
+msgid "New preset · %1%"
+msgstr "Cài đặt sẵn mới · %1%"
+
+# AI Translated
+#. TRN %1% is the preset the new one is made from.
+#, boost-format
+msgid "%1% itself is unchanged"
+msgstr "Bản thân %1% không thay đổi"
+
+# AI Translated
+#. TRN %1% is a setting's new value, such as 215 °C.
+#, boost-format
+msgid "Save %1% as a new filament preset"
+msgstr "Lưu %1% thành cài đặt sẵn filament mới"
+
+# AI Translated
+#. TRN %1% is a setting's new value, such as 215 °C.
+#, boost-format
+msgid "Save %1% as a new printer preset"
+msgstr "Lưu %1% thành cài đặt sẵn máy in mới"
+
+# AI Translated
+#. TRN %1% is a setting's new value, such as 215 °C.
+#, boost-format
+msgid "Save %1% as a new process preset"
+msgstr "Lưu %1% thành cài đặt sẵn process mới"
+
+# AI Translated
+#. TRN %1% is a setting's new value, such as 215 °C, %2% a preset's name.
+#, boost-format
+msgid "Save %1% to %2%"
+msgstr "Lưu %1% vào %2%"
+
+# AI Translated
+msgid "This proposal is already saved."
+msgstr "Đề xuất này đã được lưu."
+
+# AI Translated
+msgid "Drop a model here or add one"
+msgstr "Thả mô hình vào đây hoặc thêm mô hình"
+
+# AI Translated
+msgid "World coordinates"
+msgstr "Tọa độ thế giới"
+
+# AI Translated
+msgid "Object coordinates"
+msgstr "Tọa độ vật thể"
+
+# AI Translated
+msgid "Translate(Relative)"
+msgstr "Dịch chuyển (tương đối)"
+
+# AI Translated
+msgid "Rotate (absolute)"
+msgstr "Xoay (tuyệt đối)"
+
+# AI Translated
+msgid "Part coordinates"
+msgstr "Tọa độ phần"
+
+# AI Translated
+msgid "The packaged Home page is missing from this build."
+msgstr "Bản dựng này thiếu trang Trang chủ đóng gói sẵn."
+
+# AI Translated
+msgid "The Home page failed to load."
+msgstr "Không tải được trang Trang chủ."
+
+# AI Translated
+msgid "This window stopped updating because the app switched to another printer."
+msgstr "Cửa sổ này đã ngừng cập nhật vì ứng dụng đã chuyển sang máy in khác."
+
+# AI Translated
+#. TRN A length in millimetres, such as a nozzle diameter on a printer card: "0.4 mm". %s is the number.
+#, c-format, boost-format
+msgid "%s mm"
+msgstr "%s mm"
+
+# AI Translated
+#, c-format, boost-format
+msgid "The printer reports error %s."
+msgstr "Máy in báo lỗi %s."
+
+# AI Translated
+msgid "LAN"
+msgstr "LAN"
+
+# AI Translated
+msgid "Cloud"
+msgstr "Đám mây"
+
+# AI Translated
+msgid "The printer stopped sending updates."
+msgstr "Máy in đã ngừng gửi cập nhật."
+
+# AI Translated
+#, c-format, boost-format
+msgid "%s isn't answering."
+msgstr "%s không phản hồi."
+
+# AI Translated
+msgid "Klipper isn't running."
+msgstr "Klipper không chạy."
+
+# AI Translated
+#. TRN %1% is Klipper's own message, in English, saying why it stopped.
+#, boost-format
+msgid "Klipper stopped: %1%"
+msgstr "Klipper đã dừng: %1%"
+
+# AI Translated
+msgid "This printer no longer exists."
+msgstr "Máy in này không còn tồn tại."
+
+# AI Translated
+# Needs human review: %1% is wxDateTime's abbreviated month name; check it comes out in Vietnamese (e.g. "thg 10"), giving "20 thg 10", not "20 Oct".
+#. TRN A date in this year on a project card: %1% is the abbreviated month name, %2% the day of the month, as in "Oct 20".
+#, boost-format
+msgctxt "short date"
+msgid "%1% %2%"
+msgstr "%2% %1%"
+
+# AI Translated
+#. TRN A date outside this year on a project card: %1% is the date without the year, as in "Oct 20", %2% the year.
+#, boost-format
+msgctxt "date with year"
+msgid "%1%, %2%"
+msgstr "%1%, %2%"
+
+# AI Translated
+msgid "G-code exported"
+msgstr "Đã xuất G-code"
+
+# AI Translated
+# Needs human review: %1% is a date ("Nov 3"); check whether "ngày" should precede it.
+#. TRN A project's status: %1% is a date, as in "Nov 3".
+#, boost-format
+msgid "G-code exported %1%"
+msgstr "Đã xuất G-code %1%"
+
+# AI Translated
+#. TRN A project's status: %1% is a printer model, as in "Ender-3 V3 KE".
+#, boost-format
+msgid "G-code exported for %1%"
+msgstr "Đã xuất G-code cho %1%"
+
+# AI Translated
+#. TRN A project's status: %1% is a date, as in "Nov 3", %2% a printer model, as in "Ender-3 V3 KE".
+#, boost-format
+msgid "G-code exported %1% for %2%"
+msgstr "Đã xuất G-code %1% cho %2%"
+
+# AI Translated
+msgctxt "project status"
+msgid "Printed"
+msgstr "Đã in"
+
+# AI Translated
+#. TRN A project's status: %1% is a date, as in "Oct 20".
+#, boost-format
+msgid "Printed %1%"
+msgstr "Đã in %1%"
+
+# AI Translated
+msgctxt "project status"
+msgid "Sent"
+msgstr "Đã gửi"
+
+# AI Translated
+#. TRN A project's status: %1% is a date, as in "Oct 20".
+#, boost-format
+msgid "Sent %1%"
+msgstr "Đã gửi %1%"
+
+# AI Translated
+#. TRN A project's status: it has not been sliced to G-code yet.
+msgctxt "project status"
+msgid "Draft"
+msgstr "Bản nháp"
+
+# AI Translated
+msgid "That sign-in expired. Try again."
+msgstr "Lần đăng nhập đó đã hết hạn. Hãy thử lại."
+
+# AI Translated
+#, c-format, boost-format
+msgid "JusPrin found no %s printers to bring. Choose your printer instead."
+msgstr "JusPrin không tìm thấy máy in %s nào để chuyển sang. Hãy chọn máy in của bạn."
+
+# AI Translated
+msgid "Generic printer"
+msgstr "Máy in chung"
+
+# AI Translated
+msgid "Your projects couldn't be loaded. JusPrin will keep trying."
+msgstr "Không thể tải các dự án của bạn. JusPrin sẽ tiếp tục thử."
+
+# AI Translated
+msgid "Untitled project"
+msgstr "Dự án chưa đặt tên"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Printing on %s"
+msgstr "Đang in trên %s"
+
+# AI Translated
+msgid "JusPrin no longer keeps this G-code. Slice the project again to export it."
+msgstr "JusPrin không còn giữ G-code này. Hãy slice lại dự án để xuất."
+
+# AI Translated
+msgid "Couldn't export G-code"
+msgstr "Không thể xuất G-code"
+
+# AI Translated
+#, c-format, boost-format
+msgid "The G-code couldn't be written to %s."
+msgstr "Không thể ghi G-code vào %s."
+
+# AI Translated
+msgid "Choose a photo of the printed object"
+msgstr "Chọn ảnh chụp vật đã in"
+
+# AI Translated
+msgid "Photos"
+msgstr "Ảnh"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%s couldn't be opened. Try opening it with Open… instead."
+msgstr "Không thể mở %s. Hãy thử mở bằng Mở… thay thế."
+
+# AI Translated
+msgid "Couldn't open file"
+msgstr "Không thể mở file"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Import from %s"
+msgstr "Nhập từ %s"
+
+# AI Translated
+msgid "Importing these printers loads their profiles, which replaces unsaved changes to the project's settings."
+msgstr "Nhập các máy in này sẽ tải cấu hình của chúng, thay thế các thay đổi chưa lưu trong cài đặt của dự án."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Imported from %s"
+msgstr "Đã nhập từ %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "JusPrin couldn't read this file. To try again, choose Printer › Import printers from %s…"
+msgstr "JusPrin không thể đọc file này. Để thử lại, hãy chọn Máy in › Nhập máy in từ %s…"
+
+# AI Translated
+msgid "Not imported. The file has no version."
+msgstr "Chưa nhập. File không có phiên bản."
+
+# AI Translated
+msgid "Not imported. It isn't a printer, filament or process preset."
+msgstr "Chưa nhập. Đây không phải cài đặt sẵn máy in, filament hay process."
+
+# AI Translated
+#. TRN %1% is the filament preset the file is based on, %2% the app it was imported from.
+#, boost-format
+msgid "Not imported, because it's based on %1%, which JusPrin doesn't have. It stays in %2%. When you prepare a print, choose a similar filament instead."
+msgstr "Chưa nhập, vì nó dựa trên %1%, mà JusPrin không có. Nó vẫn nằm trong %2%. Khi chuẩn bị in, hãy chọn một filament tương tự."
+
+# AI Translated
+#. TRN %1% is the print settings preset the file is based on, %2% the app it was imported from.
+#, boost-format
+msgid "Not imported, because they're based on %1%, which JusPrin doesn't have. They stay in %2%. When you prepare a print, choose similar print settings instead."
+msgstr "Chưa nhập, vì chúng dựa trên %1%, mà JusPrin không có. Chúng vẫn nằm trong %2%. Khi chuẩn bị in, hãy chọn cài đặt in tương tự."
+
+# AI Translated
+#. TRN %1% is the printer profile the file is based on, %2% the app it was imported from.
+#, boost-format
+msgid "Not imported, because it's based on %1%, which JusPrin doesn't have. It stays in %2%. When you add a printer, choose a similar one instead."
+msgstr "Chưa nhập, vì nó dựa trên %1%, mà JusPrin không có. Nó vẫn nằm trong %2%. Khi thêm máy in, hãy chọn một máy in tương tự."
+
+# AI Translated
+#, c-format, boost-format
+msgid "JusPrin couldn't load this preset. To try again, choose Printer › Import printers from %s…"
+msgstr "JusPrin không thể tải cài đặt sẵn này. Để thử lại, hãy chọn Máy in › Nhập máy in từ %s…"
+
+# AI Translated
+#, c-format, boost-format
+msgid "It's based on %s, which JusPrin doesn't have. When you prepare a print, choose a similar filament instead."
+msgstr "Nó dựa trên %s, mà JusPrin không có. Khi chuẩn bị in, hãy chọn một filament tương tự."
+
+# AI Translated
+#, c-format, boost-format
+msgid "It's based on %s, which JusPrin doesn't have. When you prepare a print, choose similar print settings instead."
+msgstr "Nó dựa trên %s, mà JusPrin không có. Khi chuẩn bị in, hãy chọn cài đặt in tương tự."
+
+# AI Translated
+#, c-format, boost-format
+msgid "It's based on %s, which JusPrin doesn't have. When you add a printer, choose a similar one instead."
+msgstr "Nó dựa trên %s, mà JusPrin không có. Khi thêm máy in, hãy chọn một máy in tương tự."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Choose your %s folder"
+msgstr "Chọn thư mục %s của bạn"
+
+# AI Translated
+#. TRN %1% is the app the printers are imported from, such as OrcaSlicer.
+#, boost-format
+msgid "JusPrin found no %1% printers in that folder. If %1% keeps its settings somewhere else, choose that folder."
+msgstr "JusPrin không tìm thấy máy in %1% nào trong thư mục đó. Nếu %1% lưu cài đặt ở nơi khác, hãy chọn thư mục đó."
+
+# AI Translated
+msgid "The printer's page didn't load"
+msgstr "Không tải được trang của máy in"
+
+# AI Translated
+msgid "Try again"
+msgstr "Thử lại"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
+msgstr "Không có phản hồi tại %s. Hãy kiểm tra máy in đã bật và cùng mạng với máy tính này, rồi thử lại."
+
+# AI Translated
+msgid "Client configuration is a symbolic link. Use Copy and update its target manually."
+msgstr "Cấu hình ứng dụng khách là một liên kết tượng trưng. Hãy dùng Sao chép và tự cập nhật file đích."
+
+# AI Translated
+msgid "Client configuration exceeds the 1 MiB setup limit."
+msgstr "Cấu hình ứng dụng khách vượt quá giới hạn thiết lập 1 MiB."
+
+# AI Translated
+msgid "Client configuration exceeds nesting depth 32."
+msgstr "Cấu hình ứng dụng khách vượt quá độ sâu lồng nhau 32."
+
+# AI Translated
+msgid "Client configuration has an unterminated comment."
+msgstr "Cấu hình ứng dụng khách có một chú thích chưa đóng."
+
+# AI Translated
+msgid "Client configuration and its server map must be JSON objects. No changes made."
+msgstr "Cấu hình ứng dụng khách và bảng máy chủ của nó phải là đối tượng JSON. Chưa thay đổi gì."
+
+# AI Translated
+msgid "Client configuration has ambiguous duplicate keys. No changes made."
+msgstr "Cấu hình ứng dụng khách có các khóa trùng lặp gây nhầm lẫn. Chưa thay đổi gì."
+
+# AI Translated
+msgid "Client configuration changed after the preview. Review the new change and confirm again."
+msgstr "Cấu hình ứng dụng khách đã thay đổi sau khi xem trước. Hãy xem lại thay đổi mới và xác nhận lại."
+
+# AI Translated
+msgid "Client configuration changed while preparing the write. Original file retained; review again."
+msgstr "Cấu hình ứng dụng khách đã thay đổi trong khi chuẩn bị ghi. Đã giữ nguyên file gốc; hãy xem lại."
+
+# AI Translated
+msgid "JusPrin couldn't close the project, so it didn't restart. Your project stays open, and JusPrin will use the new language the next time it starts."
+msgstr "JusPrin không thể đóng dự án nên chưa khởi động lại. Dự án của bạn vẫn mở, và JusPrin sẽ dùng ngôn ngữ mới vào lần khởi động tiếp theo."
+
+# AI Translated
+msgid "Restart"
+msgstr "Khởi động lại"
+
+# AI Translated
+msgid "Checking..."
+msgstr "Đang kiểm tra..."
+
+# AI Translated
+msgid "Whole plate"
+msgstr "Toàn bộ plate"
+
+# AI Translated
+msgid "Ignored"
+msgstr "Đã bỏ qua"
+
+# AI Translated
+#, boost-format
+msgid "%1% warning ignored"
+msgid_plural "%1% warnings ignored"
+msgstr[0] "Đã bỏ qua %1% cảnh báo"
+
+# AI Translated
+#, boost-format
+msgid "%1% print issue"
+msgid_plural "%1% print issues"
+msgstr[0] "%1% vấn đề khi in"
+
+# AI Translated
+#, boost-format
+msgid "%1% blocks printing."
+msgid_plural "%1% block printing."
+msgstr[0] "%1% vấn đề chặn việc in."
+
+# AI Translated
+#. TRN The print-issue pill: %1% is "3 print issues", %2% the sentence "2 block printing."
+#, boost-format
+msgid "%1%. %2%"
+msgstr "%1%. %2%"
+
+# AI Translated
+msgid "Blocks printing"
+msgstr "Chặn việc in"
+
+# AI Translated
+msgid "out of view"
+msgstr "ngoài khung nhìn"
+
+# AI Translated
+msgid "Checking whether this is fixed..."
+msgstr "Đang kiểm tra xem đã khắc phục chưa..."
+
+# AI Translated
+#, boost-format
+msgid "%1% of %2%"
+msgstr "%1% / %2%"
+
+# AI Translated
+msgid "AI is replying..."
+msgstr "AI đang trả lời..."
+
+# AI Translated
+msgid "Stop ignoring"
+msgstr "Ngừng bỏ qua"
+
+# AI Translated
+msgid "Ignore this warning"
+msgstr "Bỏ qua cảnh báo này"
+
+# AI Translated
+msgid "Ask AI"
+msgstr "Hỏi AI"
+
+# AI Translated
+msgid "Explain this issue and my options."
+msgstr "Giải thích vấn đề này và các lựa chọn của tôi."
+
+# AI Translated
+msgid "Set up AI..."
+msgstr "Thiết lập AI..."
+
+# AI Translated
+msgid "A G-code path goes beyond the plate boundaries."
+msgstr "Một đường G-code vượt ra ngoài ranh giới plate."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Filaments %s cannot be printed directly on the surface of this plate."
+msgstr "Không thể in trực tiếp filament %s trên bề mặt của plate này."
+
+# AI Translated
+#, boost-format
+msgid "Slicing plate %1%"
+msgstr "Đang slice plate %1%"
+
+# AI Translated
+msgid "The form was out of date. Choose the printer again."
+msgstr "Biểu mẫu đã cũ. Hãy chọn lại máy in."
+
+# AI Translated
+# Needs human review: "plate" here is the printer's build plate type; check whether "bàn in" fits better than "plate".
+msgid "Choose the plate on this printer."
+msgstr "Chọn plate trên máy in này."
+
+# AI Translated
+msgid "That filament is no longer on the list. Choose another."
+msgstr "Filament đó không còn trong danh sách. Hãy chọn filament khác."
+
+# AI Translated
+msgid "That printer is no longer on the list. Choose it again."
+msgstr "Máy in đó không còn trong danh sách. Hãy chọn lại."
+
+# AI Translated
+msgid "Printer conversation"
+msgstr "Trò chuyện về máy in"
+
+# AI Translated
+msgid "Filament conversation"
+msgstr "Trò chuyện về filament"
+
+# AI Translated
+msgid "Browse the full printer list"
+msgstr "Duyệt toàn bộ danh sách máy in"
+
+# AI Translated
+msgid "Open printer settings"
+msgstr "Mở cài đặt máy in"
+
+# AI Translated
+#. TRN %1% is the profile loader's own error, in English.
+#, boost-format
+msgid "The printer profiles could not be read: %1%"
+msgstr "Không thể đọc cấu hình máy in: %1%"
+
+# AI Translated
+msgid "Enter a name for the printer."
+msgstr "Hãy nhập tên cho máy in."
+
+# AI Translated
+msgid "A printer name can't start or end with a space."
+msgstr "Tên máy in không được bắt đầu hoặc kết thúc bằng dấu cách."
+
+# AI Translated
+#, c-format, boost-format
+msgid "A printer name can't contain any of these characters: %s"
+msgstr "Tên máy in không được chứa bất kỳ ký tự nào sau đây: %s"
+
+# AI Translated
+msgid "That name is reserved. Choose another."
+msgstr "Tên đó đã được dành riêng. Hãy chọn tên khác."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Another printer or profile is already named \"%s\"."
+msgstr "Đã có máy in hoặc cấu hình khác tên “%s”."
+
+# AI Translated
+msgid "A new name has to differ from the old one by more than capitalization."
+msgstr "Tên mới phải khác tên cũ không chỉ ở chữ hoa, chữ thường."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Other printer profiles are based on \"%s\". Remove those first in Printer settings."
+msgstr "Có cấu hình máy in khác dựa trên “%s”. Hãy xóa chúng trước trong Cài đặt máy in."
+
+# AI Translated
+msgid "The app couldn't open your browser."
+msgstr "Ứng dụng không thể mở trình duyệt của bạn."
+
+# AI Translated
+msgid "About JusPrin"
+msgstr "Giới thiệu JusPrin"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Version %s"
+msgstr "Phiên bản %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Built on OrcaSlicer %s"
+msgstr "Dựa trên OrcaSlicer %s"
+
+# AI Translated
+#. TRN A noun: the label before the commit this copy of the app was built from.
+msgid "Build"
+msgstr "Bản dựng"
+
+# AI Translated
+msgid "Copy version"
+msgstr "Sao chép phiên bản"
+
+# AI Translated
+msgid "Get help"
+msgstr "Nhận trợ giúp"
+
+# AI Translated
+msgid "Email"
+msgstr "Email"
+
+# AI Translated
+msgid "License…"
+msgstr "Giấy phép…"
+
+# AI Translated
+msgid "Free software under the GNU Affero General Public License v3."
+msgstr "Phần mềm tự do theo Giấy phép Công cộng GNU Affero v3."
+
+# AI Translated
+msgid "Copied"
+msgstr "Đã sao chép"
+
+# AI Translated
+#. TRN The menu of print actions: Slice plate, Check print…, Print….
+msgctxt "Menu"
+msgid "Print"
+msgstr "In"
+
+# AI Translated
+msgid "New project"
+msgstr "Dự án mới"
+
+# AI Translated
+msgid "Open…"
+msgstr "Mở…"
+
+# AI Translated
+msgid "Open recent"
+msgstr "Mở gần đây"
+
+# AI Translated
+msgid "Version history…"
+msgstr "Lịch sử phiên bản…"
+
+# AI Translated
+msgid "Project 3MF…"
+msgstr "3MF dự án…"
+
+# AI Translated
+msgid "Exit"
+msgstr "Thoát"
+
+# AI Translated
+msgid "Plates and project panel"
+msgstr "Bảng plate và dự án"
+
+# AI Translated
+msgid "Show plates and project panel"
+msgstr "Hiện bảng plate và dự án"
+
+# AI Translated
+msgid "Hide plates and project panel"
+msgstr "Ẩn bảng plate và dự án"
+
+# AI Translated
+msgid "AI panel"
+msgstr "Bảng AI"
+
+# AI Translated
+msgid "Show AI panel"
+msgstr "Hiện bảng AI"
+
+# AI Translated
+msgid "Hide AI panel"
+msgstr "Ẩn bảng AI"
+
+# AI Translated
+msgid "Switch to classic view…"
+msgstr "Chuyển sang giao diện cổ điển…"
+
+# AI Translated
+msgid "JusPrin guide…"
+msgstr "Hướng dẫn JusPrin…"
+
+# AI Translated
+msgid "Ask AI…"
+msgstr "Hỏi AI…"
+
+# AI Translated
+msgid "Report a problem…"
+msgstr "Báo cáo sự cố…"
+
+# AI Translated
+msgid "Report a problem"
+msgstr "Báo cáo sự cố"
+
+# AI Translated
+msgid "Slice all plates"
+msgstr "Slice tất cả plate"
+
+# AI Translated
+msgid "Check print…"
+msgstr "Kiểm tra bản in…"
+
+# AI Translated
+msgid "Print…"
+msgstr "In…"
+
+# AI Translated
+msgid "Print all plates…"
+msgstr "In tất cả plate…"
+
+# AI Translated
+msgid "Add a printer…"
+msgstr "Thêm máy in…"
+
+# AI Translated
+msgid "Import printers from OrcaSlicer…"
+msgstr "Nhập máy in từ OrcaSlicer…"
+
+# AI Translated
+msgid "Import printers from JusPrin 1…"
+msgstr "Nhập máy in từ JusPrin 1…"
+
+# AI Translated
+msgid "Printer settings…"
+msgstr "Cài đặt máy in…"
+
+# AI Translated
+msgid "Ask AI about printer settings…"
+msgstr "Hỏi AI về cài đặt máy in…"
+
+# AI Translated
+msgid "Filament settings…"
+msgstr "Cài đặt filament…"
+
+# AI Translated
+msgid "Ask AI about filament settings…"
+msgstr "Hỏi AI về cài đặt filament…"
+
+# AI Translated
+msgid "Calibrate…"
+msgstr "Hiệu chỉnh…"
+
+# AI Translated
+msgid "Check print"
+msgstr "Kiểm tra bản in"
+
+# AI Translated
+msgid "Check Print"
+msgstr "Kiểm tra bản in"
+
+# AI Translated
+msgid "Legend"
+msgstr "Chú giải"
+
+# AI Translated
+msgid "Close and return to Prepare"
+msgstr "Đóng và quay lại Chuẩn bị"
+
+# AI Translated
+#, c-format, boost-format
+msgid "sliced for %s"
+msgstr "đã slice cho %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Layer %d"
+msgstr "Lớp %d"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d s"
+msgstr "%d giây"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d min"
+msgstr "%d phút"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d h %d min"
+msgstr "%d giờ %d phút"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%.0f g"
+msgstr "%.0f g"
+
+# AI Translated
+#. TRN A length in metres, such as the filament a print uses: "12.4 m". %s is the number.
+#, c-format, boost-format
+msgid "%s m"
+msgstr "%s m"
+
+# AI Translated
+msgid "no supports were needed"
+msgstr "không cần support"
+
+# AI Translated
+msgid "no seams are on the faces you marked"
+msgstr "không có đường nối nào trên các mặt bạn đã đánh dấu"
+
+# AI Translated
+msgid "nothing prints in the air"
+msgstr "không có gì in trên không"
+
+# AI Translated
+msgid "no paths cross or leave the plate"
+msgstr "không có đường nào giao nhau hoặc ra ngoài plate"
+
+# AI Translated
+msgid "no paths cross each other"
+msgstr "không có đường nào giao nhau"
+
+# AI Translated
+msgid "no paths leave the plate"
+msgstr "không có đường nào ra ngoài plate"
+
+# AI Translated
+msgid "the slicer gave no warnings"
+msgstr "trình slice không đưa ra cảnh báo nào"
+
+# AI Translated
+msgid "Print report"
+msgstr "Báo cáo bản in"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Print report, %s"
+msgstr "Báo cáo bản in, %s"
+
+# AI Translated
+#. TRN A section title of the print report: the support structures the slice made.
+msgid "Supports"
+msgstr "Support"
+
+# AI Translated
+msgid "Slicer warnings"
+msgstr "Cảnh báo của trình slice"
+
+# AI Translated
+msgid "Unsupported islands"
+msgstr "Đảo không được đỡ"
+
+# AI Translated
+msgid "Crossing paths"
+msgstr "Đường giao nhau"
+
+# AI Translated
+msgid "Paths outside the plate"
+msgstr "Đường ngoài plate"
+
+# AI Translated
+msgid "Nothing to flag."
+msgstr "Không có gì cần lưu ý."
+
+# AI Translated
+#. TRN Print report's closing line, a list of clauses such as "nothing prints in the air": joins the list so far to a clause that is not the last.
+#, c-format, boost-format
+msgid "%s, %s"
+msgstr "%s, %s"
+
+# AI Translated
+#. TRN Print report's closing line, a list of clauses such as "nothing prints in the air": joins its only two clauses.
+#, c-format, boost-format
+msgid "%s and %s"
+msgstr "%s và %s"
+
+# AI Translated
+#. TRN Print report's closing line, a list of clauses such as "nothing prints in the air": joins the list so far to the last of three or more.
+#, c-format, boost-format
+msgid "%s, and %s"
+msgstr "%s và %s"
+
+# AI Translated
+#. TRN Ends the print report's closing line; %s is its list of what the checks found clean, first letter capitalised.
+#, c-format, boost-format
+msgid "%s."
+msgstr "%s."
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d layer"
+msgid_plural "%d layers"
+msgstr[0] "%d lớp"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d object"
+msgid_plural "%d objects"
+msgstr[0] "%d vật thể"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d on a marked face"
+msgid_plural "%d on marked faces"
+msgstr[0] "%d trên mặt đã đánh dấu"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d or more"
+msgstr "%d trở lên"
+
+# AI Translated
+msgid "A toolpath runs outside the printable area"
+msgstr "Một đường công cụ chạy ra ngoài vùng có thể in"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Support touches %s, which you asked to keep clear"
+msgstr "Support chạm vào %s, nơi bạn đã yêu cầu để trống"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Support inside the %s"
+msgstr "Support bên trong %s"
+
+# AI Translated
+msgid "No support in a hole or a region you kept clear"
+msgstr "Không có support trong lỗ hoặc vùng bạn đã để trống"
+
+# AI Translated
+msgid "No support in a hole"
+msgstr "Không có support trong lỗ"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Printed in the air: %s"
+msgstr "In trên không: %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d seam on %s"
+msgid_plural "%d seams on %s"
+msgstr[0] "%d đường nối trên %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%s on the plate"
+msgstr "%s trên plate"
+
+# AI Translated
+msgid "only when recording a timelapse"
+msgstr "chỉ khi quay timelapse"
+
+# AI Translated
+#, c-format, boost-format
+msgid "around %s"
+msgstr "quanh %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d layer of support"
+msgid_plural "%d layers of support"
+msgstr[0] "%d lớp support"
+
+# AI Translated
+msgid "No brim"
+msgstr "Không có brim"
+
+# AI Translated
+msgid "This plate has no current slice."
+msgstr "Plate này chưa có bản slice hiện tại."
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d filament change"
+msgid_plural "%d filament changes"
+msgstr[0] "%d lần đổi filament"
+
+# AI Translated
+msgid "You're in the classic OrcaSlicer view."
+msgstr "Bạn đang ở giao diện OrcaSlicer cổ điển."
+
+# AI Translated
+msgid "Back to JusPrin"
+msgstr "Quay lại JusPrin"
+
+# AI Translated
+msgid "Switch to JusPrin view"
+msgstr "Chuyển sang giao diện JusPrin"
+
+# AI Translated
+#. TRN A menu caption in capitals: the printer's name (in capitals), then its nozzle size in millimetres.
+#, c-format, boost-format
+msgid "%s, %s MM NOZZLE"
+msgstr "%s, ĐẦU PHUN %s MM"
+
+# AI Translated
+msgid "COLOUR"
+msgstr "MÀU"
+
+# AI Translated
+msgid "Other colour…"
+msgstr "Màu khác…"
+
+# AI Translated
+msgid "Use what's loaded on the printer…"
+msgstr "Dùng filament đang nạp trên máy in…"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%s is offline. Turn it on to read what's loaded."
+msgstr "%s đang ngoại tuyến. Hãy bật máy để đọc filament đang nạp."
+
+# AI Translated
+#, c-format, boost-format
+msgid "FILAMENTS FOR %s"
+msgstr "FILAMENT CHO %s"
+
+# AI Translated
+msgid "on plate"
+msgstr "trên plate"
+
+# AI Translated
+msgid "Add another filament to this print"
+msgstr "Thêm filament khác cho bản in này"
+
+# AI Translated
+#, c-format, boost-format
+msgid "FILAMENT · SLOT %d · %s"
+msgstr "FILAMENT · KHE %d · %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "FILAMENT FOR %s"
+msgstr "FILAMENT CHO %s"
+
+# AI Translated
+msgid "FILAMENTS FOR THIS PRINTER"
+msgstr "FILAMENT CHO MÁY IN NÀY"
+
+# AI Translated
+msgid "Other filament…"
+msgstr "Filament khác…"
+
+# AI Translated
+msgid "Calibrate this filament…"
+msgstr "Hiệu chỉnh filament này…"
+
+# AI Translated
+msgid "JusPrin guide"
+msgstr "Hướng dẫn JusPrin"
+
+# AI Translated
+msgid "Plates and Project panel"
+msgstr "Bảng Plate và Dự án"
+
+# AI Translated
+msgid "Hide the Plates and Project panel"
+msgstr "Ẩn bảng Plate và Dự án"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Slicing %d%%"
+msgstr "Đang slice %d%%"
+
+# AI Translated
+msgid "Slicing…"
+msgstr "Đang slice…"
+
+# AI Translated
+msgid "Sliced"
+msgstr "Đã slice"
+
+# AI Translated
+msgid "Not sliced yet"
+msgstr "Chưa slice"
+
+# AI Translated
+#. TRN How many objects or copies on the plate are set not to print.
+#, c-format, boost-format
+msgid "%d won't print"
+msgid_plural "%d won't print"
+msgstr[0] "%d sẽ không in"
+
+# AI Translated
+msgid "Couldn't do that"
+msgstr "Không thể thực hiện"
+
+# AI Translated
+msgid "Support painting"
+msgstr "Vẽ support"
+
+# AI Translated
+msgid "Color painting"
+msgstr "Vẽ màu"
+
+# AI Translated
+msgid "Fuzzy skin painting"
+msgstr "Vẽ fuzzy skin"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Per-object settings · %d"
+msgstr "Cài đặt theo vật thể · %d"
+
+# AI Translated
+msgid "Auto-orient"
+msgstr "Tự động định hướng"
+
+# AI Translated
+msgid "Plate settings…"
+msgstr "Cài đặt plate…"
+
+# AI Translated
+msgid "Move to front"
+msgstr "Chuyển lên đầu"
+
+# AI Translated
+msgid "Delete plate"
+msgstr "Xóa plate"
+
+# AI Translated
+msgid "Rename object"
+msgstr "Đổi tên vật thể"
+
+# AI Translated
+msgid "Set number of instances…"
+msgstr "Đặt số lượng instance…"
+
+# AI Translated
+msgid "Fix model"
+msgstr "Sửa model"
+
+# AI Translated
+msgid "Change object filament"
+msgstr "Đổi filament của vật thể"
+
+# AI Translated
+msgid "Delete copy"
+msgstr "Xóa bản sao"
+
+# AI Translated
+msgid "To objects"
+msgstr "Thành vật thể"
+
+# AI Translated
+msgid "To parts"
+msgstr "Thành phần"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Copy %d"
+msgstr "Bản sao %d"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d per-object setting"
+msgid_plural "%d per-object settings"
+msgstr[0] "%d cài đặt theo vật thể"
+
+# AI Translated
+msgid "Plates tab"
+msgstr "Thẻ Plate"
+
+# AI Translated
+msgid "Project tab"
+msgstr "Thẻ Dự án"
+
+# AI Translated
+msgid "Plates"
+msgstr "Các plate"
+
+# AI Translated
+msgid "Add model"
+msgstr "Thêm mô hình"
+
+# AI Translated
+msgid "Not on a plate"
+msgstr "Không nằm trên plate"
+
+# AI Translated
+msgid "Mesh needs repair"
+msgstr "Lưới cần sửa"
+
+# AI Translated
+msgid "Mesh repaired"
+msgstr "Đã sửa lưới"
+
+# AI Translated
+msgid "won't print"
+msgstr "sẽ không in"
+
+# AI Translated
+#. TRN A tag beside one part of an object, saying what kind of part it is: an ordinary part.
+msgid "part"
+msgstr "phần"
+
+# AI Translated
+#. TRN A tag beside one part of an object, saying what kind of part it is: a modifier, which changes settings where it overlaps.
+msgid "modifier"
+msgstr "modifier"
+
+# AI Translated
+msgid "negative part"
+msgstr "phần âm"
+
+# AI Translated
+msgid "support enforcer"
+msgstr "bắt buộc support"
+
+# AI Translated
+msgid "support blocker"
+msgstr "chặn support"
+
+# AI Translated
+#. TRN %s is a weekday or a date, such as "Mon" or "Mar 14", when this project's last print finished.
+#, c-format, boost-format
+msgid "last finished %s"
+msgstr "lần hoàn thành gần nhất %s"
+
+# AI Translated
+msgid "last finished today"
+msgstr "lần hoàn thành gần nhất hôm nay"
+
+# AI Translated
+msgid "last finished yesterday"
+msgstr "lần hoàn thành gần nhất hôm qua"
+
+# AI Translated
+msgid "Version history unavailable"
+msgstr "Không có lịch sử phiên bản"
+
+# AI Translated
+msgid "Version history couldn't be loaded. Try again."
+msgstr "Không thể tải lịch sử phiên bản. Hãy thử lại."
+
+# AI Translated
+msgid "Export project 3MF"
+msgstr "Xuất 3MF dự án"
+
+# AI Translated
+msgid "Export failed"
+msgstr "Xuất không thành công"
+
+# AI Translated
+msgid "The project couldn't be exported. Try again."
+msgstr "Không thể xuất dự án. Hãy thử lại."
+
+# AI Translated
+msgid "Restore this version of the model and project settings? The current model will be saved as a version first. Conversations and print records will stay current."
+msgstr "Khôi phục phiên bản này của mô hình và cài đặt dự án? Mô hình hiện tại sẽ được lưu thành một phiên bản trước. Các cuộc trò chuyện và bản ghi in vẫn giữ nguyên như hiện tại."
+
+# AI Translated
+msgid "Restore project version"
+msgstr "Khôi phục phiên bản dự án"
+
+# AI Translated
+msgid "Restore failed"
+msgstr "Khôi phục không thành công"
+
+# AI Translated
+msgid "This version couldn't be restored. Try again."
+msgstr "Không thể khôi phục phiên bản này. Hãy thử lại."
+
+# AI Translated
+msgid "Back to Project"
+msgstr "Quay lại Dự án"
+
+# AI Translated
+msgid "Nothing printed or exported yet"
+msgstr "Chưa in hoặc xuất gì"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d G-code"
+msgid_plural "%d G-codes"
+msgstr[0] "%d G-code"
+
+# AI Translated
+msgid "printing now"
+msgstr "đang in"
+
+# AI Translated
+msgid "never sent to a printer"
+msgstr "chưa từng gửi tới máy in"
+
+# AI Translated
+msgid "Print history"
+msgstr "Lịch sử in"
+
+# AI Translated
+msgid "Saving…"
+msgstr "Đang lưu…"
+
+# AI Translated
+msgid "Saved"
+msgstr "Đã lưu"
+
+# AI Translated
+msgid "Couldn't save"
+msgstr "Không thể lưu"
+
+# AI Translated
+msgid "No title, designer or description yet."
+msgstr "Chưa có tiêu đề, nhà thiết kế hoặc mô tả."
+
+# AI Translated
+#. TRN Who designed the model; %s is the designer's name.
+#, c-format, boost-format
+msgid "by %s"
+msgstr "của %s"
+
+# AI Translated
+msgid "Version history"
+msgstr "Lịch sử phiên bản"
+
+# AI Translated
+msgid "Export project 3MF…"
+msgstr "Xuất 3MF dự án…"
+
+# AI Translated
+msgid "Bill of materials"
+msgstr "Danh sách vật liệu"
+
+# AI Translated
+msgid "Assembly guide"
+msgstr "Hướng dẫn lắp ráp"
+
+# AI Translated
+msgid "Attachments"
+msgstr "Tệp đính kèm"
+
+# AI Translated
+msgid "The file couldn't be opened."
+msgstr "Không thể mở file."
+
+# AI Translated
+msgid "More files are attached than are listed here."
+msgstr "Có nhiều file đính kèm hơn số được liệt kê ở đây."
+
+# AI Translated
+# Needs human review: Section title for the project's print profile (its own title and description, as on model sites); check the wording.
+msgid "Profile"
+msgstr "Cấu hình in"
+
+# AI Translated
+msgid "No earlier saved versions yet."
+msgstr "Chưa có phiên bản nào được lưu trước đó."
+
+# AI Translated
+#. TRN The Restore button's name for a screen reader; %s is when the version was saved.
+#, c-format, boost-format
+msgid "Restore %s"
+msgstr "Khôi phục %s"
+
+# AI Translated
+msgid "Connecting AI tool"
+msgstr "Đang kết nối công cụ AI"
+
+# AI Translated
+msgid "Saving the MCP entry using the client's own CLI..."
+msgstr "Đang lưu mục MCP bằng CLI của chính ứng dụng khách..."
+
+# AI Translated
+msgid "The setup command timed out. Stopping it..."
+msgstr "Lệnh thiết lập đã hết thời gian chờ. Đang dừng..."
+
+# AI Translated
+msgid "Select printer"
+msgstr "Chọn máy in"
+
+# AI Translated
+msgid "from the file"
+msgstr "từ file"
+
+# AI Translated
+msgid "Select filament"
+msgstr "Chọn filament"
+
+# AI Translated
+msgid "Paused"
+msgstr "Đã tạm dừng"
+
+# AI Translated
+msgid "Needs attention"
+msgstr "Cần chú ý"
+
+# AI Translated
+msgid "Ready"
+msgstr "Sẵn sàng"
+
+# AI Translated
+msgid "Connected"
+msgstr "Đã kết nối"
+
+# AI Translated
+msgid "Connecting…"
+msgstr "Đang kết nối…"
+
+# AI Translated
+msgid "Not connected"
+msgstr "Chưa kết nối"
+
+# AI Translated
+msgid "No printer selected"
+msgstr "Chưa chọn máy in"
+
+# AI Translated
+msgid "From the file · not one of your printers"
+msgstr "Từ file · không phải máy in của bạn"
+
+# AI Translated
+msgid "Checking connection…"
+msgstr "Đang kiểm tra kết nối…"
+
+# AI Translated
+msgid "Export the G-code to print from a card."
+msgstr "Xuất G-code để in từ thẻ nhớ."
+
+# AI Translated
+msgid "OTHER PRINTERS"
+msgstr "MÁY IN KHÁC"
+
+# AI Translated
+msgid "Billing and usage"
+msgstr "Thanh toán và mức sử dụng"
+
+# AI Translated
+msgid "Credits and plans"
+msgstr "Tín dụng và gói"
+
+# AI Translated
+msgid "Check your internet connection, then try again."
+msgstr "Hãy kiểm tra kết nối Internet rồi thử lại."
+
+# AI Translated
+msgid "Open in browser"
+msgstr "Mở trong trình duyệt"
+
+# AI Translated
+msgid "Loading Billing and usage…"
+msgstr "Đang tải Thanh toán và mức sử dụng…"
+
+# AI Translated
+msgid "Loading Credits and plans…"
+msgstr "Đang tải Tín dụng và gói…"
+
+# AI Translated
+msgid "Couldn't load Billing and usage"
+msgstr "Không thể tải Thanh toán và mức sử dụng"
+
+# AI Translated
+msgid "Couldn't load Credits and plans"
+msgstr "Không thể tải Tín dụng và gói"
+
+# AI Translated
+msgid "Resize AI panel"
+msgstr "Đổi kích thước bảng AI"
+
+# AI Translated
+msgid "Drag to resize the AI panel"
+msgstr "Kéo để đổi kích thước bảng AI"
+
+# AI Translated
+msgid "The setup changed. Review the current plate and try again."
+msgstr "Thiết lập đã thay đổi. Hãy xem lại plate hiện tại rồi thử lại."
+
+# AI Translated
+msgid "Couldn't slice"
+msgstr "Không thể slice"
+
+# AI Translated
+msgid "This saved version couldn't be restored. Try again from Version history."
+msgstr "Không thể khôi phục phiên bản đã lưu này. Hãy thử lại từ Lịch sử phiên bản."
+
+# AI Translated
+msgid "Revert failed"
+msgstr "Hoàn nguyên không thành công"
+
+# AI Translated
+msgid "Your saved projects couldn't be read, so JusPrin can't check whether you've opened this file before. The file wasn't opened. Try again once JusPrin can read its projects folder."
+msgstr "Không thể đọc các dự án đã lưu của bạn, nên JusPrin không thể kiểm tra bạn đã từng mở file này chưa. File chưa được mở. Hãy thử lại khi JusPrin đọc được thư mục dự án."
+
+# AI Translated
+msgid "This file has changed since this project was made from it. Create a new project from the updated file, or continue the current project, which keeps the earlier version."
+msgstr "File này đã thay đổi kể từ khi tạo dự án này từ nó. Hãy tạo dự án mới từ file đã cập nhật, hoặc tiếp tục dự án hiện tại, vốn giữ phiên bản cũ."
+
+# AI Translated
+msgid "This file is already open as a project. Continue working in it, or create a new project from this file."
+msgstr "File này đã được mở thành một dự án. Hãy tiếp tục làm việc trong đó, hoặc tạo dự án mới từ file này."
+
+# AI Translated
+msgid "This file has changed since you last opened it. Create a new project from the updated file, or open the existing project, which keeps the earlier version."
+msgstr "File này đã thay đổi kể từ lần cuối bạn mở. Hãy tạo dự án mới từ file đã cập nhật, hoặc mở dự án hiện có, vốn giữ phiên bản cũ."
+
+# AI Translated
+msgid "You've opened this file before. Open the most recently updated project or create another project from this file."
+msgstr "Bạn đã từng mở file này. Hãy mở dự án được cập nhật gần nhất hoặc tạo dự án khác từ file này."
+
+# AI Translated
+msgid "You've opened this file before. Open the existing project to continue where you left off, or create a new project from this file."
+msgstr "Bạn đã từng mở file này. Hãy mở dự án hiện có để tiếp tục từ chỗ đã dừng, hoặc tạo dự án mới từ file này."
+
+# AI Translated
+msgid "Previously opened file"
+msgstr "File đã mở trước đây"
+
+# AI Translated
+msgid "Continue current project"
+msgstr "Tiếp tục dự án hiện tại"
+
+# AI Translated
+msgid "Open most recent project"
+msgstr "Mở dự án gần nhất"
+
+# AI Translated
+msgid "Open existing project"
+msgstr "Mở dự án hiện có"
+
+# AI Translated
+msgid "Resize Plates and Project panel"
+msgstr "Đổi kích thước bảng Plate và Dự án"
+
+# AI Translated
+msgid "Drag to resize the Plates and Project panel"
+msgstr "Kéo để đổi kích thước bảng Plate và Dự án"
+
+# AI Translated
+msgid "The open project couldn't be saved, so the file wasn't opened. Try again."
+msgstr "Không thể lưu dự án đang mở, nên file chưa được mở. Hãy thử lại."
+
+# AI Translated
+#. TRN What a calibration tests: a filament's name, then the printer's, such as "Generic PLA on Bambu Lab P1S".
+#, c-format, boost-format
+msgid "%1$s on %2$s"
+msgstr "%1$s trên %2$s"
+
+# AI Translated
+#. TRN %s is the name of the open project, which is saved and closed before a calibration project opens.
+#, c-format, boost-format
+msgid "%s will be saved and closed."
+msgstr "%s sẽ được lưu và đóng."
+
+# AI Translated
+#, c-format, boost-format
+msgid "A new calibration project opens for %s, and AI picks the spool and the test with you there."
+msgstr "Một dự án hiệu chỉnh mới sẽ mở cho %s, và AI sẽ cùng bạn chọn cuộn filament và bài kiểm tra ở đó."
+
+# AI Translated
+#, c-format, boost-format
+msgid "A new calibration project opens for %s, and AI picks the test with you there."
+msgstr "Một dự án hiệu chỉnh mới sẽ mở cho %s, và AI sẽ cùng bạn chọn bài kiểm tra ở đó."
+
+# AI Translated
+msgid "AI isn't set up yet; the test needs it to choose the range and read the result."
+msgstr "AI chưa được thiết lập; bài kiểm tra cần AI để chọn phạm vi và đọc kết quả."
+
+# AI Translated
+msgid "Settings the test changes are temporary and are not saved to your filament."
+msgstr "Các cài đặt mà bài kiểm tra thay đổi chỉ là tạm thời và không được lưu vào filament của bạn."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Calibrate %s?"
+msgstr "Hiệu chỉnh %s?"
+
+# AI Translated
+msgid "Set up AI…"
+msgstr "Thiết lập AI…"
+
+# AI Translated
+msgid "The calibration project could not be opened, so your project stays open."
+msgstr "Không thể mở dự án hiệu chỉnh, nên dự án của bạn vẫn mở."
+
+# AI Translated
+#, c-format, boost-format
+msgid "The printer \"%s\" could not be selected."
+msgstr "Không thể chọn máy in “%s”."
+
+# AI Translated
+#, c-format, boost-format
+msgid "The printer preset \"%s\" was not found."
+msgstr "Không tìm thấy cài đặt sẵn máy in “%s”."
+
+# AI Translated
+msgid "The plate to print is no longer in the project."
+msgstr "Plate cần in không còn trong dự án."
+
+# AI Translated
+msgid "Couldn't open the print dialog"
+msgstr "Không thể mở hộp thoại in"
+
+# AI Translated
+msgid "The chat this G-code went out from is no longer in the project."
+msgstr "Cuộc trò chuyện đã gửi G-code này không còn trong dự án."
+
+# AI Translated
+msgid "Chat not found"
+msgstr "Không tìm thấy cuộc trò chuyện"
+
+# AI Translated
+#, c-format, boost-format
+msgid "The filament preset \"%s\" was not found."
+msgstr "Không tìm thấy cài đặt sẵn filament “%s”."
+
+# AI Translated
+msgid "Back to Preview"
+msgstr "Quay lại Xem trước"
+
+# AI Translated
+msgid "Couldn't open project"
+msgstr "Không thể mở dự án"
+
+# AI Translated
+msgid "Get the new version…"
+msgstr "Tải phiên bản mới…"
+
+# AI Translated
+msgid "JusPrin's view couldn't be opened."
+msgstr "Không thể mở giao diện JusPrin."
+
+# AI Translated
+msgid "Show the Plates and Project panel"
+msgstr "Hiện bảng Plate và Dự án"
+
+# AI Translated
+msgid "Back to Home"
+msgstr "Quay lại Trang chủ"
+
+# AI Translated
+msgid "Print actions"
+msgstr "Thao tác in"
+
+# AI Translated
+msgid "Project details and preferences"
+msgstr "Chi tiết dự án và tùy chọn"
+
+# AI Translated
+msgid "Hide the AI panel"
+msgstr "Ẩn bảng AI"
+
+# AI Translated
+msgid "Cancel slicing"
+msgstr "Hủy slice"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Print plate %d"
+msgstr "In plate %d"
+
+# AI Translated
+msgid "Export G-code…"
+msgstr "Xuất G-code…"
+
+# AI Translated
+#. TRN Detail beside "Print all plates…": how many of the plates are sliced.
+#, c-format, boost-format
+msgid "%d sliced"
+msgid_plural "%d sliced"
+msgstr[0] "%d đã slice"
+
+# AI Translated
+msgid "Show the AI panel"
+msgstr "Hiện bảng AI"
+
+# AI Translated
+msgid "Unsaved changes"
+msgstr "Thay đổi chưa lưu"
+
+# AI Translated
+#. TRN %s is one nozzle size, or several joined by " / ", such as "0.4 / 0.6".
+#, c-format, boost-format
+msgid "%s mm nozzle"
+msgid_plural "%s mm nozzles"
+msgstr[0] "Đầu phun %s mm"
+
+# AI Translated
+msgid "from the file, not one of the printers you set up"
+msgstr "từ file, không phải máy in bạn đã thiết lập"
+
+# AI Translated
+#. TRN %s is the project's file name, such as "Benchy.3mf".
+#, c-format, boost-format
+msgid "from %s, not one of the printers you set up"
+msgstr "từ %s, không phải máy in bạn đã thiết lập"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d filament"
+msgid_plural "%d filaments"
+msgstr[0] "%d filament"
+
+# AI Translated
+#. TRN The first %d is how many of the filament slots this plate uses; the second is how many slots there are.
+#, c-format, boost-format
+msgid "%d of %d slot on this plate"
+msgid_plural "%d of %d slots on this plate"
+msgstr[0] "Plate này dùng %d trên %d khe"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d slot"
+msgid_plural "%d slots"
+msgstr[0] "%d khe"
+
+# AI Translated
+msgid "not on this plate"
+msgstr "không có trên plate này"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Filament is now %s."
+msgstr "Filament hiện là %s."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Slot %d is now %s."
+msgstr "Khe %d hiện là %s."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Heat and cooling follow %s; walls and infill unchanged."
+msgstr "Nhiệt độ và làm mát theo %s; thành và infill không đổi."
+
+# AI Translated
+#, c-format, boost-format
+msgid "slot %d %s"
+msgstr "khe %d %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Filaments changed: %s."
+msgstr "Đã đổi filament: %s."
+
+# AI Translated
+msgid "Slice again when ready."
+msgstr "Hãy slice lại khi sẵn sàng."
+
+# AI Translated
+msgid "Preferences…"
+msgstr "Tùy chọn…"
+
+# AI Translated
+msgid "Changes couldn't be saved. JusPrin will retry."
+msgstr "Không thể lưu thay đổi. JusPrin sẽ thử lại."
+
+# AI Translated
+msgid "Some older project data couldn't be removed."
+msgstr "Không thể xóa một số dữ liệu dự án cũ."
+
+# AI Translated
+msgid "Configure a printer connection in Printer settings before printing. You can also export the sliced file."
+msgstr "Hãy thiết lập kết nối máy in trong Cài đặt máy in trước khi in. Bạn cũng có thể xuất file đã slice."
+
+# AI Translated
+msgid "Printer connection required"
+msgstr "Cần kết nối máy in"
+
+# AI Translated
+msgid "This project was saved by a newer version of JusPrin. Get the new version to open it."
+msgstr "Dự án này được lưu bằng phiên bản JusPrin mới hơn. Hãy tải phiên bản mới để mở."
+
+# AI Translated
+msgid "The project couldn't be opened. Try again."
+msgstr "Không thể mở dự án. Hãy thử lại."

@@ -1,0 +1,4826 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-11-14 21:25-0800\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: it\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
+
+# AI Translated
+#. A photo's attribution: the title, author, link and licence are the photo's own
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "“{firstTitle}” by {author}, {firstSource}, {license}. Cropped."
+msgstr "“{firstTitle}” di {author}, {firstSource}, {license}. Ritagliata."
+
+# AI Translated
+#. A photo's attribution: the title, author, link and licence are the photo's own
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "“{secondTitle}” by {author}, {secondSource}, {license}. Cropped and resized."
+msgstr "“{secondTitle}” di {author}, {secondSource}, {license}. Ritagliata e ridimensionata."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "“Found” means JusPrin found the app or its settings file here, not that the app is signed in. You can connect one that wasn’t found."
+msgstr "“Trovata” significa che JusPrin ha trovato qui l’app o il suo file di impostazioni, non che l’app abbia effettuato l’accesso. Puoi connetterne una che non è stata trovata."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "“Open in slicer” buttons on model sites"
+msgstr "Pulsanti “Apri nello slicer” sui siti di modelli"
+
+# AI Translated
+#: src/components/MarkdownMessage.tsx
+msgid "[Image: {description}]"
+msgstr "[Immagine: {description}]"
+
+# AI Translated
+#: src/components/MarkdownMessage.tsx
+msgid "[Image: description unavailable]"
+msgstr "[Immagine: descrizione non disponibile]"
+
+# AI Translated
+# Needs human review: Completes a sentence about filaments matching the search; check against the sentence shown before it
+#. placeholder {0}: otherShown.length
+#: src/components/AddPrinterForm.tsx
+msgid "{0, plural, =1 {One filament made for other printers does.} other {# filaments made for other printers do.}}"
+msgstr "{0, plural, =1 {Un filamento pensato per altre stampanti sì.} one {Un filamento pensato per altre stampanti sì.} many {# filamenti pensati per altre stampanti sì.} other {# filamenti pensati per altre stampanti sì.}}"
+
+# AI Translated
+#. placeholder {0}: otherShown.length
+#: src/components/AddPrinterForm.tsx
+msgid "{0, plural, =1 {Show it} other {Show them}}"
+msgstr "{0, plural, =1 {Mostra il filamento} one {Mostra il filamento} many {Mostra i filamenti} other {Mostra i filamenti}}"
+
+# AI Translated
+#. placeholder {0}: fitting.length - RESULT_LIMIT
+#: src/components/AddPrinterForm.tsx
+msgid "{0, plural, one {# more match. Type more to narrow the list.} other {# more match. Type more to narrow the list.}}"
+msgstr "{0, plural, one {# altro risultato. Scrivi ancora per restringere l’elenco.} many {Altri # risultati. Scrivi ancora per restringere l’elenco.} other {Altri # risultati. Scrivi ancora per restringere l’elenco.}}"
+
+# AI Translated
+#. placeholder {0}: others.length
+#: src/components/AddPrinterForm.tsx
+msgid "{0, plural, one {# more. Picking one saves a copy for the {modelName}.} other {# more. Picking one saves a copy for the {modelName}.}}"
+msgstr "{0, plural, one {# altro. Sceglierlo salva una copia per {modelName}.} many {Altri #. Sceglierne uno salva una copia per {modelName}.} other {Altri #. Sceglierne uno salva una copia per {modelName}.}}"
+
+# AI Translated
+#. placeholder {0}: otherShown.length
+#: src/components/AddPrinterForm.tsx
+msgid "{0, plural, one {# of them match your search. Picking one saves a copy for the {modelName}.} other {# of them match your search. Picking one saves a copy for the {modelName}.}}"
+msgstr "{0, plural, one {# di questi corrisponde alla ricerca. Sceglierlo salva una copia per {modelName}.} many {# di questi corrispondono alla ricerca. Sceglierne uno salva una copia per {modelName}.} other {# di questi corrispondono alla ricerca. Sceglierne uno salva una copia per {modelName}.}}"
+
+# AI Translated
+#. placeholder {0}: found.length
+#: src/components/Guide.tsx
+msgid "{0, plural, one {Found in # section} other {Found in # sections}}"
+msgstr "{0, plural, one {Trovato in # sezione} many {Trovato in # sezioni} other {Trovato in # sezioni}}"
+
+# AI Translated
+#. placeholder {0}: chosen.length
+#: src/components/OrcaImport.tsx
+msgid "{0, plural, one {Import # printer} other {Import # printers}}"
+msgstr "{0, plural, one {Importa # stampante} many {Importa # stampanti} other {Importa # stampanti}}"
+
+# AI Translated
+# Needs human review: The 'one' branch reads 'neither does this one'; check the count can be 1 here
+#. placeholder {0}: others.length
+#: src/components/AddPrinterForm.tsx
+msgid "{0, plural, one {None of the # match your search either.} other {None of the # match your search either.}}"
+msgstr "{0, plural, one {Neanche questo corrisponde alla ricerca.} many {Nessuno dei # corrisponde alla ricerca.} other {Nessuno dei # corrisponde alla ricerca.}}"
+
+# AI Translated
+#. placeholder {0}: printers.length
+#: src/components/OrcaImport.tsx
+msgid "{0, plural, one {The # imported printers are now in the printer menu at the top of the window.} other {The # imported printers are now in the printer menu at the top of the window.}}"
+msgstr "{0, plural, one {La stampante importata ora è nel menu stampanti in cima alla finestra.} many {Le # stampanti importate ora sono nel menu stampanti in cima alla finestra.} other {Le # stampanti importate ora sono nel menu stampanti in cima alla finestra.}}"
+
+# AI Translated
+#. placeholder {0}: signup.granted
+#: src/credits.ts
+msgid "{0, plural, one {You got {granted} free credit for signing up, good until {until}.} other {You got {granted} free credits for signing up, good until {until}.}}"
+msgstr "{0, plural, one {Hai ricevuto {granted} credito gratuito per la registrazione, valido fino al {until}.} many {Hai ricevuto {granted} crediti gratuiti per la registrazione, validi fino al {until}.} other {Hai ricevuto {granted} crediti gratuiti per la registrazione, validi fino al {until}.}}"
+
+# AI Translated
+#: src/credits.ts
+msgid "{about, plural, one {About # credit left} other {About # credits left}}"
+msgstr "{about, plural, one {Circa # credito rimasto} many {Circa # crediti rimasti} other {Circa # crediti rimasti}}"
+
+# AI Translated
+#. Grams of filament
+#: src/components/SetupCard.tsx
+msgid "{amount} g"
+msgstr "{amount} g"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{app} keeps its own copy."
+msgstr "{app} conserva la propria copia."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{app} keeps these in {path}"
+msgstr "{app} li conserva in {path}"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "{app} keeps these in {source}"
+msgstr "{app} li conserva in {source}"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{app} printers"
+msgstr "Stampanti di {app}"
+
+# AI Translated
+#: src/components/AttachmentChip.tsx
+msgid "{bytes} B"
+msgstr "{bytes} B"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "{changed, plural, one {# setting differs from the presets.} other {# settings differ from the presets.}}"
+msgstr "{changed, plural, one {# impostazione è diversa dai profili.} many {# impostazioni sono diverse dai profili.} other {# impostazioni sono diverse dai profili.}}"
+
+# AI Translated
+#: src/credits.ts
+msgid "{cost, plural, one {{n} credit a message} other {{n} credits a message}}"
+msgstr "{cost, plural, one {{n} credito a messaggio} many {{n} crediti a messaggio} other {{n} crediti a messaggio}}"
+
+# AI Translated
+#: src/credits.ts
+msgid "{cost, plural, one {Each message you send in this chat costs {n} credit.} other {Each message you send in this chat costs {n} credits.}}"
+msgstr "{cost, plural, one {Ogni messaggio che invii in questa chat costa {n} credito.} many {Ogni messaggio che invii in questa chat costa {n} crediti.} other {Ogni messaggio che invii in questa chat costa {n} crediti.}}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{count, plural, one {{count} G-code} other {{count} G-codes}}"
+msgstr "{count, plural, one {{count} G-code} many {{count} G-code} other {{count} G-code}}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{count, plural, one {{count} print} other {{count} prints}}"
+msgstr "{count, plural, one {{count} stampa} many {{count} stampe} other {{count} stampe}}"
+
+# AI Translated
+# Needs human review: Subject is prints or printers; check 'in stampa ora' fits the list
+#: ../HomeUI/src/history.ts
+msgid "{count, plural, one {{count} printing now} other {{count} printing now}}"
+msgstr "{count, plural, one {{count} in stampa ora} many {{count} in stampa ora} other {{count} in stampa ora}}"
+
+# AI Translated
+#: src/credits.ts
+msgid "{count, plural, one {{n} credit left} other {{n} credits left}}"
+msgstr "{count, plural, one {{n} credito rimasto} many {{n} crediti rimasti} other {{n} crediti rimasti}}"
+
+# AI Translated
+#: src/credits.ts
+msgid "{count, plural, one {{n} credit} other {{n} credits}}"
+msgstr "{count, plural, one {{n} credito} many {{n} crediti} other {{n} crediti}}"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "{count, plural, one {# action} other {# actions}}"
+msgstr "{count, plural, one {# azione} many {# azioni} other {# azioni}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{count, plural, one {# changed} other {# changed}}"
+msgstr "{count, plural, one {# modificata} many {# modificate} other {# modificate}}"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "{count, plural, one {# model} other {# models}}"
+msgstr "{count, plural, one {# modello} many {# modelli} other {# modelli}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{count, plural, one {# own setting} other {# own settings}}"
+msgstr "{count, plural, one {# impostazione propria} many {# impostazioni proprie} other {# impostazioni proprie}}"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{count, plural, one {# setting} other {# settings}}"
+msgstr "{count, plural, one {# impostazione} many {# impostazioni} other {# impostazioni}}"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "{count, plural, one {+{n} credit} other {+{n} credits}}"
+msgstr "{count, plural, one {+{n} credito} many {+{n} crediti} other {+{n} crediti}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{count, plural, one {Negative part} other {Negative parts}}"
+msgstr "{count, plural, one {Parte negativa} many {Parti negative} other {Parti negative}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{count, plural, one {Part} other {Parts}}"
+msgstr "{count, plural, one {Parte} many {Parti} other {Parti}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{count, plural, one {Support blocker} other {Support blockers}}"
+msgstr "{count, plural, one {Blocco supporto} many {Blocchi supporto} other {Blocchi supporto}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{count, plural, one {Support enforcer} other {Support enforcers}}"
+msgstr "{count, plural, one {Rinforzo supporto} many {Rinforzi supporto} other {Rinforzi supporto}}"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "{count, plural, one {Worked for {elapsed} · # action} other {Worked for {elapsed} · # actions}}"
+msgstr "{count, plural, one {Ha lavorato per {elapsed} · # azione} many {Ha lavorato per {elapsed} · # azioni} other {Ha lavorato per {elapsed} · # azioni}}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{credits, plural, one {{credits} credit added} other {{credits} credits added}}"
+msgstr "{credits, plural, one {{credits} credito aggiunto} many {{credits} crediti aggiunti} other {{credits} crediti aggiunti}}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "{credits, plural, one {To send this and get {credits} credit, add a photo of the printed object, write what happened, and pick how it came out.} other {To send this and get {credits} credits, add a photo of the printed object, write what happened, and pick how it came out.}}"
+msgstr "{credits, plural, one {Per inviarlo e ricevere {credits} credito, aggiungi una foto dell’oggetto stampato, scrivi cosa è successo e scegli com’è venuto.} many {Per inviarlo e ricevere {credits} crediti, aggiungi una foto dell’oggetto stampato, scrivi cosa è successo e scegli com’è venuto.} other {Per inviarlo e ricevere {credits} crediti, aggiungi una foto dell’oggetto stampato, scrivi cosa è successo e scegli com’è venuto.}}"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+#: src/components/Preferences.tsx
+msgid "{days, plural, one {# day ago} other {# days ago}}"
+msgstr "{days, plural, one {# giorno fa} many {# giorni fa} other {# giorni fa}}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "{days, plural, one {Last connected {days} day ago} other {Last connected {days} days ago}}"
+msgstr "{days, plural, one {Ultima connessione {days} giorno fa} many {Ultima connessione {days} giorni fa} other {Ultima connessione {days} giorni fa}}"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "{defaultLabel}, until your preset is saved"
+msgstr "{defaultLabel}, finché il tuo profilo non viene salvato"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{exports, plural, =1 {Exported once, never sent to a printer} one {Exported {exports} times, never sent to a printer} other {Exported {exports} times, never sent to a printer}}"
+msgstr "{exports, plural, =1 {Esportato una volta, mai inviato a una stampante} one {Esportato {exports} volta, mai inviato a una stampante} many {Esportato {exports} volte, mai inviato a una stampante} other {Esportato {exports} volte, mai inviato a una stampante}}"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "{failed, plural, one {# failed} other {# failed}}"
+msgstr "{failed, plural, one {# non riuscita} many {# non riuscite} other {# non riuscite}}"
+
+# AI Translated
+#: src/App.tsx
+msgid "{filament} settings"
+msgstr "Impostazioni di {filament}"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{filaments, plural, one {# filament wasn’t imported. It stays in {app}.} other {# filaments weren’t imported. They stay in {app}.}}"
+msgstr "{filaments, plural, one {# filamento non è stato importato. Resta in {app}.} many {# filamenti non sono stati importati. Restano in {app}.} other {# filamenti non sono stati importati. Restano in {app}.}}"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{filaments, plural, one {# filament} other {# filaments}} and {settings, plural, one {# print setting} other {# print settings}} weren’t imported. They stay in {app}."
+msgstr "{filaments, plural, one {# filamento} many {# filamenti} other {# filamenti}} e {settings, plural, one {# impostazione di stampa} many {# impostazioni di stampa} other {# impostazioni di stampa}} non sono stati importati. Restano in {app}."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "{filaments, plural, one {Also brings {filaments} filament.} other {Also brings {filaments} filaments.}}"
+msgstr "{filaments, plural, one {Porta anche {filaments} filamento.} many {Porta anche {filaments} filamenti.} other {Porta anche {filaments} filamenti.}}"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{filaments, plural, one {Also imported: # filament ({filamentList}).} other {Also imported: # filaments ({filamentList}).}}"
+msgstr "{filaments, plural, one {Importato anche: # filamento ({filamentList}).} many {Importati anche: # filamenti ({filamentList}).} other {Importati anche: # filamenti ({filamentList}).}}"
+
+# AI Translated
+#: src/components/GcodeMarker.tsx
+msgid "{fileName} · exported"
+msgstr "{fileName} · esportato"
+
+# AI Translated
+#. The file formats Home opens: STL, 3MF, STEP, OBJ, AMF, SVG or ZIP.
+#: ../HomeUI/src/App.tsx
+msgid "{formats} or {lastFormat}."
+msgstr "{formats} o {lastFormat}."
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{gcodes, plural, one {{gcodes} G-code, never sent to a printer} other {{gcodes} G-codes, never sent to a printer}}"
+msgstr "{gcodes, plural, one {{gcodes} G-code, mai inviato a una stampante} many {{gcodes} G-code, mai inviati a una stampante} other {{gcodes} G-code, mai inviati a una stampante}}"
+
+# AI Translated
+#. Grams of filament
+#: ../HomeUI/src/history.ts
+msgid "{grams} g"
+msgstr "{grams} g"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "{hours, plural, one {# hour ago} other {# hours ago}}"
+msgstr "{hours, plural, one {# ora fa} many {# ore fa} other {# ore fa}}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "{hours, plural, one {Last connected {hours}h ago} other {Last connected {hours}h ago}}"
+msgstr "{hours, plural, one {Ultima connessione {hours} h fa} many {Ultima connessione {hours} h fa} other {Ultima connessione {hours} h fa}}"
+
+# AI Translated
+#. A duration in hours and minutes, abbreviated: 2h 04m
+#: ../HomeUI/src/history.ts
+msgid "{hours}h {mins}m"
+msgstr "{hours} h {mins} min"
+
+# AI Translated
+#. Time left in a print, hours and minutes abbreviated: 2h 14m left
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "{hours}h {mins}m left"
+msgstr "{hours} h {mins} min rimanenti"
+
+# AI Translated
+#. {job} is the file printing
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "{job}, {percent} percent"
+msgstr "{job}, {percent} percento"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+#: src/components/AttachmentChip.tsx
+msgid "{kilobytes} KB"
+msgstr "{kilobytes} KB"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{label} {from} → <0>{to}</0>"
+msgstr "{label} {from} → <0>{to}</0>"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "{label}: {text}"
+msgstr "{label}: {text}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{layers, plural, one {{layers} layer} other {{layers} layers}}"
+msgstr "{layers, plural, one {{layers} strato} many {{layers} strati} other {{layers} strati}}"
+
+# AI Translated
+# Needs human review: {left} and {of} are credit amounts; check word order
+#: src/components/BalancePanel.tsx
+#: src/components/Preferences.tsx
+msgid "{left} of {of} left"
+msgstr "{left} rimasti su {of}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{list} and {name}"
+msgstr "{list} e {name}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+#: src/components/AttachmentChip.tsx
+msgid "{megabytes} MB"
+msgstr "{megabytes} MB"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "{minimum, plural, one {Write at least {minimum} character ({length} so far).} other {Write at least {minimum} characters ({length} so far).}}"
+msgstr "{minimum, plural, one {Scrivi almeno {minimum} carattere (finora {length}).} many {Scrivi almeno {minimum} caratteri (finora {length}).} other {Scrivi almeno {minimum} caratteri (finora {length}).}}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "{minutes, plural, one {# minute ago} other {# minutes ago}}"
+msgstr "{minutes, plural, one {# minuto fa} many {# minuti fa} other {# minuti fa}}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "{minutes, plural, one {Last connected {minutes} min ago} other {Last connected {minutes} min ago}}"
+msgstr "{minutes, plural, one {Ultima connessione {minutes} min fa} many {Ultima connessione {minutes} min fa} other {Ultima connessione {minutes} min fa}}"
+
+# AI Translated
+#. A duration in minutes, abbreviated: 34m
+#: ../HomeUI/src/history.ts
+msgid "{minutes}m"
+msgstr "{minutes} min"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "{minutes}m {seconds}s"
+msgstr "{minutes} min {seconds} s"
+
+# AI Translated
+#. Time left in a print, minutes abbreviated: 14m left
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "{minutes}m left"
+msgstr "{minutes} min rimanenti"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "{more, plural, one {{preset} with {filament} and # other filament.} other {{preset} with {filament} and # other filaments.}}"
+msgstr "{more, plural, one {{preset} con {filament} e # altro filamento.} many {{preset} con {filament} e altri # filamenti.} other {{preset} con {filament} e altri # filamenti.}}"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "{more, plural, one {Made for the {first}, {second} and # other printer. Picking it saves a copy for the {modelName}.} other {Made for the {first}, {second} and # other printers. Picking it saves a copy for the {modelName}.}}"
+msgstr "{more, plural, one {Pensato per {first}, {second} e # altra stampante. Sceglierlo salva una copia per {modelName}.} many {Pensato per {first}, {second} e altre # stampanti. Sceglierlo salva una copia per {modelName}.} other {Pensato per {first}, {second} e altre # stampanti. Sceglierlo salva una copia per {modelName}.}}"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "{more, plural, one {Opened {name} and # more as a new project} other {Opened {name} and # more as a new project}}"
+msgstr "{more, plural, one {Aperto {name} e # altro come nuovo progetto} many {Aperti {name} e altri # come nuovo progetto} other {Aperti {name} e altri # come nuovo progetto}}"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "{more, plural, one {Opened {name} and # more} other {Opened {name} and # more}}"
+msgstr "{more, plural, one {Aperto {name} e # altro} many {Aperti {name} e altri #} other {Aperti {name} e altri #}}"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "{more, plural, one {Opened a file and # more as a new project} other {Opened a file and # more as a new project}}"
+msgstr "{more, plural, one {Aperto un file e # altro come nuovo progetto} many {Aperti un file e altri # come nuovo progetto} other {Aperti un file e altri # come nuovo progetto}}"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "{more, plural, one {Opened a file and # more} other {Opened a file and # more}}"
+msgstr "{more, plural, one {Aperto un file e # altro} many {Aperti un file e altri #} other {Aperti un file e altri #}}"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "{more, plural, one {Your preset, made for the {first}, {second} and # other printer. Picking it saves a copy for the {modelName}.} other {Your preset, made for the {first}, {second} and # other printers. Picking it saves a copy for the {modelName}.}}"
+msgstr "{more, plural, one {Il tuo profilo, pensato per {first}, {second} e # altra stampante. Sceglierlo salva una copia per {modelName}.} many {Il tuo profilo, pensato per {first}, {second} e altre # stampanti. Sceglierlo salva una copia per {modelName}.} other {Il tuo profilo, pensato per {first}, {second} e altre # stampanti. Sceglierlo salva una copia per {modelName}.}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{morePlate, plural, one {Bed type set on this plate · # more plate setting} other {Bed type set on this plate · # more plate settings}}"
+msgstr "{morePlate, plural, one {Tipo di piatto impostato su questo piatto · # altra impostazione del piatto} many {Tipo di piatto impostato su questo piatto · altre # impostazioni del piatto} other {Tipo di piatto impostato su questo piatto · altre # impostazioni del piatto}}"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "{name} API key"
+msgstr "Chiave API di {name}"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "{name} can see this project"
+msgstr "{name} può vedere questo progetto"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{name} has settings of its own."
+msgstr "{name} ha impostazioni proprie."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{name} is now in the printer menu at the top of the window."
+msgstr "{name} ora è nel menu stampanti in cima alla finestra."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "{name} isn’t installed."
+msgstr "{name} non è installato."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{name} prints with the project’s settings and sets nothing of its own."
+msgstr "{name} stampa con le impostazioni del progetto e non ne imposta di proprie."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "{name} rejected this key. Nothing was saved."
+msgstr "{name} ha rifiutato questa chiave. Non è stato salvato nulla."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{name} uses the project’s settings and sets nothing of its own."
+msgstr "{name} usa le impostazioni del progetto e non ne imposta di proprie."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{names} have settings of their own."
+msgstr "{names} hanno impostazioni proprie."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{newPrinters, plural, one {JusPrin found # printer in {app} that it doesn’t have yet.} other {JusPrin found # printers in {app} that it doesn’t have yet.}}"
+msgstr "{newPrinters, plural, one {JusPrin ha trovato in {app} # stampante che non ha ancora.} many {JusPrin ha trovato in {app} # stampanti che non ha ancora.} other {JusPrin ha trovato in {app} # stampanti che non ha ancora.}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{nozzles} mm nozzle"
+msgstr "Ugello da {nozzles} mm"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{objectCount, plural, one {# object} other {# objects}}"
+msgstr "{objectCount, plural, one {# oggetto} many {# oggetti} other {# oggetti}}"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "{onlySize} mm, the only size it comes with"
+msgstr "{onlySize} mm, l’unica misura con cui viene fornita"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{own, plural, one {{name} sets # setting of its own; the rest is the project’s.} other {{name} sets # settings of its own; the rest is the project’s.}}"
+msgstr "{own, plural, one {{name} imposta # impostazione propria; il resto è del progetto.} many {{name} imposta # impostazioni proprie; il resto è del progetto.} other {{name} imposta # impostazioni proprie; il resto è del progetto.}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{own, plural, one {{name} uses the project’s settings, except for # setting of its own.} other {{name} uses the project’s settings, except for # settings of its own.}}"
+msgstr "{own, plural, one {{name} usa le impostazioni del progetto, tranne # impostazione propria.} many {{name} usa le impostazioni del progetto, tranne # impostazioni proprie.} other {{name} usa le impostazioni del progetto, tranne # impostazioni proprie.}}"
+
+# AI Translated
+# Needs human review: {plan} is a plan name; check 'Crediti {plan}' reads right
+#: src/components/BalancePanel.tsx
+msgid "{plan} credits"
+msgstr "Crediti {plan}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{plateOwn, plural, one {# setting set on this plate} other {# settings set on this plate}}"
+msgstr "{plateOwn, plural, one {# impostazione impostata su questo piatto} many {# impostazioni impostate su questo piatto} other {# impostazioni impostate su questo piatto}}"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "{preset} with {filament}."
+msgstr "{preset} con {filament}."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "{printer}, {size} mm nozzle"
+msgstr "{printer}, ugello da {size} mm"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "{printerName} settings"
+msgstr "Impostazioni di {printerName}"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{printers, plural, one {# printer wasn’t imported. It stays in {app}.} other {# printers weren’t imported. They stay in {app}.}}"
+msgstr "{printers, plural, one {# stampante non è stata importata. Resta in {app}.} many {# stampanti non sono state importate. Restano in {app}.} other {# stampanti non sono state importate. Restano in {app}.}}"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{printers, plural, one {# printer} other {# printers}} and {filaments, plural, one {# filament} other {# filaments}} weren’t imported. They stay in {app}."
+msgstr "{printers, plural, one {# stampante} many {# stampanti} other {# stampanti}} e {filaments, plural, one {# filamento} many {# filamenti} other {# filamenti}} non sono stati importati. Restano in {app}."
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{printers, plural, one {# printer} other {# printers}} and {settings, plural, one {# print setting} other {# print settings}} weren’t imported. They stay in {app}."
+msgstr "{printers, plural, one {# stampante} many {# stampanti} other {# stampanti}} e {settings, plural, one {# impostazione di stampa} many {# impostazioni di stampa} other {# impostazioni di stampa}} non sono state importate. Restano in {app}."
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{printers, plural, one {# printer} other {# printers}}, {filaments, plural, one {# filament} other {# filaments}} and {settings, plural, one {# print setting} other {# print settings}} weren’t imported. They stay in {app}."
+msgstr "{printers, plural, one {# stampante} many {# stampanti} other {# stampanti}}, {filaments, plural, one {# filamento} many {# filamenti} other {# filamenti}} e {settings, plural, one {# impostazione di stampa} many {# impostazioni di stampa} other {# impostazioni di stampa}} non sono stati importati. Restano in {app}."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{processChanges, plural, one {# change from the preset} other {# changes from the preset}}"
+msgstr "{processChanges, plural, one {# modifica rispetto al profilo} many {# modifiche rispetto al profilo} other {# modifiche rispetto al profilo}}"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "{reason} Nothing was saved."
+msgstr "{reason} Non è stato salvato nulla."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{regions, plural, one {{name} has settings of its own in # region: {names}.} other {{name} has settings of its own in # regions: {names}.}}"
+msgstr "{regions, plural, one {{name} ha impostazioni proprie in # zona: {names}.} many {{name} ha impostazioni proprie in # zone: {names}.} other {{name} ha impostazioni proprie in # zone: {names}.}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{regions, plural, one {{name} uses the project’s settings, except in # region: {names}.} other {{name} uses the project’s settings, except in # regions: {names}.}}"
+msgstr "{regions, plural, one {{name} usa le impostazioni del progetto, tranne in # zona: {names}.} many {{name} usa le impostazioni del progetto, tranne in # zone: {names}.} other {{name} usa le impostazioni del progetto, tranne in # zone: {names}.}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{regions, plural, one {{names} · # region} other {{names} · # regions}}"
+msgstr "{regions, plural, one {{names} · # zona} many {{names} · # zone} other {{names} · # zone}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{regions, plural, one {{where} · # region · project: {projectValue}} other {{where} · # regions · project: {projectValue}}}"
+msgstr "{regions, plural, one {{where} · # zona · progetto: {projectValue}} many {{where} · # zone · progetto: {projectValue}} other {{where} · # zone · progetto: {projectValue}}}"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{remaining, plural, one {See the other # →} other {See the other # →}}"
+msgstr "{remaining, plural, one {Vedi l’altra →} many {Vedi le altre # →} other {Vedi le altre # →}}"
+
+# AI Translated
+#. {remaining} is a duration, 2h 34m
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "{remaining} left"
+msgstr "{remaining} rimanenti"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{reportCredits, plural, one {Share how it printed and get {reportCredits} credit} other {Share how it printed and get {reportCredits} credits}}"
+msgstr "{reportCredits, plural, one {Racconta com’è venuta la stampa e ricevi {reportCredits} credito} many {Racconta com’è venuta la stampa e ricevi {reportCredits} crediti} other {Racconta com’è venuta la stampa e ricevi {reportCredits} crediti}}"
+
+# AI Translated
+#. A duration in seconds, abbreviated: 45s
+#: ../HomeUI/src/history.ts
+msgid "{secs}s"
+msgstr "{secs} s"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "{sends, plural, =1 {Sent once} one {Sent {sends} times} other {Sent {sends} times}}"
+msgstr "{sends, plural, =1 {Inviato una volta} one {Inviato {sends} volta} many {Inviato {sends} volte} other {Inviato {sends} volte}}"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{settings, plural, one {# print setting wasn’t imported. It stays in {app}.} other {# print settings weren’t imported. They stay in {app}.}}"
+msgstr "{settings, plural, one {# impostazione di stampa non è stata importata. Resta in {app}.} many {# impostazioni di stampa non sono state importate. Restano in {app}.} other {# impostazioni di stampa non sono state importate. Restano in {app}.}}"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "{settings, plural, one {Also brings {settings} print setting.} other {Also brings {settings} print settings.}}"
+msgstr "{settings, plural, one {Porta anche {settings} impostazione di stampa.} many {Porta anche {settings} impostazioni di stampa.} other {Porta anche {settings} impostazioni di stampa.}}"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "{settings, plural, one {Also imported: # print setting ({settingList}).} other {Also imported: # print settings ({settingList}).}}"
+msgstr "{settings, plural, one {Importata anche: # impostazione di stampa ({settingList}).} many {Importate anche: # impostazioni di stampa ({settingList}).} other {Importate anche: # impostazioni di stampa ({settingList}).}}"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{shown, plural, one {# setting} other {# settings}}"
+msgstr "{shown, plural, one {# impostazione} many {# impostazioni} other {# impostazioni}}"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "{size} mm"
+msgstr "{size} mm"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "{size} mm nozzle"
+msgstr "Ugello da {size} mm"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{skipped, plural, =1 {There is nothing to import. JusPrin already has everything in this {app} folder except the item with the warning sign, which it can’t import.} other {There is nothing to import. JusPrin already has everything in this {app} folder except the # items with the warning sign, which it can’t import.}}"
+msgstr "{skipped, plural, =1 {Non c’è nulla da importare. JusPrin ha già tutto ciò che si trova in questa cartella di {app}, tranne l’elemento con il segnale di avviso, che non può importare.} one {Non c’è nulla da importare. JusPrin ha già tutto ciò che si trova in questa cartella di {app}, tranne l’elemento con il segnale di avviso, che non può importare.} many {Non c’è nulla da importare. JusPrin ha già tutto ciò che si trova in questa cartella di {app}, tranne i # elementi con il segnale di avviso, che non può importare.} other {Non c’è nulla da importare. JusPrin ha già tutto ciò che si trova in questa cartella di {app}, tranne i # elementi con il segnale di avviso, che non può importare.}}"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{skipped, plural, =1 {When you import, JusPrin copies it and skips the item with the warning sign.} other {When you import, JusPrin copies it and skips the # items with the warning sign.}}"
+msgstr "{skipped, plural, =1 {Quando importi, JusPrin la copia e salta l’elemento con il segnale di avviso.} one {Quando importi, JusPrin la copia e salta l’elemento con il segnale di avviso.} many {Quando importi, JusPrin la copia e salta i # elementi con il segnale di avviso.} other {Quando importi, JusPrin la copia e salta i # elementi con il segnale di avviso.}}"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{skipped, plural, =1 {When you import, JusPrin copies it with its filaments and print settings and skips the item with the warning sign.} other {When you import, JusPrin copies it with its filaments and print settings and skips the # items with the warning sign.}}"
+msgstr "{skipped, plural, =1 {Quando importi, JusPrin la copia con i suoi filamenti e le sue impostazioni di stampa e salta l’elemento con il segnale di avviso.} one {Quando importi, JusPrin la copia con i suoi filamenti e le sue impostazioni di stampa e salta l’elemento con il segnale di avviso.} many {Quando importi, JusPrin la copia con i suoi filamenti e le sue impostazioni di stampa e salta i # elementi con il segnale di avviso.} other {Quando importi, JusPrin la copia con i suoi filamenti e le sue impostazioni di stampa e salta i # elementi con il segnale di avviso.}}"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{skipped, plural, =1 {When you import, JusPrin copies them and skips the item with the warning sign.} other {When you import, JusPrin copies them and skips the # items with the warning sign.}}"
+msgstr "{skipped, plural, =1 {Quando importi, JusPrin le copia e salta l’elemento con il segnale di avviso.} one {Quando importi, JusPrin le copia e salta l’elemento con il segnale di avviso.} many {Quando importi, JusPrin le copia e salta i # elementi con il segnale di avviso.} other {Quando importi, JusPrin le copia e salta i # elementi con il segnale di avviso.}}"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "{skipped, plural, =1 {When you import, JusPrin copies them with their filaments and print settings and skips the item with the warning sign.} other {When you import, JusPrin copies them with their filaments and print settings and skips the # items with the warning sign.}}"
+msgstr "{skipped, plural, =1 {Quando importi, JusPrin le copia con i loro filamenti e le loro impostazioni di stampa e salta l’elemento con il segnale di avviso.} one {Quando importi, JusPrin le copia con i loro filamenti e le loro impostazioni di stampa e salta l’elemento con il segnale di avviso.} many {Quando importi, JusPrin le copia con i loro filamenti e le loro impostazioni di stampa e salta i # elementi con il segnale di avviso.} other {Quando importi, JusPrin le copia con i loro filamenti e le loro impostazioni di stampa e salta i # elementi con il segnale di avviso.}}"
+
+# AI Translated
+# Needs human review: Filament slots shown side by side; check 'affiancati' agrees with the slots
+#: src/components/AllSettings.tsx
+msgid "{slots, plural, one {# slot, side by side} other {# slots, side by side}}"
+msgstr "{slots, plural, one {# slot, affiancati} many {# slot, affiancati} other {# slot, affiancati}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{slots, plural, one {# slot} other {# slots}}"
+msgstr "{slots, plural, one {# slot} many {# slot} other {# slot}}"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{steps, plural, one {# step merged} other {# steps merged}}"
+msgstr "{steps, plural, one {# passaggio unito} many {# passaggi uniti} other {# passaggi uniti}}"
+
+# AI Translated
+#: src/components/WorkCard.tsx
+msgid "{times, plural, one {# time} other {# times}}"
+msgstr "{times, plural, one {# volta} many {# volte} other {# volte}}"
+
+# AI Translated
+# Needs human review: Screen-reader label for a progress bar; {title} is the tool's title
+#: src/components/ToolActivityCard.tsx
+#: src/components/WorkCard.tsx
+msgid "{title} progress"
+msgstr "Avanzamento di {title}"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{total, plural, one {{shown} of # setting} other {{shown} of # settings}}"
+msgstr "{total, plural, one {{shown} di # impostazione} many {{shown} di # impostazioni} other {{shown} di # impostazioni}}"
+
+# AI Translated
+# Needs human review: {tier} is a model tier name inserted as an adjective after 'chat'
+#: src/credits.ts
+msgid "{total, plural, one {You have {n} credit; this {tier} chat needs {needed} a message.} other {You have {n} credits; this {tier} chat needs {needed} a message.}}"
+msgstr "{total, plural, one {Hai {n} credito; questa chat {tier} richiede {needed} a messaggio.} many {Hai {n} crediti; questa chat {tier} richiede {needed} a messaggio.} other {Hai {n} crediti; questa chat {tier} richiede {needed} a messaggio.}}"
+
+# AI Translated
+#: src/credits.ts
+msgid "{total, plural, one {You have {n} credit.} other {You have {n} credits.}}"
+msgstr "{total, plural, one {Hai {n} credito.} many {Hai {n} crediti.} other {Hai {n} crediti.}}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "{total} left"
+msgstr "{total} rimasti"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "{total}s"
+msgstr "{total} s"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "{weeks, plural, one {# week ago} other {# weeks ago}}"
+msgstr "{weeks, plural, one {# settimana fa} many {# settimane fa} other {# settimane fa}}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "{where} · project: {projectValue}"
+msgstr "{where} · progetto: {projectValue}"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{who}, {location}"
+msgstr "{who}, {location}"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "{who}, in {preset}"
+msgstr "{who}, in {preset}"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "+ Add printer"
+msgstr "+ Aggiungi stampante"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "<0>No filament matches “{search}”,</0> for the {modelName} or any other printer JusPrin has profiles for."
+msgstr "<0>Nessun filamento corrisponde a “{search}”,</0> né per {modelName} né per altre stampanti di cui JusPrin ha i profili."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "<0>Tip:</0> a photo is the fastest way. Use <1>+</1> below, or drop a picture of the printer, its nameplate or the box into this panel."
+msgstr "<0>Suggerimento:</0> una foto è il modo più rapido. Usa <1>+</1> qui sotto, oppure trascina in questo pannello una foto della stampante, della sua targhetta o della scatola."
+
+# AI Translated
+#. A print time, as in ~2h 05m
+#: src/components/SetupCard.tsx
+msgid "~{hours}h {rest}m"
+msgstr "~{hours} h {rest} min"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "~{minutes} min"
+msgstr "~{minutes} min"
+
+# AI Translated
+#: src/components/AttachmentChip.tsx
+msgid "3D model"
+msgstr "Modello 3D"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "3D model (STL, 3MF, STEP)"
+msgstr "Modello 3D (STL, 3MF, STEP)"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "3D view"
+msgstr "Vista 3D"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "3MF projects"
+msgstr "Progetti 3MF"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "A chat keeps the model and thinking level it started with. Start a new chat to change them."
+msgstr "Una chat mantiene il modello e il livello di ragionamento con cui è iniziata. Inizia una nuova chat per cambiarli."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "A chat keeps the model it started with."
+msgstr "Una chat mantiene il modello con cui è iniziata."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "A new name has to differ from the old one by more than capitalization."
+msgstr "Il nuovo nome deve differire dal precedente non solo per le maiuscole."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "A printer name can’t contain any of these characters: < > [ ] : / \\ | ? * \""
+msgstr "Il nome di una stampante non può contenere nessuno di questi caratteri: < > [ ] : / \\ | ? * \""
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "A saved chat’s setup: the settings that differed from the presets when it was saved."
+msgstr "La configurazione di una chat salvata: le impostazioni che differivano dai profili al momento del salvataggio."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Access code"
+msgstr "Codice di accesso"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Account"
+msgstr "Account"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Actions"
+msgstr "Azioni"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Actions for {printerName}"
+msgstr "Azioni per {printerName}"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Add {name} key"
+msgstr "Aggiungi chiave {name}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Add a key above, or sign in under Account, to choose the model new chats start with."
+msgstr "Aggiungi una chiave qui sopra, oppure accedi in Account, per scegliere il modello con cui iniziano le nuove chat."
+
+# AI Translated
+#: src/App.tsx
+msgid "add a note, or just send"
+msgstr "aggiungi una nota, o invia e basta"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Add a printer"
+msgstr "Aggiungi una stampante"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Add key"
+msgstr "Aggiungi chiave"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Add the {modelName} and continue"
+msgstr "Aggiungi {modelName} e continua"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Add your printer"
+msgstr "Aggiungi la tua stampante"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Added: <0>{name}</0>"
+msgstr "Aggiunta: <0>{name}</0>"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Advanced / developer details"
+msgstr "Dettagli avanzati / per sviluppatori"
+
+# AI Translated
+#: src/credits.ts
+msgid "After that, 50 free credits a month. No card needed."
+msgstr "Dopo, 50 crediti gratuiti al mese. Nessuna carta richiesta."
+
+# AI Translated
+#. The name of the AI chat feature, as a panel title
+#. Who opened a file: the AI
+#: ../HomeUI/src/components/AgentGroup.tsx
+#: ../HomeUI/src/components/AgentGroup.tsx
+#: src/components/ChangeRows.tsx
+#: src/components/ChangeRows.tsx
+#: src/components/MessageList.tsx
+#: src/components/Panels.tsx
+msgid "AI"
+msgstr "IA"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "AI changes"
+msgstr "Modifiche dell’IA"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "AI conversation"
+msgstr "Conversazione con l’IA"
+
+# AI Translated
+# Needs human review: Image description for an onboarding photo; 'stringy' rendered as 'venuta con fili' (stringing)
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "AI fixing a print that came out stringy"
+msgstr "L’IA che corregge una stampa venuta con fili"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "AI is not available"
+msgstr "L’IA non è disponibile"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "AI is responding…"
+msgstr "L’IA sta rispondendo…"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "AI setting changes"
+msgstr "Modifiche alle impostazioni dall’IA"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "AI settings"
+msgstr "Impostazioni IA"
+
+# AI Translated
+#: ../HomeUI/src/components/AgentGroup.tsx
+msgid "AI setup won’t show here again. You can set it up later in <0>Preferences</0>, under the gear at the top right."
+msgstr "La configurazione dell’IA non comparirà più qui. Puoi configurarla più tardi in <0>Preferenze</0>, sotto l’ingranaggio in alto a destra."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "AI tool"
+msgstr "Strumento di IA"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "AI tool can see this project"
+msgstr "Lo strumento di IA può vedere questo progetto"
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "AI turns what you want — <0>“make it strong, it’ll bear weight”</0> — into the hundreds of settings underneath, and shows you what it changed."
+msgstr "L’IA trasforma ciò che vuoi — <0>“rendilo robusto, dovrà reggere un peso”</0> — nelle centinaia di impostazioni sottostanti, e ti mostra cosa ha cambiato."
+
+# AI Translated
+#. {provider} is the AI company, such as Anthropic or OpenAI
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "AI uses your {provider} key"
+msgstr "L’IA usa la tua chiave {provider}"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "AI working"
+msgstr "L’IA è al lavoro"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "All"
+msgstr "Tutte"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "all projects, all printers"
+msgstr "tutti i progetti, tutte le stampanti"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/SetupCard.tsx
+msgid "All settings"
+msgstr "Tutte le impostazioni"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Allow this AI tool to read and change the open project?"
+msgstr "Consentire a questo strumento di IA di leggere e modificare il progetto aperto?"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Already have an account?"
+msgstr "Hai già un account?"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "Already in JusPrin"
+msgstr "Già in JusPrin"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Also .stp and .drc files."
+msgstr "Anche file .stp e .drc."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Also brings {filaments, plural, one {{filaments} filament} other {{filaments} filaments}} and {settings, plural, one {{settings} print setting} other {{settings} print settings}}."
+msgstr "Porta anche {filaments, plural, one {{filaments} filamento} many {{filaments} filamenti} other {{filaments} filamenti}} e {settings, plural, one {{settings} impostazione di stampa} many {{settings} impostazioni di stampa} other {{settings} impostazioni di stampa}}."
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "Also imported: {filaments, plural, one {# filament} other {# filaments}} ({filamentList}) and {settings, plural, one {# print setting} other {# print settings}} ({settingList})."
+msgstr "Importati anche: {filaments, plural, one {# filamento} many {# filamenti} other {# filamenti}} ({filamentList}) e {settings, plural, one {# impostazione di stampa} many {# impostazioni di stampa} other {# impostazioni di stampa}} ({settingList})."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Another printer is already named “{trimmed}”."
+msgstr "Un’altra stampante si chiama già “{trimmed}”."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Any plan ends, and the credits on {email} are removed with everything JusPrin keeps for this account. This can’t be undone."
+msgstr "Qualsiasi piano termina e i crediti di {email} vengono rimossi insieme a tutto ciò che JusPrin conserva per questo account. L’operazione non può essere annullata."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Any plan ends, and the credits on this account are removed with everything JusPrin keeps for this account. This can’t be undone."
+msgstr "Qualsiasi piano termina e i crediti di questo account vengono rimossi insieme a tutto ciò che JusPrin conserva per questo account. L’operazione non può essere annullata."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "API key"
+msgstr "Chiave API"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Appearance"
+msgstr "Aspetto"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Arguments"
+msgstr "Argomenti"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Arrange plate"
+msgstr "Disponi piatto"
+
+# AI Translated
+#: src/App.tsx
+msgid "Ask about this filament or request a change…"
+msgstr "Chiedi qualcosa su questo filamento o richiedi una modifica…"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Ask about this print or request a change…"
+msgstr "Chiedi qualcosa su questa stampa o richiedi una modifica…"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Ask AI about printer settings…"
+msgstr "Chiedi all’IA delle impostazioni stampante…"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Ask anything about connecting it"
+msgstr "Chiedi qualsiasi cosa sulla connessione"
+
+# AI Translated
+#: src/App.tsx
+msgid "Ask current chat about this"
+msgstr "Chiedi alla chat corrente"
+
+# AI Translated
+# Needs human review: 'it' is an AI tool such as Claude Code; check the masculine 'gli' fits
+#: src/components/SetupLocalTool.tsx
+msgid "Ask it about the open project."
+msgstr "Chiedigli del progetto aperto."
+
+# AI Translated
+#: src/App.tsx
+msgid "ask, or steer this chat…"
+msgstr "chiedi, o guida questa chat…"
+
+# AI Translated
+#. How far a paused print got: at 27%
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "at {rounded}%"
+msgstr "al {rounded}%"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Attach a file"
+msgstr "Allega un file"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Automatic checks are off."
+msgstr "I controlli automatici sono disattivati."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+#: ../HomeUI/src/components/Onboarding.tsx
+#: ../HomeUI/src/components/PrintHistory.tsx
+#: src/components/AddPrinterForm.tsx
+msgctxt "navigation"
+msgid "Back"
+msgstr "Indietro"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Back to chat"
+msgstr "Torna alla chat"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+#: src/components/ChatNavigation.tsx
+msgid "Back to chats"
+msgstr "Torna alle chat"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Back to Home"
+msgstr "Torna alla Home"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+#: src/components/SetupLocalTool.tsx
+msgid "Back to setup options"
+msgstr "Torna alle opzioni di configurazione"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Back to the project"
+msgstr "Torna al progetto"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Backup: <0>{backup}</0>"
+msgstr "Backup: <0>{backup}</0>"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Bambu plug-in installed"
+msgstr "Plug-in Bambu installato"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Bambu plug-in needed"
+msgstr "Serve il plug-in Bambu"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Bed type set on this plate"
+msgstr "Tipo di piatto impostato su questo piatto"
+
+# AI Translated
+# Needs human review: Refers to an API key: 'Salvata' agrees with 'chiave'; check the subject
+#: src/components/AgentConnection.tsx
+msgid "Billed by your provider, not JusPrin. Stored on this computer only."
+msgstr "Fatturato dal tuo fornitore, non da JusPrin. Salvata solo su questo computer."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Billing and usage"
+msgstr "Fatturazione e utilizzo"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Bought credits"
+msgstr "Crediti acquistati"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+#: src/components/PrinterPicker.tsx
+msgid "Brand"
+msgstr "Marca"
+
+# AI Translated
+# Needs human review: Feature name kept in English like upstream brand terms; decide whether to translate ('Porta la tua IA')
+#: src/components/Preferences.tsx
+msgid "Bring Your Own AI"
+msgstr "Bring Your Own AI"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Bring Your Own AI: an API key or an AI app you already pay for. No JusPrin account needed. Set up as many as you like; each chat picks a model from them."
+msgstr "Bring Your Own AI: una chiave API o un’app di IA che paghi già. Nessun account JusPrin necessario. Configurane quante vuoi; ogni chat sceglie un modello tra queste."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Bring your printers from {app}?"
+msgstr "Portare le tue stampanti da {app}?"
+
+# AI Translated
+#: src/App.tsx
+msgid "Browse the full printer list"
+msgstr "Sfoglia l’elenco completo delle stampanti"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Built-in printer and filament profiles"
+msgstr "Profili integrati di stampanti e filamenti"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "By continuing you agree to the <0>Terms</0> and <1>Privacy Policy</1>."
+msgstr "Continuando accetti i <0>Termini</0> e l’<1>Informativa sulla privacy</1>."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Calibrate…"
+msgstr "Calibra…"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Camera view of {name}"
+msgstr "Vista della fotocamera di {name}"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Can’t be stopped once started; it takes a moment."
+msgstr "Una volta avviato non si può interrompere; richiede un momento."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterPickerHost.tsx
+msgid "Can’t find your printer? <0>Ask AI</0>"
+msgstr "Non trovi la tua stampante? <0>Chiedi all’IA</0>"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "Can’t import"
+msgstr "Impossibile importare"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Can’t write {path}."
+msgstr "Impossibile scrivere {path}."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Can’t write the settings file."
+msgstr "Impossibile scrivere il file delle impostazioni."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+#: ../HomeUI/src/components/PrinterMenu.tsx
+#: src/App.tsx
+#: src/App.tsx
+#: src/components/AddPrinterForm.tsx
+#: src/components/AddPrinterForm.tsx
+#: src/components/AddPrinterForm.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/ChangeRows.tsx
+#: src/components/ChatNavigation.tsx
+#: src/components/ChatNavigation.tsx
+#: src/components/OrcaImport.tsx
+#: src/components/OrcaImport.tsx
+#: src/components/Preferences.tsx
+#: src/components/PrinterPanel.tsx
+#: src/components/SetupLocalTool.tsx
+#: src/components/SignInDoor.tsx
+#: src/components/ToolActivityCard.tsx
+#: src/components/WorkCard.tsx
+msgid "Cancel"
+msgstr "Annulla"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+#: src/components/WorkCard.tsx
+msgid "Cancelled"
+msgstr "Annullato"
+
+# AI Translated
+#: src/components/ToolActivityCard.tsx
+msgid "Cancelled — nothing was changed"
+msgstr "Annullato — non è stato modificato nulla"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+#: src/components/SignInDoor.tsx
+#: src/components/SignInDoor.tsx
+msgid "Change email"
+msgstr "Cambia email"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Change…"
+msgstr "Cambia…"
+
+# AI Translated
+# Needs human review: Filter tab for changed settings; feminine agrees with 'impostazioni'
+#: src/components/AllSettings.tsx
+msgid "Changed"
+msgstr "Modificate"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "changed outside JusPrin, checked just now"
+msgstr "modificato fuori da JusPrin, controllato proprio ora"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Changes"
+msgstr "Modifiche"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Changes every window, including the 3D view."
+msgstr "Cambia ogni finestra, compresa la vista 3D."
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Chat actions"
+msgstr "Azioni della chat"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Chat title"
+msgstr "Titolo della chat"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Chats"
+msgstr "Chat"
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "Chatting here needs AI."
+msgstr "Per chattare qui serve l’IA."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Check key"
+msgstr "Verifica chiave"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Check now"
+msgstr "Controlla ora"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Check plan"
+msgstr "Controlla il piano di stampa"
+
+# AI Translated
+#: src/components/Guide.tsx
+msgid "Check the spelling or try other words. You can also ask AI: choose Ask AI… in the Help menu."
+msgstr "Controlla l’ortografia o prova altre parole. Puoi anche chiedere all’IA: scegli Chiedi all’IA… nel menu Aiuto."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Check your email."
+msgstr "Controlla la tua email."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Checking for a newer version"
+msgstr "Ricerca di una versione più recente"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Checking with {name}…"
+msgstr "Verifica con {name}…"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Checking your account…"
+msgstr "Verifica del tuo account…"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Checking…"
+msgstr "Verifica in corso…"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "Choose a brand"
+msgstr "Scegli una marca"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "Choose a model"
+msgstr "Scegli un modello"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "Choose a photo…"
+msgstr "Scegli una foto…"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "Choose another folder…"
+msgstr "Scegli un’altra cartella…"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Choose my printer"
+msgstr "Scegli la mia stampante"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "Choose the folder…"
+msgstr "Scegli la cartella…"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Clear search"
+msgstr "Cancella ricerca"
+
+# AI Translated
+#: src/components/Guide.tsx
+#: src/components/Guide.tsx
+msgid "Clear the search"
+msgstr "Cancella la ricerca"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+#: src/components/ChatNavigation.tsx
+#: src/components/Composer.tsx
+#: src/components/OrcaImport.tsx
+#: src/components/SetupLocalTool.tsx
+msgid "Close"
+msgstr "Chiudi"
+
+# AI Translated
+#: src/App.tsx
+msgid "Close chat"
+msgstr "Chiudi chat"
+
+# AI Translated
+#: src/App.tsx
+msgid "Close this chat?"
+msgstr "Chiudere questa chat?"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Color painting"
+msgstr "Pittura a colori"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+#: src/components/SetupLocalTool.tsx
+msgid "Connect"
+msgstr "Connetti"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Connect {name}"
+msgstr "Connetti {name}"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Connect {printerName}"
+msgstr "Connetti {printerName}"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/SetupLocalTool.tsx
+msgid "Connect an AI tool you already use"
+msgstr "Connetti uno strumento di IA che usi già"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Connect it to send prints straight from JusPrin"
+msgstr "Connettila per inviare le stampe direttamente da JusPrin"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+#: ../HomeUI/src/components/PrinterMenu.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/SetupLocalTool.tsx
+msgid "Connect…"
+msgstr "Connetti…"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+#: src/components/SetupLocalTool.tsx
+msgid "Connected"
+msgstr "Connessa"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Connecting this printer has failed twice, and a report helps us fix why. It holds what the app saw and this chat, with anything that looks like an access code or API key hidden. Nothing is sent unless you choose to."
+msgstr "La connessione di questa stampante non è riuscita due volte, e un rapporto ci aiuta a capire perché. Contiene ciò che l’app ha visto e questa chat, con tutto ciò che sembra un codice di accesso o una chiave API nascosto. Non viene inviato nulla se non lo scegli tu."
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+#: ../HomeUI/src/components/PrinterCard.tsx
+#: src/components/Panels.tsx
+msgid "Connecting…"
+msgstr "Connessione…"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+#: ../HomeUI/src/components/Onboarding.tsx
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Continue"
+msgstr "Continua"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Continue with Google"
+msgstr "Continua con Google"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Controls"
+msgstr "Controlli"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+#: src/components/TurnActivity.tsx
+msgid "Copied"
+msgstr "Copiato"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+#: src/components/SetupLocalTool.tsx
+msgid "Copy"
+msgstr "Copia"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Copy details"
+msgstr "Copia dettagli"
+
+# AI Translated
+# Needs human review: Material cost with no currency; check 'costo {amount}' reads right
+#. A material cost with no known currency
+#: src/components/SetupCard.tsx
+msgid "cost {amount}"
+msgstr "costo {amount}"
+
+# AI Translated
+#: src/components/AttachmentChip.tsx
+msgid "Could not be attached"
+msgstr "Impossibile allegare"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "Couldn’t load the model list"
+msgstr "Impossibile caricare l’elenco dei modelli"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Couldn’t reach {name} to check this key. Nothing was saved. Try again."
+msgstr "Impossibile raggiungere {name} per verificare questa chiave. Non è stato salvato nulla. Riprova."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Couldn’t reach GitHub"
+msgstr "Impossibile raggiungere GitHub"
+
+# AI Translated
+#. {checked} is how long ago, such as "just now", "2 hours ago" or "yesterday".
+#: src/components/Preferences.tsx
+msgid "Couldn’t reach GitHub · last checked {checked}"
+msgstr "Impossibile raggiungere GitHub · ultimo controllo {checked}"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Create a filament preset"
+msgstr "Crea un profilo filamento"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Create a filament preset…"
+msgstr "Crea un profilo filamento…"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+#: src/components/BalancePanel.tsx
+msgid "Credits"
+msgstr "Crediti"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Credits left"
+msgstr "Crediti rimasti"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Current setup"
+msgstr "Configurazione attuale"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Dark"
+msgstr "Scuro"
+
+# AI Translated
+#. A thinking level: the model decides
+#: src/components/ModelPickers.tsx
+msgid "Default"
+msgstr "Predefinito"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Default for the {modelName}"
+msgstr "Predefinito per {modelName}"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+#: src/components/ChatNavigation.tsx
+msgid "Delete"
+msgstr "Elimina"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Delete ‘{title}’ and its messages? Your project and its print history stay as they are. This can't be undone."
+msgstr "Eliminare ‘{title}’ e i suoi messaggi? Il progetto e la sua cronologia di stampa restano come sono. L’operazione non può essere annullata."
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Delete account"
+msgstr "Elimina account"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Delete account…"
+msgstr "Elimina account…"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Delete chat?"
+msgstr "Eliminare la chat?"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Delete this JusPrin account"
+msgstr "Elimina questo account JusPrin"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Delete your JusPrin account?"
+msgstr "Eliminare il tuo account JusPrin?"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Deleted from your filaments. This test uses {earlier} again."
+msgstr "Eliminato dai tuoi filamenti. Questo test usa di nuovo {earlier}."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Deleting…"
+msgstr "Eliminazione…"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+#: src/components/Panels.tsx
+msgid "Diagnostics"
+msgstr "Diagnostica"
+
+# AI Translated
+#: src/App.tsx
+#: src/App.tsx
+msgid "Dismiss error"
+msgstr "Chiudi errore"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Document (PDF)"
+msgstr "Documento (PDF)"
+
+# AI Translated
+#: ../HomeUI/src/components/AgentGroup.tsx
+msgid "Don’t show again"
+msgstr "Non mostrare più"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+#: src/components/SetupLocalTool.tsx
+#: src/components/ToolActivityCard.tsx
+#: src/components/WorkCard.tsx
+msgid "Done"
+msgstr "Fatto"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Double-clicking a .3mf file opens it here."
+msgstr "Facendo doppio clic su un file .3mf, si apre qui."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Download"
+msgstr "Scarica"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Downloads"
+msgstr "Download"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Drop a model or project here"
+msgstr "Trascina qui un modello o un progetto"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Drop a model or project to start"
+msgstr "Trascina un modello o un progetto per iniziare"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "e.g. \"bambu a1 mini\" or \"not sure, the small one\""
+msgstr "ad es. \"bambu a1 mini\" o \"non so, quella piccola\""
+
+# AI Translated
+#: src/printerWords.ts
+msgid "e.g. \"I put a 0.6 nozzle on it\" or \"loaded black PETG\""
+msgstr "ad es. \"ci ho messo un ugello da 0.6\" o \"ho caricato PETG nero\""
+
+# AI Translated
+#: src/credits.ts
+msgid "Each message you send costs credits: Standard {STANDARD_MESSAGE_CREDITS}, Expert {EXPERT_MESSAGE_CREDITS}."
+msgstr "Ogni messaggio che invii costa crediti: Standard {STANDARD_MESSAGE_CREDITS}, Esperto {EXPERT_MESSAGE_CREDITS}."
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Earlier setup"
+msgstr "Configurazione precedente"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Earlier setup — saved with this conversation"
+msgstr "Configurazione precedente — salvata con questa conversazione"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Email"
+msgstr "Email"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Email me a 6-digit code"
+msgstr "Inviami via email un codice a 6 cifre"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Ends {ends}."
+msgstr "Termina il {ends}."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Ends any plan and removes this account’s credits and everything JusPrin keeps for it on its servers."
+msgstr "Termina qualsiasi piano e rimuove i crediti di questo account e tutto ciò che JusPrin conserva per esso sui suoi server."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Enter a name for the printer."
+msgstr "Inserisci un nome per la stampante."
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Enter a title of 1–120 characters."
+msgstr "Inserisci un titolo di 1–120 caratteri."
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Error"
+msgstr "Errore"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+#: src/components/SetupCard.tsx
+msgid "Estimate unavailable"
+msgstr "Stima non disponibile"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Every chat can pick a model from these providers in its message box."
+msgstr "Ogni chat può scegliere un modello di questi fornitori nella propria casella dei messaggi."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Every filament for the {modelName}"
+msgstr "Tutti i filamenti per {modelName}"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "Every printer in this {app} folder is already in JusPrin, so there is nothing to import."
+msgstr "Tutte le stampanti in questa cartella di {app} sono già in JusPrin, quindi non c’è nulla da importare."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Every project saves itself as you work"
+msgstr "Ogni progetto si salva da solo mentre lavori"
+
+# AI Translated
+#: src/App.tsx
+msgid "Excerpt: “{quoted}”"
+msgstr "Estratto: “{quoted}”"
+
+# AI Translated
+#. The more capable kind of AI model
+#: src/credits.ts
+msgid "Expert"
+msgstr "Esperto"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Expires {date}"
+msgstr "Scade il {date}"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Expiring credits are used first."
+msgstr "I crediti in scadenza vengono usati per primi."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Export again"
+msgstr "Esporta di nuovo"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Export…"
+msgstr "Esporta…"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Exported {file}"
+msgstr "Esportato {file}"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "External tool"
+msgstr "Strumento esterno"
+
+# AI Translated
+#. A thinking level of the AI model
+#: src/components/ModelPickers.tsx
+msgid "Extra high"
+msgstr "Molto alto"
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Failed"
+msgstr "Non riuscito"
+
+# AI Translated
+#. A thinking level of the AI model
+#: src/components/ModelPickers.tsx
+msgid "Fast"
+msgstr "Veloce"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "filament"
+msgstr "filamento"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Filament"
+msgstr "Filamento"
+
+# AI Translated
+#: src/App.tsx
+msgid "Filament settings"
+msgstr "Impostazioni filamento"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Filaments"
+msgstr "Filamenti"
+
+# AI Translated
+#. The kind of an attached file of no known kind
+#: src/components/AttachmentChip.tsx
+msgid "File"
+msgstr "File"
+
+# AI Translated
+#. Button: add a filter to the list
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Filter"
+msgstr "Filtra"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Find a language"
+msgstr "Cerca una lingua"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Finish in your browser."
+msgstr "Completa nel browser."
+
+# AI Translated
+# Needs human review: Print history filter/status; feminine agrees with 'stampa'
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Finished"
+msgstr "Terminata"
+
+# AI Translated
+#. {day} is a short weekday (Sun) or a date (Oct 20)
+#: ../HomeUI/src/history.ts
+msgid "finished {day}"
+msgstr "terminata {day}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "finished today"
+msgstr "terminata oggi"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "finished yesterday"
+msgstr "terminata ieri"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Follows the selection in the 3D view."
+msgstr "Segue la selezione nella vista 3D."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Follows the selection in the 3D view. Shown: only what {shownName} sets itself."
+msgstr "Segue la selezione nella vista 3D. Mostrato: solo ciò che {shownName} imposta da sé."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Follows the selection in the 3D view. Shown: what {shownName} sets itself, and its objects."
+msgstr "Segue la selezione nella vista 3D. Mostrato: ciò che {shownName} imposta da sé e i suoi oggetti."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "For sizes, positions and distances."
+msgstr "Per dimensioni, posizioni e distanze."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "For the {modelName}"
+msgstr "Per {modelName}"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Forgot password"
+msgstr "Password dimenticata"
+
+# AI Translated
+# Needs human review: Refers to an AI app or its settings file; feminine agrees with 'app'
+#: src/components/AgentConnection.tsx
+msgid "Found on this computer"
+msgstr "Trovata su questo computer"
+
+# AI Translated
+# Needs human review: Refers to a printer found on the network; feminine agrees with 'stampante'
+#: src/components/PrinterPanel.tsx
+#: src/components/PrinterPicker.tsx
+msgid "Found on your network"
+msgstr "Trovata sulla tua rete"
+
+# AI Translated
+#. What a door costs: nothing
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Free"
+msgstr "Gratis"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Free credits"
+msgstr "Crediti gratuiti"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "From before the last change."
+msgstr "Da prima dell’ultima modifica."
+
+# AI Translated
+#: src/App.tsx
+msgid "From earlier chat “{title}” (saved {saved}):"
+msgstr "Dalla chat precedente “{title}” (salvata {saved}):"
+
+# AI Translated
+#: src/App.tsx
+msgid "From earlier chat “{title}”:"
+msgstr "Dalla chat precedente “{title}”:"
+
+# AI Translated
+#: src/components/AccountBox.tsx
+msgid "From JusPrin"
+msgstr "Da JusPrin"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "from the preset"
+msgstr "dal profilo"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "From the printer: {value}"
+msgstr "Dalla stampante: {value}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Full release notes on GitHub"
+msgstr "Note di rilascio complete su GitHub"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Fuzzy skin painting"
+msgstr "Dipingi superficie ruvida"
+
+# AI Translated
+#. {signupCredits} is the credits a new account is given, 500
+#: ../HomeUI/src/components/AgentGroup.tsx
+msgid "Get {signupCredits} free credits for JusPrin’s AI, which specializes in 3D printing."
+msgstr "Ricevi {signupCredits} crediti gratuiti per l’IA di JusPrin, specializzata nella stampa 3D."
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+#: src/components/Composer.tsx
+#: src/components/Composer.tsx
+#: src/components/MessageList.tsx
+#: src/components/Preferences.tsx
+msgid "Get more credits"
+msgstr "Ottieni altri crediti"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/MessageList.tsx
+#: src/components/ModelPickers.tsx
+#: src/components/SignInDoor.tsx
+msgid "Get the new version…"
+msgstr "Scarica la nuova versione…"
+
+# AI Translated
+#: src/credits.ts
+msgid "Good for your first month: about {standardMessages} Standard or {expertMessages} Expert messages."
+msgstr "Bastano per il primo mese: circa {standardMessages} messaggi Standard o {expertMessages} Esperto."
+
+# AI Translated
+#: src/components/Guide.tsx
+msgid "Guide pages"
+msgstr "Pagine della guida"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Height range"
+msgstr "Intervallo altezza"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Help me find the code"
+msgstr "Aiutami a trovare il codice"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Help me find the key"
+msgstr "Aiutami a trovare la chiave"
+
+# AI Translated
+#: ../HomeUI/src/components/AgentGroup.tsx
+msgid "Hide"
+msgstr "Nascondi"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "Hide details"
+msgstr "Nascondi dettagli"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+#: src/components/ChatNavigation.tsx
+msgid "Hide the AI panel"
+msgstr "Nascondi il pannello IA"
+
+# AI Translated
+#. A thinking level of the AI model
+#: src/components/ModelPickers.tsx
+msgid "High"
+msgstr "Alto"
+
+# AI Translated
+#: src/components/GcodeMarker.tsx
+msgid "history"
+msgstr "cronologia"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "How did it come out?"
+msgstr "Com’è venuta?"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "If {app} keeps its settings somewhere else, choose that folder."
+msgstr "Se {app} conserva le sue impostazioni altrove, scegli quella cartella."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "If you skip, files are sliced for a stand-in printer with a 250 mm bed, not for yours. Add your printer before you print anything. You can do that later on the home screen."
+msgstr "Se salti, i file vengono elaborati per una stampante sostitutiva con un piatto da 250 mm, non per la tua. Aggiungi la tua stampante prima di stampare qualsiasi cosa. Puoi farlo più tardi dalla schermata Home."
+
+# AI Translated
+#. The kind of an attached file
+#: src/components/AttachmentChip.tsx
+msgid "Image"
+msgstr "Immagine"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+#: src/components/OrcaImport.tsx
+msgid "Import"
+msgstr "Importa"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Import from {app}…"
+msgstr "Importa da {app}…"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+#: src/components/OrcaImportLists.tsx
+msgid "Imported"
+msgstr "Importato"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "Imported as ‘{renamedTo}’"
+msgstr "Importato come ‘{renamedTo}’"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Imported from {app}"
+msgstr "Importato da {app}"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+#: src/components/OrcaImport.tsx
+msgid "Importing…"
+msgstr "Importazione…"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Inches"
+msgstr "Pollici"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Install it, or copy the command and run it later."
+msgstr "Installalo, oppure copia il comando ed eseguilo più tardi."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Install plug-in"
+msgstr "Installa plug-in"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Instead of toward the middle of the view."
+msgstr "Anziché verso il centro della vista."
+
+# AI Translated
+#: src/components/WorkCard.tsx
+msgid "Interrupted when the project was closed"
+msgstr "Interrotto alla chiusura del progetto"
+
+# AI Translated
+#: src/components/WorkCard.tsx
+msgid "It did not finish."
+msgstr "Non è terminato."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "It didn’t work"
+msgstr "Non ha funzionato"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "It worked"
+msgstr "Ha funzionato"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Its earlier values are back."
+msgstr "I suoi valori precedenti sono stati ripristinati."
+
+# AI Translated
+# Needs human review: Button that scrolls the chat to the newest messages
+#: src/components/MessageList.tsx
+#: src/components/MessageList.tsx
+msgid "Jump to latest"
+msgstr "Vai agli ultimi"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "JusPrin {latest} is available"
+msgstr "JusPrin {latest} è disponibile"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+msgid "JusPrin account"
+msgstr "Account JusPrin"
+
+# AI Translated
+#: src/components/FileNotesCard.tsx
+msgid "JusPrin answered No to this question."
+msgstr "JusPrin ha risposto No a questa domanda."
+
+# AI Translated
+# Needs human review: {firstPrinter} is a printer name; 'la tua' agrees with 'stampante'
+#: ../HomeUI/src/App.tsx
+msgid "JusPrin asks what the part is for, then plans the print for your {firstPrinter}."
+msgstr "JusPrin chiede a cosa serve il pezzo, poi pianifica la stampa per la tua {firstPrinter}."
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "JusPrin asks what the part is for, then plans the print."
+msgstr "JusPrin chiede a cosa serve il pezzo, poi pianifica la stampa."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "JusPrin can run this for you, or you can copy it and run it yourself."
+msgstr "JusPrin può eseguirlo per te, oppure puoi copiarlo ed eseguirlo tu."
+
+# AI Translated
+#: src/App.tsx
+msgid "JusPrin can't find the project version this chat was working on, so this chat can't continue. Start a new chat to keep working."
+msgstr "JusPrin non trova la versione del progetto su cui stava lavorando questa chat, quindi la chat non può continuare. Inizia una nuova chat per continuare a lavorare."
+
+# AI Translated
+#: src/components/FileNotesCard.tsx
+msgid "JusPrin chose Cancel for this question."
+msgstr "JusPrin ha scelto Annulla per questa domanda."
+
+# AI Translated
+# Needs human review: 'this' is an app dialog (finestra/domanda); check the feminine pronoun fits
+#: src/components/FileNotesCard.tsx
+msgid "JusPrin closed this without answering it."
+msgstr "JusPrin l’ha chiusa senza rispondere."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "JusPrin copies these printers with their filaments and print settings. {app} keeps its own copy."
+msgstr "JusPrin copia queste stampanti con i loro filamenti e le impostazioni di stampa. {app} conserva la propria copia."
+
+# AI Translated
+#: src/App.tsx
+msgid "JusPrin couldn't put the project back. Open the project again from Home to keep working on it."
+msgstr "JusPrin non è riuscito a ripristinare il progetto. Riapri il progetto dalla Home per continuare a lavorarci."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "JusPrin didn’t find {app}’s folder on this computer."
+msgstr "JusPrin non ha trovato la cartella di {app} su questo computer."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "JusPrin found a filament and print settings in {app} that it doesn’t have yet."
+msgstr "JusPrin ha trovato in {app} un filamento e delle impostazioni di stampa che non ha ancora."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "JusPrin found a filament in {app} that it doesn’t have yet."
+msgstr "JusPrin ha trovato in {app} un filamento che non ha ancora."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "JusPrin found filaments and print settings in {app} that it doesn’t have yet."
+msgstr "JusPrin ha trovato in {app} filamenti e impostazioni di stampa che non ha ancora."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "JusPrin found filaments in {app} that it doesn’t have yet."
+msgstr "JusPrin ha trovato in {app} filamenti che non ha ancora."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "JusPrin found no {app} printers in this folder."
+msgstr "JusPrin non ha trovato stampanti di {app} in questa cartella."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "JusPrin found print settings in {app} that it doesn’t have yet."
+msgstr "JusPrin ha trovato in {app} impostazioni di stampa che non ha ancora."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "JusPrin keeps up to 200 versions of each project, about 4 GB at most. Pinned versions are always kept."
+msgstr "JusPrin conserva fino a 200 versioni di ogni progetto, al massimo circa 4 GB. Le versioni fissate vengono sempre conservate."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "JusPrin makes filament presets for printers that are already set up, so the {modelName} is added first. Then the Create filament window opens. Tick the {modelName} there, and JusPrin puts your new preset in slot 1."
+msgstr "JusPrin crea profili filamento per stampanti già configurate, quindi prima viene aggiunta {modelName}. Poi si apre la finestra Crea filamento. Seleziona lì {modelName} e JusPrin mette il tuo nuovo profilo nello slot 1."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "JusPrin prepares every print to fit your printer’s bed and nozzle. You can add more printers later."
+msgstr "JusPrin prepara ogni stampa in base al piatto e all’ugello della tua stampante. Puoi aggiungere altre stampanti più tardi."
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "JusPrin slices it for your {firstPrinter}."
+msgstr "JusPrin lo elabora per la tua {firstPrinter}."
+
+# AI Translated
+# Needs human review: 'it' is a model file; check the masculine pronoun
+#: ../HomeUI/src/App.tsx
+msgid "JusPrin slices it."
+msgstr "JusPrin lo elabora."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "JusPrin tries again tomorrow, or the next time it starts."
+msgstr "JusPrin riproverà domani, o al prossimo avvio."
+
+# AI Translated
+# Needs human review: Label before a file path the AI tool setup will change
+#: src/components/SetupLocalTool.tsx
+msgid "JusPrin will edit"
+msgstr "JusPrin modificherà"
+
+# AI Translated
+#. placeholder {0}: appearance.restartFor
+#: src/components/Preferences.tsx
+msgid "JusPrin will use {0} after it restarts."
+msgstr "JusPrin userà {0} dopo il riavvio."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "JusPrin’s AI specializes in 3D printing. It sets up your prints, explains your settings and fixes what goes wrong."
+msgstr "L’IA di JusPrin è specializzata nella stampa 3D. Configura le tue stampe, spiega le tue impostazioni e corregge ciò che va storto."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "JusPrin's connection helper is missing."
+msgstr "Manca il componente di connessione di JusPrin."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "just now"
+msgstr "proprio ora"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Just slice for now"
+msgstr "Per ora elabora e basta"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Keep JusPrin open while {name} uses it — the helper doesn’t launch it."
+msgstr "Tieni JusPrin aperto mentre {name} lo usa — il componente non lo avvia."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Keep JusPrin open while the AI tool uses it — the helper doesn’t launch it."
+msgstr "Tieni JusPrin aperto mentre lo strumento di IA lo usa — il componente non lo avvia."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Keep JusPrin open while you use {name}; the helper doesn’t launch it. Restarting JusPrin later won’t need this again."
+msgstr "Tieni JusPrin aperto mentre usi {name}; il componente non lo avvia. Riavviando JusPrin in seguito non servirà rifarlo."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Keeps <0>{hint}</0> until the new key passes"
+msgstr "Mantiene <0>{hint}</0> finché la nuova chiave non supera la verifica"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Kept file changed on disk · slice again to print it"
+msgstr "Il file conservato è cambiato sul disco · elabora di nuovo per stamparlo"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Key saved on this computer"
+msgstr "Chiave salvata su questo computer"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Language"
+msgstr "Lingua"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Last connected just now"
+msgstr "Ultima connessione proprio ora"
+
+# AI Translated
+#. {day} is a short weekday (Sun) or a date (Oct 20)
+#: ../HomeUI/src/history.ts
+msgid "last finished {day}"
+msgstr "ultima stampa terminata {day}"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "last finished today"
+msgstr "ultima stampa terminata oggi"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+msgid "last finished yesterday"
+msgstr "ultima stampa terminata ieri"
+
+# AI Translated
+# Needs human review: Shown on a printer card next to a time; check word order with the time
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "last print finished"
+msgstr "ultima stampa terminata"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Last week"
+msgstr "Settimana scorsa"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Later"
+msgstr "Più tardi"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Left-drag"
+msgstr "Trascinamento sinistro"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Let an AI app on this computer, such as Claude Desktop, work with the open project. JusPrin adds itself to that app’s settings."
+msgstr "Consenti a un’app di IA su questo computer, come Claude Desktop, di lavorare con il progetto aperto. JusPrin si aggiunge alle impostazioni di quell’app."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Light"
+msgstr "Chiaro"
+
+# AI Translated
+# Needs human review: Badge on a live camera picture; kept 'LIVE' as is common in Italian, or use 'IN DIRETTA'
+#. On a camera picture: it shows the printer as it is now
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "LIVE"
+msgstr "LIVE"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Live URL (developer only — this can change after restart)"
+msgstr "URL live (solo per sviluppatori — può cambiare dopo il riavvio)"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterPickerHost.tsx
+msgid "Loading JusPrin’s settings for this printer…"
+msgstr "Caricamento delle impostazioni di JusPrin per questa stampante…"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "Loading models…"
+msgstr "Caricamento dei modelli…"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Loading print history…"
+msgstr "Caricamento della cronologia di stampa…"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Local work never needs an account. Your own API key or AI tool works without one; set those up in the <0>BYOAI</0> section."
+msgstr "Il lavoro in locale non richiede mai un account. La tua chiave API o il tuo strumento di IA funzionano anche senza; configurali nella sezione <0>BYOAI</0>."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Look again"
+msgstr "Cerca di nuovo"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Look at the change again before saving."
+msgstr "Ricontrolla la modifica prima di salvare."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "Looked in {path}"
+msgstr "Cercato in {path}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Looking for a newer version on GitHub…"
+msgstr "Ricerca di una versione più recente su GitHub…"
+
+# AI Translated
+#. A thinking level of the AI model
+#: src/components/ModelPickers.tsx
+msgid "Low"
+msgstr "Basso"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+#: src/components/AddPrinterForm.tsx
+msgid "Made for other printers"
+msgstr "Pensato per altre stampanti"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Made for other printers. Picking it saves a copy for the {modelName}."
+msgstr "Pensato per altre stampanti. Sceglierlo salva una copia per {modelName}."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Made for the {first} and {second}. Picking it saves a copy for the {modelName}."
+msgstr "Pensato per {first} e {second}. Sceglierlo salva una copia per {modelName}."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Made for the {first}. Picking it saves a copy for the {modelName}."
+msgstr "Pensato per {first}. Sceglierlo salva una copia per {modelName}."
+
+# AI Translated
+#. {made} is the printer, filament and print settings, joined by ·
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Made with {made}"
+msgstr "Realizzato con {made}"
+
+# AI Translated
+# Needs human review: Print history: the kept file matches; check the subject
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "matches, checked just now"
+msgstr "corrisponde, controllato proprio ora"
+
+# AI Translated
+# Needs human review: Thinking levels set: Disattivato, Minimo, Basso, Medio, Alto, Molto alto, Massimo; check they read as one set
+#. A thinking level of the AI model: the most
+#: src/components/ModelPickers.tsx
+msgid "Max"
+msgstr "Massimo"
+
+# AI Translated
+#. A thinking level of the AI model
+#: src/components/ModelPickers.tsx
+msgid "Medium"
+msgstr "Medio"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Message AI"
+msgstr "Scrivi all’IA"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Middle-drag"
+msgstr "Trascinamento centrale"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Millimetres"
+msgstr "Millimetri"
+
+# AI Translated
+#. A thinking level of the AI model
+#: src/components/ModelPickers.tsx
+msgid "Minimal"
+msgstr "Minimo"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Model"
+msgstr "Modello"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+#: src/components/PrinterPicker.tsx
+msgctxt "printer"
+msgid "Model"
+msgstr "Modello"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Modifier"
+msgstr "Modificatore"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "More preferences…"
+msgstr "Altre preferenze…"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterPickerHost.tsx
+msgid "Most printers ship with 0.4 mm."
+msgstr "La maggior parte delle stampanti viene fornita con 0.4 mm."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Mouse"
+msgstr "Mouse"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Mouse buttons"
+msgstr "Pulsanti del mouse"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Mouse: drag to turn, right-drag to pan. Touchpad: Alt-drag to turn, Shift-drag to pan."
+msgstr "Mouse: trascina per ruotare, trascina con il tasto destro per la panoramica. Touchpad: Alt+trascina per ruotare, Maiusc+trascina per la panoramica."
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Move"
+msgstr "Sposta"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Moving the view"
+msgstr "Spostare la vista"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Multimaterial"
+msgstr "Multimateriale"
+
+# AI Translated
+#. Sort order: by name
+#: ../HomeUI/src/App.tsx
+msgid "Name"
+msgstr "Nome"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Needs attention"
+msgstr "Richiede attenzione"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Never expire"
+msgstr "Senza scadenza"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "New"
+msgstr "Nuovo"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "New {name} key"
+msgstr "Nuova chiave {name}"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+#: src/components/ChatNavigation.tsx
+#: src/components/ChatNavigation.tsx
+msgid "New chat"
+msgstr "Nuova chat"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "New chats start with"
+msgstr "Le nuove chat iniziano con"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "New filament"
+msgstr "Nuovo filamento"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "New filaments and print settings"
+msgstr "Nuovi filamenti e impostazioni di stampa"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "New JusPrin versions"
+msgstr "Nuove versioni di JusPrin"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "New print settings"
+msgstr "Nuove impostazioni di stampa"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Next"
+msgstr "Avanti"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "No AI configured · using the selected preset."
+msgstr "Nessuna IA configurata · viene usato il profilo selezionato."
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "No AI configured."
+msgstr "Nessuna IA configurata."
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "No AI connected"
+msgstr "Nessuna IA connessa"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "No brand matches “{text}”"
+msgstr "Nessuna marca corrisponde a “{text}”"
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "No bridge messages recorded."
+msgstr "Nessun messaggio del bridge registrato."
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "No chats yet. Start a new chat about this project."
+msgstr "Ancora nessuna chat. Inizia una nuova chat su questo progetto."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "No filament for the {modelName} matches “{search}”."
+msgstr "Nessun filamento per {modelName} corrisponde a “{search}”."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "No G-codes match."
+msgstr "Nessun G-code corrisponde."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "No JusPrin entry yet — this adds one."
+msgstr "Ancora nessuna voce JusPrin — questa ne aggiunge una."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "No key"
+msgstr "Nessuna chiave"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "No language matches “{query}”"
+msgstr "Nessuna lingua corrisponde a “{query}”"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "No messages yet"
+msgstr "Ancora nessun messaggio"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "No model matches “{text}”"
+msgstr "Nessun modello corrisponde a “{text}”"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "No models match “{query}”."
+msgstr "Nessun modello corrisponde a “{query}”."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "No plan"
+msgstr "Nessun piano"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "No printer yet"
+msgstr "Ancora nessuna stampante"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "No projects match “{typed}”."
+msgstr "Nessun progetto corrisponde a “{typed}”."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "No report was sent."
+msgstr "Non è stato inviato nessun rapporto."
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "No settings read from the project"
+msgstr "Nessuna impostazione letta dal progetto"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "No settings to show: the selected printer is not an FFF printer."
+msgstr "Nessuna impostazione da mostrare: la stampante selezionata non è una stampante FFF."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/ChangeRows.tsx
+msgid "none"
+msgstr "nessuno"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "None"
+msgstr "Nessuno"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Not checked yet"
+msgstr "Non ancora controllato"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Not chosen yet"
+msgstr "Non ancora scelto"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Not connected"
+msgstr "Non connessa"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "not found"
+msgstr "non trovato"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Not found on this computer"
+msgstr "Non trovata su questo computer"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "Not imported"
+msgstr "Non importato"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Not in the list?"
+msgstr "Non è nell’elenco?"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Not kept for this printer · slice again to print it"
+msgstr "Non conservato per questa stampante · elabora di nuovo per stamparlo"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Not listening yet"
+msgstr "Non ancora in ascolto"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+#: src/components/PrinterPanel.tsx
+msgid "Not now"
+msgstr "Non ora"
+
+# AI Translated
+# Needs human review: Status of a tool action that did not run; feminine agrees with 'azione'
+#: src/components/TurnActivity.tsx
+msgid "Not run"
+msgstr "Non eseguita"
+
+# AI Translated
+#: src/components/ProposalCard.tsx
+msgid "Not saved"
+msgstr "Non salvato"
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "NOT SET UP"
+msgstr "NON CONFIGURATA"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Not sliced yet"
+msgstr "Non ancora elaborato"
+
+# AI Translated
+#: src/components/FileNotesCard.tsx
+#: src/components/FileNotesCard.tsx
+msgid "Notes about this file"
+msgstr "Note su questo file"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Nothing"
+msgstr "Nulla"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Nothing happened?"
+msgstr "Non è successo niente?"
+
+# AI Translated
+#: src/components/Guide.tsx
+msgid "Nothing in the guide mentions “{search}”."
+msgstr "Niente nella guida menziona “{search}”."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Nothing printed or exported yet."
+msgstr "Ancora niente stampato o esportato."
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+#: src/components/PrinterPicker.tsx
+msgid "Nozzle"
+msgstr "Ugello"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Object"
+msgstr "Oggetto"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Object settings changed"
+msgstr "Impostazioni dell’oggetto modificate"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Objects"
+msgstr "Oggetti"
+
+# AI Translated
+# Needs human review: Thinking level 'off'; check it fits the model picker
+#. A thinking level of the AI model: no thinking
+#: src/components/ModelPickers.tsx
+msgid "Off"
+msgstr "Disattivato"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Offline"
+msgstr "Non in linea"
+
+# AI Translated
+# Needs human review: Value of an on/off setting in All settings
+#: src/components/AllSettings.tsx
+msgid "On"
+msgstr "Attivo"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "On the network"
+msgstr "In rete"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Once a day JusPrin asks GitHub for its list of releases. GitHub sees your IP address, as with any web page. Nothing about you or your projects is sent."
+msgstr "Una volta al giorno JusPrin chiede a GitHub l’elenco delle sue versioni. GitHub vede il tuo indirizzo IP, come per qualsiasi pagina web. Non viene inviato nulla su di te o sui tuoi progetti."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Online"
+msgstr "In linea"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Open chat: {title}"
+msgstr "Apri chat: {title}"
+
+# AI Translated
+#: src/App.tsx
+msgid "Open filament settings"
+msgstr "Apri impostazioni filamento"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Open in chat"
+msgstr "Apri nella chat"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Open it in the 3D view, or choose it above, to see them."
+msgstr "Aprilo nella vista 3D, o sceglilo qui sopra, per vederle."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Open one in the 3D view, or choose it above, to see them."
+msgstr "Aprine uno nella vista 3D, o sceglilo qui sopra, per vederle."
+
+# AI Translated
+#: src/App.tsx
+msgid "Open printer settings"
+msgstr "Apri impostazioni stampante"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Open printer window"
+msgstr "Apri finestra stampante"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Open the browser again"
+msgstr "Riapri il browser"
+
+# AI Translated
+#: src/App.tsx
+msgid "Open the project again to keep working."
+msgstr "Riapri il progetto per continuare a lavorare."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Open with JusPrin"
+msgstr "Apri con JusPrin"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Open…"
+msgstr "Apri…"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Opened {name}"
+msgstr "Aperto {name}"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Opened {name} as a new project"
+msgstr "Aperto {name} come nuovo progetto"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Opened a file"
+msgstr "Aperto un file"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Opened a file as a new project"
+msgstr "Aperto un file come nuovo progetto"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Opens the release page on GitHub"
+msgstr "Apre la pagina della versione su GitHub"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+#: src/components/SignInDoor.tsx
+msgid "or"
+msgstr "oppure"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Or type your own answer…"
+msgstr "Oppure scrivi la tua risposta…"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Other ways:"
+msgstr "Altri modi:"
+
+# AI Translated
+# Needs human review: Group heading in All settings; upstream renders 'Others' as 'Altro'
+#: src/components/AllSettings.tsx
+msgid "Others"
+msgstr "Altro"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Pan"
+msgstr "Panoramica"
+
+# AI Translated
+#. How a print came out: it partly worked
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "Partly"
+msgstr "In parte"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+#: src/components/SignInDoor.tsx
+msgid "Password"
+msgstr "Password"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Paste"
+msgstr "Incolla"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Paste the new key"
+msgstr "Incolla la nuova chiave"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Paste your {name} key ({prefix}…)"
+msgstr "Incolla la tua chiave {name} ({prefix}…)"
+
+# AI Translated
+#. A printer status: the print is paused
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Paused"
+msgstr "In pausa"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Photo"
+msgstr "Foto"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Photo credits"
+msgstr "Crediti delle foto"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "Photo of the printed object"
+msgstr "Foto dell’oggetto stampato"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Photo or image"
+msgstr "Foto o immagine"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Picking one saves a copy for the {modelName}."
+msgstr "Sceglierne uno salva una copia per {modelName}."
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Plan credits"
+msgstr "Crediti del piano"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Plan needs another look"
+msgstr "Il piano di stampa va ricontrollato"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Plate"
+msgstr "Piatto"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgctxt "build plate"
+msgid "Plate"
+msgstr "Piatto"
+
+# AI Translated
+#: src/components/GcodeMarker.tsx
+msgid "Plate {plateNumber}"
+msgstr "Piatto {plateNumber}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Preference sections"
+msgstr "Sezioni delle preferenze"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Preferences"
+msgstr "Preferenze"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Preferences (Ctrl+,)"
+msgstr "Preferenze (Ctrl+,)"
+
+# AI Translated
+#: src/PreferencesApp.tsx
+msgid "Preferences could not reach JusPrin"
+msgstr "Le preferenze non sono riuscite a raggiungere JusPrin"
+
+# AI Translated
+# Needs human review: Lowercase value meaning 'whatever the preset says'
+#. A setting’s project value: whatever the preset says
+#: src/components/AllSettings.tsx
+msgid "preset"
+msgstr "profilo"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Preset: {preset}"
+msgstr "Profilo: {preset}"
+
+# AI Translated
+#: src/calibration.ts
+msgid "Pressure advance steps not kept in the file"
+msgstr "Passi del Pressure Advance non conservati nel file"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Print again"
+msgstr "Stampa di nuovo"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Print history"
+msgstr "Cronologia di stampa"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Printables and Thingiverse send the model straight here."
+msgstr "Printables e Thingiverse inviano il modello direttamente qui."
+
+# AI Translated
+# Needs human review: Lowercase value meaning 'the printer's value is used'
+#. A filament setting’s value: the printer’s value is used
+#: src/components/AllSettings.tsx
+#: src/components/ChangeRows.tsx
+msgid "printer"
+msgstr "stampante"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Printer"
+msgstr "Stampante"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Printer actions"
+msgstr "Azioni della stampante"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Printer last reported {observed}"
+msgstr "Ultimo stato riportato dalla stampante: {observed}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Printer name"
+msgstr "Nome della stampante"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Printer settings…"
+msgstr "Impostazioni stampante…"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Printer: {name}"
+msgstr "Stampante: {name}"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Printers"
+msgstr "Stampanti"
+
+# AI Translated
+#: src/App.tsx
+msgid "Printers already added stay added. The chat can't be opened again."
+msgstr "Le stampanti già aggiunte restano aggiunte. La chat non può essere riaperta."
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Printing"
+msgstr "In stampa"
+
+# AI Translated
+# Needs human review: Lowercase kind of preset (process) in a change row
+#: src/components/ChangeRows.tsx
+msgid "process"
+msgstr "processo"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Process"
+msgstr "Processo"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Project chats"
+msgstr "Chat del progetto"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Project: {name}"
+msgstr "Progetto: {name}"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Projects"
+msgstr "Progetti"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Projects & files"
+msgstr "Progetti e file"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Projects and files"
+msgstr "Progetti e file"
+
+# AI Translated
+#: src/App.tsx
+msgid "Put the project back to {savedMoment}?"
+msgstr "Riportare il progetto a {savedMoment}?"
+
+# AI Translated
+#: src/App.tsx
+msgid "Put the project back to when this chat was saved?"
+msgstr "Riportare il progetto al momento in cui questa chat è stata salvata?"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Quality"
+msgstr "Qualità"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Rather use JusPrin’s own AI, which specializes in 3D printing? Sign up in <0>Account</0>."
+msgstr "Preferisci usare l’IA di JusPrin, specializzata nella stampa 3D? Registrati in <0>Account</0>."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Reading the printer list…"
+msgstr "Lettura dell’elenco delle stampanti…"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Reading the settings…"
+msgstr "Lettura delle impostazioni…"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Reading this printer’s profiles…"
+msgstr "Lettura dei profili di questa stampante…"
+
+# AI Translated
+#. A printer status: idle and ready to print
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Ready"
+msgstr "Pronta"
+
+# AI Translated
+#. Sort order: the most recently saved first
+#: ../HomeUI/src/App.tsx
+msgid "Recent"
+msgstr "Recenti"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterCard.tsx
+msgid "Reconnect"
+msgstr "Riconnetti"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Redo: {step}"
+msgstr "Ripeti: {step}"
+
+# AI Translated
+# Needs human review: 'Region' is a marked area of a model; 'Zona' used throughout instead of 'Regione'
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Region"
+msgstr "Zona"
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "Registered JusPrin account, your own key, or an AI tool you already use."
+msgstr "Account JusPrin registrato, la tua chiave o uno strumento di IA che usi già."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Reinstall or rebuild JusPrin, then try again."
+msgstr "Reinstalla o ricompila JusPrin, poi riprova."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Release notes"
+msgstr "Note di rilascio"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Released {released} · you have {current}"
+msgstr "Rilasciata il {released} · la tua versione è {current}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+#: ../HomeUI/src/components/PrintReportForm.tsx
+#: src/components/AgentConnection.tsx
+#: src/components/AllSettings.tsx
+#: src/components/AttachmentChip.tsx
+msgid "Remove"
+msgstr "Rimuovi"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Remove “{printerName}”? Its printer settings will be deleted. Your projects stay."
+msgstr "Rimuovere “{printerName}”? Le sue impostazioni stampante verranno eliminate. I tuoi progetti restano."
+
+# AI Translated
+# Needs human review: {lowered} is a lowercased label such as a modifier name
+#: src/components/AllSettings.tsx
+msgid "Remove {lowered}"
+msgstr "Rimuovi {lowered}"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Remove {name} key"
+msgstr "Rimuovi chiave {name}"
+
+# AI Translated
+#: src/components/AttachmentChip.tsx
+msgid "Remove {title}"
+msgstr "Rimuovi {title}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Remove filter {label}"
+msgstr "Rimuovi filtro {label}"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Remove printer?"
+msgstr "Rimuovere la stampante?"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Remove printer…"
+msgstr "Rimuovi stampante…"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Removed from your printers."
+msgstr "Rimossa dalle tue stampanti."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Removed: <0>{name}</0>"
+msgstr "Rimossa: <0>{name}</0>"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Removed: <0>{preset}</0>"
+msgstr "Rimosso: <0>{preset}</0>"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+#: src/components/ChatNavigation.tsx
+msgid "Rename"
+msgstr "Rinomina"
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Rename chat"
+msgstr "Rinomina chat"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+msgid "Rename printer"
+msgstr "Rinomina stampante"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Renews {renews}."
+msgstr "Si rinnova il {renews}."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Replace"
+msgstr "Sostituisci"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Replace {name} key"
+msgstr "Sostituisci chiave {name}"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Replace it with a working key, or remove it."
+msgstr "Sostituiscila con una chiave funzionante, oppure rimuovila."
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Reply…"
+msgstr "Rispondi…"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Report credits"
+msgstr "Crediti per i rapporti"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Report sent"
+msgstr "Rapporto inviato"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Restart {name} if it was already running."
+msgstr "Riavvia {name} se era già in esecuzione."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Restart now"
+msgstr "Riavvia ora"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Restart the AI tool if it was already running."
+msgstr "Riavvia lo strumento di IA se era già in esecuzione."
+
+# AI Translated
+#: src/App.tsx
+#: src/App.tsx
+msgid "Restore and resume"
+msgstr "Ripristina e riprendi"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Restore the model and project settings from this saved point. Your current model is saved in Version history first. Conversation, exported files, completed prints, and printer activity stay as they are."
+msgstr "Ripristina il modello e le impostazioni del progetto da questo punto salvato. Il modello corrente viene prima salvato in Cronologia versioni. Conversazione, file esportati, stampe completate e attività della stampante restano come sono."
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Result"
+msgstr "Risultato"
+
+# AI Translated
+#: src/App.tsx
+msgid "Resume saved setup"
+msgstr "Riprendi la configurazione salvata"
+
+# AI Translated
+#: src/components/MessageList.tsx
+#: src/components/MessageList.tsx
+#: src/components/Panels.tsx
+msgid "Retry"
+msgstr "Riprova"
+
+# AI Translated
+#: src/App.tsx
+msgid "Return to active chat"
+msgstr "Torna alla chat attiva"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Reverse scroll-wheel zoom"
+msgstr "Inverti lo zoom della rotellina"
+
+# AI Translated
+# Needs human review: Button that reverts the project to an earlier chat step
+#: src/components/ChangeRows.tsx
+#: src/components/ChangeRows.tsx
+#: src/components/ChangeRows.tsx
+#: src/components/ChangeRows.tsx
+#: src/components/ChangeRows.tsx
+msgid "Revert to here"
+msgstr "Ripristina fino a qui"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+#: src/components/ChangeRows.tsx
+msgid "Revert to here?"
+msgstr "Ripristinare fino a qui?"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Review"
+msgstr "Controlla"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Review again"
+msgstr "Controlla di nuovo"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Review its progress and results in this panel."
+msgstr "Segui l’avanzamento e i risultati in questo pannello."
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Right-drag"
+msgstr "Trascinamento destro"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Running it yourself? Paste it in a terminal, then restart {name}."
+msgstr "Lo esegui tu? Incollalo in un terminale, poi riavvia {name}."
+
+# AI Translated
+#: src/components/ToolActivityCard.tsx
+#: src/components/WorkCard.tsx
+msgid "Running…"
+msgstr "In esecuzione…"
+
+# AI Translated
+#: src/components/ToolActivityCard.tsx
+msgid "Running… · {percent}%"
+msgstr "In esecuzione… · {percent}%"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "same as project"
+msgstr "come il progetto"
+
+# AI Translated
+#: ../HomeUI/src/components/PrinterMenu.tsx
+#: src/components/ChatNavigation.tsx
+msgid "Save"
+msgstr "Salva"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Save downloaded models to"
+msgstr "Salva i modelli scaricati in"
+
+# AI Translated
+# Needs human review: {saved} is a time or date; feminine agrees with 'configurazione'
+#: src/components/SetupCard.tsx
+msgid "Saved {saved}"
+msgstr "Salvata {saved}"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Saved sliced snapshot"
+msgstr "Istantanea elaborata salvata"
+
+# AI Translated
+# Needs human review: 'canvas' (the 3D view) rendered as 'area di lavoro'; check it is clear
+#: src/components/SetupCard.tsx
+msgid "Saved with this chat. The canvas shows your current project."
+msgstr "Salvata con questa chat. L’area di lavoro mostra il tuo progetto attuale."
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Saved: <0>{preset}</0>"
+msgstr "Salvato: <0>{preset}</0>"
+
+# AI Translated
+#: src/components/ProposalCard.tsx
+msgid "Saving…"
+msgstr "Salvataggio…"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Scroll up to zoom out."
+msgstr "Scorri verso l’alto per ridurre lo zoom."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Seam painting"
+msgstr "Dipingi cucitura"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+#: src/components/AddPrinterForm.tsx
+msgid "Search brand or material"
+msgstr "Cerca marca o materiale"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "Search brands"
+msgstr "Cerca marche"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "Search models"
+msgstr "Cerca modelli"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgctxt "printer"
+msgid "Search models"
+msgstr "Cerca modelli"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Search prints"
+msgstr "Cerca stampe"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+#: ../HomeUI/src/App.tsx
+msgid "Search projects"
+msgstr "Cerca progetti"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Search settings"
+msgstr "Cerca impostazioni"
+
+# AI Translated
+#: src/components/Guide.tsx
+#: src/components/Guide.tsx
+msgid "Search the guide"
+msgstr "Cerca nella guida"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "See prices"
+msgstr "Vedi i prezzi"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "See usage"
+msgstr "Vedi l’utilizzo"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Send"
+msgstr "Invia"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+#: src/components/SignInDoor.tsx
+msgid "Send a new code"
+msgstr "Invia un nuovo codice"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Send a report to the JusPrin developers?"
+msgstr "Inviare un rapporto agli sviluppatori di JusPrin?"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Send message"
+msgstr "Invia messaggio"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+#: src/components/PrinterPanel.tsx
+msgid "Send report"
+msgstr "Invia rapporto"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Sending a code to {address}…"
+msgstr "Invio di un codice a {address}…"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Sending isn’t built yet, so nothing has left this computer. The report is saved at {path}."
+msgstr "L’invio non è ancora disponibile, quindi nulla ha lasciato questo computer. Il rapporto è salvato in {path}."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "Sending…"
+msgstr "Invio…"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Sent · {when}. Saved snapshot: the canvas shows your current project."
+msgstr "Inviato · {when}. Istantanea salvata: l’area di lavoro mostra il tuo progetto attuale."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Sent to {printer}"
+msgstr "Inviato a {printer}"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Sent to {printer} · {when}. Saved snapshot: the canvas shows your current project."
+msgstr "Inviato a {printer} · {when}. Istantanea salvata: l’area di lavoro mostra il tuo progetto attuale."
+
+# AI Translated
+#. {time} is a clock time, or a day and a time
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "Sent to {printer} at {time}"
+msgstr "Inviato a {printer} alle {time}"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Sent to {printer}. Saved snapshot: the canvas shows your current project."
+msgstr "Inviato a {printer}. Istantanea salvata: l’area di lavoro mostra il tuo progetto attuale."
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Sent. Saved snapshot: the canvas shows your current project."
+msgstr "Inviato. Istantanea salvata: l’area di lavoro mostra il tuo progetto attuale."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Set on this plate"
+msgstr "Impostato su questo piatto"
+
+# AI Translated
+#: ../HomeUI/src/components/AgentGroup.tsx
+#: src/components/ChatNavigation.tsx
+#: src/components/Panels.tsx
+#: src/components/Panels.tsx
+msgid "Set up AI"
+msgstr "Configura l’IA"
+
+# AI Translated
+# Needs human review: Description of the Standard model tier, shown after its name
+#: src/components/ModelPickers.tsx
+msgid "setting up an ordinary print"
+msgstr "configurare una stampa normale"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Settings might have changed; inspect them before retrying."
+msgstr "Le impostazioni potrebbero essere cambiate; controllale prima di riprovare."
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Setup summary"
+msgstr "Riepilogo della configurazione"
+
+# AI Translated
+#: src/components/OrcaImportLists.tsx
+msgid "Show details"
+msgstr "Mostra dettagli"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Show fewer"
+msgstr "Mostra meno"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Show filaments made for other printers"
+msgstr "Mostra i filamenti pensati per altre stampanti"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Show file"
+msgstr "Mostra file"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Show folder"
+msgstr "Mostra cartella"
+
+# AI Translated
+# Needs human review: Label in All settings before what is shown; check the agreement with the following value
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Showing"
+msgstr "Visualizzati"
+
+# AI Translated
+#: src/components/MessageList.tsx
+#: src/components/SignInDoor.tsx
+#: src/components/SignInDoor.tsx
+msgid "Sign in"
+msgstr "Accedi"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Sign in again to keep using AI with your JusPrin account."
+msgstr "Accedi di nuovo per continuare a usare l’IA con il tuo account JusPrin."
+
+# AI Translated
+#: src/App.tsx
+#: src/components/ChatNavigation.tsx
+msgid "Sign in or add a key to chat with AI"
+msgstr "Accedi o aggiungi una chiave per chattare con l’IA"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+#: src/components/SignInDoor.tsx
+msgid "Sign in with Google instead"
+msgstr "Accedi invece con Google"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Sign out"
+msgstr "Disconnetti"
+
+# AI Translated
+#: src/credits.ts
+msgid "Sign up and get {signupCredits} free credits"
+msgstr "Registrati e ricevi {signupCredits} crediti gratuiti"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Sign up free"
+msgstr "Registrati gratis"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Sign up to use AI, or skip it and just slice."
+msgstr "Registrati per usare l’IA, oppure salta e limitati a elaborare."
+
+# AI Translated
+#: src/components/CodeField.tsx
+msgid "Sign-in code"
+msgstr "Codice di accesso"
+
+# AI Translated
+#: src/components/BalancePanel.tsx
+msgid "Sign-up credits"
+msgstr "Crediti di registrazione"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Signed in"
+msgstr "Accesso effettuato"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Signed in · AI unavailable"
+msgstr "Accesso effettuato · IA non disponibile"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Signed in as {address}"
+msgstr "Accesso effettuato come {address}"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Signed in as {address} · AI unavailable"
+msgstr "Accesso effettuato come {address} · IA non disponibile"
+
+# AI Translated
+#: ../HomeUI/src/components/AgentGroup.tsx
+#: ../HomeUI/src/components/Onboarding.tsx
+#: ../HomeUI/src/components/Onboarding.tsx
+#: ../HomeUI/src/components/Onboarding.tsx
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Signed in as {email}"
+msgstr "Accesso effettuato come {email}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Signing out keeps your projects, printers and API keys on this computer."
+msgstr "Disconnettendoti, i tuoi progetti, le stampanti e le chiavi API restano su questo computer."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Signing you in…"
+msgstr "Accesso in corso…"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Skip — choose a filament later"
+msgstr "Salta — scegli un filamento più tardi"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Skip — start with {defaultLabel}"
+msgstr "Salta — inizia con {defaultLabel}"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Skip for now"
+msgstr "Salta per ora"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Skip this version"
+msgstr "Salta questa versione"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Slice again to update"
+msgstr "Elabora di nuovo per aggiornare"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Slice to see time and filament"
+msgstr "Elabora per vedere tempo e filamento"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Sliced & sent"
+msgstr "Elaborato e inviato"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Slot"
+msgstr "Slot"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Slot {slot}"
+msgstr "Slot {slot}"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Slot {slot} · {preset}"
+msgstr "Slot {slot} · {preset}"
+
+# AI Translated
+# Needs human review: {value} is the printer's value; check the sentence reads right with the value inside
+#: src/components/AllSettings.tsx
+msgid "Slot {slot} overrides the printer’s {value}."
+msgstr "Lo slot {slot} sostituisce il valore {value} della stampante."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Slot {slot} preset: {preset}"
+msgstr "Profilo dello slot {slot}: {preset}"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Slot 1"
+msgstr "Slot 1"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Smooth mesh"
+msgstr "Mesh levigata"
+
+# AI Translated
+#: src/components/FileNotesCard.tsx
+msgid "Some notes from opening the file aren't shown."
+msgstr "Alcune note dall’apertura del file non sono mostrate."
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Sort projects"
+msgstr "Ordina progetti"
+
+# AI Translated
+# Needs human review: Tagline of JusPrin's AI model; feminine agrees with 'IA'
+#: src/components/ModelPickers.tsx
+msgid "Specializes in 3D printing"
+msgstr "Specializzata nella stampa 3D"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Speed"
+msgstr "Velocità"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Staged attachments"
+msgstr "Allegati pronti"
+
+# AI Translated
+#. The cheaper kind of AI model
+#: src/credits.ts
+msgid "Standard"
+msgstr "Standard"
+
+# AI Translated
+#: src/components/AttachmentChip.tsx
+msgid "Standard can’t see pictures, so this one will not be sent."
+msgstr "Standard non vede le immagini, quindi questa non verrà inviata."
+
+# AI Translated
+#: src/components/Guide.tsx
+msgid "Start of the page"
+msgstr "Inizio della pagina"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Start with {defaultLabel} instead"
+msgstr "Inizia invece con {defaultLabel}"
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Starting Home."
+msgstr "Avvio della Home."
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "Starting the AI panel."
+msgstr "Avvio del pannello IA."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Stays on this computer."
+msgstr "Resta su questo computer."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Step {step} of {steps}"
+msgstr "Passaggio {step} di {steps}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "STL and STEP models"
+msgstr "Modelli STL e STEP"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Stop"
+msgstr "Interrompi"
+
+# AI Translated
+#: src/components/Composer.tsx
+msgid "Stop generating"
+msgstr "Interrompi generazione"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Stopped before it finished."
+msgstr "Interrotto prima di finire."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Strength"
+msgstr "Resistenza"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Suggested for the {modelName}"
+msgstr "Consigliato per {modelName}"
+
+# AI Translated
+#. The settings page for support structures
+#: src/components/AllSettings.tsx
+msgid "Support"
+msgstr "Supporto"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Support painting"
+msgstr "Dipingi supporti"
+
+# AI Translated
+# Needs human review: {label} is a model, preset or printer name
+#: src/components/ChangeRows.tsx
+msgid "Switched to <0>{label}</0>"
+msgstr "Passato a <0>{label}</0>"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Takes effect when JusPrin restarts. Your project is saved first."
+msgstr "Ha effetto al riavvio di JusPrin. Il progetto viene prima salvato."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Technical output"
+msgstr "Output tecnico"
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "Tell us how it printed"
+msgstr "Raccontaci com’è venuta la stampa"
+
+# AI Translated
+#: src/calibration.ts
+msgid "Temperature steps not kept in the file"
+msgstr "Passi di temperatura non conservati nel file"
+
+# AI Translated
+#. The kind of an attached file: a text file
+#: src/components/AttachmentChip.tsx
+msgid "Text"
+msgstr "Testo"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "That code is wrong."
+msgstr "Il codice è errato."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "That code no longer works. We can send a new one."
+msgstr "Quel codice non funziona più. Possiamo inviartene uno nuovo."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "That password is wrong."
+msgstr "La password è errata."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "The {modelName} profile’s default"
+msgstr "Il predefinito del profilo {modelName}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "The account couldn’t be deleted. Check your internet connection, then try again."
+msgstr "Impossibile eliminare l’account. Controlla la connessione a Internet, poi riprova."
+
+# AI Translated
+#: src/App.tsx
+msgid "The action could not be completed."
+msgstr "Impossibile completare l’azione."
+
+# AI Translated
+#: src/components/ToolActivityCard.tsx
+msgid "The action failed."
+msgstr "L’azione non è riuscita."
+
+# AI Translated
+#: src/App.tsx
+msgid "The AI chat didn't start. Try again, and restart JusPrin if it keeps happening."
+msgstr "La chat con l’IA non si è avviata. Riprova, e riavvia JusPrin se continua a succedere."
+
+# AI Translated
+#: src/App.tsx
+msgid "The AI panel could not connect"
+msgstr "Il pannello IA non è riuscito a connettersi"
+
+# AI Translated
+#: src/App.tsx
+msgid "The AI panel could not reach JusPrin"
+msgstr "Il pannello IA non è riuscito a raggiungere JusPrin"
+
+# AI Translated
+#: src/App.tsx
+msgid "The AI panel has no connection to JusPrin"
+msgstr "Il pannello IA non ha una connessione con JusPrin"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "The AI slicer that helps you get better prints."
+msgstr "Lo slicer con IA che ti aiuta a ottenere stampe migliori."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "The app continues on its own once the browser is done."
+msgstr "L’app prosegue da sola quando il browser ha finito."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "The Create filament window opens"
+msgstr "Si apre la finestra Crea filamento"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "The file changed since you reviewed it."
+msgstr "Il file è cambiato da quando l’hai controllato."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "The file is invalid or not writable. Fix it, then try again."
+msgstr "Il file non è valido o non è scrivibile. Correggilo, poi riprova."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "The file is on the printer but was not started."
+msgstr "Il file è sulla stampante ma non è stato avviato."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "The full preferences window from OrcaSlicer, which JusPrin is built on."
+msgstr "La finestra completa delle preferenze di OrcaSlicer, su cui è basato JusPrin."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "The key could not be checked. Nothing was saved."
+msgstr "Impossibile verificare la chiave. Non è stato salvato nulla."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "The open project still uses the same printer as before. {app}’s own files were not changed."
+msgstr "Il progetto aperto usa ancora la stessa stampante di prima. I file di {app} non sono stati modificati."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "The printer hasn’t confirmed it got the file."
+msgstr "La stampante non ha confermato di aver ricevuto il file."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "the printer profile’s default, until your preset is saved"
+msgstr "il predefinito del profilo stampante, finché il tuo profilo non viene salvato"
+
+# AI Translated
+#: src/components/ToolActivityCard.tsx
+msgid "The project changed before this could run. Ask AI again."
+msgstr "Il progetto è cambiato prima che questa azione potesse essere eseguita. Chiedi di nuovo all’IA."
+
+# AI Translated
+#: src/App.tsx
+msgid "The project has changed since this chat. To continue here, JusPrin puts the project back the way it was then."
+msgstr "Il progetto è cambiato rispetto a questa chat. Per continuare qui, JusPrin riporta il progetto com’era allora."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "The provider a chat uses receives your messages, the open project’s settings and anything you attach. JusPrin doesn’t send your keys anywhere else."
+msgstr "Il fornitore usato da una chat riceve i tuoi messaggi, le impostazioni del progetto aperto e tutto ciò che alleghi. JusPrin non invia le tue chiavi da nessun’altra parte."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "The provider rejected this key"
+msgstr "Il fornitore ha rifiutato questa chiave"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "The report could not be saved."
+msgstr "Impossibile salvare il rapporto."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "The report couldn’t be sent. Check your connection and try again."
+msgstr "Impossibile inviare il rapporto. Controlla la connessione e riprova."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "The setup command failed."
+msgstr "Il comando di configurazione non è riuscito."
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Theme"
+msgstr "Tema"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Then"
+msgstr "Poi"
+
+# AI Translated
+# Needs human review: Heading of the thinking-level picker
+#: src/components/ModelPickers.tsx
+msgid "Thinking"
+msgstr "Ragionamento"
+
+# AI Translated
+#: src/App.tsx
+msgid "This AI panel does not match this JusPrin build"
+msgstr "Questo pannello IA non corrisponde a questa build di JusPrin"
+
+# AI Translated
+#: src/App.tsx
+msgid "This chat is inactive. Resume from its saved setup to continue."
+msgstr "Questa chat non è attiva. Riprendi dalla configurazione salvata per continuare."
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "This chat is still working. Stop it or let it finish, then delete it."
+msgstr "Questa chat è ancora al lavoro. Interrompila o lasciala finire, poi eliminala."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintHistory.tsx
+msgid "This G-code is no longer kept. Open the project and slice it to print it again."
+msgstr "Questo G-code non viene più conservato. Apri il progetto ed elaboralo per stamparlo di nuovo."
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "This is an internal connection inside JusPrin, not a network service. The 3D canvas and all other controls keep working."
+msgstr "Questa è una connessione interna a JusPrin, non un servizio di rete. L’area 3D e tutti gli altri controlli continuano a funzionare."
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "This JusPrin build cannot list the settings."
+msgstr "Questa build di JusPrin non può elencare le impostazioni."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "This key works now, but JusPrin couldn’t save it."
+msgstr "Questa chiave ora funziona, ma JusPrin non è riuscito a salvarla."
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "This tool isn’t installed."
+msgstr "Questo strumento non è installato."
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "This version of JusPrin can no longer connect to JusPrin accounts."
+msgstr "Questa versione di JusPrin non può più connettersi agli account JusPrin."
+
+# AI Translated
+#: src/OrcaImportApp.tsx
+msgid "This window could not reach JusPrin"
+msgstr "Questa finestra non è riuscita a raggiungere JusPrin"
+
+# AI Translated
+# Needs human review: Thinking level of the AI model
+#. A thinking level of the AI model
+#: src/components/ModelPickers.tsx
+msgid "Thorough"
+msgstr "Approfondito"
+
+# AI Translated
+#: src/components/SetupCard.tsx
+msgid "Time & material estimates recomputing…"
+msgstr "Ricalcolo delle stime di tempo e materiale…"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Timed out."
+msgstr "Tempo scaduto."
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+#: ../HomeUI/src/savedDate.ts
+msgid "Today"
+msgstr "Oggi"
+
+# AI Translated
+#. {time} is a clock time, 14:22
+#: ../HomeUI/src/history.ts
+msgid "Today {time}"
+msgstr "Oggi {time}"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Too many codes were sent to this address. Try again in an hour."
+msgstr "Sono stati inviati troppi codici a questo indirizzo. Riprova tra un’ora."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Too many tries. Wait a few minutes, or email me a code."
+msgstr "Troppi tentativi. Attendi qualche minuto, oppure fatti inviare un codice via email."
+
+# AI Translated
+#: src/components/TurnActivity.tsx
+msgid "Tool"
+msgstr "Strumento"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Touchpad"
+msgstr "Touchpad"
+
+# AI Translated
+#: src/components/ModelPickers.tsx
+msgid "troubleshooting, tricky models, anything you’d ask a person"
+msgstr "risoluzione dei problemi, modelli complessi, tutto ciò che chiederesti a una persona"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+#: src/components/Preferences.tsx
+msgid "Try again"
+msgstr "Riprova"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Try again."
+msgstr "Riprova."
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Turn freely"
+msgstr "Rotazione libera"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Turn the view"
+msgstr "Ruota la vista"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Turn the view in any direction. Off keeps the bed level."
+msgstr "Ruota la vista in qualsiasi direzione. Se disattivato, il piatto resta orizzontale."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Type the code from the email. You can open it on your phone."
+msgstr "Inserisci il codice ricevuto via email. Puoi aprirla sul telefono."
+
+# AI Translated
+#: src/components/MessageList.tsx
+#: src/components/PrinterPanel.tsx
+msgid "Undo"
+msgstr "Annulla"
+
+# AI Translated
+#: src/components/ChangeRows.tsx
+msgid "Undo: {step}"
+msgstr "Annulla: {step}"
+
+# AI Translated
+#: src/components/MessageList.tsx
+msgid "Undone: <0>{preset}</0>"
+msgstr "Annullato: <0>{preset}</0>"
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Units"
+msgstr "Unità"
+
+# AI Translated
+#. The kind of an attached file the app cannot read
+#: src/components/AttachmentChip.tsx
+msgid "Unsupported"
+msgstr "Non supportato"
+
+# AI Translated
+#: src/components/Panels.tsx
+msgid "Until then JusPrin slices from the preset, exactly as it always has."
+msgstr "Fino ad allora JusPrin elabora dal profilo, esattamente come ha sempre fatto."
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Until you add yours, files are sliced for a 250 mm Klipper printer and may not print on other printers."
+msgstr "Finché non aggiungi la tua, i file vengono elaborati per una stampante Klipper da 250 mm e potrebbero non stampare su altre stampanti."
+
+# AI Translated
+#. {checked} is how long ago, such as "just now", "2 hours ago" or "yesterday".
+#: src/components/Preferences.tsx
+msgid "Up to date · checked {checked}"
+msgstr "Aggiornato · controllato {checked}"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Update available"
+msgstr "Aggiornamento disponibile"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Update with each JusPrin release. Your own presets never change."
+msgstr "Si aggiornano con ogni versione di JusPrin. I tuoi profili non cambiano mai."
+
+# AI Translated
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+#: src/components/Preferences.tsx
+msgid "Updates"
+msgstr "Aggiornamenti"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Updates come from the Microsoft Store."
+msgstr "Gli aggiornamenti arrivano dal Microsoft Store."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Use a password instead"
+msgstr "Usa invece una password"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "Use an email code instead"
+msgstr "Usa invece un codice via email"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Use project value"
+msgstr "Usa valore del progetto"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Use project value for {label}"
+msgstr "Usa valore del progetto per {label}"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Use your own AI account"
+msgstr "Usa il tuo account di IA"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Variable layer height"
+msgstr "Altezza strato adattiva"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Version history"
+msgstr "Cronologia versioni"
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "We sent a 6-digit code to {address}."
+msgstr "Abbiamo inviato un codice a 6 cifre a {address}."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "We sent a new code to {address}."
+msgstr "Abbiamo inviato un nuovo codice a {address}."
+
+# AI Translated
+#: src/components/SignInDoor.tsx
+msgid "We’ll email you a code."
+msgstr "Ti invieremo un codice via email."
+
+# AI Translated
+#: ../HomeUI/src/components/PrintReportForm.tsx
+msgid "What happened"
+msgstr "Cosa è successo"
+
+# AI Translated
+#: src/App.tsx
+msgid "What should we do with this in the current project?"
+msgstr "Cosa facciamo con questo nel progetto attuale?"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "What the report holds"
+msgstr "Cosa contiene il rapporto"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "What to check for"
+msgstr "Cosa controllare"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "What to do next"
+msgstr "Cosa fare dopo"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "What to expect"
+msgstr "Cosa aspettarsi"
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "When you import, JusPrin copies it with its filaments and print settings."
+msgstr "Quando importi, JusPrin la copia con i suoi filamenti e le sue impostazioni di stampa."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "When you import, JusPrin copies it."
+msgstr "Quando importi, JusPrin la copia."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "When you import, JusPrin copies them with their filaments and print settings."
+msgstr "Quando importi, JusPrin le copia con i loro filamenti e le loro impostazioni di stampa."
+
+# AI Translated
+#: src/components/OrcaImport.tsx
+msgid "When you import, JusPrin copies them."
+msgstr "Quando importi, JusPrin le copia."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Which filament do you want to start with?"
+msgstr "Con quale filamento vuoi iniziare?"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Which plate is on it?"
+msgstr "Quale piatto è montato?"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Which printer do you have?"
+msgstr "Quale stampante hai?"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Which printer?"
+msgstr "Quale stampante?"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Which settings"
+msgstr "Quali impostazioni"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+msgid "Whole object"
+msgstr "Intero oggetto"
+
+# AI Translated
+#: src/components/AllSettings.tsx
+#: src/components/AllSettings.tsx
+msgid "Whole project"
+msgstr "Intero progetto"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "With a JusPrin account, JusPrin receives your messages, the open project’s settings and anything you attach, and passes them on to the model provider it uses."
+msgstr "Con un account JusPrin, JusPrin riceve i tuoi messaggi, le impostazioni del progetto aperto e tutto ciò che alleghi, e li inoltra al fornitore del modello che usa."
+
+# AI Translated
+#: src/components/MessageList.tsx
+#: src/components/TurnActivity.tsx
+msgid "Working on it…"
+msgstr "Ci sto lavorando…"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Writing settings…"
+msgstr "Scrittura delle impostazioni…"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "yesterday"
+msgstr "ieri"
+
+# AI Translated
+#: ../HomeUI/src/history.ts
+#: ../HomeUI/src/savedDate.ts
+#: src/components/ChatNavigation.tsx
+msgid "Yesterday"
+msgstr "Ieri"
+
+# AI Translated
+#. {time} is a clock time, 19:40
+#: ../HomeUI/src/history.ts
+msgid "Yesterday {time}"
+msgstr "Ieri {time}"
+
+# AI Translated
+#. Who opened a file: the person
+#: src/components/ChangeRows.tsx
+#: src/components/MessageList.tsx
+msgid "you"
+msgstr "tu"
+
+# AI Translated
+#: src/components/PrinterPicker.tsx
+msgid "You can connect it later."
+msgstr "Puoi connetterla più tardi."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "You can prepare prints with this printer before installing the Bambu plug-in."
+msgstr "Puoi preparare stampe con questa stampante prima di installare il plug-in Bambu."
+
+# AI Translated
+# Needs human review: {current} is a version number; 'la' agrees with 'versione'
+#: src/components/Preferences.tsx
+msgid "You have {current}"
+msgstr "Hai la {current}"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "You won’t need to set this up again after a normal JusPrin restart."
+msgstr "Non dovrai configurarlo di nuovo dopo un normale riavvio di JusPrin."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "You’ll need to add it again after JusPrin restarts."
+msgstr "Dovrai aggiungerla di nuovo dopo il riavvio di JusPrin."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Your account and AI setup stay intact. Your own key or AI tool still works meanwhile."
+msgstr "Il tuo account e la configurazione dell’IA restano intatti. Nel frattempo la tua chiave o il tuo strumento di IA continuano a funzionare."
+
+# AI Translated
+#: src/components/ChatNavigation.tsx
+msgid "Your account, keys, and the model new chats start with"
+msgstr "Il tuo account, le chiavi e il modello con cui iniziano le nuove chat"
+
+# AI Translated
+#: ../HomeUI/src/components/Onboarding.tsx
+msgid "Your API key, or Claude Code or Claude Desktop"
+msgstr "La tua chiave API, oppure Claude Code o Claude Desktop"
+
+# AI Translated
+#: src/App.tsx
+msgid "Your current version stays in Version history."
+msgstr "La versione attuale resta in Cronologia versioni."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+#: src/components/AddPrinterForm.tsx
+msgid "Your filaments"
+msgstr "I tuoi filamenti"
+
+# AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Your other settings stay as they are. The existing file is backed up first."
+msgstr "Le altre impostazioni restano come sono. Prima viene fatto un backup del file esistente."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
+msgid "Your own API key"
+msgstr "La tua chiave API"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Your preset"
+msgstr "Il tuo profilo"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Your preset, based on {base}"
+msgstr "Il tuo profilo, basato su {base}"
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Your preset, made for other printers. Picking it saves a copy for the {modelName}."
+msgstr "Il tuo profilo, pensato per altre stampanti. Sceglierlo salva una copia per {modelName}."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Your preset, made for the {first} and {second}. Picking it saves a copy for the {modelName}."
+msgstr "Il tuo profilo, pensato per {first} e {second}. Sceglierlo salva una copia per {modelName}."
+
+# AI Translated
+#: src/components/AddPrinterForm.tsx
+msgid "Your preset, made for the {first}. Picking it saves a copy for the {modelName}."
+msgstr "Il tuo profilo, pensato per {first}. Sceglierlo salva una copia per {modelName}."
+
+# AI Translated
+#: ../HomeUI/src/App.tsx
+msgid "Your projects will appear here, most recent first."
+msgstr "I tuoi progetti compariranno qui, dal più recente."
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "your provider"
+msgstr "il tuo fornitore"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Your sign-in for {address} has ended"
+msgstr "Il tuo accesso per {address} è scaduto"
+
+# AI Translated
+#: src/components/AgentConnection.tsx
+msgid "Your sign-in for this account has ended"
+msgstr "Il tuo accesso per questo account è scaduto"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "Zoom toward the pointer"
+msgstr "Zoom verso il puntatore"

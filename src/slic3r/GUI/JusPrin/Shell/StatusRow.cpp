@@ -23,6 +23,7 @@
 #include "slic3r/GUI/ParamsDialog.hpp"
 #include "slic3r/GUI/Tab.hpp"
 #include "slic3r/GUI/Plater.hpp"
+#include "slic3r/GUI/JusPrin/Support/DecimalText.hpp"
 #include <wx/sizer.h>
 #include <wx/msgdlg.h>
 #include <wx/filedlg.h>
@@ -235,7 +236,7 @@ wxString StatusRow::action_label(PrintAction action, bool primary) const
     case PrintAction::SliceAll: return _L("Slice all plates");
     case PrintAction::Cancel: return primary ? _L("Slicing…") : _L("Cancel");
     case PrintAction::CheckPrint: return _L("Check Print");
-    case PrintAction::Print: return primary ? (state.plate_count > 1 ? wxString::Format(_L("Print plate %d"), state.plate_number) : _L("Print")) : _L("Print…");
+    case PrintAction::Print: return primary ? (state.plate_count > 1 ? wxString::Format(_L("Print plate %d"), state.plate_number) : _L_CONTEXT("Print", "Verb")) : _L("Print…");
     case PrintAction::PrintAll: return _L("Print all plates…");
     case PrintAction::Export: return _L("Export G-code…");
     }
@@ -265,7 +266,8 @@ void StatusRow::show_action_menu()
         else if (item.action == PrintAction::Cancel) icon = HeaderIcon::Cancel;
         wxString detail;
         if (item.action == PrintAction::PrintAll)
-            detail = wxString::Format(_L("%d sliced"), state.sliced_count);
+            // TRN Detail beside "Print all plates…": how many of the plates are sliced.
+            detail = wxString::Format(_L_PLURAL("%d sliced", "%d sliced", state.sliced_count), state.sliced_count);
         menu.push_back({action_label(item.action), icon, detail, item.enabled, item.action == PrintAction::Export,
             [this,identity,action=item.action] {
                 // The menu describes one plate/result. A later plate switch or
@@ -449,15 +451,17 @@ void StatusRow::refresh_chip()
     sizes.erase(std::unique(sizes.begin(), sizes.end()), sizes.end());
     wxString nozzle;
     for (double size : sizes)
-        nozzle += (nozzle.empty() ? wxString() : wxString(" / ")) + wxString::Format("%g", size);
+        nozzle += (nozzle.empty() ? wxString() : wxString(" / ")) + wxString::FromUTF8(app_decimal_text(size, 0, 2));
     wxString printer_tooltip = printer.nickname;
     if (!nozzle.empty())
-        printer_tooltip += middle_dot() + nozzle + " mm " + (sizes.size() > 1 ? _L("nozzles") : _L("nozzle"));
+        // TRN %s is one nozzle size, or several joined by " / ", such as "0.4 / 0.6".
+        printer_tooltip += middle_dot() + wxString::Format(_L_PLURAL("%s mm nozzle", "%s mm nozzles", unsigned(sizes.size())), nozzle);
     if (printer.from_file) {
         const wxString project = m_plater.get_project_name();
-        printer_tooltip += middle_dot() +
-                           wxString::Format(_L("from %s, not one of the printers you set up"),
-                                            project.empty() ? _L("the file") : project + ".3mf");
+        printer_tooltip += middle_dot() + (project.empty() ? _L("from the file, not one of the printers you set up")
+                                                           // TRN %s is the project's file name, such as "Benchy.3mf".
+                                                           : wxString::Format(_L("from %s, not one of the printers you set up"),
+                                                                              project + ".3mf"));
     }
     m_chip->set_printer(printer.nickname, printer.valid ? nozzle : wxString{}, printer_tooltip, printer.from_file);
 
@@ -468,7 +472,7 @@ void StatusRow::refresh_chip()
                               std::string(slot.colour.ToUTF8()), slot.used});
     const FilamentChipModel model = describe_filament_chip(chip_slots);
     const wxString label = !model.name.empty() ? wxString::FromUTF8(model.name)
-                                               : wxString::Format(wxPLURAL("%d filament", "%d filaments", int(model.filaments)),
+                                               : wxString::Format(_L_PLURAL("%d filament", "%d filaments", int(model.filaments)),
                                                                   int(model.filaments));
     // Hover names every slot uncut. The swatches the design draws beside each
     // name are the dots on the chip itself; a tooltip carries text only.
@@ -477,12 +481,14 @@ void StatusRow::refresh_chip()
         tooltip = slots.front().filament.alias;
     } else {
         const auto used = std::count_if(slots.begin(), slots.end(), [](const auto& slot) { return slot.used; });
-        tooltip = used > 0 ? wxString::Format(_L("%d of %d slots on this plate"), int(used), int(slots.size()))
-                           : wxString::Format(_L("%d slots"), int(slots.size()));
+        // TRN The first %d is how many of the filament slots this plate uses; the second is how many slots there are.
+        tooltip = used > 0 ? wxString::Format(_L_PLURAL("%d of %d slot on this plate", "%d of %d slots on this plate", int(slots.size())),
+                                              int(used), int(slots.size()))
+                           : wxString::Format(_L_PLURAL("%d slot", "%d slots", int(slots.size())), int(slots.size()));
         for (const auto& slot : slots) {
             tooltip += wxString::Format("\n%d  %s", int(slot.index + 1), slot.filament.alias);
             if (slot.nozzle > 0.)
-                tooltip += middle_dot() + wxString::Format("%g", slot.nozzle);
+                tooltip += middle_dot() + wxString::FromUTF8(app_decimal_text(slot.nozzle, 0, 2));
             if (used > 0 && !slot.used)
                 tooltip += middle_dot() + _L("not on this plate");
         }
@@ -535,6 +541,7 @@ void StatusRow::on_filament_visit(const FilamentMenu::Visit& visit)
     } else {
         wxString changed;
         for (const auto& [slot, preset] : visit.filaments)
+            // TRN One entry of the list in "Filaments changed: %s.": a slot number, then the filament's name.
             changed += (changed.empty() ? wxString() : wxString(", ")) +
                        wxString::Format(_L("slot %d %s"), int(slot + 1), name_of(slot));
         note = wxString::Format(_L("Filaments changed: %s."), changed);

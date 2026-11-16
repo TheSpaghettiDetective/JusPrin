@@ -12,6 +12,10 @@
 #include <sstream>
 #include <utility>
 
+#include "libslic3r/format.hpp"
+// Last: it defines the L marker.
+#include "slic3r/GUI/JusPrin/Support/Translate.hpp"
+
 namespace Slic3r::GUI::JusPrin::Agent {
 
 namespace {
@@ -503,7 +507,7 @@ void ProviderAgent::handle(StreamEvent event)
     case StreamEvent::Kind::TextDelta: m_events.push_back(AgentEvent::delta(std::move(event.text))); break;
     case StreamEvent::Kind::TurnComplete: finish_response(std::move(event)); break;
     case StreamEvent::Kind::Incomplete:
-        fail(AgentError{"incomplete_response", "The AI service stopped before finishing its response.", true});
+        fail(AgentError{"incomplete_response", translated(L("The AI service stopped before finishing its response.")), true});
         break;
     case StreamEvent::Kind::Failed: fail(std::move(event.error)); break;
     }
@@ -526,17 +530,17 @@ void ProviderAgent::finish_response(StreamEvent event)
         // The provider paused its own turn and resumes it from this one.
         constexpr unsigned kPausedTurnLimit = 4;
         if (++m_paused_turns > kPausedTurnLimit) {
-            fail(AgentError{"agent_paused_too_often", "The AI service kept pausing its response.", true});
+            fail(AgentError{"agent_paused_too_often", translated(L("The AI service kept pausing its response.")), true});
             return;
         }
         if (!post())
-            fail(AgentError{"agent_continuation_failed", "AI could not be asked to continue its response.", true});
+            fail(AgentError{"agent_continuation_failed", translated(L("AI could not be asked to continue its response.")), true});
         return;
     }
     for (ProviderToolCall& call : event.calls)
         m_queued_calls.push_back(std::move(call));
     if (!next_call())
-        fail(AgentError{"agent_continuation_failed", "AI could not be told the results of its tool calls.", true});
+        fail(AgentError{"agent_continuation_failed", translated(L("AI could not be told the results of its tool calls.")), true});
 }
 
 // Hands out the next call of the response, or, once every call has its
@@ -587,7 +591,7 @@ bool ProviderAgent::next_call()
             continue;
         }
         if (call_id.empty() || !available || !validation.valid()) {
-            fail(AgentError{"malformed_tool_call", "AI returned an invalid tool call.", false});
+            fail(AgentError{"malformed_tool_call", translated(L("AI returned an invalid tool call.")), false});
             return true;
         }
         request.arguments_json = std::move(validation.arguments_json);
@@ -649,7 +653,7 @@ void ProviderAgent::parse_available()
                 m_sse_buffer.clear();
             }
             if (!m_terminal_seen)
-                fail(AgentError{"malformed_response", "The AI service ended before a complete response arrived.", true});
+                fail(AgentError{"malformed_response", translated(L("The AI service ended before a complete response arrived.")), true});
         }
     }
 }
@@ -671,31 +675,45 @@ AgentError ProviderAgent::http_error(unsigned status, const std::string& detail,
         if (const std::optional<AgentError> outdated = update_required(status, body))
             return *outdated;
     if (m_config.profile.account_sign_in && (status == 401 || status == 403))
-        return {"invalid_credentials", "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again.", false};
+        return {"invalid_credentials", translated(L("Your JusPrin sign-in has ended. Sign in again in Preferences, then try again.")), false};
     if (m_config.profile.account_sign_in && status == 402) {
-        // The gateway's own words.
+        // What the message costs and what the person has, from the gateway's
+        // numbers, in the app's language.
         const nlohmann::json answer = nlohmann::json::parse(body, nullptr, false);
-        if (answer.is_object() && answer.contains("error") && answer["error"].value("code", "") == "credits_exhausted") {
-            return {"credits_exhausted", answer["error"].value("message", ""), false};
+        if (answer.is_object() && answer.contains("error") && answer["error"].value("code", "") == "credits_exhausted" &&
+            answer.value("cost", nlohmann::json()).is_number_unsigned() && answer.value("balance", nlohmann::json()).is_number_unsigned()) {
+            const unsigned cost = answer["cost"].get<unsigned>();
+            // TRN %1% is what the message costs in credits, %2% the credits the person has.
+            return {"credits_exhausted",
+                    Slic3r::format(translated_plural("This message needs %1% credit; you have %2%.",
+                                                     "This message needs %1% credits; you have %2%.", cost),
+                                   cost, answer["balance"].get<unsigned>()),
+                    false};
         }
     }
     // Any other refusal for payment is the same want of credits, with the
     // same Get more credits button.
     if (m_config.profile.account_sign_in && status == 402)
-        return {"credits_exhausted", "You're out of credits.", false};
+        return {"credits_exhausted", translated(L("You're out of credits.")), false};
     if (status == 401 || status == 403)
-        return {"invalid_credentials", "The " + name + " API key was rejected. Update the AI configuration and try again.", false};
+        // TRN %1% is an AI provider, such as OpenAI.
+        return {"invalid_credentials", Slic3r::format(translated(L("The %1% API key was rejected. Update the AI configuration and try again.")), name), false};
     if (status == 413)
-        return {"request_too_large", "The request was too large for the " + name + " service.", false};
+        // TRN %1% is an AI provider, such as OpenAI.
+        return {"request_too_large", Slic3r::format(translated(L("The request was too large for the %1% service.")), name), false};
     if (status == 429)
-        return {"rate_limited", "The " + name + " service is rate limited. Try again shortly.", true};
+        // TRN %1% is an AI provider, such as OpenAI.
+        return {"rate_limited", Slic3r::format(translated(L("The %1% service is rate limited. Try again shortly.")), name), true};
     if (status == 529)
-        return {"service_overloaded", "The " + name + " service is overloaded. Try again shortly.", true};
+        // TRN %1% is an AI provider, such as OpenAI.
+        return {"service_overloaded", Slic3r::format(translated(L("The %1% service is overloaded. Try again shortly.")), name), true};
     if (status >= 500)
-        return {"service_unavailable", "The " + name + " service is temporarily unavailable.", true};
+        // TRN %1% is an AI provider, such as OpenAI.
+        return {"service_unavailable", Slic3r::format(translated(L("The %1% service is temporarily unavailable.")), name), true};
     if (status == 408 || detail.find("timed out") != std::string::npos || detail.find("Timeout") != std::string::npos)
-        return {"timeout", "The AI request timed out.", true};
-    return {"network_error", "The AI request could not reach the " + name + " service.", true};
+        return {"timeout", translated(L("The AI request timed out.")), true};
+    // TRN %1% is an AI provider, such as OpenAI.
+    return {"network_error", Slic3r::format(translated(L("The AI request could not reach the %1% service.")), name), true};
 }
 
 void ProviderAgent::fail(AgentError error)

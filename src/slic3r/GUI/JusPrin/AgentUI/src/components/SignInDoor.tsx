@@ -10,6 +10,8 @@
 // returns the words and controls only: the caller frames them in a column.
 
 import { ReactNode, useEffect, useRef, useState } from 'react';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 import googleMark from '@resources/jusprin/welcome/google-g.svg';
 import { CodeField } from './CodeField';
 import './SignInDoor.css';
@@ -77,15 +79,15 @@ export interface SignInDoorProps {
 function refusalText(email: SignInEmailStep): string {
   switch (email.refusal) {
     case 'wrong_code':
-      return 'That code is wrong.';
+      return t`That code is wrong.`;
     case 'expired_code':
-      return 'That code no longer works. We can send a new one.';
+      return t`That code no longer works. We can send a new one.`;
     case 'too_many_tries':
-      return 'Too many tries. Wait a few minutes, or email me a code.';
+      return t`Too many tries. Wait a few minutes, or email me a code.`;
     case 'too_many_codes':
-      return 'Too many codes were sent to this address. Try again in an hour.';
+      return t`Too many codes were sent to this address. Try again in an hour.`;
     case 'wrong_password':
-      return 'That password is wrong.';
+      return t`That password is wrong.`;
     default:
       return '';
   }
@@ -103,7 +105,7 @@ function LinkRow({ links, cancel }: { links: [string, () => void][]; cancel?: ()
           </span>
         ))}
       </span>
-      {cancel && <button type="button" className="sign-in-link" onClick={cancel}>Cancel</button>}
+      {cancel && <button type="button" className="sign-in-link" onClick={cancel}>{t`Cancel`}</button>}
     </div>
   );
 }
@@ -117,6 +119,7 @@ function CodeStep({ email, actions, buttons, onChangeEmail, onBrowser }: {
   const refusal = refusalText(email);
   // A code that can no longer work: the way on is a new one.
   const spent = email.refusal === 'expired_code';
+  const address = email.email;
   // A new code empties the cells; so does typing after a wrong one.
   useEffect(() => {
     if (email.codeResent) setCode('');
@@ -129,10 +132,9 @@ function CodeStep({ email, actions, buttons, onChangeEmail, onBrowser }: {
   }, [email.busy]);
   return (
     <>
-      <p className="sign-in-title">Check your email.</p>
+      <p className="sign-in-title">{t`Check your email.`}</p>
       <p className="sign-in-detail">
-        {email.codeResent ? 'We sent a new code to ' : 'We sent a 6-digit code to '}
-        {email.email}.
+        {email.codeResent ? t`We sent a new code to ${address}.` : t`We sent a 6-digit code to ${address}.`}
       </p>
       <CodeField
         ref={field}
@@ -145,16 +147,16 @@ function CodeStep({ email, actions, buttons, onChangeEmail, onBrowser }: {
       {refusal ? (
         <p className="sign-in-error" role="alert">{refusal}</p>
       ) : (
-        <p className="sign-in-note">Type the code from the email. You can open it on your phone.</p>
+        <p className="sign-in-note">{t`Type the code from the email. You can open it on your phone.`}</p>
       )}
       {spent ? (
         <div className="sign-in-link-row sign-in-new-code-row">
-          <button type="button" className={buttons.primary} disabled={email.busy} onClick={actions.sendCode}>Send a new code</button>
-          <LinkRow links={[['Change email', onChangeEmail], ['Sign in with Google instead', onBrowser]]} />
+          <button type="button" className={buttons.primary} disabled={email.busy} onClick={actions.sendCode}>{t`Send a new code`}</button>
+          <LinkRow links={[[t`Change email`, onChangeEmail], [t`Sign in with Google instead`, onBrowser]]} />
         </div>
       ) : (
         <LinkRow
-          links={[['Send a new code', actions.sendCode], ['Change email', onChangeEmail], ['Sign in with Google instead', onBrowser]]}
+          links={[[t`Send a new code`, actions.sendCode], [t`Change email`, onChangeEmail], [t`Sign in with Google instead`, onBrowser]]}
           cancel={actions.cancel}
         />
       )}
@@ -174,33 +176,33 @@ function ChooseStep({ email, actions, buttons, onChangeEmail }: {
   const codeRefused = email.refusal === 'too_many_codes';
   return (
     <>
-      <p className="sign-in-title">We’ll email you a code.</p>
+      <p className="sign-in-title">{t`We’ll email you a code.`}</p>
       <p className="sign-in-detail">
         {email.email}.{' '}
-        <button type="button" className="sign-in-link inline" onClick={onChangeEmail}>Change email</button>
+        <button type="button" className="sign-in-link inline" onClick={onChangeEmail}>{t`Change email`}</button>
       </p>
       <button type="button" className={`${buttons.primary} sign-in-code-button`} disabled={email.busy}
         onClick={actions.sendCode}>
-        Email me a 6-digit code
+        {t`Email me a 6-digit code`}
       </button>
       {codeRefused && <p className="sign-in-error" role="alert">{refusal}</p>}
       {withPassword ? (
         <>
-          <p className="sign-in-or"><span>or</span></p>
+          <p className="sign-in-or"><span>{t`or`}</span></p>
           <form className="sign-in-email-row" onSubmit={(event) => {
             event.preventDefault();
             if (password) actions.password(password);
           }}>
-            <input className="sign-in-field" type="password" placeholder="Password" autoComplete="current-password"
-              aria-label="Password" value={password} disabled={email.busy} autoFocus
+            <input className="sign-in-field" type="password" placeholder={t`Password`} autoComplete="current-password"
+              aria-label={t`Password`} value={password} disabled={email.busy} autoFocus
               onChange={(event) => setPassword(event.target.value)} />
-            <button type="submit" className={buttons.secondary} disabled={email.busy || !password}>Sign in</button>
+            <button type="submit" className={buttons.secondary} disabled={email.busy || !password}>{t`Sign in`}</button>
           </form>
           {refusal && !codeRefused && <p className="sign-in-error" role="alert">{refusal}</p>}
-          <LinkRow links={[['Forgot password', () => actions.openLink('reset_password')]]} cancel={actions.cancel} />
+          <LinkRow links={[[t`Forgot password`, () => actions.openLink('reset_password')]]} cancel={actions.cancel} />
         </>
       ) : (
-        <LinkRow links={[['Use a password instead', () => setWithPassword(true)]]} cancel={actions.cancel} />
+        <LinkRow links={[[t`Use a password instead`, () => setWithPassword(true)]]} cancel={actions.cancel} />
       )}
     </>
   );
@@ -236,11 +238,12 @@ export function SignInDoor({ phase, email, error, outdated, actions, buttons, ch
   if (phase === 'email' && email && email.step === 'code')
     return <CodeStep email={email} actions={actions} buttons={buttons} onChangeEmail={backToAddress} onBrowser={browser} />;
   if (phase === 'email' && email && sendingCode && !email.refusal) {
+    const address = email.email;
     return (
       <>
         <p className="sign-in-title sign-in-waiting">
           <span className="sign-in-spinner" aria-hidden="true" />
-          Sending a code to {email.email}…
+          {t`Sending a code to ${address}…`}
         </p>
         <LinkRow links={[]} cancel={actions.cancel} />
       </>
@@ -253,14 +256,14 @@ export function SignInDoor({ phase, email, error, outdated, actions, buttons, ch
       <>
         <p className="sign-in-title sign-in-waiting">
           <span className="sign-in-spinner" aria-hidden="true" />
-          Finish in your browser.
+          {t`Finish in your browser.`}
         </p>
-        <p className="sign-in-detail">The app continues on its own once the browser is done.</p>
+        <p className="sign-in-detail">{t`The app continues on its own once the browser is done.`}</p>
         <p className="sign-in-note">
-          Nothing happened?{' '}
-          <button type="button" className="sign-in-link inline" onClick={actions.reopen}>Open the browser again</button>
+          {t`Nothing happened?`}{' '}
+          <button type="button" className="sign-in-link inline" onClick={actions.reopen}>{t`Open the browser again`}</button>
         </p>
-        <LinkRow links={[['Use an email code instead', backToAddress]]} cancel={actions.cancel} />
+        <LinkRow links={[[t`Use an email code instead`, backToAddress]]} cancel={actions.cancel} />
       </>
     );
   }
@@ -269,7 +272,7 @@ export function SignInDoor({ phase, email, error, outdated, actions, buttons, ch
       <>
         <p className="sign-in-title sign-in-waiting">
           <span className="sign-in-spinner" aria-hidden="true" />
-          Signing you in…
+          {t`Signing you in…`}
         </p>
         <LinkRow links={[]} cancel={actions.cancel} />
       </>
@@ -291,32 +294,33 @@ export function SignInDoor({ phase, email, error, outdated, actions, buttons, ch
       {children}
       <button type="button" className={`${buttons.secondary} sign-in-google`} onClick={actions.google}>
         <img src={googleMark} alt="" />
-        Continue with Google
+        {t`Continue with Google`}
       </button>
-      <p className="sign-in-or"><span>or</span></p>
+      <p className="sign-in-or"><span>{t`or`}</span></p>
       <form className="sign-in-email-row" onSubmit={(event) => {
         event.preventDefault();
         sendEmail(true);
       }}>
         <input ref={addressField} className="sign-in-field" type="email" placeholder="you@example.com" autoComplete="email"
-          aria-label="Email" value={address} onChange={(event) => setAddress(event.target.value)} />
-        <button type="submit" className={buttons.primary} disabled={!address.trim()}>Sign up free</button>
+          aria-label={t`Email`} value={address} onChange={(event) => setAddress(event.target.value)} />
+        <button type="submit" className={buttons.primary} disabled={!address.trim()}>{t`Sign up free`}</button>
       </form>
       <p className="sign-in-note">
-        Already have an account?{' '}
-        <button type="button" className="sign-in-link inline" onClick={() => sendEmail(false)}>Sign in</button>
+        {t`Already have an account?`}{' '}
+        <button type="button" className="sign-in-link inline" onClick={() => sendEmail(false)}>{t`Sign in`}</button>
       </p>
       <p className="sign-in-note">
-        By continuing you agree to the{' '}
-        <button type="button" className="sign-in-link inline" onClick={() => actions.openLink('terms')}>Terms</button>{' '}
-        and{' '}
-        <button type="button" className="sign-in-link inline" onClick={() => actions.openLink('privacy')}>Privacy Policy</button>
-        .
+        <Trans>
+          By continuing you agree to the{' '}
+          <button type="button" className="sign-in-link inline" onClick={() => actions.openLink('terms')}>Terms</button>{' '}
+          and{' '}
+          <button type="button" className="sign-in-link inline" onClick={() => actions.openLink('privacy')}>Privacy Policy</button>.
+        </Trans>
       </p>
       {error && <p className="sign-in-error" role="alert">{error}</p>}
       {error && outdated && (
         <button type="button" className={`${buttons.primary} sign-in-new-version`} onClick={actions.getNewVersion}>
-          Get the new version…
+          {t`Get the new version…`}
         </button>
       )}
     </>

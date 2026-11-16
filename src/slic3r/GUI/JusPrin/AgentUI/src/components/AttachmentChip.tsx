@@ -3,6 +3,9 @@
 // photo has a thumbnail, while other files show their kind as a small badge.
 
 import { AttachmentInfo } from '../bridge/protocol';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { decimalText } from '../i18n';
 
 interface Props {
   attachment: AttachmentInfo;
@@ -12,24 +15,29 @@ interface Props {
 }
 
 const kindLabel: Record<string, string> = {
-  text: 'Text',
-  image: 'Image',
+  text: t({ message: 'Text', comment: 'The kind of an attached file: a text file' }),
+  image: t({ message: 'Image', comment: 'The kind of an attached file' }),
   svg: 'SVG',
   pdf: 'PDF',
   gcode: 'G-code',
-  model: '3D model',
-  unsupported: 'Unsupported',
+  model: t`3D model`,
+  unsupported: t({ message: 'Unsupported', comment: 'The kind of an attached file the app cannot read' }),
 };
 
 function sizeLabel(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  // TRN: a file size in bytes.
+  if (bytes < 1024) return t`${bytes} B`;
+  const kilobytes = Math.round(bytes / 1024);
+  // TRN: a file size in kilobytes.
+  if (bytes < 1024 * 1024) return t`${kilobytes} KB`;
+  const megabytes = decimalText(bytes / (1024 * 1024), 1, 1);
+  // TRN: a file size in megabytes.
+  return t`${megabytes} MB`;
 }
 
 export function AttachmentChip({ attachment, onRemove, notSent }: Props) {
   const errored = attachment.state === 'error';
-  const label = kindLabel[attachment.kind] ?? 'File';
+  const label = kindLabel[attachment.kind] ?? t({ message: 'File', comment: 'The kind of an attached file of no known kind' });
   const title = attachment.name || attachment.summary || label;
   const extension = attachment.name.split('.').pop()?.toUpperCase();
   const kind = attachment.previewDataUrl ? label : extension && extension.length <= 5 ? extension : label;
@@ -51,7 +59,7 @@ export function AttachmentChip({ attachment, onRemove, notSent }: Props) {
           {notSent
             ? <span className="attachment-not-sent">
                 <span className="jp-icon jp-icon-triangle-alert" aria-hidden="true" />
-                <span>Standard can’t see pictures, so this one will not be sent.</span>
+                <span><Trans>Standard can’t see pictures, so this one will not be sent.</Trans></span>
               </span>
             : <span className="attachment-sub">{format} · {sizeLabel(attachment.sizeBytes)}</span>}
         </span>
@@ -59,14 +67,14 @@ export function AttachmentChip({ attachment, onRemove, notSent }: Props) {
           <button
             type="button"
             className="attachment-remove"
-            aria-label={`Remove ${title}`}
+            aria-label={t`Remove ${title}`}
             onClick={() => onRemove(attachment.id)}
           >
-            Remove
+            <Trans>Remove</Trans>
           </button>
         )}
       </div>
-      {errored && <span className="attachment-error">{attachment.error?.message ?? 'Could not be attached'}</span>}
+      {errored && <span className="attachment-error">{attachment.error?.message ?? t`Could not be attached`}</span>}
     </div>
   );
 }

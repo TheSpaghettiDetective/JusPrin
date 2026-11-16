@@ -8,6 +8,7 @@
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/GUI.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
+#include "slic3r/GUI/format.hpp"
 #include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterCatalog.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
@@ -85,18 +86,21 @@ std::string orca_import_reason(const ImportApp& app, const OrcaImportItem& item)
     case Reason::MissingBase:
         switch (item.kind) {
         case OrcaImportItem::Kind::Filament:
-            return into_u8(wxString::Format(_L("Not imported, because it's based on %s, which JusPrin doesn't have. It stays in %s. "
-                                               "When you prepare a print, choose a similar filament instead."),
-                                            base, name));
+            // TRN %1% is the filament preset the file is based on, %2% the app it was imported from.
+            return format(_L("Not imported, because it's based on %1%, which JusPrin doesn't have. It stays in %2%. "
+                             "When you prepare a print, choose a similar filament instead."),
+                          base, name);
         case OrcaImportItem::Kind::Process:
-            return into_u8(wxString::Format(_L("Not imported, because they're based on %s, which JusPrin doesn't have. They stay in %s. "
-                                               "When you prepare a print, choose similar print settings instead."),
-                                            base, name));
+            // TRN %1% is the print settings preset the file is based on, %2% the app it was imported from.
+            return format(_L("Not imported, because they're based on %1%, which JusPrin doesn't have. They stay in %2%. "
+                             "When you prepare a print, choose similar print settings instead."),
+                          base, name);
         case OrcaImportItem::Kind::Printer: break;
         }
-        return into_u8(wxString::Format(_L("Not imported, because it's based on %s, which JusPrin doesn't have. It stays in %s. "
-                                           "When you add a printer, choose a similar one instead."),
-                                        base, name));
+        // TRN %1% is the printer profile the file is based on, %2% the app it was imported from.
+        return format(_L("Not imported, because it's based on %1%, which JusPrin doesn't have. It stays in %2%. "
+                         "When you add a printer, choose a similar one instead."),
+                      base, name);
     case Reason::NotLoaded:
         return into_u8(wxString::Format(_L("JusPrin couldn't load this preset. To try again, choose Printer › Import printers from %s…"), name));
     case Reason::None: break;
@@ -269,9 +273,10 @@ OrcaImporter::FolderChoice OrcaImporter::choose_folder(const ImportApp& app, wxW
         return {};
     const fs::path picked = fs::u8path(into_u8(dialog.GetPath()));
     if (!detect(app, picked).has_printers())
-        return {std::nullopt, into_u8(wxString::Format(
-                                  _L("JusPrin found no %s printers in that folder. If %s keeps its settings somewhere else, choose that folder."),
-                                  name, name))};
+        // TRN %1% is the app the printers are imported from, such as OrcaSlicer.
+        return {std::nullopt, format(_L("JusPrin found no %1% printers in that folder. If %1% keeps its settings somewhere else, "
+                                        "choose that folder."),
+                                     name)};
     return {picked, {}};
 }
 

@@ -14,9 +14,11 @@ if (NOT JUSPRIN_NPM)
 endif()
 
 set(_jusprin_web_shared_inputs
-    ${CMAKE_SOURCE_DIR}/resources/jusprin/ui/design-tokens.json)
+    ${CMAKE_SOURCE_DIR}/resources/jusprin/ui/design-tokens.json
+    ${CMAKE_CURRENT_SOURCE_DIR}/../Localization/languages.json)
 file(GLOB_RECURSE _jusprin_web_shared_glob CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/../WebShared/*
+    ${CMAKE_CURRENT_SOURCE_DIR}/../Localization/pages/*
     ${CMAKE_SOURCE_DIR}/resources/jusprin/ui/icons/*)
 list(APPEND _jusprin_web_shared_inputs ${_jusprin_web_shared_glob})
 
@@ -44,6 +46,7 @@ function(jusprin_web_bundle name project_dir output)
         COMMAND ${JUSPRIN_NPM} run build
         DEPENDS ${_stamp} ${_src} ${_jusprin_web_shared_inputs}
                 ${project_dir}/index.html ${project_dir}/vite.config.ts ${project_dir}/tsconfig.json
+                ${project_dir}/lingui.config.ts
         WORKING_DIRECTORY ${project_dir}
         COMMENT "vite build (${name}) -> ${output}"
         VERBATIM)

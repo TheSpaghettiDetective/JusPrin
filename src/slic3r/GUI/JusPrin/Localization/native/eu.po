@@ -1,0 +1,2314 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the JusPrin package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: JusPrin\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-15 09:46-0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: eu\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+# AI Translated
+msgid "Project chat is blocked until restoration is recovered."
+msgstr "Proiektuaren txata blokeatuta dago leheneratzea berreskuratu arte."
+
+# AI Translated
+msgid "Return to the active chat or restore this chat before sending."
+msgstr "Itzuli txat aktibora edo leheneratu txat hau bidali aurretik."
+
+# AI Translated
+msgid "Finish or cancel AI configuration before sending a message."
+msgstr "Amaitu edo utzi AAren konfigurazioa mezu bat bidali aurretik."
+
+# AI Translated
+msgid "This message belongs to a different chat."
+msgstr "Mezu hau beste txat batekoa da."
+
+# AI Translated
+msgid "A message needs text or an attachment."
+msgstr "Mezu batek testua edo eranskin bat behar du."
+
+# AI Translated
+msgid "The file could not be read."
+msgstr "Ezin izan da fitxategia irakurri."
+
+# AI Translated
+msgid "This file is too large to attach."
+msgstr "Fitxategi hau handiegia da eransteko."
+
+# AI Translated
+msgid "This file type can't be read by AI."
+msgstr "AAk ezin du mota honetako fitxategirik irakurri."
+
+# AI Translated
+msgid "This file is not readable UTF-8 text."
+msgstr "Fitxategi hau ez da UTF-8 testu irakurgarria."
+
+# AI Translated
+msgid "The attachment could not be stored."
+msgstr "Ezin izan da eranskina gorde."
+
+# AI Translated
+msgid "Photo or image"
+msgstr "Argazkia edo irudia"
+
+# AI Translated
+msgid "3D model"
+msgstr "3D modeloa"
+
+# AI Translated
+msgid "Document (PDF)"
+msgstr "Dokumentua (PDF)"
+
+# AI Translated
+msgid "This build cannot open a file dialog."
+msgstr "Konpilazio honek ezin du fitxategi-elkarrizketa-koadrorik ireki."
+
+# AI Translated
+#. TRN A calibration chat's first line. %1%: where it was started from, %2%: a printer.
+#, boost-format
+msgid "From %1% · %2% · filament not chosen · temporary test settings"
+msgstr "Jatorria: %1% · %2% · filamentua aukeratu gabe · aldi baterako proba-ezarpenak"
+
+# AI Translated
+#. TRN A calibration chat's first line. %1%: where it was started from, %2%: a filament, %3%: a printer.
+#, boost-format
+msgid "From %1% · %2% on %3% · temporary test settings"
+msgstr "Jatorria: %1% · %2%, %3% inprimagailuan · aldi baterako proba-ezarpenak"
+
+# AI Translated
+#. TRN A reopened calibration test's line. %1%: the day it was made, as "21 Oct 2026".
+#, boost-format
+msgid "Reopened · generated %1%"
+msgstr "Berriro irekia · sortze-data: %1%"
+
+# AI Translated
+#. TRN %1%: where the test was opened from, %2%: the day it was made, as "21 Oct 2026".
+#, boost-format
+msgid "Opened from %1% · generated %2%"
+msgstr "Hemendik irekia: %1% · sortze-data: %2%"
+
+# AI Translated
+#. TRN %1% is a calibration result, such as 215 °C.
+#, boost-format
+msgid "result %1% saved"
+msgstr "emaitza gordeta: %1%"
+
+# AI Translated
+#. TRN %1% is a plate's name, %2% why the slice did not succeed.
+#, boost-format
+msgid "The app did not slice %1%: %2%"
+msgstr "Aplikazioak ez du xerratu %1%: %2%"
+
+# AI Translated
+#. TRN %1% is a plate's name, %2% why the slice did not succeed.
+#, boost-format
+msgid "The app stopped the slice of %1%: %2%"
+msgstr "Aplikazioak xerratzea gelditu du (%1%): %2%"
+
+# AI Translated
+msgid "The slice of every plate finished."
+msgstr "Plaka guztien xerratzea amaitu da."
+
+# AI Translated
+#. TRN %1% is a plate's name.
+#, boost-format
+msgid "The slice of %1% finished."
+msgstr "Xerratzea amaitu da: %1%."
+
+# AI Translated
+msgid "Historical replies cannot be retried."
+msgstr "Ezin da iraganeko erantzunik berriro eskatu."
+
+# AI Translated
+msgid "Only a failed or stopped assistant message in the active conversation can be retried."
+msgstr "Txat aktiboan huts egin duen edo gelditu den laguntzailearen mezu bat soilik eska daiteke berriro."
+
+# AI Translated
+msgid "Only the chat's last reply can be retried."
+msgstr "Txataren azken erantzuna soilik eska daiteke berriro."
+
+# AI Translated
+msgid "Another reply is currently streaming."
+msgstr "Beste erantzun bat jasotzen ari da une honetan."
+
+# AI Translated
+msgid "Historical tool actions cannot be changed."
+msgstr "Ezin dira iraganeko tresna-ekintzak aldatu."
+
+# AI Translated
+msgid "This proposal is no longer open. Ask AI again."
+msgstr "Proposamen hau ez dago irekita jada. Galdetu berriro AAri."
+
+# AI Translated
+msgid "This save can no longer be undone."
+msgstr "Gordetze hau ezin da desegin jada."
+
+# AI Translated
+msgid "The earlier values cannot be put back."
+msgstr "Ezin dira aurreko balioak berrezarri."
+
+# AI Translated
+msgid "Finish or resolve pending work before creating a chat."
+msgstr "Amaitu edo ebatzi zain dauden lanak txat bat sortu aurretik."
+
+# AI Translated
+msgid "The current chat could not be saved."
+msgstr "Ezin izan da uneko txata gorde."
+
+# AI Translated
+msgid "The new chat could not be saved."
+msgstr "Ezin izan da txat berria gorde."
+
+# AI Translated
+msgid "The selected chat could not be saved."
+msgstr "Ezin izan da hautatutako txata gorde."
+
+# AI Translated
+msgid "The project or selected chat changed. Review it again."
+msgstr "Proiektua edo hautatutako txata aldatu egin da. Berrikusi berriro."
+
+# AI Translated
+msgid "Finish or resolve pending work before resuming a chat."
+msgstr "Amaitu edo ebatzi zain dauden lanak txat bati berrekin aurretik."
+
+# AI Translated
+msgid "This chat is already active."
+msgstr "Txat hau aktibo dago jada."
+
+# AI Translated
+msgid "JusPrin can't find the project version this chat was working on."
+msgstr "JusPrin-ek ez du aurkitzen txat honek erabiltzen zuen proiektuaren bertsioa."
+
+# AI Translated
+msgid "The current project could not be saved before restoration."
+msgstr "Ezin izan da uneko proiektua gorde leheneratu aurretik."
+
+# AI Translated
+msgid "JusPrin couldn't put the project back."
+msgstr "JusPrin-ek ezin izan du proiektua leheneratu."
+
+# AI Translated
+msgid "Restored this chat's saved project setup. Check the current printer and material before printing."
+msgstr "Txat honen proiektuaren konfigurazio gordea leheneratu da. Egiaztatu uneko inprimagailua eta materiala inprimatu aurretik."
+
+# AI Translated
+msgid "Use a non-empty, single-line title of at most 120 characters for an existing chat."
+msgstr "Erabili izenburu ez-huts bat, lerro bakarrekoa eta gehienez 120 karakterekoa, lehendik dagoen txat baterako."
+
+# AI Translated
+msgid "This chat is still working. Stop it or let it finish, then delete it."
+msgstr "Txat hau oraindik lanean ari da. Gelditu edo utzi amaitzen, eta ezabatu gero."
+
+# AI Translated
+msgid "This chat no longer exists."
+msgstr "Txat hau ez dago jada."
+
+# AI Translated
+msgid "The replacement chat could not be saved."
+msgstr "Ezin izan da ordezko txata gorde."
+
+# AI Translated
+msgid "Historical chats cannot edit the current draft."
+msgstr "Iraganeko txatek ezin dute uneko zirriborroa editatu."
+
+# AI Translated
+msgid "Finish or stop the current reply before configuring AI."
+msgstr "Amaitu edo gelditu uneko erantzuna AA konfiguratu aurretik."
+
+# AI Translated
+msgid "This build cannot configure an AI provider."
+msgstr "Konpilazio honek ezin du AA hornitzailerik konfiguratu."
+
+# AI Translated
+msgid "A credential check is already running."
+msgstr "Kredentzial-egiaztapen bat abian da jada."
+
+# AI Translated
+msgid "This build cannot verify a key for that provider yet."
+msgstr "Konpilazio honek ezin du oraindik hornitzaile horren gakorik egiaztatu."
+
+# AI Translated
+msgid "Finish or stop the current reply before removing a key."
+msgstr "Amaitu edo gelditu uneko erantzuna gako bat kendu aurretik."
+
+# AI Translated
+msgid "Finish or cancel the key check before removing a key."
+msgstr "Amaitu edo utzi gakoaren egiaztapena gako bat kendu aurretik."
+
+# AI Translated
+msgid "That key could not be removed."
+msgstr "Ezin izan da gako hori kendu."
+
+# AI Translated
+msgid "This build cannot sign in to a JusPrin account."
+msgstr "Konpilazio honekin ezin da JusPrin kontu batean saioa hasi."
+
+# AI Translated
+msgid "Finish or stop the current reply before signing in."
+msgstr "Amaitu edo gelditu uneko erantzuna saioa hasi aurretik."
+
+# AI Translated
+msgid "A sign-in or key check is already running."
+msgstr "Saio-hasiera edo gako-egiaztapen bat abian da jada."
+
+# AI Translated
+msgid "There is no JusPrin account on this computer to check."
+msgstr "Ez dago JusPrin konturik ordenagailu honetan egiaztatzeko."
+
+# AI Translated
+msgid "JusPrin couldn't start signing in. Try again."
+msgstr "JusPrin-ek ezin izan du saio-hasiera abiarazi. Saiatu berriro."
+
+# AI Translated
+msgid "JusPrin couldn't sign you in. Try again."
+msgstr "JusPrin-ek ezin izan dizu saioa hasi. Saiatu berriro."
+
+# AI Translated
+msgid "This sign-in could not be saved, so you will have to sign in again next time JusPrin starts."
+msgstr "Ezin izan da saio hau gorde; beraz, JusPrin abiarazten den hurrengo aldian saioa berriro hasi beharko duzu."
+
+# AI Translated
+msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
+msgstr "Ezin izan da gako hau gorde; beraz, JusPrin abiarazten den hurrengo aldian berriro sartu beharko da."
+
+# AI Translated
+msgid "The panel is still loading. Try again in a moment."
+msgstr "Panela kargatzen ari da oraindik. Saiatu berriro une batean."
+
+# AI Translated
+msgid "The AI service is not available."
+msgstr "AA zerbitzua ez dago erabilgarri."
+
+# AI Translated
+msgid "The AI service could not start this request."
+msgstr "AA zerbitzuak ezin izan du eskaera hau abiarazi."
+
+# AI Translated
+msgid "AI could not receive the native tool result."
+msgstr "AAk ezin izan du tresna natiboaren emaitza jaso."
+
+# AI Translated
+msgid "The AI request failed."
+msgstr "AA eskaerak huts egin du."
+
+# AI Translated
+msgid "The automatic chat title could not be generated. You can rename the chat."
+msgstr "Ezin izan da txataren izenburu automatikoa sortu. Txata berrizendatu dezakezu."
+
+# AI Translated
+#. TRN %1% is an AI provider's account, such as JusPrin.
+#, boost-format
+msgid "This chat ran on your %1% account. Sign in again to continue it, or start a new chat."
+msgstr "Txat hau zure %1% kontuan exekutatu zen. Hasi saioa berriro jarraitzeko, edo hasi txat berri bat."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "This chat ran on %1%, and no %1% API key is set up now. Add the key in the AI settings to continue it, or start a new chat."
+msgstr "Txat hau %1% erabiliz exekutatu zen, eta orain ez dago %1% API gakorik konfiguratuta. Gehitu gakoa AA ezarpenetan jarraitzeko, edo hasi txat berri bat."
+
+# AI Translated
+msgid "JusPrin hasn't loaded the AI models for your account yet. Try again in a moment."
+msgstr "JusPrin-ek oraindik ez ditu kargatu zure konturako AA modeloak. Saiatu berriro une batean."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "No %1% API key is set up. Add it in the AI settings, or choose another model."
+msgstr "Ez dago %1% API gakorik konfiguratuta. Gehitu AA ezarpenetan, edo aukeratu beste modelo bat."
+
+# AI Translated
+msgid "A connection is already being saved."
+msgstr "Konexio bat gordetzen ari da jada."
+
+# AI Translated
+msgid "JusPrin's connection helper is missing. Reinstall or rebuild JusPrin."
+msgstr "JusPrin-en konexio-laguntzailea falta da. Instalatu edo konpilatu berriro JusPrin."
+
+# AI Translated
+msgid "The AppImage launcher is missing. Reopen the installed AppImage."
+msgstr "AppImage abiarazlea falta da. Ireki berriro instalatutako AppImage-a."
+
+# AI Translated
+msgid "Review the change before connecting."
+msgstr "Berrikusi aldaketa konektatu aurretik."
+
+# AI Translated
+#. TRN %1% is an AI client app, such as Claude Code.
+#, boost-format
+msgid "%1% isn't installed. Install it, or copy the command and run it later."
+msgstr "%1% ez dago instalatuta. Instalatu, edo kopiatu komandoa eta exekutatu geroago."
+
+# AI Translated
+msgid "This build cannot run the client CLI."
+msgstr "Konpilazio honek ezin du bezeroaren CLIa exekutatu."
+
+# AI Translated
+msgid "This build cannot open a file manager."
+msgstr "Konpilazio honek ezin du fitxategi-kudeatzailerik ireki."
+
+# AI Translated
+msgid "The provider did not answer."
+msgstr "Hornitzaileak ez du erantzun."
+
+# AI Translated
+msgid "Attach files"
+msgstr "Erantsi fitxategiak"
+
+# AI Translated
+msgid "The AI panel could not connect"
+msgstr "AA panela ezin izan da konektatu"
+
+# AI Translated
+msgid "Back to Prepare"
+msgstr "Itzuli Prestatu fitxara"
+
+# AI Translated
+msgid "Open filament settings"
+msgstr "Ireki filamentuaren ezarpenak"
+
+# AI Translated
+msgid "The packaged AI page is missing from this build."
+msgstr "Paketatutako AA orria falta da konpilazio honetan."
+
+# AI Translated
+msgid "The system web view could not be created."
+msgstr "Ezin izan da sistemaren web-ikuspegia sortu."
+
+# AI Translated
+msgid "The AI page failed to load."
+msgstr "Ezin izan da AA orria kargatu."
+
+# AI Translated
+msgid "The AI page did not complete the bridge handshake."
+msgstr "AA orriak ez du zubiaren hasierako konexio-trukea osatu."
+
+# AI Translated
+msgid "Restart the application to load the AI page."
+msgstr "Berrabiarazi aplikazioa AA orria kargatzeko."
+
+# AI Translated
+msgid "This is an internal connection between the application and its AI panel, not a network service."
+msgstr "Hau aplikazioaren eta haren AA panelaren arteko barne-konexio bat da, ez sare-zerbitzu bat."
+
+# AI Translated
+#. TRN %1% is the web view's own error text.
+#, boost-format
+msgid "Last load error: %1%"
+msgstr "Azken kargatze-errorea: %1%"
+
+# AI Translated
+#. TRN The messages the app and its AI panel exchanged. %1% and %2% are counts.
+#, boost-format
+msgid "Bridge traffic: %1% sent / %2% received"
+msgstr "Zubiko trafikoa: %1% bidalita / %2% jasota"
+
+# AI Translated
+msgid "The AI service returned an unreadable streaming response."
+msgstr "AA zerbitzuak streaming erantzun irakurrezin bat itzuli du."
+
+# AI Translated
+msgid "The AI service streamed a delta for a block it never opened."
+msgstr "AA zerbitzuak inoiz ireki ez zuen bloke baterako delta bat bidali du."
+
+# AI Translated
+msgid "The AI service sent a tool call whose arguments are not JSON."
+msgstr "AA zerbitzuak JSON ez diren argumentuak dituen tresna-dei bat bidali du."
+
+# AI Translated
+msgid "The AI service could not complete the response."
+msgstr "AA zerbitzuak ezin izan du erantzuna osatu."
+
+# AI Translated
+#. TRN %1% is the AI service's own reason, in English, such as "cyber".
+#, boost-format
+msgid "The AI service declined to answer (%1%)."
+msgstr "AA zerbitzuak erantzuteari uko egin dio (%1%)."
+
+# AI Translated
+msgid "The AI service ended its response for a reason this build does not know."
+msgstr "AA zerbitzuak konpilazio honek ezagutzen ez duen arrazoi batengatik amaitu du erantzuna."
+
+# AI Translated
+msgid "This version of JusPrin can no longer connect to JusPrin accounts. Get the new version to keep using your account."
+msgstr "JusPrin-en bertsio honek ezin du jada JusPrin kontuetara konektatu. Lortu bertsio berria zure kontua erabiltzen jarraitzeko."
+
+# AI Translated
+msgid "Signing in didn't finish. Nothing was saved. Try again."
+msgstr "Saio-hasiera ez da amaitu. Ez da ezer gorde. Saiatu berriro."
+
+# AI Translated
+msgid "JusPrin couldn't be reached to finish signing in. Try again."
+msgstr "Ezin izan da JusPrin-ekin konektatu saio-hasiera amaitzeko. Saiatu berriro."
+
+# AI Translated
+msgid "JusPrin has no AI model for this account right now. Try again later."
+msgstr "JusPrin-ek ez du AA modelorik kontu honetarako une honetan. Saiatu berriro geroago."
+
+# AI Translated
+msgid "Restored an earlier project version"
+msgstr "Proiektuaren aurreko bertsio bat leheneratu da"
+
+# AI Translated
+msgid "Restored this chat's saved project setup"
+msgstr "Txat honen proiektuaren konfigurazio gordea leheneratu da"
+
+# AI Translated
+#. TRN The chat list's preview of a message that has only attachments.
+msgid "Attachment"
+msgstr "Eranskina"
+
+# AI Translated
+msgid "The AI service stopped before finishing its response."
+msgstr "AA zerbitzua gelditu egin da erantzuna amaitu aurretik."
+
+# AI Translated
+msgid "The AI service kept pausing its response."
+msgstr "AA zerbitzuak behin eta berriz pausatu du erantzuna."
+
+# AI Translated
+msgid "AI could not be asked to continue its response."
+msgstr "Ezin izan zaio AAri eskatu erantzunarekin jarraitzeko."
+
+# AI Translated
+msgid "AI could not be told the results of its tool calls."
+msgstr "Ezin izan zaizkio AAri jakinarazi bere tresna-deien emaitzak."
+
+# AI Translated
+msgid "AI returned an invalid tool call."
+msgstr "AAk tresna-dei baliogabe bat itzuli du."
+
+# AI Translated
+msgid "The AI service ended before a complete response arrived."
+msgstr "AA zerbitzua amaitu egin da erantzun osoa iritsi aurretik."
+
+# AI Translated
+msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
+msgstr "Zure JusPrin saioa amaitu da. Hasi saioa berriro Hobespenetan, eta saiatu berriro."
+
+# AI Translated
+#, boost-format
+msgid "This message needs %1% credit; you have %2%."
+msgid_plural "This message needs %1% credits; you have %2%."
+msgstr[0] "Mezu honek kreditu %1% behar du; %2% dituzu."
+msgstr[1] "Mezu honek %1% kreditu behar ditu; %2% dituzu."
+
+# AI Translated
+msgid "You're out of credits."
+msgstr "Kreditu gabe geratu zara."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% API key was rejected. Update the AI configuration and try again."
+msgstr "%1% API gakoa baztertu egin da. Eguneratu AAren konfigurazioa eta saiatu berriro."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The request was too large for the %1% service."
+msgstr "Eskaera handiegia zen %1% zerbitzurako."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% service is rate limited. Try again shortly."
+msgstr "%1% zerbitzuak eskaerak mugatu ditu. Saiatu berriro laster."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% service is overloaded. Try again shortly."
+msgstr "%1% zerbitzua gainkargatuta dago. Saiatu berriro laster."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% service is temporarily unavailable."
+msgstr "%1% zerbitzua ez dago erabilgarri aldi baterako."
+
+# AI Translated
+msgid "The AI request timed out."
+msgstr "AA eskaeraren denbora-muga gainditu da."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The AI request could not reach the %1% service."
+msgstr "AA eskaerak ezin izan du %1% zerbitzura iritsi."
+
+# AI Translated
+msgid "The AI service response did not contain valid output."
+msgstr "AA zerbitzuaren erantzunak ez du irteera baliozkorik."
+
+# AI Translated
+#. TRN A button that asks the AI to choose another block of a calibration test.
+msgid "Pick another block"
+msgstr "Aukeratu beste bloke bat"
+
+# AI Translated
+#. TRN A button that asks the AI to choose another tile of a calibration test.
+msgid "Pick another tile"
+msgstr "Aukeratu beste lauza bat"
+
+# AI Translated
+#. TRN A button that asks the AI to choose another line of a calibration test.
+msgid "Pick another line"
+msgstr "Aukeratu beste lerro bat"
+
+# AI Translated
+#. TRN A button that asks the AI to choose another corner of a calibration test.
+msgid "Pick another corner"
+msgstr "Aukeratu beste izkina bat"
+
+# AI Translated
+#. TRN A button that asks the AI to choose another height of a calibration tower.
+msgid "Pick another height"
+msgstr "Aukeratu beste altuera bat"
+
+# AI Translated
+#. TRN %1% is a preset's name.
+#, boost-format
+msgid "Preset · %1%"
+msgstr "Aurrezarpena · %1%"
+
+# AI Translated
+#. TRN %1% is a preset's name.
+#, boost-format
+msgid "New preset · %1%"
+msgstr "Aurrezarpen berria · %1%"
+
+# AI Translated
+#. TRN %1% is the preset the new one is made from.
+#, boost-format
+msgid "%1% itself is unchanged"
+msgstr "%1% bera ez da aldatu"
+
+# AI Translated
+#. TRN %1% is a setting's new value, such as 215 °C.
+#, boost-format
+msgid "Save %1% as a new filament preset"
+msgstr "Gorde %1% filamentu-aurrezarpen berri batean"
+
+# AI Translated
+#. TRN %1% is a setting's new value, such as 215 °C.
+#, boost-format
+msgid "Save %1% as a new printer preset"
+msgstr "Gorde %1% inprimagailu-aurrezarpen berri batean"
+
+# AI Translated
+#. TRN %1% is a setting's new value, such as 215 °C.
+#, boost-format
+msgid "Save %1% as a new process preset"
+msgstr "Gorde %1% prozesu-aurrezarpen berri batean"
+
+# AI Translated
+#. TRN %1% is a setting's new value, such as 215 °C, %2% a preset's name.
+#, boost-format
+msgid "Save %1% to %2%"
+msgstr "Gorde %1% %2% aurrezarpenean"
+
+# AI Translated
+msgid "This proposal is already saved."
+msgstr "Proposamen hau gordeta dago jada."
+
+# AI Translated
+msgid "Drop a model here or add one"
+msgstr "Jaregin modelo bat hemen edo gehitu bat"
+
+# AI Translated
+msgid "World coordinates"
+msgstr "Munduko koordenatuak"
+
+# AI Translated
+msgid "Object coordinates"
+msgstr "Objektuaren koordenatuak"
+
+# AI Translated
+msgid "Translate(Relative)"
+msgstr "Lekualdatu (erlatiboa)"
+
+# AI Translated
+msgid "Rotate (absolute)"
+msgstr "Biratu (absolutua)"
+
+# AI Translated
+msgid "Part coordinates"
+msgstr "Piezaren koordenatuak"
+
+# AI Translated
+msgid "The packaged Home page is missing from this build."
+msgstr "Paketatutako Hasiera orria falta da konpilazio honetan."
+
+# AI Translated
+msgid "The Home page failed to load."
+msgstr "Ezin izan da Hasiera orria kargatu."
+
+# AI Translated
+msgid "This window stopped updating because the app switched to another printer."
+msgstr "Leiho hau eguneratzeari utzi dio, aplikazioa beste inprimagailu batera aldatu delako."
+
+# AI Translated
+#. TRN A length in millimetres, such as a nozzle diameter on a printer card: "0.4 mm". %s is the number.
+#, c-format, boost-format
+msgid "%s mm"
+msgstr "%s mm"
+
+# AI Translated
+#, c-format, boost-format
+msgid "The printer reports error %s."
+msgstr "Inprimagailuak %s errorea jakinarazi du."
+
+# AI Translated
+msgid "LAN"
+msgstr "LAN"
+
+# AI Translated
+msgid "Cloud"
+msgstr "Hodeia"
+
+# AI Translated
+msgid "The printer stopped sending updates."
+msgstr "Inprimagailuak eguneraketak bidaltzeari utzi dio."
+
+# AI Translated
+#, c-format, boost-format
+msgid "%s isn't answering."
+msgstr "%s ez du erantzuten."
+
+# AI Translated
+msgid "Klipper isn't running."
+msgstr "Klipper ez dago martxan."
+
+# AI Translated
+#. TRN %1% is Klipper's own message, in English, saying why it stopped.
+#, boost-format
+msgid "Klipper stopped: %1%"
+msgstr "Klipper gelditu da: %1%"
+
+# AI Translated
+msgid "This printer no longer exists."
+msgstr "Inprimagailu hau ez dago jada."
+
+# AI Translated
+#. TRN A date in this year on a project card: %1% is the abbreviated month name, %2% the day of the month, as in "Oct 20".
+#, boost-format
+msgctxt "short date"
+msgid "%1% %2%"
+msgstr "%1% %2%"
+
+# AI Translated
+# Needs human review: Year placed before the date, as Basque writes dates; check it reads right on a Home project card.
+#. TRN A date outside this year on a project card: %1% is the date without the year, as in "Oct 20", %2% the year.
+#, boost-format
+msgctxt "date with year"
+msgid "%1%, %2%"
+msgstr "%2% %1%"
+
+# AI Translated
+msgid "G-code exported"
+msgstr "G-codea esportatuta"
+
+# AI Translated
+#. TRN A project's status: %1% is a date, as in "Nov 3".
+#, boost-format
+msgid "G-code exported %1%"
+msgstr "G-codea esportatuta: %1%"
+
+# AI Translated
+#. TRN A project's status: %1% is a printer model, as in "Ender-3 V3 KE".
+#, boost-format
+msgid "G-code exported for %1%"
+msgstr "G-codea esportatuta %1% inprimagailurako"
+
+# AI Translated
+#. TRN A project's status: %1% is a date, as in "Nov 3", %2% a printer model, as in "Ender-3 V3 KE".
+#, boost-format
+msgid "G-code exported %1% for %2%"
+msgstr "G-codea esportatuta %1%, %2% inprimagailurako"
+
+# AI Translated
+msgctxt "project status"
+msgid "Printed"
+msgstr "Inprimatuta"
+
+# AI Translated
+#. TRN A project's status: %1% is a date, as in "Oct 20".
+#, boost-format
+msgid "Printed %1%"
+msgstr "Inprimatuta: %1%"
+
+# AI Translated
+msgctxt "project status"
+msgid "Sent"
+msgstr "Bidalita"
+
+# AI Translated
+#. TRN A project's status: %1% is a date, as in "Oct 20".
+#, boost-format
+msgid "Sent %1%"
+msgstr "Bidalita: %1%"
+
+# AI Translated
+#. TRN A project's status: it has not been sliced to G-code yet.
+msgctxt "project status"
+msgid "Draft"
+msgstr "Zirriborroa"
+
+# AI Translated
+msgid "That sign-in expired. Try again."
+msgstr "Saio-hasiera hori iraungi da. Saiatu berriro."
+
+# AI Translated
+#, c-format, boost-format
+msgid "JusPrin found no %s printers to bring. Choose your printer instead."
+msgstr "JusPrin-ek ez du inportatzeko inprimagailurik aurkitu %s aplikazioan. Aukeratu zure inprimagailua horren ordez."
+
+# AI Translated
+msgid "Generic printer"
+msgstr "Inprimagailu generikoa"
+
+# AI Translated
+msgid "Your projects couldn't be loaded. JusPrin will keep trying."
+msgstr "Ezin izan dira zure proiektuak kargatu. JusPrin-ek saiatzen jarraituko du."
+
+# AI Translated
+msgid "Untitled project"
+msgstr "Izenik gabeko proiektua"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Printing on %s"
+msgstr "Inprimatzen: %s"
+
+# AI Translated
+msgid "JusPrin no longer keeps this G-code. Slice the project again to export it."
+msgstr "JusPrin-ek ez du G-code hau gordetzen jada. Xerratu proiektua berriro esportatzeko."
+
+# AI Translated
+msgid "Couldn't export G-code"
+msgstr "Ezin izan da G-codea esportatu"
+
+# AI Translated
+#, c-format, boost-format
+msgid "The G-code couldn't be written to %s."
+msgstr "Ezin izan da G-codea hemen idatzi: %s."
+
+# AI Translated
+msgid "Choose a photo of the printed object"
+msgstr "Aukeratu inprimatutako objektuaren argazki bat"
+
+# AI Translated
+msgid "Photos"
+msgstr "Argazkiak"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%s couldn't be opened. Try opening it with Open… instead."
+msgstr "Ezin izan da %s ireki. Saiatu Ireki… erabiliz irekitzen."
+
+# AI Translated
+msgid "Couldn't open file"
+msgstr "Ezin izan da fitxategia ireki"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Import from %s"
+msgstr "Inportatu hemendik: %s"
+
+# AI Translated
+msgid "Importing these printers loads their profiles, which replaces unsaved changes to the project's settings."
+msgstr "Inprimagailu hauek inportatzean haien profilak kargatzen dira, eta horrek proiektuaren ezarpenetan gorde gabeko aldaketak ordezten ditu."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Imported from %s"
+msgstr "Hemendik inportatua: %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "JusPrin couldn't read this file. To try again, choose Printer › Import printers from %s…"
+msgstr "JusPrin-ek ezin izan du fitxategi hau irakurri. Berriro saiatzeko, aukeratu Inprimagailua › Inportatu inprimagailuak hemendik: %s…"
+
+# AI Translated
+msgid "Not imported. The file has no version."
+msgstr "Ez da inportatu. Fitxategiak ez du bertsiorik."
+
+# AI Translated
+msgid "Not imported. It isn't a printer, filament or process preset."
+msgstr "Ez da inportatu. Ez da inprimagailu-, filamentu- edo prozesu-aurrezarpen bat."
+
+# AI Translated
+#. TRN %1% is the filament preset the file is based on, %2% the app it was imported from.
+#, boost-format
+msgid "Not imported, because it's based on %1%, which JusPrin doesn't have. It stays in %2%. When you prepare a print, choose a similar filament instead."
+msgstr "Ez da inportatu, JusPrin-ek ez duen %1% aurrezarpenean oinarrituta dagoelako. %2% aplikazioan geratzen da. Inprimaketa bat prestatzean, aukeratu antzeko filamentu bat horren ordez."
+
+# AI Translated
+#. TRN %1% is the print settings preset the file is based on, %2% the app it was imported from.
+#, boost-format
+msgid "Not imported, because they're based on %1%, which JusPrin doesn't have. They stay in %2%. When you prepare a print, choose similar print settings instead."
+msgstr "Ez dira inportatu, JusPrin-ek ez duen %1% aurrezarpenean oinarrituta daudelako. %2% aplikazioan geratzen dira. Inprimaketa bat prestatzean, aukeratu antzeko inprimaketa-ezarpenak horren ordez."
+
+# AI Translated
+#. TRN %1% is the printer profile the file is based on, %2% the app it was imported from.
+#, boost-format
+msgid "Not imported, because it's based on %1%, which JusPrin doesn't have. It stays in %2%. When you add a printer, choose a similar one instead."
+msgstr "Ez da inportatu, JusPrin-ek ez duen %1% profilean oinarrituta dagoelako. %2% aplikazioan geratzen da. Inprimagailu bat gehitzean, aukeratu antzeko bat horren ordez."
+
+# AI Translated
+#, c-format, boost-format
+msgid "JusPrin couldn't load this preset. To try again, choose Printer › Import printers from %s…"
+msgstr "JusPrin-ek ezin izan du aurrezarpen hau kargatu. Berriro saiatzeko, aukeratu Inprimagailua › Inportatu inprimagailuak hemendik: %s…"
+
+# AI Translated
+#, c-format, boost-format
+msgid "It's based on %s, which JusPrin doesn't have. When you prepare a print, choose a similar filament instead."
+msgstr "JusPrin-ek ez duen %s aurrezarpenean oinarrituta dago. Inprimaketa bat prestatzean, aukeratu antzeko filamentu bat horren ordez."
+
+# AI Translated
+#, c-format, boost-format
+msgid "It's based on %s, which JusPrin doesn't have. When you prepare a print, choose similar print settings instead."
+msgstr "JusPrin-ek ez duen %s aurrezarpenean oinarrituta dago. Inprimaketa bat prestatzean, aukeratu antzeko inprimaketa-ezarpenak horren ordez."
+
+# AI Translated
+#, c-format, boost-format
+msgid "It's based on %s, which JusPrin doesn't have. When you add a printer, choose a similar one instead."
+msgstr "JusPrin-ek ez duen %s profilean oinarrituta dago. Inprimagailu bat gehitzean, aukeratu antzeko bat horren ordez."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Choose your %s folder"
+msgstr "Aukeratu zure %s karpeta"
+
+# AI Translated
+#. TRN %1% is the app the printers are imported from, such as OrcaSlicer.
+#, boost-format
+msgid "JusPrin found no %1% printers in that folder. If %1% keeps its settings somewhere else, choose that folder."
+msgstr "JusPrin-ek ez du %1% inprimagailurik aurkitu karpeta horretan. %1% aplikazioak ezarpenak beste nonbait gordetzen baditu, aukeratu karpeta hori."
+
+# AI Translated
+msgid "The printer's page didn't load"
+msgstr "Inprimagailuaren orria ez da kargatu"
+
+# AI Translated
+msgid "Try again"
+msgstr "Saiatu berriro"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
+msgstr "Ezerk ez du erantzun hemen: %s. Egiaztatu inprimagailua piztuta dagoela eta ordenagailu honen sare berean dagoela, eta saiatu berriro."
+
+# AI Translated
+msgid "Client configuration is a symbolic link. Use Copy and update its target manually."
+msgstr "Bezeroaren konfigurazioa esteka sinboliko bat da. Erabili Kopiatu eta eguneratu haren helburua eskuz."
+
+# AI Translated
+msgid "Client configuration exceeds the 1 MiB setup limit."
+msgstr "Bezeroaren konfigurazioak konfiguraziorako 1 MiB-eko muga gainditzen du."
+
+# AI Translated
+msgid "Client configuration exceeds nesting depth 32."
+msgstr "Bezeroaren konfigurazioak 32ko habiaratze-sakonera gainditzen du."
+
+# AI Translated
+msgid "Client configuration has an unterminated comment."
+msgstr "Bezeroaren konfigurazioak amaitu gabeko iruzkin bat du."
+
+# AI Translated
+msgid "Client configuration and its server map must be JSON objects. No changes made."
+msgstr "Bezeroaren konfigurazioak eta haren zerbitzari-mapak JSON objektuak izan behar dute. Ez da aldaketarik egin."
+
+# AI Translated
+msgid "Client configuration has ambiguous duplicate keys. No changes made."
+msgstr "Bezeroaren konfigurazioak gako bikoiztu anbiguoak ditu. Ez da aldaketarik egin."
+
+# AI Translated
+msgid "Client configuration changed after the preview. Review the new change and confirm again."
+msgstr "Bezeroaren konfigurazioa aldatu egin da aurrebistaren ondoren. Berrikusi aldaketa berria eta berretsi berriro."
+
+# AI Translated
+msgid "Client configuration changed while preparing the write. Original file retained; review again."
+msgstr "Bezeroaren konfigurazioa aldatu egin da idazketa prestatzean. Jatorrizko fitxategia mantendu da; berrikusi berriro."
+
+# AI Translated
+msgid "JusPrin couldn't close the project, so it didn't restart. Your project stays open, and JusPrin will use the new language the next time it starts."
+msgstr "JusPrin-ek ezin izan du proiektua itxi; beraz, ez da berrabiarazi. Zure proiektuak irekita jarraitzen du, eta JusPrin-ek hizkuntza berria erabiliko du abiarazten den hurrengo aldian."
+
+# AI Translated
+msgid "Restart"
+msgstr "Berrabiarazi"
+
+# AI Translated
+msgid "Checking..."
+msgstr "Egiaztatzen..."
+
+# AI Translated
+msgid "Whole plate"
+msgstr "Plaka osoa"
+
+# AI Translated
+msgid "Ignored"
+msgstr "Ezikusita"
+
+# AI Translated
+#, boost-format
+msgid "%1% warning ignored"
+msgid_plural "%1% warnings ignored"
+msgstr[0] "%1% abisu ezikusi da"
+msgstr[1] "%1% abisu ezikusi dira"
+
+# AI Translated
+#, boost-format
+msgid "%1% print issue"
+msgid_plural "%1% print issues"
+msgstr[0] "%1% inprimaketa-arazo"
+msgstr[1] "%1% inprimaketa-arazo"
+
+# AI Translated
+#, boost-format
+msgid "%1% blocks printing."
+msgid_plural "%1% block printing."
+msgstr[0] "%1% arazok inprimatzea blokeatzen du."
+msgstr[1] "%1% arazok inprimatzea blokeatzen dute."
+
+# AI Translated
+#. TRN The print-issue pill: %1% is "3 print issues", %2% the sentence "2 block printing."
+#, boost-format
+msgid "%1%. %2%"
+msgstr "%1%. %2%"
+
+# AI Translated
+msgid "Blocks printing"
+msgstr "Inprimatzea blokeatzen du"
+
+# AI Translated
+msgid "out of view"
+msgstr "ikus-eremutik kanpo"
+
+# AI Translated
+msgid "Checking whether this is fixed..."
+msgstr "Konpondu den egiaztatzen..."
+
+# AI Translated
+#, boost-format
+msgid "%1% of %2%"
+msgstr "%1% / %2%"
+
+# AI Translated
+msgid "AI is replying..."
+msgstr "AA erantzuten ari da..."
+
+# AI Translated
+msgid "Stop ignoring"
+msgstr "Utzi ezikusteari"
+
+# AI Translated
+msgid "Ignore this warning"
+msgstr "Ezikusi abisu hau"
+
+# AI Translated
+msgid "Ask AI"
+msgstr "Galdetu AAri"
+
+# AI Translated
+msgid "Explain this issue and my options."
+msgstr "Azaldu arazo hau eta nire aukerak."
+
+# AI Translated
+msgid "Set up AI..."
+msgstr "Konfiguratu AA..."
+
+# AI Translated
+msgid "A G-code path goes beyond the plate boundaries."
+msgstr "G-code ibilbide bat plakaren mugetatik kanpo doa."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Filaments %s cannot be printed directly on the surface of this plate."
+msgstr "%s filamentuak ezin dira zuzenean inprimatu plaka honen gainazalean."
+
+# AI Translated
+#, boost-format
+msgid "Slicing plate %1%"
+msgstr "%1% plaka xerratzen"
+
+# AI Translated
+msgid "The form was out of date. Choose the printer again."
+msgstr "Inprimakia zaharkituta zegoen. Aukeratu inprimagailua berriro."
+
+# AI Translated
+msgid "Choose the plate on this printer."
+msgstr "Aukeratu inprimagailu honetako plaka."
+
+# AI Translated
+msgid "That filament is no longer on the list. Choose another."
+msgstr "Filamentu hori ez dago zerrendan jada. Aukeratu beste bat."
+
+# AI Translated
+msgid "That printer is no longer on the list. Choose it again."
+msgstr "Inprimagailu hori ez dago zerrendan jada. Aukeratu berriro."
+
+# AI Translated
+msgid "Printer conversation"
+msgstr "Inprimagailuari buruzko elkarrizketa"
+
+# AI Translated
+msgid "Filament conversation"
+msgstr "Filamentuari buruzko elkarrizketa"
+
+# AI Translated
+msgid "Browse the full printer list"
+msgstr "Arakatu inprimagailuen zerrenda osoa"
+
+# AI Translated
+msgid "Open printer settings"
+msgstr "Ireki inprimagailuaren ezarpenak"
+
+# AI Translated
+#. TRN %1% is the profile loader's own error, in English.
+#, boost-format
+msgid "The printer profiles could not be read: %1%"
+msgstr "Ezin izan dira inprimagailu-profilak irakurri: %1%"
+
+# AI Translated
+msgid "Enter a name for the printer."
+msgstr "Idatzi inprimagailuaren izena."
+
+# AI Translated
+msgid "A printer name can't start or end with a space."
+msgstr "Inprimagailuaren izenak ezin du zuriune batez hasi edo amaitu."
+
+# AI Translated
+#, c-format, boost-format
+msgid "A printer name can't contain any of these characters: %s"
+msgstr "Inprimagailuaren izenak ezin du karaktere hauetako bat ere izan: %s"
+
+# AI Translated
+msgid "That name is reserved. Choose another."
+msgstr "Izen hori erreserbatuta dago. Aukeratu beste bat."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Another printer or profile is already named \"%s\"."
+msgstr "Beste inprimagailu edo profil batek du jada \"%s\" izena."
+
+# AI Translated
+msgid "A new name has to differ from the old one by more than capitalization."
+msgstr "Izen berriak zaharraren desberdina izan behar du, ez maiuskula-minuskuletan soilik."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Other printer profiles are based on \"%s\". Remove those first in Printer settings."
+msgstr "Beste inprimagailu-profil batzuk \"%s\" profilean oinarrituta daude. Kendu horiek lehenik Inprimagailuaren ezarpenetan."
+
+# AI Translated
+msgid "The app couldn't open your browser."
+msgstr "Aplikazioak ezin izan du zure nabigatzailea ireki."
+
+# AI Translated
+msgid "About JusPrin"
+msgstr "JusPrin-i buruz"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Version %s"
+msgstr "%s bertsioa"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Built on OrcaSlicer %s"
+msgstr "OrcaSlicer %s bertsioan oinarritua"
+
+# AI Translated
+#. TRN A noun: the label before the commit this copy of the app was built from.
+msgid "Build"
+msgstr "Konpilazioa"
+
+# AI Translated
+msgid "Copy version"
+msgstr "Kopiatu bertsioa"
+
+# AI Translated
+msgid "Get help"
+msgstr "Lortu laguntza"
+
+# AI Translated
+msgid "Email"
+msgstr "Posta elektronikoa"
+
+# AI Translated
+msgid "License…"
+msgstr "Lizentzia…"
+
+# AI Translated
+msgid "Free software under the GNU Affero General Public License v3."
+msgstr "Software librea, GNU Affero General Public License v3 lizentziapean."
+
+# AI Translated
+msgid "Copied"
+msgstr "Kopiatuta"
+
+# AI Translated
+#. TRN The menu of print actions: Slice plate, Check print…, Print….
+msgctxt "Menu"
+msgid "Print"
+msgstr "Inprimatu"
+
+# AI Translated
+msgid "New project"
+msgstr "Proiektu berria"
+
+# AI Translated
+msgid "Open…"
+msgstr "Ireki…"
+
+# AI Translated
+msgid "Open recent"
+msgstr "Ireki azkenak"
+
+# AI Translated
+msgid "Version history…"
+msgstr "Bertsioen historia…"
+
+# AI Translated
+msgid "Project 3MF…"
+msgstr "Proiektuaren 3MF fitxategia…"
+
+# AI Translated
+msgid "Exit"
+msgstr "Irten"
+
+# AI Translated
+msgid "Plates and project panel"
+msgstr "Plaken eta proiektuaren panela"
+
+# AI Translated
+msgid "Show plates and project panel"
+msgstr "Erakutsi plaken eta proiektuaren panela"
+
+# AI Translated
+msgid "Hide plates and project panel"
+msgstr "Ezkutatu plaken eta proiektuaren panela"
+
+# AI Translated
+msgid "AI panel"
+msgstr "AA panela"
+
+# AI Translated
+msgid "Show AI panel"
+msgstr "Erakutsi AA panela"
+
+# AI Translated
+msgid "Hide AI panel"
+msgstr "Ezkutatu AA panela"
+
+# AI Translated
+msgid "Switch to classic view…"
+msgstr "Aldatu ikuspegi klasikora…"
+
+# AI Translated
+msgid "JusPrin guide…"
+msgstr "JusPrin gida…"
+
+# AI Translated
+msgid "Ask AI…"
+msgstr "Galdetu AAri…"
+
+# AI Translated
+msgid "Report a problem…"
+msgstr "Jakinarazi arazo bat…"
+
+# AI Translated
+msgid "Report a problem"
+msgstr "Jakinarazi arazo bat"
+
+# AI Translated
+msgid "Slice all plates"
+msgstr "Xerratu plaka guztiak"
+
+# AI Translated
+msgid "Check print…"
+msgstr "Egiaztatu inprimaketa…"
+
+# AI Translated
+msgid "Print…"
+msgstr "Inprimatu…"
+
+# AI Translated
+msgid "Print all plates…"
+msgstr "Inprimatu plaka guztiak…"
+
+# AI Translated
+msgid "Add a printer…"
+msgstr "Gehitu inprimagailu bat…"
+
+# AI Translated
+msgid "Import printers from OrcaSlicer…"
+msgstr "Inportatu inprimagailuak OrcaSlicer-etik…"
+
+# AI Translated
+msgid "Import printers from JusPrin 1…"
+msgstr "Inportatu inprimagailuak JusPrin 1-etik…"
+
+# AI Translated
+msgid "Printer settings…"
+msgstr "Inprimagailuaren ezarpenak…"
+
+# AI Translated
+msgid "Ask AI about printer settings…"
+msgstr "Galdetu AAri inprimagailuaren ezarpenei buruz…"
+
+# AI Translated
+msgid "Filament settings…"
+msgstr "Filamentuaren ezarpenak…"
+
+# AI Translated
+msgid "Ask AI about filament settings…"
+msgstr "Galdetu AAri filamentuaren ezarpenei buruz…"
+
+# AI Translated
+msgid "Calibrate…"
+msgstr "Kalibratu…"
+
+# AI Translated
+msgid "Check print"
+msgstr "Egiaztatu inprimaketa"
+
+# AI Translated
+msgid "Check Print"
+msgstr "Egiaztatu inprimaketa"
+
+# AI Translated
+msgid "Legend"
+msgstr "Legenda"
+
+# AI Translated
+msgid "Close and return to Prepare"
+msgstr "Itxi eta itzuli Prestatu fitxara"
+
+# AI Translated
+#, c-format, boost-format
+msgid "sliced for %s"
+msgstr "%s inprimagailurako xerratua"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Layer %d"
+msgstr "%d. geruza"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d s"
+msgstr "%d s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d min"
+msgstr "%d min"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d h %d min"
+msgstr "%d h %d min"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%.0f g"
+msgstr "%.0f g"
+
+# AI Translated
+#. TRN A length in metres, such as the filament a print uses: "12.4 m". %s is the number.
+#, c-format, boost-format
+msgid "%s m"
+msgstr "%s m"
+
+# AI Translated
+msgid "no supports were needed"
+msgstr "ez da euskarririk behar izan"
+
+# AI Translated
+msgid "no seams are on the faces you marked"
+msgstr "ez dago josturarik markatu dituzun aurpegietan"
+
+# AI Translated
+msgid "nothing prints in the air"
+msgstr "ez da ezer airean inprimatzen"
+
+# AI Translated
+msgid "no paths cross or leave the plate"
+msgstr "ez dago elkar gurutzatzen edo plakatik ateratzen den ibilbiderik"
+
+# AI Translated
+msgid "no paths cross each other"
+msgstr "ez dago elkar gurutzatzen den ibilbiderik"
+
+# AI Translated
+msgid "no paths leave the plate"
+msgstr "ez dago plakatik ateratzen den ibilbiderik"
+
+# AI Translated
+msgid "the slicer gave no warnings"
+msgstr "xerratzaileak ez du abisurik eman"
+
+# AI Translated
+msgid "Print report"
+msgstr "Inprimaketa-txostena"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Print report, %s"
+msgstr "Inprimaketa-txostena, %s"
+
+# AI Translated
+#. TRN A section title of the print report: the support structures the slice made.
+msgid "Supports"
+msgstr "Euskarriak"
+
+# AI Translated
+msgid "Slicer warnings"
+msgstr "Xerratzailearen abisuak"
+
+# AI Translated
+msgid "Unsupported islands"
+msgstr "Euskarririk gabeko uharteak"
+
+# AI Translated
+msgid "Crossing paths"
+msgstr "Gurutzatzen diren ibilbideak"
+
+# AI Translated
+msgid "Paths outside the plate"
+msgstr "Plakatik kanpoko ibilbideak"
+
+# AI Translated
+msgid "Nothing to flag."
+msgstr "Ez dago ezer nabarmentzeko."
+
+# AI Translated
+#. TRN Print report's closing line, a list of clauses such as "nothing prints in the air": joins the list so far to a clause that is not the last.
+#, c-format, boost-format
+msgid "%s, %s"
+msgstr "%s, %s"
+
+# AI Translated
+#. TRN Print report's closing line, a list of clauses such as "nothing prints in the air": joins its only two clauses.
+#, c-format, boost-format
+msgid "%s and %s"
+msgstr "%s eta %s"
+
+# AI Translated
+#. TRN Print report's closing line, a list of clauses such as "nothing prints in the air": joins the list so far to the last of three or more.
+#, c-format, boost-format
+msgid "%s, and %s"
+msgstr "%s eta %s"
+
+# AI Translated
+#. TRN Ends the print report's closing line; %s is its list of what the checks found clean, first letter capitalised.
+#, c-format, boost-format
+msgid "%s."
+msgstr "%s."
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d layer"
+msgid_plural "%d layers"
+msgstr[0] "%d geruza"
+msgstr[1] "%d geruza"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d object"
+msgid_plural "%d objects"
+msgstr[0] "%d objektu"
+msgstr[1] "%d objektu"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d on a marked face"
+msgid_plural "%d on marked faces"
+msgstr[0] "%d markatutako aurpegi batean"
+msgstr[1] "%d markatutako aurpegietan"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d or more"
+msgstr "%d edo gehiago"
+
+# AI Translated
+msgid "A toolpath runs outside the printable area"
+msgstr "Inprimatze-ibilbide bat inprimatu daitekeen eremutik kanpo doa"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Support touches %s, which you asked to keep clear"
+msgstr "Euskarriak %s ukitzen du, eta libre uztea eskatu zenuen"
+
+# AI Translated
+# Needs human review: %s is a region label such as a hole; check the sentence reads naturally with the real label.
+#, c-format, boost-format
+msgid "Support inside the %s"
+msgstr "Euskarria barruan: %s"
+
+# AI Translated
+msgid "No support in a hole or a region you kept clear"
+msgstr "Ez dago euskarririk zulo batean edo libre utzi duzun eremu batean"
+
+# AI Translated
+msgid "No support in a hole"
+msgstr "Ez dago euskarririk zulo batean"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Printed in the air: %s"
+msgstr "Airean inprimatua: %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d seam on %s"
+msgid_plural "%d seams on %s"
+msgstr[0] "%d jostura hemen: %s"
+msgstr[1] "%d jostura hemen: %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%s on the plate"
+msgstr "%s plakan"
+
+# AI Translated
+msgid "only when recording a timelapse"
+msgstr "timelapse bat grabatzean soilik"
+
+# AI Translated
+#, c-format, boost-format
+msgid "around %s"
+msgstr "%s inguruan"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d layer of support"
+msgid_plural "%d layers of support"
+msgstr[0] "%d euskarri-geruza"
+msgstr[1] "%d euskarri-geruza"
+
+# AI Translated
+msgid "No brim"
+msgstr "Itsaspen ertzik ez"
+
+# AI Translated
+msgid "This plate has no current slice."
+msgstr "Plaka honek ez du uneko xerratzerik."
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d filament change"
+msgid_plural "%d filament changes"
+msgstr[0] "%d filamentu-aldaketa"
+msgstr[1] "%d filamentu-aldaketa"
+
+# AI Translated
+msgid "You're in the classic OrcaSlicer view."
+msgstr "OrcaSlicer-en ikuspegi klasikoan zaude."
+
+# AI Translated
+msgid "Back to JusPrin"
+msgstr "Itzuli JusPrin-era"
+
+# AI Translated
+msgid "Switch to JusPrin view"
+msgstr "Aldatu JusPrin ikuspegira"
+
+# AI Translated
+#. TRN A menu caption in capitals: the printer's name (in capitals), then its nozzle size in millimetres.
+#, c-format, boost-format
+msgid "%s, %s MM NOZZLE"
+msgstr "%s, %s MM-KO PITA"
+
+# AI Translated
+msgid "COLOUR"
+msgstr "KOLOREA"
+
+# AI Translated
+msgid "Other colour…"
+msgstr "Beste kolore bat…"
+
+# AI Translated
+msgid "Use what's loaded on the printer…"
+msgstr "Erabili inprimagailuan kargatuta dagoena…"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%s is offline. Turn it on to read what's loaded."
+msgstr "%s lineaz kanpo dago. Piztu kargatuta dagoena irakurtzeko."
+
+# AI Translated
+#, c-format, boost-format
+msgid "FILAMENTS FOR %s"
+msgstr "%s INPRIMAGAILURAKO FILAMENTUAK"
+
+# AI Translated
+msgid "on plate"
+msgstr "plakan"
+
+# AI Translated
+msgid "Add another filament to this print"
+msgstr "Gehitu beste filamentu bat inprimaketa honi"
+
+# AI Translated
+#, c-format, boost-format
+msgid "FILAMENT · SLOT %d · %s"
+msgstr "FILAMENTUA · %d. ARTEKA · %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "FILAMENT FOR %s"
+msgstr "%s INPRIMAGAILURAKO FILAMENTUA"
+
+# AI Translated
+msgid "FILAMENTS FOR THIS PRINTER"
+msgstr "INPRIMAGAILU HONETARAKO FILAMENTUAK"
+
+# AI Translated
+msgid "Other filament…"
+msgstr "Beste filamentu bat…"
+
+# AI Translated
+msgid "Calibrate this filament…"
+msgstr "Kalibratu filamentu hau…"
+
+# AI Translated
+msgid "JusPrin guide"
+msgstr "JusPrin gida"
+
+# AI Translated
+msgid "Plates and Project panel"
+msgstr "Plaken eta proiektuaren panela"
+
+# AI Translated
+msgid "Hide the Plates and Project panel"
+msgstr "Ezkutatu plaken eta proiektuaren panela"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Slicing %d%%"
+msgstr "Xerratzen: %%%d"
+
+# AI Translated
+msgid "Slicing…"
+msgstr "Xerratzen…"
+
+# AI Translated
+msgid "Sliced"
+msgstr "Xerratuta"
+
+# AI Translated
+msgid "Not sliced yet"
+msgstr "Oraindik xerratu gabe"
+
+# AI Translated
+#. TRN How many objects or copies on the plate are set not to print.
+#, c-format, boost-format
+msgid "%d won't print"
+msgid_plural "%d won't print"
+msgstr[0] "%d ez da inprimatuko"
+msgstr[1] "%d ez dira inprimatuko"
+
+# AI Translated
+msgid "Couldn't do that"
+msgstr "Ezin izan da hori egin"
+
+# AI Translated
+msgid "Support painting"
+msgstr "Euskarri-margotzea"
+
+# AI Translated
+# Needs human review: The glossary cell for Color painting is unsettled (Koloreak margotu / Kolore-margotzea).
+msgid "Color painting"
+msgstr "Kolore-margotzea"
+
+# AI Translated
+msgid "Fuzzy skin painting"
+msgstr "Gainazal zimurraren margotzea"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Per-object settings · %d"
+msgstr "Objektuko ezarpenak · %d"
+
+# AI Translated
+msgid "Auto-orient"
+msgstr "Orientatu automatikoki"
+
+# AI Translated
+msgid "Plate settings…"
+msgstr "Plakaren ezarpenak…"
+
+# AI Translated
+msgid "Move to front"
+msgstr "Eraman lehenengo postura"
+
+# AI Translated
+msgid "Delete plate"
+msgstr "Ezabatu plaka"
+
+# AI Translated
+msgid "Rename object"
+msgstr "Berrizendatu objektua"
+
+# AI Translated
+msgid "Set number of instances…"
+msgstr "Ezarri instantzia kopurua…"
+
+# AI Translated
+msgid "Fix model"
+msgstr "Konpondu modeloa"
+
+# AI Translated
+msgid "Change object filament"
+msgstr "Aldatu objektuaren filamentua"
+
+# AI Translated
+msgid "Delete copy"
+msgstr "Ezabatu kopia"
+
+# AI Translated
+msgid "To objects"
+msgstr "Objektuetan"
+
+# AI Translated
+msgid "To parts"
+msgstr "Piezetan"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Copy %d"
+msgstr "%d. kopia"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d per-object setting"
+msgid_plural "%d per-object settings"
+msgstr[0] "Objektuko %d ezarpen"
+msgstr[1] "Objektuko %d ezarpen"
+
+# AI Translated
+msgid "Plates tab"
+msgstr "Plakak fitxa"
+
+# AI Translated
+msgid "Project tab"
+msgstr "Proiektua fitxa"
+
+# AI Translated
+msgid "Plates"
+msgstr "Plakak"
+
+# AI Translated
+msgid "Add model"
+msgstr "Gehitu modeloa"
+
+# AI Translated
+msgid "Not on a plate"
+msgstr "Ez dago plaka batean"
+
+# AI Translated
+msgid "Mesh needs repair"
+msgstr "Sareak konponketa behar du"
+
+# AI Translated
+msgid "Mesh repaired"
+msgstr "Sarea konponduta"
+
+# AI Translated
+msgid "won't print"
+msgstr "ez da inprimatuko"
+
+# AI Translated
+#. TRN A tag beside one part of an object, saying what kind of part it is: an ordinary part.
+msgid "part"
+msgstr "pieza"
+
+# AI Translated
+#. TRN A tag beside one part of an object, saying what kind of part it is: a modifier, which changes settings where it overlaps.
+msgid "modifier"
+msgstr "aldatzailea"
+
+# AI Translated
+msgid "negative part"
+msgstr "pieza negatiboa"
+
+# AI Translated
+msgid "support enforcer"
+msgstr "euskarri behartzailea"
+
+# AI Translated
+msgid "support blocker"
+msgstr "euskarri blokeatzailea"
+
+# AI Translated
+#. TRN %s is a weekday or a date, such as "Mon" or "Mar 14", when this project's last print finished.
+#, c-format, boost-format
+msgid "last finished %s"
+msgstr "azkena amaitua: %s"
+
+# AI Translated
+msgid "last finished today"
+msgstr "azkena gaur amaitua"
+
+# AI Translated
+msgid "last finished yesterday"
+msgstr "azkena atzo amaitua"
+
+# AI Translated
+msgid "Version history unavailable"
+msgstr "Bertsioen historia ez dago erabilgarri"
+
+# AI Translated
+msgid "Version history couldn't be loaded. Try again."
+msgstr "Ezin izan da bertsioen historia kargatu. Saiatu berriro."
+
+# AI Translated
+msgid "Export project 3MF"
+msgstr "Esportatu proiektuaren 3MF fitxategia"
+
+# AI Translated
+msgid "Export failed"
+msgstr "Esportazioak huts egin du"
+
+# AI Translated
+msgid "The project couldn't be exported. Try again."
+msgstr "Ezin izan da proiektua esportatu. Saiatu berriro."
+
+# AI Translated
+msgid "Restore this version of the model and project settings? The current model will be saved as a version first. Conversations and print records will stay current."
+msgstr "Modeloaren eta proiektuaren ezarpenen bertsio hau leheneratu? Uneko modeloa bertsio gisa gordeko da lehenik. Elkarrizketak eta inprimaketa-erregistroak uneko egoeran mantenduko dira."
+
+# AI Translated
+msgid "Restore project version"
+msgstr "Leheneratu proiektuaren bertsioa"
+
+# AI Translated
+msgid "Restore failed"
+msgstr "Leheneratzeak huts egin du"
+
+# AI Translated
+msgid "This version couldn't be restored. Try again."
+msgstr "Ezin izan da bertsio hau leheneratu. Saiatu berriro."
+
+# AI Translated
+msgid "Back to Project"
+msgstr "Itzuli Proiektura"
+
+# AI Translated
+msgid "Nothing printed or exported yet"
+msgstr "Oraindik ez da ezer inprimatu edo esportatu"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d G-code"
+msgid_plural "%d G-codes"
+msgstr[0] "%d G-code"
+msgstr[1] "%d G-code"
+
+# AI Translated
+msgid "printing now"
+msgstr "orain inprimatzen"
+
+# AI Translated
+msgid "never sent to a printer"
+msgstr "ez da inoiz inprimagailu batera bidali"
+
+# AI Translated
+msgid "Print history"
+msgstr "Inprimaketa-historia"
+
+# AI Translated
+msgid "Saving…"
+msgstr "Gordetzen…"
+
+# AI Translated
+msgid "Saved"
+msgstr "Gordeta"
+
+# AI Translated
+msgid "Couldn't save"
+msgstr "Ezin izan da gorde"
+
+# AI Translated
+msgid "No title, designer or description yet."
+msgstr "Oraindik ez dago izenbururik, diseinatzailerik edo deskribapenik."
+
+# AI Translated
+#. TRN Who designed the model; %s is the designer's name.
+#, c-format, boost-format
+msgid "by %s"
+msgstr "Egilea: %s"
+
+# AI Translated
+msgid "Version history"
+msgstr "Bertsioen historia"
+
+# AI Translated
+msgid "Export project 3MF…"
+msgstr "Esportatu proiektuaren 3MF fitxategia…"
+
+# AI Translated
+msgid "Bill of materials"
+msgstr "Materialen zerrenda"
+
+# AI Translated
+msgid "Assembly guide"
+msgstr "Muntatze-gida"
+
+# AI Translated
+msgid "Attachments"
+msgstr "Eranskinak"
+
+# AI Translated
+msgid "The file couldn't be opened."
+msgstr "Ezin izan da fitxategia ireki."
+
+# AI Translated
+msgid "More files are attached than are listed here."
+msgstr "Hemen zerrendatutakoak baino fitxategi gehiago daude erantsita."
+
+# AI Translated
+msgid "Profile"
+msgstr "Profila"
+
+# AI Translated
+msgid "No earlier saved versions yet."
+msgstr "Oraindik ez dago aurretik gordetako bertsiorik."
+
+# AI Translated
+#. TRN The Restore button's name for a screen reader; %s is when the version was saved.
+#, c-format, boost-format
+msgid "Restore %s"
+msgstr "Leheneratu: %s"
+
+# AI Translated
+msgid "Connecting AI tool"
+msgstr "AA tresna konektatzen"
+
+# AI Translated
+msgid "Saving the MCP entry using the client's own CLI..."
+msgstr "MCP sarrera gordetzen bezeroaren beraren CLIa erabiliz..."
+
+# AI Translated
+msgid "The setup command timed out. Stopping it..."
+msgstr "Konfigurazio-komandoaren denbora-muga gainditu da. Gelditzen..."
+
+# AI Translated
+msgid "Select printer"
+msgstr "Hautatu inprimagailua"
+
+# AI Translated
+msgid "from the file"
+msgstr "fitxategitik"
+
+# AI Translated
+msgid "Select filament"
+msgstr "Hautatu filamentua"
+
+# AI Translated
+msgid "Paused"
+msgstr "Pausatuta"
+
+# AI Translated
+msgid "Needs attention"
+msgstr "Arreta behar du"
+
+# AI Translated
+msgid "Ready"
+msgstr "Prest"
+
+# AI Translated
+msgid "Connected"
+msgstr "Konektatuta"
+
+# AI Translated
+msgid "Connecting…"
+msgstr "Konektatzen…"
+
+# AI Translated
+msgid "Not connected"
+msgstr "Konektatu gabe"
+
+# AI Translated
+msgid "No printer selected"
+msgstr "Ez da inprimagailurik hautatu"
+
+# AI Translated
+msgid "From the file · not one of your printers"
+msgstr "Fitxategitik · ez da zure inprimagailuetako bat"
+
+# AI Translated
+msgid "Checking connection…"
+msgstr "Konexioa egiaztatzen…"
+
+# AI Translated
+msgid "Export the G-code to print from a card."
+msgstr "Esportatu G-codea memoria-txartel batetik inprimatzeko."
+
+# AI Translated
+msgid "OTHER PRINTERS"
+msgstr "BESTE INPRIMAGAILUAK"
+
+# AI Translated
+msgid "Billing and usage"
+msgstr "Fakturazioa eta erabilera"
+
+# AI Translated
+msgid "Credits and plans"
+msgstr "Kredituak eta planak"
+
+# AI Translated
+msgid "Check your internet connection, then try again."
+msgstr "Egiaztatu Interneteko konexioa eta saiatu berriro."
+
+# AI Translated
+msgid "Open in browser"
+msgstr "Ireki nabigatzailean"
+
+# AI Translated
+msgid "Loading Billing and usage…"
+msgstr "Fakturazioa eta erabilera kargatzen…"
+
+# AI Translated
+msgid "Loading Credits and plans…"
+msgstr "Kredituak eta planak kargatzen…"
+
+# AI Translated
+msgid "Couldn't load Billing and usage"
+msgstr "Ezin izan da kargatu Fakturazioa eta erabilera"
+
+# AI Translated
+msgid "Couldn't load Credits and plans"
+msgstr "Ezin izan da kargatu Kredituak eta planak"
+
+# AI Translated
+msgid "Resize AI panel"
+msgstr "Aldatu AA panelaren tamaina"
+
+# AI Translated
+msgid "Drag to resize the AI panel"
+msgstr "Arrastatu AA panelaren tamaina aldatzeko"
+
+# AI Translated
+msgid "The setup changed. Review the current plate and try again."
+msgstr "Konfigurazioa aldatu egin da. Berrikusi uneko plaka eta saiatu berriro."
+
+# AI Translated
+msgid "Couldn't slice"
+msgstr "Ezin izan da xerratu"
+
+# AI Translated
+msgid "This saved version couldn't be restored. Try again from Version history."
+msgstr "Ezin izan da gordetako bertsio hau leheneratu. Saiatu berriro Bertsioen historiatik."
+
+# AI Translated
+msgid "Revert failed"
+msgstr "Aldaketak desegiteak huts egin du"
+
+# AI Translated
+msgid "Your saved projects couldn't be read, so JusPrin can't check whether you've opened this file before. The file wasn't opened. Try again once JusPrin can read its projects folder."
+msgstr "Ezin izan dira zure gordetako proiektuak irakurri; beraz, JusPrin-ek ezin du egiaztatu fitxategi hau lehenago ireki duzun. Ez da fitxategia ireki. Saiatu berriro JusPrin-ek bere proiektuen karpeta irakur dezakeenean."
+
+# AI Translated
+msgid "This file has changed since this project was made from it. Create a new project from the updated file, or continue the current project, which keeps the earlier version."
+msgstr "Fitxategi hau aldatu egin da proiektu hau hartatik sortu zenetik. Sortu proiektu berri bat fitxategi eguneratutik, edo jarraitu uneko proiektuarekin; horrek aurreko bertsioa mantentzen du."
+
+# AI Translated
+msgid "This file is already open as a project. Continue working in it, or create a new project from this file."
+msgstr "Fitxategi hau proiektu gisa irekita dago jada. Jarraitu horretan lanean, edo sortu proiektu berri bat fitxategi honetatik."
+
+# AI Translated
+msgid "This file has changed since you last opened it. Create a new project from the updated file, or open the existing project, which keeps the earlier version."
+msgstr "Fitxategi hau aldatu egin da azkenekoz ireki zenuenetik. Sortu proiektu berri bat fitxategi eguneratutik, edo ireki lehendik dagoen proiektua; horrek aurreko bertsioa mantentzen du."
+
+# AI Translated
+msgid "You've opened this file before. Open the most recently updated project or create another project from this file."
+msgstr "Fitxategi hau lehenago ireki duzu. Ireki azkenekoz eguneratutako proiektua edo sortu beste proiektu bat fitxategi honetatik."
+
+# AI Translated
+msgid "You've opened this file before. Open the existing project to continue where you left off, or create a new project from this file."
+msgstr "Fitxategi hau lehenago ireki duzu. Ireki lehendik dagoen proiektua utzitako lekutik jarraitzeko, edo sortu proiektu berri bat fitxategi honetatik."
+
+# AI Translated
+msgid "Previously opened file"
+msgstr "Lehenago irekitako fitxategia"
+
+# AI Translated
+msgid "Continue current project"
+msgstr "Jarraitu uneko proiektuarekin"
+
+# AI Translated
+msgid "Open most recent project"
+msgstr "Ireki proiektu berriena"
+
+# AI Translated
+msgid "Open existing project"
+msgstr "Ireki lehendik dagoen proiektua"
+
+# AI Translated
+msgid "Resize Plates and Project panel"
+msgstr "Aldatu plaken eta proiektuaren panelaren tamaina"
+
+# AI Translated
+msgid "Drag to resize the Plates and Project panel"
+msgstr "Arrastatu plaken eta proiektuaren panelaren tamaina aldatzeko"
+
+# AI Translated
+msgid "The open project couldn't be saved, so the file wasn't opened. Try again."
+msgstr "Ezin izan da irekitako proiektua gorde; beraz, ez da fitxategia ireki. Saiatu berriro."
+
+# AI Translated
+#. TRN What a calibration tests: a filament's name, then the printer's, such as "Generic PLA on Bambu Lab P1S".
+#, c-format, boost-format
+msgid "%1$s on %2$s"
+msgstr "%1$s %2$s inprimagailuan"
+
+# AI Translated
+#. TRN %s is the name of the open project, which is saved and closed before a calibration project opens.
+#, c-format, boost-format
+msgid "%s will be saved and closed."
+msgstr "%s gorde eta itxi egingo da."
+
+# AI Translated
+#, c-format, boost-format
+msgid "A new calibration project opens for %s, and AI picks the spool and the test with you there."
+msgstr "Kalibrazio-proiektu berri bat irekiko da honetarako: %s. Bertan, AAk bobina eta proba zurekin batera aukeratuko ditu."
+
+# AI Translated
+#, c-format, boost-format
+msgid "A new calibration project opens for %s, and AI picks the test with you there."
+msgstr "Kalibrazio-proiektu berri bat irekiko da honetarako: %s. Bertan, AAk proba zurekin batera aukeratuko du."
+
+# AI Translated
+msgid "AI isn't set up yet; the test needs it to choose the range and read the result."
+msgstr "AA ez dago konfiguratuta oraindik; probak behar du tartea aukeratzeko eta emaitza irakurtzeko."
+
+# AI Translated
+msgid "Settings the test changes are temporary and are not saved to your filament."
+msgstr "Probak aldatzen dituen ezarpenak aldi baterakoak dira, eta ez dira zure filamentuan gordetzen."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Calibrate %s?"
+msgstr "Kalibratu %s?"
+
+# AI Translated
+msgid "Set up AI…"
+msgstr "Konfiguratu AA…"
+
+# AI Translated
+msgid "The calibration project could not be opened, so your project stays open."
+msgstr "Ezin izan da kalibrazio-proiektua ireki; beraz, zure proiektuak irekita jarraitzen du."
+
+# AI Translated
+#, c-format, boost-format
+msgid "The printer \"%s\" could not be selected."
+msgstr "Ezin izan da \"%s\" inprimagailua hautatu."
+
+# AI Translated
+#, c-format, boost-format
+msgid "The printer preset \"%s\" was not found."
+msgstr "Ez da aurkitu \"%s\" inprimagailu-aurrezarpena."
+
+# AI Translated
+msgid "The plate to print is no longer in the project."
+msgstr "Inprimatu beharreko plaka ez dago jada proiektuan."
+
+# AI Translated
+msgid "Couldn't open the print dialog"
+msgstr "Ezin izan da inprimatzeko elkarrizketa-koadroa ireki"
+
+# AI Translated
+msgid "The chat this G-code went out from is no longer in the project."
+msgstr "G-code hau bidali zuen txata ez dago jada proiektuan."
+
+# AI Translated
+msgid "Chat not found"
+msgstr "Ez da txata aurkitu"
+
+# AI Translated
+#, c-format, boost-format
+msgid "The filament preset \"%s\" was not found."
+msgstr "Ez da aurkitu \"%s\" filamentu-aurrezarpena."
+
+# AI Translated
+msgid "Back to Preview"
+msgstr "Itzuli Aurrebistara"
+
+# AI Translated
+msgid "Couldn't open project"
+msgstr "Ezin izan da proiektua ireki"
+
+# AI Translated
+msgid "Get the new version…"
+msgstr "Lortu bertsio berria…"
+
+# AI Translated
+msgid "JusPrin's view couldn't be opened."
+msgstr "Ezin izan da JusPrin-en ikuspegia ireki."
+
+# AI Translated
+msgid "Show the Plates and Project panel"
+msgstr "Erakutsi plaken eta proiektuaren panela"
+
+# AI Translated
+msgid "Back to Home"
+msgstr "Itzuli Hasierara"
+
+# AI Translated
+msgid "Print actions"
+msgstr "Inprimatze-ekintzak"
+
+# AI Translated
+msgid "Project details and preferences"
+msgstr "Proiektuaren xehetasunak eta hobespenak"
+
+# AI Translated
+msgid "Hide the AI panel"
+msgstr "Ezkutatu AA panela"
+
+# AI Translated
+msgid "Cancel slicing"
+msgstr "Utzi xerratzea"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Print plate %d"
+msgstr "Inprimatu %d. plaka"
+
+# AI Translated
+msgid "Export G-code…"
+msgstr "Esportatu G-codea…"
+
+# AI Translated
+#. TRN Detail beside "Print all plates…": how many of the plates are sliced.
+#, c-format, boost-format
+msgid "%d sliced"
+msgid_plural "%d sliced"
+msgstr[0] "%d xerratuta"
+msgstr[1] "%d xerratuta"
+
+# AI Translated
+msgid "Show the AI panel"
+msgstr "Erakutsi AA panela"
+
+# AI Translated
+msgid "Unsaved changes"
+msgstr "Gorde gabeko aldaketak"
+
+# AI Translated
+#. TRN %s is one nozzle size, or several joined by " / ", such as "0.4 / 0.6".
+#, c-format, boost-format
+msgid "%s mm nozzle"
+msgid_plural "%s mm nozzles"
+msgstr[0] "%s mm-ko pita"
+msgstr[1] "%s mm-ko pitak"
+
+# AI Translated
+msgid "from the file, not one of the printers you set up"
+msgstr "fitxategitik, ez da konfiguratu dituzun inprimagailuetako bat"
+
+# AI Translated
+#. TRN %s is the project's file name, such as "Benchy.3mf".
+#, c-format, boost-format
+msgid "from %s, not one of the printers you set up"
+msgstr "%s fitxategitik, ez da konfiguratu dituzun inprimagailuetako bat"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d filament"
+msgid_plural "%d filaments"
+msgstr[0] "%d filamentu"
+msgstr[1] "%d filamentu"
+
+# AI Translated
+#. TRN The first %d is how many of the filament slots this plate uses; the second is how many slots there are.
+#, c-format, boost-format
+msgid "%d of %d slot on this plate"
+msgid_plural "%d of %d slots on this plate"
+msgstr[0] "%d / %d arteka plaka honetan"
+msgstr[1] "%d / %d arteka plaka honetan"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d slot"
+msgid_plural "%d slots"
+msgstr[0] "%d arteka"
+msgstr[1] "%d arteka"
+
+# AI Translated
+msgid "not on this plate"
+msgstr "ez dago plaka honetan"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Filament is now %s."
+msgstr "Filamentua %s da orain."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Slot %d is now %s."
+msgstr "%d. arteka %s da orain."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Heat and cooling follow %s; walls and infill unchanged."
+msgstr "Beroa eta hoztea %s aurrezarpenari jarraitzen diote; hormak eta betegarria ez dira aldatu."
+
+# AI Translated
+#, c-format, boost-format
+msgid "slot %d %s"
+msgstr "%d. arteka %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Filaments changed: %s."
+msgstr "Filamentuak aldatu dira: %s."
+
+# AI Translated
+msgid "Slice again when ready."
+msgstr "Xerratu berriro prest zaudenean."
+
+# AI Translated
+msgid "Preferences…"
+msgstr "Hobespenak…"
+
+# AI Translated
+msgid "Changes couldn't be saved. JusPrin will retry."
+msgstr "Ezin izan dira aldaketak gorde. JusPrin berriro saiatuko da."
+
+# AI Translated
+msgid "Some older project data couldn't be removed."
+msgstr "Ezin izan dira proiektuaren datu zahar batzuk kendu."
+
+# AI Translated
+msgid "Configure a printer connection in Printer settings before printing. You can also export the sliced file."
+msgstr "Konfiguratu inprimagailu-konexio bat Inprimagailuaren ezarpenetan inprimatu aurretik. Xerratutako fitxategia ere esporta dezakezu."
+
+# AI Translated
+msgid "Printer connection required"
+msgstr "Inprimagailu-konexioa behar da"
+
+# AI Translated
+msgid "This project was saved by a newer version of JusPrin. Get the new version to open it."
+msgstr "Proiektu hau JusPrin-en bertsio berriago batek gorde zuen. Lortu bertsio berria irekitzeko."
+
+# AI Translated
+msgid "The project couldn't be opened. Try again."
+msgstr "Ezin izan da proiektua ireki. Saiatu berriro."

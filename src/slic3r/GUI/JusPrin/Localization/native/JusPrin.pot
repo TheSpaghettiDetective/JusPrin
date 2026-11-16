@@ -1,0 +1,1799 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the JusPrin package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: JusPrin\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-15 09:46-0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+msgid "Project chat is blocked until restoration is recovered."
+msgstr ""
+
+msgid "Return to the active chat or restore this chat before sending."
+msgstr ""
+
+msgid "Finish or cancel AI configuration before sending a message."
+msgstr ""
+
+msgid "This message belongs to a different chat."
+msgstr ""
+
+msgid "A message needs text or an attachment."
+msgstr ""
+
+msgid "The file could not be read."
+msgstr ""
+
+msgid "This file is too large to attach."
+msgstr ""
+
+msgid "This file type can't be read by AI."
+msgstr ""
+
+msgid "This file is not readable UTF-8 text."
+msgstr ""
+
+msgid "The attachment could not be stored."
+msgstr ""
+
+msgid "Photo or image"
+msgstr ""
+
+msgid "3D model"
+msgstr ""
+
+msgid "Document (PDF)"
+msgstr ""
+
+msgid "This build cannot open a file dialog."
+msgstr ""
+
+#. TRN A calibration chat's first line. %1%: where it was started from, %2%: a printer.
+#, boost-format
+msgid "From %1% · %2% · filament not chosen · temporary test settings"
+msgstr ""
+
+#. TRN A calibration chat's first line. %1%: where it was started from, %2%: a filament, %3%: a printer.
+#, boost-format
+msgid "From %1% · %2% on %3% · temporary test settings"
+msgstr ""
+
+#. TRN A reopened calibration test's line. %1%: the day it was made, as "21 Oct 2026".
+#, boost-format
+msgid "Reopened · generated %1%"
+msgstr ""
+
+#. TRN %1%: where the test was opened from, %2%: the day it was made, as "21 Oct 2026".
+#, boost-format
+msgid "Opened from %1% · generated %2%"
+msgstr ""
+
+#. TRN %1% is a calibration result, such as 215 °C.
+#, boost-format
+msgid "result %1% saved"
+msgstr ""
+
+#. TRN %1% is a plate's name, %2% why the slice did not succeed.
+#, boost-format
+msgid "The app did not slice %1%: %2%"
+msgstr ""
+
+#. TRN %1% is a plate's name, %2% why the slice did not succeed.
+#, boost-format
+msgid "The app stopped the slice of %1%: %2%"
+msgstr ""
+
+msgid "The slice of every plate finished."
+msgstr ""
+
+#. TRN %1% is a plate's name.
+#, boost-format
+msgid "The slice of %1% finished."
+msgstr ""
+
+msgid "Historical replies cannot be retried."
+msgstr ""
+
+msgid "Only a failed or stopped assistant message in the active conversation can be retried."
+msgstr ""
+
+msgid "Only the chat's last reply can be retried."
+msgstr ""
+
+msgid "Another reply is currently streaming."
+msgstr ""
+
+msgid "Historical tool actions cannot be changed."
+msgstr ""
+
+msgid "This proposal is no longer open. Ask AI again."
+msgstr ""
+
+msgid "This save can no longer be undone."
+msgstr ""
+
+msgid "The earlier values cannot be put back."
+msgstr ""
+
+msgid "Finish or resolve pending work before creating a chat."
+msgstr ""
+
+msgid "The current chat could not be saved."
+msgstr ""
+
+msgid "The new chat could not be saved."
+msgstr ""
+
+msgid "The selected chat could not be saved."
+msgstr ""
+
+msgid "The project or selected chat changed. Review it again."
+msgstr ""
+
+msgid "Finish or resolve pending work before resuming a chat."
+msgstr ""
+
+msgid "This chat is already active."
+msgstr ""
+
+msgid "JusPrin can't find the project version this chat was working on."
+msgstr ""
+
+msgid "The current project could not be saved before restoration."
+msgstr ""
+
+msgid "JusPrin couldn't put the project back."
+msgstr ""
+
+msgid "Restored this chat's saved project setup. Check the current printer and material before printing."
+msgstr ""
+
+msgid "Use a non-empty, single-line title of at most 120 characters for an existing chat."
+msgstr ""
+
+msgid "This chat is still working. Stop it or let it finish, then delete it."
+msgstr ""
+
+msgid "This chat no longer exists."
+msgstr ""
+
+msgid "The replacement chat could not be saved."
+msgstr ""
+
+msgid "Historical chats cannot edit the current draft."
+msgstr ""
+
+msgid "Finish or stop the current reply before configuring AI."
+msgstr ""
+
+msgid "This build cannot configure an AI provider."
+msgstr ""
+
+msgid "A credential check is already running."
+msgstr ""
+
+msgid "This build cannot verify a key for that provider yet."
+msgstr ""
+
+msgid "Finish or stop the current reply before removing a key."
+msgstr ""
+
+msgid "Finish or cancel the key check before removing a key."
+msgstr ""
+
+msgid "That key could not be removed."
+msgstr ""
+
+msgid "This build cannot sign in to a JusPrin account."
+msgstr ""
+
+msgid "Finish or stop the current reply before signing in."
+msgstr ""
+
+msgid "A sign-in or key check is already running."
+msgstr ""
+
+msgid "There is no JusPrin account on this computer to check."
+msgstr ""
+
+msgid "JusPrin couldn't start signing in. Try again."
+msgstr ""
+
+msgid "JusPrin couldn't sign you in. Try again."
+msgstr ""
+
+msgid "This sign-in could not be saved, so you will have to sign in again next time JusPrin starts."
+msgstr ""
+
+msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
+msgstr ""
+
+msgid "The panel is still loading. Try again in a moment."
+msgstr ""
+
+msgid "The AI service is not available."
+msgstr ""
+
+msgid "The AI service could not start this request."
+msgstr ""
+
+msgid "AI could not receive the native tool result."
+msgstr ""
+
+msgid "The AI request failed."
+msgstr ""
+
+msgid "The automatic chat title could not be generated. You can rename the chat."
+msgstr ""
+
+#. TRN %1% is an AI provider's account, such as JusPrin.
+#, boost-format
+msgid "This chat ran on your %1% account. Sign in again to continue it, or start a new chat."
+msgstr ""
+
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "This chat ran on %1%, and no %1% API key is set up now. Add the key in the AI settings to continue it, or start a new chat."
+msgstr ""
+
+msgid "JusPrin hasn't loaded the AI models for your account yet. Try again in a moment."
+msgstr ""
+
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "No %1% API key is set up. Add it in the AI settings, or choose another model."
+msgstr ""
+
+msgid "A connection is already being saved."
+msgstr ""
+
+msgid "JusPrin's connection helper is missing. Reinstall or rebuild JusPrin."
+msgstr ""
+
+msgid "The AppImage launcher is missing. Reopen the installed AppImage."
+msgstr ""
+
+msgid "Review the change before connecting."
+msgstr ""
+
+#. TRN %1% is an AI client app, such as Claude Code.
+#, boost-format
+msgid "%1% isn't installed. Install it, or copy the command and run it later."
+msgstr ""
+
+msgid "This build cannot run the client CLI."
+msgstr ""
+
+msgid "This build cannot open a file manager."
+msgstr ""
+
+msgid "The provider did not answer."
+msgstr ""
+
+msgid "Attach files"
+msgstr ""
+
+msgid "The AI panel could not connect"
+msgstr ""
+
+msgid "Back to Prepare"
+msgstr ""
+
+msgid "Open filament settings"
+msgstr ""
+
+msgid "The packaged AI page is missing from this build."
+msgstr ""
+
+msgid "The system web view could not be created."
+msgstr ""
+
+msgid "The AI page failed to load."
+msgstr ""
+
+msgid "The AI page did not complete the bridge handshake."
+msgstr ""
+
+msgid "Restart the application to load the AI page."
+msgstr ""
+
+msgid "This is an internal connection between the application and its AI panel, not a network service."
+msgstr ""
+
+#. TRN %1% is the web view's own error text.
+#, boost-format
+msgid "Last load error: %1%"
+msgstr ""
+
+#. TRN The messages the app and its AI panel exchanged. %1% and %2% are counts.
+#, boost-format
+msgid "Bridge traffic: %1% sent / %2% received"
+msgstr ""
+
+msgid "The AI service returned an unreadable streaming response."
+msgstr ""
+
+msgid "The AI service streamed a delta for a block it never opened."
+msgstr ""
+
+msgid "The AI service sent a tool call whose arguments are not JSON."
+msgstr ""
+
+msgid "The AI service could not complete the response."
+msgstr ""
+
+#. TRN %1% is the AI service's own reason, in English, such as "cyber".
+#, boost-format
+msgid "The AI service declined to answer (%1%)."
+msgstr ""
+
+msgid "The AI service ended its response for a reason this build does not know."
+msgstr ""
+
+msgid "This version of JusPrin can no longer connect to JusPrin accounts. Get the new version to keep using your account."
+msgstr ""
+
+msgid "Signing in didn't finish. Nothing was saved. Try again."
+msgstr ""
+
+msgid "JusPrin couldn't be reached to finish signing in. Try again."
+msgstr ""
+
+msgid "JusPrin has no AI model for this account right now. Try again later."
+msgstr ""
+
+msgid "Restored an earlier project version"
+msgstr ""
+
+msgid "Restored this chat's saved project setup"
+msgstr ""
+
+#. TRN The chat list's preview of a message that has only attachments.
+msgid "Attachment"
+msgstr ""
+
+msgid "The AI service stopped before finishing its response."
+msgstr ""
+
+msgid "The AI service kept pausing its response."
+msgstr ""
+
+msgid "AI could not be asked to continue its response."
+msgstr ""
+
+msgid "AI could not be told the results of its tool calls."
+msgstr ""
+
+msgid "AI returned an invalid tool call."
+msgstr ""
+
+msgid "The AI service ended before a complete response arrived."
+msgstr ""
+
+msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
+msgstr ""
+
+#, boost-format
+msgid "This message needs %1% credit; you have %2%."
+msgid_plural "This message needs %1% credits; you have %2%."
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "You're out of credits."
+msgstr ""
+
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% API key was rejected. Update the AI configuration and try again."
+msgstr ""
+
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The request was too large for the %1% service."
+msgstr ""
+
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% service is rate limited. Try again shortly."
+msgstr ""
+
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% service is overloaded. Try again shortly."
+msgstr ""
+
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% service is temporarily unavailable."
+msgstr ""
+
+msgid "The AI request timed out."
+msgstr ""
+
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The AI request could not reach the %1% service."
+msgstr ""
+
+msgid "The AI service response did not contain valid output."
+msgstr ""
+
+#. TRN A button that asks the AI to choose another block of a calibration test.
+msgid "Pick another block"
+msgstr ""
+
+#. TRN A button that asks the AI to choose another tile of a calibration test.
+msgid "Pick another tile"
+msgstr ""
+
+#. TRN A button that asks the AI to choose another line of a calibration test.
+msgid "Pick another line"
+msgstr ""
+
+#. TRN A button that asks the AI to choose another corner of a calibration test.
+msgid "Pick another corner"
+msgstr ""
+
+#. TRN A button that asks the AI to choose another height of a calibration tower.
+msgid "Pick another height"
+msgstr ""
+
+#. TRN %1% is a preset's name.
+#, boost-format
+msgid "Preset · %1%"
+msgstr ""
+
+#. TRN %1% is a preset's name.
+#, boost-format
+msgid "New preset · %1%"
+msgstr ""
+
+#. TRN %1% is the preset the new one is made from.
+#, boost-format
+msgid "%1% itself is unchanged"
+msgstr ""
+
+#. TRN %1% is a setting's new value, such as 215 °C.
+#, boost-format
+msgid "Save %1% as a new filament preset"
+msgstr ""
+
+#. TRN %1% is a setting's new value, such as 215 °C.
+#, boost-format
+msgid "Save %1% as a new printer preset"
+msgstr ""
+
+#. TRN %1% is a setting's new value, such as 215 °C.
+#, boost-format
+msgid "Save %1% as a new process preset"
+msgstr ""
+
+#. TRN %1% is a setting's new value, such as 215 °C, %2% a preset's name.
+#, boost-format
+msgid "Save %1% to %2%"
+msgstr ""
+
+msgid "This proposal is already saved."
+msgstr ""
+
+msgid "Drop a model here or add one"
+msgstr ""
+
+msgid "World coordinates"
+msgstr ""
+
+msgid "Object coordinates"
+msgstr ""
+
+msgid "Translate(Relative)"
+msgstr ""
+
+msgid "Rotate (absolute)"
+msgstr ""
+
+msgid "Part coordinates"
+msgstr ""
+
+msgid "The packaged Home page is missing from this build."
+msgstr ""
+
+msgid "The Home page failed to load."
+msgstr ""
+
+msgid "This window stopped updating because the app switched to another printer."
+msgstr ""
+
+#. TRN A length in millimetres, such as a nozzle diameter on a printer card: "0.4 mm". %s is the number.
+#, c-format, boost-format
+msgid "%s mm"
+msgstr ""
+
+#, c-format, boost-format
+msgid "The printer reports error %s."
+msgstr ""
+
+msgid "LAN"
+msgstr ""
+
+msgid "Cloud"
+msgstr ""
+
+msgid "The printer stopped sending updates."
+msgstr ""
+
+#, c-format, boost-format
+msgid "%s isn't answering."
+msgstr ""
+
+msgid "Klipper isn't running."
+msgstr ""
+
+#. TRN %1% is Klipper's own message, in English, saying why it stopped.
+#, boost-format
+msgid "Klipper stopped: %1%"
+msgstr ""
+
+msgid "This printer no longer exists."
+msgstr ""
+
+#. TRN A date in this year on a project card: %1% is the abbreviated month name, %2% the day of the month, as in "Oct 20".
+#, boost-format
+msgctxt "short date"
+msgid "%1% %2%"
+msgstr ""
+
+#. TRN A date outside this year on a project card: %1% is the date without the year, as in "Oct 20", %2% the year.
+#, boost-format
+msgctxt "date with year"
+msgid "%1%, %2%"
+msgstr ""
+
+msgid "G-code exported"
+msgstr ""
+
+#. TRN A project's status: %1% is a date, as in "Nov 3".
+#, boost-format
+msgid "G-code exported %1%"
+msgstr ""
+
+#. TRN A project's status: %1% is a printer model, as in "Ender-3 V3 KE".
+#, boost-format
+msgid "G-code exported for %1%"
+msgstr ""
+
+#. TRN A project's status: %1% is a date, as in "Nov 3", %2% a printer model, as in "Ender-3 V3 KE".
+#, boost-format
+msgid "G-code exported %1% for %2%"
+msgstr ""
+
+msgctxt "project status"
+msgid "Printed"
+msgstr ""
+
+#. TRN A project's status: %1% is a date, as in "Oct 20".
+#, boost-format
+msgid "Printed %1%"
+msgstr ""
+
+msgctxt "project status"
+msgid "Sent"
+msgstr ""
+
+#. TRN A project's status: %1% is a date, as in "Oct 20".
+#, boost-format
+msgid "Sent %1%"
+msgstr ""
+
+#. TRN A project's status: it has not been sliced to G-code yet.
+msgctxt "project status"
+msgid "Draft"
+msgstr ""
+
+msgid "That sign-in expired. Try again."
+msgstr ""
+
+#, c-format, boost-format
+msgid "JusPrin found no %s printers to bring. Choose your printer instead."
+msgstr ""
+
+msgid "Generic printer"
+msgstr ""
+
+msgid "Your projects couldn't be loaded. JusPrin will keep trying."
+msgstr ""
+
+msgid "Untitled project"
+msgstr ""
+
+#, c-format, boost-format
+msgid "Printing on %s"
+msgstr ""
+
+msgid "JusPrin no longer keeps this G-code. Slice the project again to export it."
+msgstr ""
+
+msgid "Couldn't export G-code"
+msgstr ""
+
+#, c-format, boost-format
+msgid "The G-code couldn't be written to %s."
+msgstr ""
+
+msgid "Choose a photo of the printed object"
+msgstr ""
+
+msgid "Photos"
+msgstr ""
+
+#, c-format, boost-format
+msgid "%s couldn't be opened. Try opening it with Open… instead."
+msgstr ""
+
+msgid "Couldn't open file"
+msgstr ""
+
+#, c-format, boost-format
+msgid "Import from %s"
+msgstr ""
+
+msgid "Importing these printers loads their profiles, which replaces unsaved changes to the project's settings."
+msgstr ""
+
+#, c-format, boost-format
+msgid "Imported from %s"
+msgstr ""
+
+#, c-format, boost-format
+msgid "JusPrin couldn't read this file. To try again, choose Printer › Import printers from %s…"
+msgstr ""
+
+msgid "Not imported. The file has no version."
+msgstr ""
+
+msgid "Not imported. It isn't a printer, filament or process preset."
+msgstr ""
+
+#. TRN %1% is the filament preset the file is based on, %2% the app it was imported from.
+#, boost-format
+msgid "Not imported, because it's based on %1%, which JusPrin doesn't have. It stays in %2%. When you prepare a print, choose a similar filament instead."
+msgstr ""
+
+#. TRN %1% is the print settings preset the file is based on, %2% the app it was imported from.
+#, boost-format
+msgid "Not imported, because they're based on %1%, which JusPrin doesn't have. They stay in %2%. When you prepare a print, choose similar print settings instead."
+msgstr ""
+
+#. TRN %1% is the printer profile the file is based on, %2% the app it was imported from.
+#, boost-format
+msgid "Not imported, because it's based on %1%, which JusPrin doesn't have. It stays in %2%. When you add a printer, choose a similar one instead."
+msgstr ""
+
+#, c-format, boost-format
+msgid "JusPrin couldn't load this preset. To try again, choose Printer › Import printers from %s…"
+msgstr ""
+
+#, c-format, boost-format
+msgid "It's based on %s, which JusPrin doesn't have. When you prepare a print, choose a similar filament instead."
+msgstr ""
+
+#, c-format, boost-format
+msgid "It's based on %s, which JusPrin doesn't have. When you prepare a print, choose similar print settings instead."
+msgstr ""
+
+#, c-format, boost-format
+msgid "It's based on %s, which JusPrin doesn't have. When you add a printer, choose a similar one instead."
+msgstr ""
+
+#, c-format, boost-format
+msgid "Choose your %s folder"
+msgstr ""
+
+#. TRN %1% is the app the printers are imported from, such as OrcaSlicer.
+#, boost-format
+msgid "JusPrin found no %1% printers in that folder. If %1% keeps its settings somewhere else, choose that folder."
+msgstr ""
+
+msgid "The printer's page didn't load"
+msgstr ""
+
+msgid "Try again"
+msgstr ""
+
+#, c-format, boost-format
+msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
+msgstr ""
+
+msgid "Client configuration is a symbolic link. Use Copy and update its target manually."
+msgstr ""
+
+msgid "Client configuration exceeds the 1 MiB setup limit."
+msgstr ""
+
+msgid "Client configuration exceeds nesting depth 32."
+msgstr ""
+
+msgid "Client configuration has an unterminated comment."
+msgstr ""
+
+msgid "Client configuration and its server map must be JSON objects. No changes made."
+msgstr ""
+
+msgid "Client configuration has ambiguous duplicate keys. No changes made."
+msgstr ""
+
+msgid "Client configuration changed after the preview. Review the new change and confirm again."
+msgstr ""
+
+msgid "Client configuration changed while preparing the write. Original file retained; review again."
+msgstr ""
+
+msgid "JusPrin couldn't close the project, so it didn't restart. Your project stays open, and JusPrin will use the new language the next time it starts."
+msgstr ""
+
+msgid "Restart"
+msgstr ""
+
+msgid "Checking..."
+msgstr ""
+
+msgid "Whole plate"
+msgstr ""
+
+msgid "Ignored"
+msgstr ""
+
+#, boost-format
+msgid "%1% warning ignored"
+msgid_plural "%1% warnings ignored"
+msgstr[0] ""
+msgstr[1] ""
+
+#, boost-format
+msgid "%1% print issue"
+msgid_plural "%1% print issues"
+msgstr[0] ""
+msgstr[1] ""
+
+#, boost-format
+msgid "%1% blocks printing."
+msgid_plural "%1% block printing."
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRN The print-issue pill: %1% is "3 print issues", %2% the sentence "2 block printing."
+#, boost-format
+msgid "%1%. %2%"
+msgstr ""
+
+msgid "Blocks printing"
+msgstr ""
+
+msgid "out of view"
+msgstr ""
+
+msgid "Checking whether this is fixed..."
+msgstr ""
+
+#, boost-format
+msgid "%1% of %2%"
+msgstr ""
+
+msgid "AI is replying..."
+msgstr ""
+
+msgid "Stop ignoring"
+msgstr ""
+
+msgid "Ignore this warning"
+msgstr ""
+
+msgid "Ask AI"
+msgstr ""
+
+msgid "Explain this issue and my options."
+msgstr ""
+
+msgid "Set up AI..."
+msgstr ""
+
+msgid "A G-code path goes beyond the plate boundaries."
+msgstr ""
+
+#, c-format, boost-format
+msgid "Filaments %s cannot be printed directly on the surface of this plate."
+msgstr ""
+
+#, boost-format
+msgid "Slicing plate %1%"
+msgstr ""
+
+msgid "The form was out of date. Choose the printer again."
+msgstr ""
+
+msgid "Choose the plate on this printer."
+msgstr ""
+
+msgid "That filament is no longer on the list. Choose another."
+msgstr ""
+
+msgid "That printer is no longer on the list. Choose it again."
+msgstr ""
+
+msgid "Printer conversation"
+msgstr ""
+
+msgid "Filament conversation"
+msgstr ""
+
+msgid "Browse the full printer list"
+msgstr ""
+
+msgid "Open printer settings"
+msgstr ""
+
+#. TRN %1% is the profile loader's own error, in English.
+#, boost-format
+msgid "The printer profiles could not be read: %1%"
+msgstr ""
+
+msgid "Enter a name for the printer."
+msgstr ""
+
+msgid "A printer name can't start or end with a space."
+msgstr ""
+
+#, c-format, boost-format
+msgid "A printer name can't contain any of these characters: %s"
+msgstr ""
+
+msgid "That name is reserved. Choose another."
+msgstr ""
+
+#, c-format, boost-format
+msgid "Another printer or profile is already named \"%s\"."
+msgstr ""
+
+msgid "A new name has to differ from the old one by more than capitalization."
+msgstr ""
+
+#, c-format, boost-format
+msgid "Other printer profiles are based on \"%s\". Remove those first in Printer settings."
+msgstr ""
+
+msgid "The app couldn't open your browser."
+msgstr ""
+
+msgid "About JusPrin"
+msgstr ""
+
+#, c-format, boost-format
+msgid "Version %s"
+msgstr ""
+
+#, c-format, boost-format
+msgid "Built on OrcaSlicer %s"
+msgstr ""
+
+#. TRN A noun: the label before the commit this copy of the app was built from.
+msgid "Build"
+msgstr ""
+
+msgid "Copy version"
+msgstr ""
+
+msgid "Get help"
+msgstr ""
+
+msgid "Email"
+msgstr ""
+
+msgid "License…"
+msgstr ""
+
+msgid "Free software under the GNU Affero General Public License v3."
+msgstr ""
+
+msgid "Copied"
+msgstr ""
+
+#. TRN The menu of print actions: Slice plate, Check print…, Print….
+msgctxt "Menu"
+msgid "Print"
+msgstr ""
+
+msgid "New project"
+msgstr ""
+
+msgid "Open…"
+msgstr ""
+
+msgid "Open recent"
+msgstr ""
+
+msgid "Version history…"
+msgstr ""
+
+msgid "Project 3MF…"
+msgstr ""
+
+msgid "Exit"
+msgstr ""
+
+msgid "Plates and project panel"
+msgstr ""
+
+msgid "Show plates and project panel"
+msgstr ""
+
+msgid "Hide plates and project panel"
+msgstr ""
+
+msgid "AI panel"
+msgstr ""
+
+msgid "Show AI panel"
+msgstr ""
+
+msgid "Hide AI panel"
+msgstr ""
+
+msgid "Switch to classic view…"
+msgstr ""
+
+msgid "JusPrin guide…"
+msgstr ""
+
+msgid "Ask AI…"
+msgstr ""
+
+msgid "Report a problem…"
+msgstr ""
+
+msgid "Report a problem"
+msgstr ""
+
+msgid "Slice all plates"
+msgstr ""
+
+msgid "Check print…"
+msgstr ""
+
+msgid "Print…"
+msgstr ""
+
+msgid "Print all plates…"
+msgstr ""
+
+msgid "Add a printer…"
+msgstr ""
+
+msgid "Import printers from OrcaSlicer…"
+msgstr ""
+
+msgid "Import printers from JusPrin 1…"
+msgstr ""
+
+msgid "Printer settings…"
+msgstr ""
+
+msgid "Ask AI about printer settings…"
+msgstr ""
+
+msgid "Filament settings…"
+msgstr ""
+
+msgid "Ask AI about filament settings…"
+msgstr ""
+
+msgid "Calibrate…"
+msgstr ""
+
+msgid "Check print"
+msgstr ""
+
+msgid "Check Print"
+msgstr ""
+
+msgid "Legend"
+msgstr ""
+
+msgid "Close and return to Prepare"
+msgstr ""
+
+#, c-format, boost-format
+msgid "sliced for %s"
+msgstr ""
+
+#, c-format, boost-format
+msgid "Layer %d"
+msgstr ""
+
+#, c-format, boost-format
+msgid "%d s"
+msgstr ""
+
+#, c-format, boost-format
+msgid "%d min"
+msgstr ""
+
+#, c-format, boost-format
+msgid "%d h %d min"
+msgstr ""
+
+#, c-format, boost-format
+msgid "%.0f g"
+msgstr ""
+
+#. TRN A length in metres, such as the filament a print uses: "12.4 m". %s is the number.
+#, c-format, boost-format
+msgid "%s m"
+msgstr ""
+
+msgid "no supports were needed"
+msgstr ""
+
+msgid "no seams are on the faces you marked"
+msgstr ""
+
+msgid "nothing prints in the air"
+msgstr ""
+
+msgid "no paths cross or leave the plate"
+msgstr ""
+
+msgid "no paths cross each other"
+msgstr ""
+
+msgid "no paths leave the plate"
+msgstr ""
+
+msgid "the slicer gave no warnings"
+msgstr ""
+
+msgid "Print report"
+msgstr ""
+
+#, c-format, boost-format
+msgid "Print report, %s"
+msgstr ""
+
+#. TRN A section title of the print report: the support structures the slice made.
+msgid "Supports"
+msgstr ""
+
+msgid "Slicer warnings"
+msgstr ""
+
+msgid "Unsupported islands"
+msgstr ""
+
+msgid "Crossing paths"
+msgstr ""
+
+msgid "Paths outside the plate"
+msgstr ""
+
+msgid "Nothing to flag."
+msgstr ""
+
+#. TRN Print report's closing line, a list of clauses such as "nothing prints in the air": joins the list so far to a clause that is not the last.
+#, c-format, boost-format
+msgid "%s, %s"
+msgstr ""
+
+#. TRN Print report's closing line, a list of clauses such as "nothing prints in the air": joins its only two clauses.
+#, c-format, boost-format
+msgid "%s and %s"
+msgstr ""
+
+#. TRN Print report's closing line, a list of clauses such as "nothing prints in the air": joins the list so far to the last of three or more.
+#, c-format, boost-format
+msgid "%s, and %s"
+msgstr ""
+
+#. TRN Ends the print report's closing line; %s is its list of what the checks found clean, first letter capitalised.
+#, c-format, boost-format
+msgid "%s."
+msgstr ""
+
+#, c-format, boost-format
+msgid "%d layer"
+msgid_plural "%d layers"
+msgstr[0] ""
+msgstr[1] ""
+
+#, c-format, boost-format
+msgid "%d object"
+msgid_plural "%d objects"
+msgstr[0] ""
+msgstr[1] ""
+
+#, c-format, boost-format
+msgid "%d on a marked face"
+msgid_plural "%d on marked faces"
+msgstr[0] ""
+msgstr[1] ""
+
+#, c-format, boost-format
+msgid "%d or more"
+msgstr ""
+
+msgid "A toolpath runs outside the printable area"
+msgstr ""
+
+#, c-format, boost-format
+msgid "Support touches %s, which you asked to keep clear"
+msgstr ""
+
+#, c-format, boost-format
+msgid "Support inside the %s"
+msgstr ""
+
+msgid "No support in a hole or a region you kept clear"
+msgstr ""
+
+msgid "No support in a hole"
+msgstr ""
+
+#, c-format, boost-format
+msgid "Printed in the air: %s"
+msgstr ""
+
+#, c-format, boost-format
+msgid "%d seam on %s"
+msgid_plural "%d seams on %s"
+msgstr[0] ""
+msgstr[1] ""
+
+#, c-format, boost-format
+msgid "%s on the plate"
+msgstr ""
+
+msgid "only when recording a timelapse"
+msgstr ""
+
+#, c-format, boost-format
+msgid "around %s"
+msgstr ""
+
+#, c-format, boost-format
+msgid "%d layer of support"
+msgid_plural "%d layers of support"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "No brim"
+msgstr ""
+
+msgid "This plate has no current slice."
+msgstr ""
+
+#, c-format, boost-format
+msgid "%d filament change"
+msgid_plural "%d filament changes"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "You're in the classic OrcaSlicer view."
+msgstr ""
+
+msgid "Back to JusPrin"
+msgstr ""
+
+msgid "Switch to JusPrin view"
+msgstr ""
+
+#. TRN A menu caption in capitals: the printer's name (in capitals), then its nozzle size in millimetres.
+#, c-format, boost-format
+msgid "%s, %s MM NOZZLE"
+msgstr ""
+
+msgid "COLOUR"
+msgstr ""
+
+msgid "Other colour…"
+msgstr ""
+
+msgid "Use what's loaded on the printer…"
+msgstr ""
+
+#, c-format, boost-format
+msgid "%s is offline. Turn it on to read what's loaded."
+msgstr ""
+
+#, c-format, boost-format
+msgid "FILAMENTS FOR %s"
+msgstr ""
+
+msgid "on plate"
+msgstr ""
+
+msgid "Add another filament to this print"
+msgstr ""
+
+#, c-format, boost-format
+msgid "FILAMENT · SLOT %d · %s"
+msgstr ""
+
+#, c-format, boost-format
+msgid "FILAMENT FOR %s"
+msgstr ""
+
+msgid "FILAMENTS FOR THIS PRINTER"
+msgstr ""
+
+msgid "Other filament…"
+msgstr ""
+
+msgid "Calibrate this filament…"
+msgstr ""
+
+msgid "JusPrin guide"
+msgstr ""
+
+msgid "Plates and Project panel"
+msgstr ""
+
+msgid "Hide the Plates and Project panel"
+msgstr ""
+
+#, c-format, boost-format
+msgid "Slicing %d%%"
+msgstr ""
+
+msgid "Slicing…"
+msgstr ""
+
+msgid "Sliced"
+msgstr ""
+
+msgid "Not sliced yet"
+msgstr ""
+
+#. TRN How many objects or copies on the plate are set not to print.
+#, c-format, boost-format
+msgid "%d won't print"
+msgid_plural "%d won't print"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Couldn't do that"
+msgstr ""
+
+msgid "Support painting"
+msgstr ""
+
+msgid "Color painting"
+msgstr ""
+
+msgid "Fuzzy skin painting"
+msgstr ""
+
+#, c-format, boost-format
+msgid "Per-object settings · %d"
+msgstr ""
+
+msgid "Auto-orient"
+msgstr ""
+
+msgid "Plate settings…"
+msgstr ""
+
+msgid "Move to front"
+msgstr ""
+
+msgid "Delete plate"
+msgstr ""
+
+msgid "Rename object"
+msgstr ""
+
+msgid "Set number of instances…"
+msgstr ""
+
+msgid "Fix model"
+msgstr ""
+
+msgid "Change object filament"
+msgstr ""
+
+msgid "Delete copy"
+msgstr ""
+
+msgid "To objects"
+msgstr ""
+
+msgid "To parts"
+msgstr ""
+
+#, c-format, boost-format
+msgid "Copy %d"
+msgstr ""
+
+#, c-format, boost-format
+msgid "%d per-object setting"
+msgid_plural "%d per-object settings"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Plates tab"
+msgstr ""
+
+msgid "Project tab"
+msgstr ""
+
+msgid "Plates"
+msgstr ""
+
+msgid "Add model"
+msgstr ""
+
+msgid "Not on a plate"
+msgstr ""
+
+msgid "Mesh needs repair"
+msgstr ""
+
+msgid "Mesh repaired"
+msgstr ""
+
+msgid "won't print"
+msgstr ""
+
+#. TRN A tag beside one part of an object, saying what kind of part it is: an ordinary part.
+msgid "part"
+msgstr ""
+
+#. TRN A tag beside one part of an object, saying what kind of part it is: a modifier, which changes settings where it overlaps.
+msgid "modifier"
+msgstr ""
+
+msgid "negative part"
+msgstr ""
+
+msgid "support enforcer"
+msgstr ""
+
+msgid "support blocker"
+msgstr ""
+
+#. TRN %s is a weekday or a date, such as "Mon" or "Mar 14", when this project's last print finished.
+#, c-format, boost-format
+msgid "last finished %s"
+msgstr ""
+
+msgid "last finished today"
+msgstr ""
+
+msgid "last finished yesterday"
+msgstr ""
+
+msgid "Version history unavailable"
+msgstr ""
+
+msgid "Version history couldn't be loaded. Try again."
+msgstr ""
+
+msgid "Export project 3MF"
+msgstr ""
+
+msgid "Export failed"
+msgstr ""
+
+msgid "The project couldn't be exported. Try again."
+msgstr ""
+
+msgid "Restore this version of the model and project settings? The current model will be saved as a version first. Conversations and print records will stay current."
+msgstr ""
+
+msgid "Restore project version"
+msgstr ""
+
+msgid "Restore failed"
+msgstr ""
+
+msgid "This version couldn't be restored. Try again."
+msgstr ""
+
+msgid "Back to Project"
+msgstr ""
+
+msgid "Nothing printed or exported yet"
+msgstr ""
+
+#, c-format, boost-format
+msgid "%d G-code"
+msgid_plural "%d G-codes"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "printing now"
+msgstr ""
+
+msgid "never sent to a printer"
+msgstr ""
+
+msgid "Print history"
+msgstr ""
+
+msgid "Saving…"
+msgstr ""
+
+msgid "Saved"
+msgstr ""
+
+msgid "Couldn't save"
+msgstr ""
+
+msgid "No title, designer or description yet."
+msgstr ""
+
+#. TRN Who designed the model; %s is the designer's name.
+#, c-format, boost-format
+msgid "by %s"
+msgstr ""
+
+msgid "Version history"
+msgstr ""
+
+msgid "Export project 3MF…"
+msgstr ""
+
+msgid "Bill of materials"
+msgstr ""
+
+msgid "Assembly guide"
+msgstr ""
+
+msgid "Attachments"
+msgstr ""
+
+msgid "The file couldn't be opened."
+msgstr ""
+
+msgid "More files are attached than are listed here."
+msgstr ""
+
+msgid "Profile"
+msgstr ""
+
+msgid "No earlier saved versions yet."
+msgstr ""
+
+#. TRN The Restore button's name for a screen reader; %s is when the version was saved.
+#, c-format, boost-format
+msgid "Restore %s"
+msgstr ""
+
+msgid "Connecting AI tool"
+msgstr ""
+
+msgid "Saving the MCP entry using the client's own CLI..."
+msgstr ""
+
+msgid "The setup command timed out. Stopping it..."
+msgstr ""
+
+msgid "Select printer"
+msgstr ""
+
+msgid "from the file"
+msgstr ""
+
+msgid "Select filament"
+msgstr ""
+
+msgid "Paused"
+msgstr ""
+
+msgid "Needs attention"
+msgstr ""
+
+msgid "Ready"
+msgstr ""
+
+msgid "Connected"
+msgstr ""
+
+msgid "Connecting…"
+msgstr ""
+
+msgid "Not connected"
+msgstr ""
+
+msgid "No printer selected"
+msgstr ""
+
+msgid "From the file · not one of your printers"
+msgstr ""
+
+msgid "Checking connection…"
+msgstr ""
+
+msgid "Export the G-code to print from a card."
+msgstr ""
+
+msgid "OTHER PRINTERS"
+msgstr ""
+
+msgid "Billing and usage"
+msgstr ""
+
+msgid "Credits and plans"
+msgstr ""
+
+msgid "Check your internet connection, then try again."
+msgstr ""
+
+msgid "Open in browser"
+msgstr ""
+
+msgid "Loading Billing and usage…"
+msgstr ""
+
+msgid "Loading Credits and plans…"
+msgstr ""
+
+msgid "Couldn't load Billing and usage"
+msgstr ""
+
+msgid "Couldn't load Credits and plans"
+msgstr ""
+
+msgid "Resize AI panel"
+msgstr ""
+
+msgid "Drag to resize the AI panel"
+msgstr ""
+
+msgid "The setup changed. Review the current plate and try again."
+msgstr ""
+
+msgid "Couldn't slice"
+msgstr ""
+
+msgid "This saved version couldn't be restored. Try again from Version history."
+msgstr ""
+
+msgid "Revert failed"
+msgstr ""
+
+msgid "Your saved projects couldn't be read, so JusPrin can't check whether you've opened this file before. The file wasn't opened. Try again once JusPrin can read its projects folder."
+msgstr ""
+
+msgid "This file has changed since this project was made from it. Create a new project from the updated file, or continue the current project, which keeps the earlier version."
+msgstr ""
+
+msgid "This file is already open as a project. Continue working in it, or create a new project from this file."
+msgstr ""
+
+msgid "This file has changed since you last opened it. Create a new project from the updated file, or open the existing project, which keeps the earlier version."
+msgstr ""
+
+msgid "You've opened this file before. Open the most recently updated project or create another project from this file."
+msgstr ""
+
+msgid "You've opened this file before. Open the existing project to continue where you left off, or create a new project from this file."
+msgstr ""
+
+msgid "Previously opened file"
+msgstr ""
+
+msgid "Continue current project"
+msgstr ""
+
+msgid "Open most recent project"
+msgstr ""
+
+msgid "Open existing project"
+msgstr ""
+
+msgid "Resize Plates and Project panel"
+msgstr ""
+
+msgid "Drag to resize the Plates and Project panel"
+msgstr ""
+
+msgid "The open project couldn't be saved, so the file wasn't opened. Try again."
+msgstr ""
+
+#. TRN What a calibration tests: a filament's name, then the printer's, such as "Generic PLA on Bambu Lab P1S".
+#, c-format, boost-format
+msgid "%1$s on %2$s"
+msgstr ""
+
+#. TRN %s is the name of the open project, which is saved and closed before a calibration project opens.
+#, c-format, boost-format
+msgid "%s will be saved and closed."
+msgstr ""
+
+#, c-format, boost-format
+msgid "A new calibration project opens for %s, and AI picks the spool and the test with you there."
+msgstr ""
+
+#, c-format, boost-format
+msgid "A new calibration project opens for %s, and AI picks the test with you there."
+msgstr ""
+
+msgid "AI isn't set up yet; the test needs it to choose the range and read the result."
+msgstr ""
+
+msgid "Settings the test changes are temporary and are not saved to your filament."
+msgstr ""
+
+#, c-format, boost-format
+msgid "Calibrate %s?"
+msgstr ""
+
+msgid "Set up AI…"
+msgstr ""
+
+msgid "The calibration project could not be opened, so your project stays open."
+msgstr ""
+
+#, c-format, boost-format
+msgid "The printer \"%s\" could not be selected."
+msgstr ""
+
+#, c-format, boost-format
+msgid "The printer preset \"%s\" was not found."
+msgstr ""
+
+msgid "The plate to print is no longer in the project."
+msgstr ""
+
+msgid "Couldn't open the print dialog"
+msgstr ""
+
+msgid "The chat this G-code went out from is no longer in the project."
+msgstr ""
+
+msgid "Chat not found"
+msgstr ""
+
+#, c-format, boost-format
+msgid "The filament preset \"%s\" was not found."
+msgstr ""
+
+msgid "Back to Preview"
+msgstr ""
+
+msgid "Couldn't open project"
+msgstr ""
+
+msgid "Get the new version…"
+msgstr ""
+
+msgid "JusPrin's view couldn't be opened."
+msgstr ""
+
+msgid "Show the Plates and Project panel"
+msgstr ""
+
+msgid "Back to Home"
+msgstr ""
+
+msgid "Print actions"
+msgstr ""
+
+msgid "Project details and preferences"
+msgstr ""
+
+msgid "Hide the AI panel"
+msgstr ""
+
+msgid "Cancel slicing"
+msgstr ""
+
+#, c-format, boost-format
+msgid "Print plate %d"
+msgstr ""
+
+msgid "Export G-code…"
+msgstr ""
+
+#. TRN Detail beside "Print all plates…": how many of the plates are sliced.
+#, c-format, boost-format
+msgid "%d sliced"
+msgid_plural "%d sliced"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Show the AI panel"
+msgstr ""
+
+msgid "Unsaved changes"
+msgstr ""
+
+#. TRN %s is one nozzle size, or several joined by " / ", such as "0.4 / 0.6".
+#, c-format, boost-format
+msgid "%s mm nozzle"
+msgid_plural "%s mm nozzles"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "from the file, not one of the printers you set up"
+msgstr ""
+
+#. TRN %s is the project's file name, such as "Benchy.3mf".
+#, c-format, boost-format
+msgid "from %s, not one of the printers you set up"
+msgstr ""
+
+#, c-format, boost-format
+msgid "%d filament"
+msgid_plural "%d filaments"
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRN The first %d is how many of the filament slots this plate uses; the second is how many slots there are.
+#, c-format, boost-format
+msgid "%d of %d slot on this plate"
+msgid_plural "%d of %d slots on this plate"
+msgstr[0] ""
+msgstr[1] ""
+
+#, c-format, boost-format
+msgid "%d slot"
+msgid_plural "%d slots"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "not on this plate"
+msgstr ""
+
+#, c-format, boost-format
+msgid "Filament is now %s."
+msgstr ""
+
+#, c-format, boost-format
+msgid "Slot %d is now %s."
+msgstr ""
+
+#, c-format, boost-format
+msgid "Heat and cooling follow %s; walls and infill unchanged."
+msgstr ""
+
+#, c-format, boost-format
+msgid "slot %d %s"
+msgstr ""
+
+#, c-format, boost-format
+msgid "Filaments changed: %s."
+msgstr ""
+
+msgid "Slice again when ready."
+msgstr ""
+
+msgid "Preferences…"
+msgstr ""
+
+msgid "Changes couldn't be saved. JusPrin will retry."
+msgstr ""
+
+msgid "Some older project data couldn't be removed."
+msgstr ""
+
+msgid "Configure a printer connection in Printer settings before printing. You can also export the sliced file."
+msgstr ""
+
+msgid "Printer connection required"
+msgstr ""
+
+msgid "This project was saved by a newer version of JusPrin. Get the new version to open it."
+msgstr ""
+
+msgid "The project couldn't be opened. Try again."
+msgstr ""

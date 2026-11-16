@@ -518,6 +518,9 @@ export interface CatalogSettingInfo {
   key: string;
   label: string;
   page: string;  // Quality, Strength, Speed, Support, Others, ...; empty when the tab does not index it
+  // The label, pageLabel, group and displays are in the app's language;
+  // page stays English, for the panel to compare.
+  pageLabel?: string;
   group: string; // the option group within the page
   value: string;
   display: string;
@@ -1013,9 +1016,10 @@ export interface PrinterFormFilament {
   label: string;
   vendor: string;
   material: string;
-  // The printers it is made for, as a phrase ("the Prusa CORE One and
-  // Prusa XL"); absent when it fits this printer.
-  madeFor?: string;
+  // Absent when it fits this printer; otherwise the printers its profile
+  // names, by model name (["Prusa CORE One", "Prusa XL"]), empty when it
+  // names none. The page words the sentence.
+  madeFor?: string[];
   // A person's own preset: the preset it was saved from.
   base?: string;
 }

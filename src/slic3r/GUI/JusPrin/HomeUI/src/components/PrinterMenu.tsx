@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 import type { PrinterInfo } from '../bridge/protocol';
 import { MoreGlyph } from './Glyphs';
 
@@ -21,11 +23,11 @@ const ILLEGAL = /[<>[\]:/\\|?*"]/;
 export function renameProblem(name: string, current: string, others: string[]): string | undefined {
   const trimmed = name.trim();
   const folded = trimmed.toLowerCase();
-  if (!trimmed) return 'Enter a name for the printer.';
-  if (ILLEGAL.test(trimmed)) return 'A printer name can’t contain any of these characters: < > [ ] : / \\ | ? * "';
+  if (!trimmed) return t`Enter a name for the printer.`;
+  if (ILLEGAL.test(trimmed)) return t`A printer name can’t contain any of these characters: < > [ ] : / \\ | ? * "`;
   if (trimmed !== current && folded === current.toLowerCase())
-    return 'A new name has to differ from the old one by more than capitalization.';
-  if (others.some((other) => other.toLowerCase() === folded)) return `Another printer is already named “${trimmed}”.`;
+    return t`A new name has to differ from the old one by more than capitalization.`;
+  if (others.some((other) => other.toLowerCase() === folded)) return t`Another printer is already named “${trimmed}”.`;
   return undefined;
 }
 
@@ -74,6 +76,8 @@ export function PrinterMenu({
   };
   const named = printer.kind === 'named';
   const problem = renameProblem(name, printer.name, otherNames);
+  const printerName = printer.name;
+  const actionsLabel = t`Actions for ${printerName}`;
 
   const rename = () => {
     setOpen(false);
@@ -132,8 +136,8 @@ export function PrinterMenu({
           ref={button}
           type="button"
           className="printer-menu-button"
-          aria-label={`Actions for ${printer.name}`}
-          title="Printer actions"
+          aria-label={actionsLabel}
+          title={t`Printer actions`}
           aria-haspopup="menu"
           aria-expanded={open}
           onClick={() => setOpen(!open)}
@@ -141,11 +145,11 @@ export function PrinterMenu({
           <MoreGlyph />
         </button>
         {open && (
-          <div className="printer-menu" role="menu" aria-label={`Actions for ${printer.name}`}>
+          <div className="printer-menu" role="menu" aria-label={actionsLabel}>
             {named && actions.onConnect && <button type="button" role="menuitem" onClick={() => {
               setOpen(false);
               actions.onConnect?.(printer.id);
-            }}>Connect…</button>}
+            }}><Trans>Connect…</Trans></button>}
             <button
               type="button"
               role="menuitem"
@@ -155,7 +159,7 @@ export function PrinterMenu({
                 actions.onOpenSettings(printer.id);
               }}
             >
-              Printer settings…
+              <Trans>Printer settings…</Trans>
             </button>
             <button
               type="button"
@@ -166,7 +170,7 @@ export function PrinterMenu({
                 actions.onAskAboutSettings(printer.id);
               }}
             >
-              Ask AI about printer settings…
+              <Trans>Ask AI about printer settings…</Trans>
             </button>
             {named && actions.onCalibrate && (
               <button
@@ -177,14 +181,14 @@ export function PrinterMenu({
                   actions.onCalibrate?.(printer.id);
                 }}
               >
-                Calibrate…
+                <Trans>Calibrate…</Trans>
               </button>
             )}
             <button type="button" role="menuitem" disabled={!printer.canRename} onClick={rename}>
-              Rename
+              <Trans>Rename</Trans>
             </button>
             <button type="button" role="menuitem" className="danger" disabled={!printer.canRemove} onClick={remove}>
-              Remove printer…
+              <Trans>Remove printer…</Trans>
             </button>
           </div>
         )}
@@ -218,7 +222,7 @@ export function PrinterMenu({
             }}
           >
             <h2 id={`printer-dialog-title-${printer.id}`}>
-              {dialog === 'rename' ? 'Rename printer' : 'Remove printer?'}
+              {dialog === 'rename' ? t`Rename printer` : t`Remove printer?`}
             </h2>
             {dialog === 'rename' ? (
               <form
@@ -230,7 +234,7 @@ export function PrinterMenu({
                   closeDialog();
                 }}
               >
-                <label htmlFor={`printer-name-${printer.id}`}>Printer name</label>
+                <label htmlFor={`printer-name-${printer.id}`}><Trans>Printer name</Trans></label>
                 <input
                   id={`printer-name-${printer.id}`}
                   ref={input}
@@ -240,21 +244,21 @@ export function PrinterMenu({
                 {problem && <p role="alert">{problem}</p>}
                 <div className="printer-dialog-buttons">
                   <button type="button" className="button-secondary" onClick={closeDialog}>
-                    Cancel
+                    <Trans>Cancel</Trans>
                   </button>
                   <button type="submit" className="button-primary" disabled={problem !== undefined}>
-                    Save
+                    <Trans>Save</Trans>
                   </button>
                 </div>
               </form>
             ) : (
               <>
                 <p>
-                  Remove “{printer.name}”? Its printer settings will be deleted. Your projects stay.
+                  <Trans>Remove “{printerName}”? Its printer settings will be deleted. Your projects stay.</Trans>
                 </p>
                 <div className="printer-dialog-buttons">
                   <button type="button" className="button-secondary" onClick={closeDialog}>
-                    Cancel
+                    <Trans>Cancel</Trans>
                   </button>
                   <button
                     type="button"
@@ -264,7 +268,7 @@ export function PrinterMenu({
                       closeDialog();
                     }}
                   >
-                    Remove
+                    <Trans>Remove</Trans>
                   </button>
                 </div>
               </>

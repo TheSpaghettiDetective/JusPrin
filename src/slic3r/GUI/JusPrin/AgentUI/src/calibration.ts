@@ -2,6 +2,7 @@
 // sends (board 7). The names here are the host's names for its tests, not
 // setting keys.
 
+import { t } from '@lingui/core/macro';
 import { WorkspaceContext } from './bridge/protocol';
 
 // A reopened calibration test: OrcaSlicer kept the tower's steps only in
@@ -10,7 +11,7 @@ import { WorkspaceContext } from './bridge/protocol';
 export function testStepsLost(context: WorkspaceContext): string {
   const test = context.calibration;
   if (!test?.test || context.plates.some((plate) => plate.calibration)) return '';
-  if (test.test === 'temperature') return 'Temperature steps not kept in the file';
-  if (test.test === 'pressure_advance' && test.method !== 'pattern') return 'Pressure advance steps not kept in the file';
+  if (test.test === 'temperature') return t`Temperature steps not kept in the file`;
+  if (test.test === 'pressure_advance' && test.method !== 'pattern') return t`Pressure advance steps not kept in the file`;
   return '';
 }

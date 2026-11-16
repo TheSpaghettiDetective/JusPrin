@@ -117,6 +117,9 @@ wxString describe(NameProblem problem, const std::string& name)
 }
 
 wxString gone() { return _L("This printer no longer exists."); }
+// The same for the model: linking a device, a print host and a nozzle change
+// are the printer chat's tools, whose results the model reads in English.
+wxString gone_for_model() { return "This printer no longer exists."; }
 
 // Orca's order for an unselected profile, as CreatePresetsDialog deletes one:
 // queue the cloud deletion, then drop the profile and its files.
@@ -331,14 +334,14 @@ wxString link_named_printer(const std::string& name, const std::string& device_i
 {
     const Preset* preset = saved_preset(name);
     if (preset == nullptr || !is_named_printer(*preset))
-        return gone();
+        return gone_for_model();
     if (device_id.empty())
         throw std::invalid_argument("A printer link needs a device id");
     for (const auto& [device, linked_name] : device_links()) {
         if (device == device_id && linked_name != name && saved_preset(linked_name) != nullptr)
-            return _L("This device is already linked to another printer. Open that printer to connect it.");
+            return "This device is already linked to another printer. Open that printer to connect it.";
         if (linked_name == name && device != device_id)
-            return _L("This printer is already linked to another device.");
+            return "This printer is already linked to another device.";
     }
     wxGetApp().app_config->set(kDeviceSection, device_id, name);
     return {};
@@ -350,7 +353,7 @@ wxString configure_named_printer_host(const std::string& name, PrintHostType typ
     auto& printers = bundle().printers;
     Preset* saved = saved_preset(name);
     if (!saved || !is_named_printer(*saved))
-        return gone();
+        return gone_for_model();
     // Same persistence boundary as changing a named printer's nozzle. Patch
     // only connection options, which the project's copy then takes over; its
     // other unsaved edits stay as they are. Never select another printer.
@@ -377,13 +380,13 @@ wxString change_named_printer_nozzle(Plater& plater, const std::string& name, co
     PresetCollection& printers = bundle().printers;
     Preset*           saved    = saved_preset(name);
     if (saved == nullptr || !is_named_printer(*saved))
-        return gone();
+        return gone_for_model();
 
     const Preset* old_parent = printers.get_preset_parent(*saved);
     // Not const: Preset::save takes its parent's config by pointer.
     Preset*       new_parent = printers.find_preset(system_preset, false, true);
     if (old_parent == nullptr || new_parent == nullptr || !new_parent->is_system)
-        return _L("The app has no preset of this printer with that nozzle size.");
+        return "The app has no preset of this printer with that nozzle size.";
     if (old_parent == new_parent)
         return {};
 

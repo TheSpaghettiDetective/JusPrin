@@ -11,6 +11,7 @@
 #include "slic3r/GUI/GLCanvas3D.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/I18N.hpp"
+#include "slic3r/GUI/format.hpp"
 #include "slic3r/GUI/NotificationManager.hpp"
 #include "slic3r/GUI/PartPlate.hpp"
 #include "slic3r/GUI/Plater.hpp"
@@ -527,30 +528,41 @@ void PrintIssueMonitor::read_result(PartPlate& plate, const Print& print, std::v
                 return index == 0 ? _u8L("left nozzle") : _u8L("right nozzle");
             return (boost::format(_u8L("Tool %d")) % (index + 1)).str();
         };
-        const auto per_nozzle = [&](const std::map<int, std::vector<std::pair<int, int>>>& errors, const char* code,
-                                    const char* one, const char* several, bool always_named, NotificationType kind) {
+        // `sentence` words one nozzle's line: OrcaSlicer's plural message for
+        // that many filaments, their numbers and the nozzle's name.
+        using Sentence = std::string (*)(std::size_t count, const std::string& filaments, const std::string& nozzle);
+        const auto per_nozzle = [&](const std::map<int, std::vector<std::pair<int, int>>>& errors, const char* code, Sentence sentence,
+                                    bool always_named, NotificationType kind) {
             std::string text;
             for (const auto& [index, filaments_and_objects] : errors) {
                 std::set<int> filaments;
                 for (const auto& [filament, object] : filaments_and_objects)
                     filaments.insert(filament);
-                const std::string name = nozzle(index, always_named);
-                text += (text.empty() ? "" : "\n") +
-                        (boost::format(filaments_and_objects.size() == 1 ? _u8L(one) : _u8L(several)) % filament_numbers(filaments) % name % name).str();
+                text += (text.empty() ? "" : "\n") + sentence(filaments_and_objects.size(), filament_numbers(filaments), nozzle(index, always_named));
             }
             if (!text.empty())
                 read.push_back(plate_issue(plate, IssueSource::SliceResult, IssueSeverity::Blocker, code, text, kind));
         };
         if (result->gcode_check_result.error_code & 1)
-            per_nozzle(result->gcode_check_result.print_area_error_infos, "nozzle_printable_area",
-                       "Filament %s is placed in the %s, but the generated G-code path exceeds the printable range of the %s.",
-                       "Filaments %s are placed in the %s, but the generated G-code path exceeds the printable range of the %s.", false,
-                       NotificationType::BBLSliceLimitError);
+            per_nozzle(
+                result->gcode_check_result.print_area_error_infos, "nozzle_printable_area",
+                [](std::size_t count, const std::string& filaments, const std::string& nozzle) {
+                    return format(_L_PLURAL("Filament %1% is placed in the %2%, but the generated G-code path exceeds the printable range of the %2%.",
+                                            "Filaments %1% are placed in the %2%, but the generated G-code path exceeds the printable range of the %2%.",
+                                            count),
+                                  filaments, nozzle);
+                },
+                false, NotificationType::BBLSliceLimitError);
         if (result->gcode_check_result.error_code & (1 << 1))
-            per_nozzle(result->gcode_check_result.print_height_error_infos, "nozzle_printable_height",
-                       "Filament %s is placed in the %s, but the generated G-code path exceeds the printable height of the %s.",
-                       "Filaments %s are placed in the %s, but the generated G-code path exceeds the printable height of the %s.", true,
-                       NotificationType::BBLSliceMultiExtruderHeightOutside);
+            per_nozzle(
+                result->gcode_check_result.print_height_error_infos, "nozzle_printable_height",
+                [](std::size_t count, const std::string& filaments, const std::string& nozzle) {
+                    return format(_L_PLURAL("Filament %1% is placed in the %2%, but the generated G-code path exceeds the printable height of the %2%.",
+                                            "Filaments %1% are placed in the %2%, but the generated G-code path exceeds the printable height of the %2%.",
+                                            count),
+                                  filaments, nozzle);
+                },
+                true, NotificationType::BBLSliceMultiExtruderHeightOutside);
 
         if (const std::vector<int>& unprintable = result->filament_printable_reuslt.conflict_filament; !unprintable.empty()) {
             std::string numbers;

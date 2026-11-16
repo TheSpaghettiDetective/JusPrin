@@ -314,12 +314,13 @@ TEST_CASE("filaments made for other printers are offered apart, saying which pri
         const std::vector<std::string> printers = named_printers(*filament);
         if (printers.empty())
             continue;
-        CHECK_THAT(other.made_for, Catch::Matchers::StartsWith("the "));
-        CHECK_THAT(other.made_for, Catch::Matchers::ContainsSubstring(profiles.shown_printer(printers.front())));
+        REQUIRE(other.made_for.has_value());
+        REQUIRE_FALSE(other.made_for->empty());
+        CHECK(other.made_for->front() == profiles.shown_printer(printers.front()));
     }
     // A name that fits is never offered again among the ones that do not.
     for (const FilamentOption& other : options.others) {
-        CHECK_FALSE(other.made_for.empty());
+        CHECK(other.made_for.has_value());
         CHECK(find_label(options.filaments, other.label) == nullptr);
     }
 }
@@ -334,13 +335,13 @@ TEST_CASE("the person's own presets are tested against the printer the form woul
     REQUIRE(options.own.size() == 3);
     const FilamentOption* fits = find_label(options.own, "PETG for the MK4");
     REQUIRE(fits != nullptr);
-    CHECK(fits->made_for.empty());
+    CHECK_FALSE(fits->made_for.has_value());
     CHECK_THAT(fits->base, Catch::Matchers::StartsWith("Prusa Generic PETG"));
     const FilamentOption* elsewhere = find_label(options.own, "Matte PLA tuned");
     REQUIRE(elsewhere != nullptr);
     // A printer the profiles do not hold keeps the name the preset gives it.
-    CHECK(elsewhere->made_for == "the Bambu Lab X1 Carbon");
+    CHECK(elsewhere->made_for == std::vector<std::string>{"Bambu Lab X1 Carbon"});
     const FilamentOption* anywhere = find_label(options.own, "Any printer PLA");
     REQUIRE(anywhere != nullptr);
-    CHECK(anywhere->made_for.empty());
+    CHECK_FALSE(anywhere->made_for.has_value());
 }

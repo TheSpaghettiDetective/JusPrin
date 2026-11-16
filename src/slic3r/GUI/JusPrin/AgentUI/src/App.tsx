@@ -5,7 +5,7 @@ import { AgentUiState, initialState, reducer } from './state/store';
 import { applyAppearance } from './tokens';
 import { SetupCard, formatMoment } from './components/SetupCard';
 import { AllSettings, AllSettingsHeader, catalogFromContext } from './components/AllSettings';
-import { AgentPaneToggle, ChatHeader, ChatList, Dialog, TaskHeader, printerTaskTitle } from './components/ChatNavigation';
+import { AgentPaneToggle, ChatHeader, ChatList, chatTitle, Dialog, TaskHeader, printerTaskTitle } from './components/ChatNavigation';
 import { MessageList } from './components/MessageList';
 import { Composer, ComposerCredits } from './components/Composer';
 import { PrinterCredentialForm } from './components/PrinterPanel';
@@ -23,6 +23,8 @@ import {
   BridgeErrorPane,
   ConnectingPane,
 } from './components/Panels';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 let clientMessageCounter = 0;
 function nextClientMessageId(): string {
@@ -79,9 +81,9 @@ export interface AppProps {
 }
 
 const errorTitles: Partial<Record<ConnectionState, string>> = {
-  'no-transport': 'The AI panel has no connection to JusPrin',
-  timeout: 'The AI panel could not reach JusPrin',
-  incompatible: 'This AI panel does not match this JusPrin build',
+  'no-transport': t`The AI panel has no connection to JusPrin`,
+  timeout: t`The AI panel could not reach JusPrin`,
+  incompatible: t`This AI panel does not match this JusPrin build`,
 };
 
 export function App({
@@ -124,7 +126,7 @@ export function App({
       onEnvelope: (envelope: Envelope) => {
         if (envelope.type === 'bridge_error') {
           const payload = envelope.payload as { code?: string; message?: string };
-          setCommandError(payload.message ?? 'The action could not be completed.');
+          setCommandError(payload.message ?? t`The action could not be completed.`);
           // The host restarts after a reload on its side; if it forgot us,
           // simply shake hands again.
           if (payload.code === 'handshake_required') created.retry();
@@ -385,10 +387,10 @@ export function App({
     return (
       <div className="app">
         <BridgeErrorPane
-          title={errorTitles[state.connection] ?? 'The AI panel could not connect'}
+          title={errorTitles[state.connection] ?? t`The AI panel could not connect`}
           detail={state.connectionDetail}
           message={state.connection === 'timeout'
-            ? "The AI chat didn't start. Try again, and restart JusPrin if it keeps happening." : undefined}
+            ? t`The AI chat didn't start. Try again, and restart JusPrin if it keeps happening.` : undefined}
           diagnostics={state.diagnostics}
           onRetry={() => client.retry()}
         />
@@ -428,19 +430,24 @@ export function App({
   // What the notice on an earlier chat says depends on what its checkpoint is
   // worth: only a project that really moved on is described as updated.
   const boundary = resumeStatus === 'changed'
-    ? 'The project has changed since this chat. To continue here, JusPrin puts the project back the way it was then.'
+    ? t`The project has changed since this chat. To continue here, JusPrin puts the project back the way it was then.`
     : resumeStatus === 'unchanged'
-      ? 'This chat is inactive. Resume from its saved setup to continue.'
-      : "JusPrin can't find the project version this chat was working on, so this chat can't continue. Start a new chat to keep working.";
+      ? t`This chat is inactive. Resume from its saved setup to continue.`
+      : t`JusPrin can't find the project version this chat was working on, so this chat can't continue. Start a new chat to keep working.`;
   const returnToActiveChat = () => {
     client.send('switch_conversation', { conversationId: state.activeConversationId });
     setView('chat');
   };
   const askCurrentChat = () => {
     const latest = [...stateRef.current.messages].reverse().find((message) => message.text.trim());
-    const excerpt = latest ? `\nExcerpt: “${latest.text.trim().slice(0, 600)}”` : '';
-    const reference = `From earlier chat “${viewedChat?.title || viewedId}”${state.chatResume.savedAt ?
-      ` (saved ${formatMoment(state.chatResume.savedAt)})` : ''}:${excerpt}\n\nWhat should we do with this in the current project?`;
+    // A draft the person reads, edits and sends as their own words, so it is
+    // in their language.
+    const title = chatTitle(viewedChat);
+    const quoted = latest?.text.trim().slice(0, 600);
+    const saved = state.chatResume.savedAt ? formatMoment(state.chatResume.savedAt) : '';
+    const heading = saved ? t`From earlier chat “${title}” (saved ${saved}):` : t`From earlier chat “${title}”:`;
+    const excerpt = quoted ? `\n${t`Excerpt: “${quoted}”`}` : '';
+    const reference = `${heading}${excerpt}\n\n${t`What should we do with this in the current project?`}`;
     client.send('switch_conversation', { conversationId: state.activeConversationId });
     client.send('draft_update', { append: reference });
     client.send('state_request', {});
@@ -458,13 +465,13 @@ export function App({
     <p>{boundary}</p>
     <div className="project-updates-actions">
       {resumeStatus !== 'unavailable' && <button type="button" className="primary"
-        disabled={busy || state.projectChatBlocked} onClick={resumeChat}>{resumeStatus === 'changed' ? 'Restore and resume' : 'Resume saved setup'}</button>}
-      <button type="button" className="project-updates-link" onClick={returnToActiveChat}>Return to active chat</button>
-      <button type="button" className="project-updates-link" onClick={askCurrentChat}>Ask current chat about this</button>
+        disabled={busy || state.projectChatBlocked} onClick={resumeChat}>{resumeStatus === 'changed' ? t`Restore and resume` : t`Resume saved setup`}</button>}
+      <button type="button" className="project-updates-link" onClick={returnToActiveChat}><Trans>Return to active chat</Trans></button>
+      <button type="button" className="project-updates-link" onClick={askCurrentChat}><Trans>Ask current chat about this</Trans></button>
     </div>
   </div>;
   const blockedAlert = state.projectChatBlocked && <div className="composer-alert" role="alert">
-    JusPrin couldn't put the project back. Open the project again from Home to keep working on it.
+    <Trans>JusPrin couldn't put the project back. Open the project again from Home to keep working on it.</Trans>
   </div>;
   const cardContext = historical ? state.chatResume.summary ?? null : state.context;
   // The card is a band docked under the chat header, as the design has it,
@@ -525,7 +532,7 @@ export function App({
   };
 
   const errorNotice = commandError && <div className="chat-error" role="alert">
-    <span>{commandError}</span><button className="icon" aria-label="Dismiss error" title="Dismiss error" onClick={() => setCommandError(null)}><span className="jp-icon jp-icon-close" aria-hidden="true" /></button>
+    <span>{commandError}</span><button className="icon" aria-label={t`Dismiss error`} title={t`Dismiss error`} onClick={() => setCommandError(null)}><span className="jp-icon jp-icon-close" aria-hidden="true" /></button>
   </div>;
 
   const chatList = <ChatList conversations={state.conversations} activeId={state.activeConversationId} busy={busy}
@@ -596,7 +603,7 @@ export function App({
         {errorNotice}
         <TaskHeader title={printerTaskTitle(session)} onClose={back}>
           <button type="button" className="panel-link-button" onClick={() => printerAction(session?.printerName ? 'open_printer_settings' : 'manual_setup')}>
-            {session?.printerName ? 'Open printer settings' : 'Browse the full printer list'}
+            {session?.printerName ? t`Open printer settings` : t`Browse the full printer list`}
           </button>
         </TaskHeader>
         <div className="chat-content">
@@ -609,12 +616,12 @@ export function App({
             />
           )}
           {confirmPrinterClose && (
-            <Dialog title="Close this chat?" onClose={() => setConfirmPrinterClose(false)}>
-              <p>Printers already added stay added. The chat can't be opened again.</p>
+            <Dialog title={t`Close this chat?`} onClose={() => setConfirmPrinterClose(false)}>
+              <p><Trans>Printers already added stay added. The chat can't be opened again.</Trans></p>
               <div className="chat-dialog-buttons">
-                <button type="button" onClick={() => setConfirmPrinterClose(false)}>Cancel</button>
+                <button type="button" onClick={() => setConfirmPrinterClose(false)}><Trans>Cancel</Trans></button>
                 <button type="button" className="danger decisive" onClick={() => { setConfirmPrinterClose(false); printerAction('close'); }}>
-                  Close chat
+                  <Trans>Close chat</Trans>
                 </button>
               </div>
             </Dialog>
@@ -652,12 +659,12 @@ export function App({
           {!notConfigured && (
             <Composer
               disabled={unavailable}
-              disabledReason={unavailable ? 'Sign in or add a key to chat with AI' : undefined}
+              disabledReason={unavailable ? t`Sign in or add a key to chat with AI` : undefined}
               placeholder={session ? placeholder(session) : undefined}
               started={started}
               choicesOffered={choicesOffered}
               attachKinds={['image', 'pdf']}
-              stagedPlaceholder="add a note, or just send"
+              stagedPlaceholder={t`add a note, or just send`}
               streaming={streaming}
               attachments={stagedAttachments}
               onDraftChange={(text) => { printerDraft.current = text; }}
@@ -682,15 +689,22 @@ export function App({
     );
   }
 
+  const filament = state.filamentSession?.shown || state.filamentSession?.preset;
+  const filamentTaskTitle = filament ? t`${filament} settings` : t`Filament settings`;
+  const savedMoment = formatMoment(state.chatResume.savedAt);
+  const restoreTitle = savedMoment
+    ? t`Put the project back to ${savedMoment}?`
+    : t`Put the project back to when this chat was saved?`;
+
   return (
     <div className={state.navigation.focused ? 'app app--focused-chat' : 'app'}>
       {errorNotice}
       {view === 'list' && !state.navigation.focused && chatList}
       {/* A chat that fills the window heads the window, above its reading column. */}
-      {state.navigation.focused && <TaskHeader title={`${state.filamentSession?.shown || state.filamentSession?.preset || 'Filament'} settings`}
+      {state.navigation.focused && <TaskHeader title={filamentTaskTitle}
         closeTip={state.navigation.returnLabel} onClose={returnToWorkspace}>
         <button type="button" className="panel-link-button"
-          onClick={() => client.send('shell_action', { action: 'open_filament_settings' })}>Open filament settings</button>
+          onClick={() => client.send('shell_action', { action: 'open_filament_settings' })}><Trans>Open filament settings</Trans></button>
         <AgentPaneToggle onCollapse={collapseAgentPane} />
       </TaskHeader>}
       <div className="chat-content" hidden={view === 'list'}>
@@ -703,7 +717,7 @@ export function App({
         <AllSettingsHeader onBack={() => setView('chat')} onCollapse={collapseAgentPane} />
       ) : state.navigation.focused ? null : (
         <>
-          <ChatHeader key={`header-${state.context?.sessionId}-${viewedId}`} title={viewedChat?.title || 'New chat'} busy={busy || pendingAction}
+          <ChatHeader key={`header-${state.context?.sessionId}-${viewedId}`} title={chatTitle(viewedChat)} busy={busy || pendingAction}
             onBack={() => { client.send('state_request', {}); setView('list'); }}
             onCreate={createChat}
             onRename={(title) => client.send('rename_conversation', { conversationId: viewedId, title })}
@@ -735,10 +749,10 @@ export function App({
       {!historical && !setupBar && !(state.navigation.focused && notConfigured) && <div hidden={view !== 'chat'}><Composer
         key={`composer-${state.context?.sessionId}-${viewedId}`}
         disabled={unavailable || state.projectChatBlocked}
-        disabledReason={state.projectChatBlocked ? 'Open the project again to keep working.' : notConfigured ? 'ask, or steer this chat…' : undefined}
+        disabledReason={state.projectChatBlocked ? t`Open the project again to keep working.` : notConfigured ? t`ask, or steer this chat…` : undefined}
         attachable={!state.projectChatBlocked}
         notice={blockedAlert || undefined}
-        placeholder={state.navigation.focused ? 'Ask about this filament or request a change…' : undefined}
+        placeholder={state.navigation.focused ? t`Ask about this filament or request a change…` : undefined}
         started={started}
         choicesOffered={choicesOffered}
         streaming={streaming}
@@ -760,17 +774,17 @@ export function App({
         onDraftChange={(text) => client.send('draft_update', { text })}
         draftDebounceMs={draftDebounceMs}
       /></div>}
-      {confirmChatRestore && historical && <Dialog title={`Put the project back to ${formatMoment(state.chatResume.savedAt) || 'when this chat was saved'}?`}
+      {confirmChatRestore && historical && <Dialog title={restoreTitle}
         onClose={() => setConfirmChatRestore(false)}>
-        <p>Your current version stays in Version history.</p>
+        <p><Trans>Your current version stays in Version history.</Trans></p>
         <div className="chat-dialog-buttons">
-          <button type="button" onClick={() => setConfirmChatRestore(false)}>Cancel</button>
+          <button type="button" onClick={() => setConfirmChatRestore(false)}><Trans>Cancel</Trans></button>
           <button type="button" className="primary" disabled={busy} onClick={() => {
             setConfirmChatRestore(false);
             client.send('restore_conversation', {
               conversationId: viewedId, activeConversationId: state.activeConversationId, docRevision: state.docRevision,
             });
-          }}>Restore and resume</button>
+          }}><Trans>Restore and resume</Trans></button>
         </div>
       </Dialog>}
       {state.confirmation && <Dialog className="confirmation" title={state.confirmation.title} onClose={() => answerConfirmation(false)}>

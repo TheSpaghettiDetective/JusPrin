@@ -1,5 +1,7 @@
 import { GcodeMarkerInfo } from '../bridge/protocol';
 import { chatTimestamp } from './ChatNavigation';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // What a marker does: its "history" link opens the Print history at its
 // G-code, and the history's Open in chat comes back to it, marked.
@@ -12,9 +14,12 @@ export interface MarkerActions {
 // chat draws about it. What happened to it after that is the print history's.
 export function GcodeMarker({ marker, actions }: { marker: GcodeMarkerInfo; actions?: MarkerActions }) {
   const time = chatTimestamp(marker.at);
+  const fileName = marker.fileName;
+  const plateNumber = marker.plateIndex + 1;
   const subject = marker.kind === 'export'
-    ? `${marker.fileName} · exported`
-    : `${marker.plateName || `Plate ${marker.plateIndex + 1}`} → ${marker.printerName}`;
+    // TRN: a G-code file saved to disk, such as "part.gcode · exported".
+    ? t`${fileName} · exported`
+    : `${marker.plateName || t`Plate ${plateNumber}`} → ${marker.printerName}`;
   const revealed = actions?.revealedId === marker.id;
   return (
     <div className={revealed ? 'gcode-marker revealed' : 'gcode-marker'} role="note" data-item-id={marker.id}>
@@ -24,7 +29,7 @@ export function GcodeMarker({ marker, actions }: { marker: GcodeMarkerInfo; acti
         {actions && (
           <>
             {' · '}
-            <button type="button" className="gcode-marker-link" onClick={() => actions.onHistory(marker.hash)}>history</button>
+            <button type="button" className="gcode-marker-link" onClick={() => actions.onHistory(marker.hash)}><Trans>history</Trans></button>
           </>
         )}
       </span>

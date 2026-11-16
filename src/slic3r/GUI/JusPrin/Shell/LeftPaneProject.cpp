@@ -59,25 +59,29 @@ wxString local_time(const std::string& iso)
     return wxString::FromUTF8(iso);
 }
 
-// When a print finished, as the pane's history row says it: "today",
-// "yesterday", a weekday within the week, else the date, in the viewer's time
-// zone. Text that does not parse is shown as it was written.
-wxString finished_day(const std::string& iso)
+// When a print finished, as the pane's history row says it: "last finished
+// today", "yesterday", a weekday within the week, else the date, in the
+// viewer's time zone. Text that does not parse is shown as it was written.
+wxString last_finished(const std::string& iso)
 {
+    const auto on = [](const wxString& day) {
+        // TRN %s is a weekday or a date, such as "Mon" or "Mar 14", when this project's last print finished.
+        return wxString::Format(_L("last finished %s"), day);
+    };
     wxString text = wxString::FromUTF8(iso);
     if (!text.EndsWith("Z"))
-        return text;
+        return on(text);
     text.RemoveLast();
     wxDateTime when;
     if (!when.ParseISOCombined(text))
-        return wxString::FromUTF8(iso);
+        return on(wxString::FromUTF8(iso));
     when = when.FromTimezone(wxDateTime::UTC);
     const long days = std::lround(wxDateTime::Today().GetJDN() - when.GetDateOnly().GetJDN());
     if (days == 0)
-        return _L("today");
+        return _L("last finished today");
     if (days == 1)
-        return _L("yesterday");
-    return days > 1 && days < 7 ? when.Format("%a") : when.Format("%b %d");
+        return _L("last finished yesterday");
+    return on(days > 1 && days < 7 ? when.Format("%a") : when.Format("%b %d"));
 }
 
 // Splits `text` into lines no wider than `max_width` at the spaces, using the
@@ -150,7 +154,7 @@ void LeftPane::export_project()
 {
     if (m_sources.autosave == nullptr)
         return;
-    wxFileDialog dialog(this, _L("Export project 3MF"), {}, "JusPrin project.3mf", "3MF files (*.3mf)|*.3mf",
+    wxFileDialog dialog(this, _L("Export project 3MF"), {}, "JusPrin project.3mf", _L("3MF files") + " (*.3mf)|*.3mf",
                         wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
     if (dialog.ShowModal() != wxID_OK)
         return;
@@ -305,11 +309,11 @@ int LeftPane::draw_print_history_row(wxGraphicsContext& gc, int y, int width)
     if (summary.empty()) {
         detail = _L("Nothing printed or exported yet");
     } else {
-        detail = summary.gcodes == 1 ? _L("1 G-code") : wxString::Format(_L("%d G-codes"), int(summary.gcodes));
+        detail = wxString::Format(_L_PLURAL("%d G-code", "%d G-codes", int(summary.gcodes)), int(summary.gcodes));
         if (summary.printing_now > 0)
             detail += middle_dot() + _L("printing now");
         else if (!summary.last_finished_at.empty())
-            detail += middle_dot() + wxString::Format(_L("last finished %s"), finished_day(summary.last_finished_at));
+            detail += middle_dot() + last_finished(summary.last_finished_at);
         // A print host reports no prints, so a send is not known never to
         // have printed; what is known is that this G-code went to no printer.
         else if (summary.sends == 0)
@@ -455,7 +459,8 @@ int LeftPane::draw_project_root(wxGraphicsContext& gc, int y, int width)
             y = draw_paragraph(gc, y, width, wxString::FromUTF8(details.model.title), TextRole::LabelBold, p.text_primary);
         wxString attribution;
         if (!details.model.designer.empty())
-            attribution = _L("by") + " " + wxString::FromUTF8(details.model.designer);
+            // TRN Who designed the model; %s is the designer's name.
+            attribution = wxString::Format(_L("by %s"), wxString::FromUTF8(details.model.designer));
         if (!details.model.license.empty())
             attribution += (attribution.empty() ? wxString() : middle_dot()) + wxString::FromUTF8(details.model.license);
         if (!attribution.empty())
@@ -615,7 +620,8 @@ int LeftPane::draw_versions(wxGraphicsContext& gc, int y, int width)
                                 FromDIP(m_theme.metrics().radius_small));
         gc.DrawText(word, button.x + button_pad, button.y + (button.height - th) / 2);
         Hit hit{Hit::Kind::Action, button, 0, PaneTab::Project};
-        hit.label  = _L("Restore") + " " + when;
+        // TRN The Restore button's name for a screen reader; %s is when the version was saved.
+        hit.label  = wxString::Format(_L("Restore %s"), when);
         hit.invoke = [this, id] { restore_version(id); };
         m_hits.push_back(std::move(hit));
         y += line + FromDIP(pane.row_gap);

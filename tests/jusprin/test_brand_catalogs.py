@@ -46,5 +46,25 @@ class BareName(unittest.TestCase):
         self.assertEqual(messages, {b"Orca can preheat it.": b"JusPrin can preheat it."})
 
 
+class ForkText(unittest.TestCase):
+    """JusPrin's own catalogs (Localization/native) join as written."""
+
+    def test_text_that_names_orcaslicer_keeps_the_name(self):
+        entries = [{"msgid": "Import printers from OrcaSlicer", "msgstr": {0: "Drucker aus OrcaSlicer importieren"}}]
+        messages, _ = brand_catalogs.catalog_messages(entries, None, english=False)
+        self.assertEqual(messages, {b"Import printers from OrcaSlicer": "Drucker aus OrcaSlicer importieren".encode()})
+
+    def test_untranslated_text_is_left_to_the_source(self):
+        entries = [{"msgid": "Orca can preheat it.", "msgstr": {0: ""}}]
+        messages, _ = brand_catalogs.catalog_messages(entries, None, english=False)
+        self.assertEqual(messages, {})
+
+    def test_plural_and_context(self):
+        entries = [{"msgctxt": "Printer", "msgid": "%1% printer", "msgid_plural": "%1% printers",
+                    "msgstr": {0: "%1% Drucker", 1: "%1% Drucker"}}]
+        messages, _ = brand_catalogs.catalog_messages(entries, None, english=False)
+        self.assertEqual(messages, {b"Printer\x04%1% printer\0%1% printers": b"%1% Drucker\0%1% Drucker"})
+
+
 if __name__ == "__main__":
     unittest.main()

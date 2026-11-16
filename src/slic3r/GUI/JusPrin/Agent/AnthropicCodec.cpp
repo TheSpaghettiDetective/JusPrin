@@ -8,6 +8,11 @@
 #include <fstream>
 #include <utility>
 
+#include "libslic3r/format.hpp"
+
+// Last: it defines the L marker.
+#include "slic3r/GUI/JusPrin/Support/Translate.hpp"
+
 namespace Slic3r::GUI::JusPrin::Agent {
 
 namespace {
@@ -334,7 +339,7 @@ std::vector<StreamEvent> AnthropicCodec::parse(const std::string& payload)
     };
     const json event = json::parse(payload, nullptr, false);
     if (!event.is_object()) {
-        failed({"malformed_response", "The AI service returned an unreadable streaming response.", false});
+        failed({"malformed_response", translated(L("The AI service returned an unreadable streaming response.")), false});
         return events;
     }
     const std::string type = event.value("type", "");
@@ -353,7 +358,7 @@ std::vector<StreamEvent> AnthropicCodec::parse(const std::string& payload)
     } else if (type == "content_block_delta") {
         const auto found = m_blocks.find(event.value("index", 0));
         if (found == m_blocks.end()) {
-            failed({"malformed_response", "The AI service streamed a delta for a block it never opened.", false});
+            failed({"malformed_response", translated(L("The AI service streamed a delta for a block it never opened.")), false});
             return events;
         }
         Block&            block = found->second;
@@ -384,7 +389,7 @@ std::vector<StreamEvent> AnthropicCodec::parse(const std::string& payload)
             const std::string& text  = found->second.partial_json;
             const json         input = json::parse(text.empty() ? "{}" : text, nullptr, false);
             if (input.is_discarded()) {
-                failed({"malformed_response", "The AI service sent a tool call whose arguments are not JSON.", false});
+                failed({"malformed_response", translated(L("The AI service sent a tool call whose arguments are not JSON.")), false});
                 return events;
             }
             found->second.content["input"] = input;
@@ -402,7 +407,7 @@ std::vector<StreamEvent> AnthropicCodec::parse(const std::string& payload)
     } else if (type == "message_stop") {
         events.push_back(finish());
     } else if (type == "error") {
-        failed({"agent_service_error", "The AI service could not complete the response.", true});
+        failed({"agent_service_error", translated(L("The AI service could not complete the response.")), true});
     }
     return events;
 }
@@ -418,13 +423,14 @@ StreamEvent AnthropicCodec::finish()
         event.kind = StreamEvent::Kind::Failed;
         std::string category = m_stop_details.is_object() && m_stop_details.value("category", json()).is_string() ?
                                    m_stop_details["category"].get<std::string>() : std::string("unspecified");
-        event.error = {"refusal", "The AI service declined to answer (" + category + ").", false};
+        // TRN %1% is the AI service's own reason, in English, such as "cyber".
+        event.error = {"refusal", Slic3r::format(translated(L("The AI service declined to answer (%1%).")), category), false};
         return event;
     }
     if (m_stop_reason != "end_turn" && m_stop_reason != "tool_use" && m_stop_reason != "stop_sequence" &&
         m_stop_reason != "pause_turn") {
         event.kind  = StreamEvent::Kind::Failed;
-        event.error = {"malformed_response", "The AI service ended its response for a reason this build does not know.", false};
+        event.error = {"malformed_response", translated(L("The AI service ended its response for a reason this build does not know.")), false};
         return event;
     }
     event.kind           = StreamEvent::Kind::TurnComplete;

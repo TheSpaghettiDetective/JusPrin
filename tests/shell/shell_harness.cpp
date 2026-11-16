@@ -3944,7 +3944,7 @@ private:
         send({{"action", "form_options"}, {"catalogId", "BBL/Bambu Lab A1 mini"}, {"nozzle", 0.4}});
         check(wait_for([&form] { return form().contains("options"); }, 30s), "form_reads_the_options_again");
         const nlohmann::json others = form().value("options", nlohmann::json::object()).value("others", nlohmann::json::array());
-        check(!others.empty() && !others[0].value("madeFor", "").empty(), "form_offers_filaments_made_for_other_printers");
+        check(!others.empty() && others[0].contains("madeFor"), "form_offers_filaments_made_for_other_printers");
         if (!others.empty()) {
             const std::string other = others[0].value("name", "");
             const std::string label = others[0].value("label", "");

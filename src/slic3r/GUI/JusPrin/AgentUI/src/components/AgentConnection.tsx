@@ -5,6 +5,8 @@
 // › Account holds the account; Preferences › BYOAI the keys and the tools.
 
 import { KeyboardEvent, RefObject, useEffect, useRef, useState } from 'react';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 import { AccountStatusPayload, McpToolInfo, PageMessageType, SavedKeyInfo, SetupStatusPayload } from '../bridge/protocol';
 import { SIGNUP_AFTER, SIGNUP_OFFER, SIGNUP_SCALE } from '../credits';
 import { SignInActions, SignInButtons, SignInDoor } from './SignInDoor';
@@ -27,7 +29,7 @@ export const PROVIDERS: ProviderOption[] = [
 ];
 
 export function providerLabel(id: string | undefined): string {
-  return PROVIDERS.find((provider) => provider.id === id)?.label ?? 'your provider';
+  return PROVIDERS.find((provider) => provider.id === id)?.label ?? t`your provider`;
 }
 
 // The Agent page's own buttons, drawn in the shared sign-in.
@@ -111,45 +113,47 @@ export function AccountRow({ account, status, actions, aiUnavailable, outdatedMe
   if (!account) {
     return (
       <div className="agent-account-offer" data-testid="agent-account">
-        <span className="agent-account-eyebrow">JusPrin account</span>
+        <span className="agent-account-eyebrow">{t`JusPrin account`}</span>
         <FirstMonthOffer freeAfter status={status} actions={actions} />
         {status.warning && <p className="agent-row-note">{status.warning}</p>}
       </div>
     );
   }
+  const address = account.account;
   if (account.rejected) {
     return (
       <div className="agent-account-offer" data-testid="agent-account">
         <div className="agent-row-copy">
-          <h2 className="agent-account-title">JusPrin account</h2>
+          <h2 className="agent-account-title">{t`JusPrin account`}</h2>
           <span className="agent-row-status agent-row-status--rejected" data-testid="agent-account-status">
             <span className="agent-row-status-label">
               <span className="jp-icon jp-icon-circle-alert" aria-hidden="true" />
-              <span>Your sign-in for {account.account || 'this account'} has ended</span>
+              <span>{address ? t`Your sign-in for ${address} has ended` : t`Your sign-in for this account has ended`}</span>
             </span>
           </span>
         </div>
-        <p className="agent-row-note">Sign in again to keep using AI with your JusPrin account.</p>
+        <p className="agent-row-note">{t`Sign in again to keep using AI with your JusPrin account.`}</p>
         <AccountSignIn status={status} actions={actions} />
       </div>
     );
   }
   // The stored account being checked again: its sign-in may have ended.
   const checking = status.phase === 'checking';
-  const email = account.account ? `Signed in as ${account.account}` : 'Signed in';
+  const email = address ? t`Signed in as ${address}` : t`Signed in`;
+  const unavailable = address ? t`Signed in as ${address} · AI unavailable` : t`Signed in · AI unavailable`;
   if (!checking && outdatedMessage) {
     return (
       <div className="agent-account" data-testid="agent-account">
         <div className="agent-row-copy">
-          <h2 className="agent-account-title">JusPrin account</h2>
+          <h2 className="agent-account-title">{t`JusPrin account`}</h2>
           <span className="agent-row-status agent-row-status--unavailable" data-testid="agent-account-status">
             <span className="agent-row-status-label">
               <span className="agent-row-status-dot" aria-hidden="true" />
-              <span>{email} · AI unavailable</span>
+              <span>{unavailable}</span>
             </span>
           </span>
         </div>
-        <button type="button" className="primary" onClick={actions.getNewVersion}>Get the new version…</button>
+        <button type="button" className="primary" onClick={actions.getNewVersion}>{t`Get the new version…`}</button>
         <div className="agent-account-detail">
           <p className="agent-row-note">{outdatedMessage}</p>
         </div>
@@ -160,17 +164,17 @@ export function AccountRow({ account, status, actions, aiUnavailable, outdatedMe
     return (
       <div className="agent-account" data-testid="agent-account">
         <div className="agent-row-copy">
-          <h2 className="agent-account-title">JusPrin account</h2>
+          <h2 className="agent-account-title">{t`JusPrin account`}</h2>
           <span className="agent-row-status agent-row-status--unavailable" data-testid="agent-account-status">
             <span className="agent-row-status-label">
               <span className="agent-row-status-dot" aria-hidden="true" />
-              <span>{email} · AI unavailable</span>
+              <span>{unavailable}</span>
             </span>
           </span>
         </div>
-        <button type="button" className="agent-row-action" onClick={onRetry} disabled={retrying}>Try again</button>
+        <button type="button" className="agent-row-action" onClick={onRetry} disabled={retrying}>{t`Try again`}</button>
         <div className="agent-account-detail">
-          <p className="agent-row-note">Your account and AI setup stay intact. Your own key or AI tool still works meanwhile.</p>
+          <p className="agent-row-note">{t`Your account and AI setup stay intact. Your own key or AI tool still works meanwhile.`}</p>
         </div>
       </div>
     );
@@ -178,9 +182,9 @@ export function AccountRow({ account, status, actions, aiUnavailable, outdatedMe
   return (
     <div className="agent-account" data-testid="agent-account">
       <div className="agent-row-copy">
-          <h2 className="agent-account-title">JusPrin account</h2>
+          <h2 className="agent-account-title">{t`JusPrin account`}</h2>
           <span className={`agent-row-status${checking ? '' : ' agent-row-status--saved'}`} data-testid="agent-account-status">
-            {checking ? 'Checking your account…' : (
+            {checking ? t`Checking your account…` : (
               <span className="agent-row-status-label">
                 <span className="jp-icon jp-icon-check" aria-hidden="true" />
                 <span>{email}</span>
@@ -189,16 +193,16 @@ export function AccountRow({ account, status, actions, aiUnavailable, outdatedMe
           </span>
       </div>
       {checking ? (
-        <button type="button" className="link" onClick={actions.cancel}>Cancel</button>
+        <button type="button" className="link" onClick={actions.cancel}>{t`Cancel`}</button>
       ) : (
-        <button type="button" className="agent-row-action" onClick={onSignOut}>Sign out</button>
+        <button type="button" className="agent-row-action" onClick={onSignOut}>{t`Sign out`}</button>
       )}
       <div className="agent-account-detail">
       {!checking && status.error && (
         <p className="agent-key-error" role="alert" data-testid="account-error">{status.error.message}</p>
       )}
       {!checking && status.error?.code === 'update_required' && (
-        <button type="button" className="primary" onClick={actions.getNewVersion}>Get the new version…</button>
+        <button type="button" className="primary" onClick={actions.getNewVersion}>{t`Get the new version…`}</button>
       )}
       {!checking && status.warning && <p className="agent-row-note">{status.warning}</p>}
       </div>
@@ -217,9 +221,9 @@ export type KeyStanding = 'none' | 'saved' | 'rejected' | 'sessionOnly';
 export type KeyForm = 'closed' | 'entering' | 'checking' | 'unreachable' | 'refused';
 
 const STANDING_LINE: Record<Exclude<KeyStanding, 'none'>, { icon: string; text: string }> = {
-  saved: { icon: 'check', text: 'Key saved on this computer' },
-  sessionOnly: { icon: 'triangle-alert', text: 'This key works now, but JusPrin couldn’t save it.' },
-  rejected: { icon: 'circle-alert', text: 'The provider rejected this key' },
+  saved: { icon: 'check', text: t`Key saved on this computer` },
+  sessionOnly: { icon: 'triangle-alert', text: t`This key works now, but JusPrin couldn’t save it.` },
+  rejected: { icon: 'circle-alert', text: t`The provider rejected this key` },
 };
 
 // A key being checked stays visible so it is clear which one is in question,
@@ -253,6 +257,7 @@ export function ProviderKeyRow({
   onChange, onOpen, onRemove, onCheck, onCancel, onPaste,
 }: ProviderKeyRowProps) {
   const name = provider.label;
+  const prefix = provider.prefix;
   const replacing = form !== 'closed' && standing !== 'none';
   const locked = form === 'checking' || form === 'unreachable';
   const fieldId = `agent-key-${provider.id}`;
@@ -276,28 +281,28 @@ export function ProviderKeyRow({
               {hint && <code className="agent-key-hint">{hint}</code>}
             </span>
           ) : (
-            <span className="agent-row-status">No key</span>
+            <span className="agent-row-status">{t`No key`}</span>
           )}
         </div>
         {form === 'closed' && (standing === 'none' ? (
           <button type="button" className="agent-row-action" onClick={onOpen} disabled={busy}
-            aria-label={`Add ${name} key`}>
+            aria-label={t`Add ${name} key`}>
             <span className="jp-icon jp-icon-plus" aria-hidden="true" />
-            Add key
+            {t`Add key`}
           </button>
         ) : (
           <div className="agent-row-actions">
             <button type="button" className="agent-row-action" onClick={onOpen} disabled={busy}
-              aria-label={`Replace ${name} key`}>Replace</button>
+              aria-label={t`Replace ${name} key`}>{t`Replace`}</button>
             <button type="button" className="agent-row-action agent-row-action--danger" onClick={onRemove} disabled={busy}
-              aria-label={`Remove ${name} key`}>Remove</button>
+              aria-label={t`Remove ${name} key`}>{t`Remove`}</button>
           </div>
         ))}
       </div>
 
       {form !== 'closed' && (
         <div className="agent-key-form">
-          <label className="agent-key-label" htmlFor={fieldId}>{replacing ? `New ${name} key` : `${name} API key`}</label>
+          <label className="agent-key-label" htmlFor={fieldId}>{replacing ? t`New ${name} key` : t`${name} API key`}</label>
           <div className={`agent-key-field${locked ? ' agent-key-field--locked' : error ? ' agent-key-field--error' : ''}`}>
             {locked ? (
               <input id={fieldId} className="agent-key-input" value={maskedKey(value, provider.prefix)} disabled readOnly />
@@ -307,7 +312,7 @@ export function ProviderKeyRow({
                 id={fieldId}
                 type="password"
                 className="agent-key-input"
-                placeholder={replacing ? 'Paste the new key' : `Paste your ${name} key (${provider.prefix}…)`}
+                placeholder={replacing ? t`Paste the new key` : t`Paste your ${name} key (${prefix}…)`}
                 value={value}
                 aria-invalid={error ? true : undefined}
                 onChange={(event) => onChange(event.target.value)}
@@ -315,19 +320,19 @@ export function ProviderKeyRow({
               />
             )}
             {!locked && pasteAvailable && (
-              <button type="button" className="link" onClick={onPaste}>Paste</button>
+              <button type="button" className="link" onClick={onPaste}>{t`Paste`}</button>
             )}
           </div>
           {error && <p className="agent-key-error" role="alert" data-testid="setup-error">{error}</p>}
           <div className="agent-key-actions">
             {form === 'checking' ? (
-              <span className="agent-key-checking">Checking with {name}…</span>
+              <span className="agent-key-checking">{t`Checking with ${name}…`}</span>
             ) : (
-              <button type="button" className="primary" onClick={onCheck} disabled={!value.trim()}>Check key</button>
+              <button type="button" className="primary" onClick={onCheck} disabled={!value.trim()}>{t`Check key`}</button>
             )}
-            <button type="button" className="link" onClick={onCancel}>Cancel</button>
+            <button type="button" className="link" onClick={onCancel}>{t`Cancel`}</button>
             {replacing && form !== 'checking' && hint && (
-              <span className="agent-key-keeps">Keeps <code>{hint}</code> until the new key passes</span>
+              <span className="agent-key-keeps"><Trans>Keeps <code>{hint}</code> until the new key passes</Trans></span>
             )}
           </div>
         </div>
@@ -335,11 +340,11 @@ export function ProviderKeyRow({
 
       {form === 'closed' && standing === 'sessionOnly' && (
         <p className="agent-row-note">
-          You’ll need to add it again after JusPrin restarts.
+          {t`You’ll need to add it again after JusPrin restarts.`}
         </p>
       )}
       {form === 'closed' && standing === 'rejected' && (
-        <p className="agent-row-note">Replace it with a working key, or remove it.</p>
+        <p className="agent-row-note">{t`Replace it with a working key, or remove it.`}</p>
       )}
     </div>
   );
@@ -408,10 +413,12 @@ export function ProviderKeys({ heading = false, setup, savedKeys, onCheck, onCan
   };
 
   const errorFor = (provider: ProviderOption, form: KeyForm): string | undefined => {
-    if (form === 'unreachable') return `Couldn’t reach ${provider.label} to check this key. Nothing was saved. Try again.`;
+    const name = provider.label;
+    if (form === 'unreachable') return t`Couldn’t reach ${name} to check this key. Nothing was saved. Try again.`;
     if (form !== 'refused') return undefined;
-    if (setup.error?.code === 'invalid_credentials') return `${provider.label} rejected this key. Nothing was saved.`;
-    return `${setup.error?.message ?? 'The key could not be checked.'} Nothing was saved.`;
+    if (setup.error?.code === 'invalid_credentials') return t`${name} rejected this key. Nothing was saved.`;
+    const reason = setup.error?.message;
+    return reason ? t`${reason} Nothing was saved.` : t`The key could not be checked. Nothing was saved.`;
   };
 
   const paste = () => {
@@ -430,10 +437,10 @@ export function ProviderKeys({ heading = false, setup, savedKeys, onCheck, onCan
   };
 
   return (
-    <section className="agent-group" aria-label="Your own API key">
+    <section className="agent-group" aria-label={t`Your own API key`}>
       <div className="agent-group-head">
-        {heading && <h2 className="agent-group-title">Your own API key</h2>}
-        <p className="agent-group-intro">Billed by your provider, not JusPrin. Stored on this computer only.</p>
+        {heading && <h2 className="agent-group-title">{t`Your own API key`}</h2>}
+        <p className="agent-group-intro">{t`Billed by your provider, not JusPrin. Stored on this computer only.`}</p>
       </div>
       {PROVIDERS.map((provider) => {
         const saved = savedKeys.find((candidate) => candidate.provider === provider.id);
@@ -477,7 +484,7 @@ export function ProviderKeys({ heading = false, setup, savedKeys, onCheck, onCan
         );
       })}
       <div className="agent-group-foot">
-        <p className="agent-row-note">Every chat can pick a model from these providers in its message box.</p>
+        <p className="agent-row-note">{t`Every chat can pick a model from these providers in its message box.`}</p>
       </div>
     </section>
   );
@@ -491,6 +498,7 @@ export interface ToolRowProps {
 // "Found" is only what JusPrin could see on disk: the app or its settings
 // file. Any tool can be connected, found or not.
 export function ToolRow({ tool, onConnect }: ToolRowProps) {
+  const name = tool.name;
   return (
     <div className="agent-row" data-testid={`agent-tool-${tool.id}`}>
       <div className="agent-row-line">
@@ -499,10 +507,10 @@ export function ToolRow({ tool, onConnect }: ToolRowProps) {
             {tool.name}
             {tool.subtitle && <span className="agent-row-detail">{tool.subtitle}</span>}
           </span>
-          <span className="agent-row-status">{tool.detected ? 'Found on this computer' : 'Not found on this computer'}</span>
+          <span className="agent-row-status">{tool.detected ? t`Found on this computer` : t`Not found on this computer`}</span>
         </div>
-        <button type="button" className="agent-row-action" aria-label={`Connect ${tool.name}`} onClick={onConnect}>
-          Connect…
+        <button type="button" className="agent-row-action" aria-label={t`Connect ${name}`} onClick={onConnect}>
+          {t`Connect…`}
         </button>
       </div>
     </div>
@@ -518,23 +526,27 @@ export interface ToolGroupProps {
 
 export function ToolGroup({ heading = false, tools, onConnect, onLookAgain }: ToolGroupProps) {
   return (
-    <section className="agent-group" aria-label="Connect an AI tool you already use">
+    <section className="agent-group" aria-label={t`Connect an AI tool you already use`}>
       <div className="agent-group-head">
-        {heading && <h2 className="agent-group-title">Connect an AI tool you already use</h2>}
+        {heading && <h2 className="agent-group-title">{t`Connect an AI tool you already use`}</h2>}
         <p className="agent-group-intro">
-          Let an AI app on this computer, such as Claude Desktop, work with the open project. JusPrin adds itself to
-          that app’s settings.
+          <Trans>
+            Let an AI app on this computer, such as Claude Desktop, work with the open project. JusPrin adds itself to
+            that app’s settings.
+          </Trans>
         </p>
       </div>
       {tools.map((tool) => <ToolRow key={tool.id} tool={tool} onConnect={() => onConnect(tool)} />)}
       <div className="agent-group-foot">
         <p className="agent-row-note">
-          “Found” means JusPrin found the app or its settings file here, not that the app is signed in. You can connect
-          one that wasn’t found.
+          <Trans>
+            “Found” means JusPrin found the app or its settings file here, not that the app is signed in. You can connect
+            one that wasn’t found.
+          </Trans>
         </p>
         <button type="button" className="agent-row-action" onClick={onLookAgain}>
           <span className="jp-icon jp-icon-refresh-cw" aria-hidden="true" />
-          Look again
+          {t`Look again`}
         </button>
       </div>
     </section>

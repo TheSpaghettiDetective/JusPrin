@@ -3,6 +3,7 @@
 #include "ShellController.hpp"
 
 #include "slic3r/GUI/I18N.hpp"
+#include "slic3r/GUI/JusPrin/Support/DecimalText.hpp"
 #include "slic3r/GUI/Plater.hpp"
 
 #include <wx/colordlg.h>
@@ -29,16 +30,16 @@ constexpr const char* kPickerKey = "+";
 
 wxString middot() { return wxString::FromUTF8(" \xC2\xB7 "); }
 
-wxString nozzle_text(double nozzle) { return wxString::Format("%g", nozzle); }
+wxString nozzle_text(double nozzle) { return wxString::FromUTF8(app_decimal_text(nozzle, 0, 2)); }
 
 // "PRUSA MK4, 0.4 MM NOZZLE", or the name alone on a printer whose nozzles
 // differ, where one number would be wrong for some slots.
 wxString printer_caption(const SetupCommands::PrinterInfo& printer, double nozzle)
 {
-    wxString caption = printer.nickname.Upper();
-    if (nozzle > 0.)
-        caption += wxString::Format(_L(", %s MM NOZZLE"), nozzle_text(nozzle));
-    return caption;
+    if (nozzle <= 0.)
+        return printer.nickname.Upper();
+    // TRN A menu caption in capitals: the printer's name (in capitals), then its nozzle size in millimetres.
+    return wxString::Format(_L("%s, %s MM NOZZLE"), printer.nickname.Upper(), nozzle_text(nozzle));
 }
 
 double shared_nozzle(const SetupCommands::PrinterInfo& printer)

@@ -2,6 +2,7 @@
 // placeholder. Everything else the panel says, the model says. The model's
 // instructions are in printerInstructions.ts.
 
+import { t } from '@lingui/core/macro';
 import type { PrinterSessionPayload } from './bridge/protocol';
 
 // "0.4", "0.25", "1.0": two decimals, trailing zeros dropped down to one, as
@@ -19,11 +20,13 @@ export function sizesText(nozzles: number[]): string {
 }
 
 // A likely answer, rather than a standing invitation.
+// Shown only, never sent to the model, so it is translated; the opening below
+// is the model's own first turn and stays English.
 export function placeholder(session: PrinterSessionPayload): string {
-  if (session.mode === 'connect') return 'Ask anything about connecting it';
+  if (session.mode === 'connect') return t`Ask anything about connecting it`;
   return session.mode === 'add'
-    ? 'e.g. "bambu a1 mini" or "not sure, the small one"'
-    : 'e.g. "I put a 0.6 nozzle on it" or "loaded black PETG"';
+    ? t`e.g. "bambu a1 mini" or "not sure, the small one"`
+    : t`e.g. "I put a 0.6 nozzle on it" or "loaded black PETG"`;
 }
 
 // The panel's own first line, which the model is shown as having said. A

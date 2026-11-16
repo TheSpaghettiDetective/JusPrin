@@ -190,10 +190,11 @@ wxString LeftPane::plate_summary(const PaneRow& row) const
         if (summary.copies > 1)
             text += " " + times() + wxString::Format("%d", int(summary.copies));
     } else {
-        text = wxString::Format(_L("%d objects"), int(summary.objects));
+        text = wxString::Format(_L_PLURAL("%d object", "%d objects", int(summary.objects)), int(summary.objects));
     }
     if (summary.wont_print > 0)
-        text += middle_dot() + wxString::Format(_L("%d won't print"), int(summary.wont_print));
+        // TRN How many objects or copies on the plate are set not to print.
+        text += middle_dot() + wxString::Format(_L_PLURAL("%d won't print", "%d won't print", int(summary.wont_print)), int(summary.wont_print));
     return text;
 }
 
@@ -610,7 +611,9 @@ void LeftPane::move_focus(int delta)
     wxString accessible_name = focused.kind == PaneRow::Kind::Copy
         ? wxString::Format(_L("Copy %d"), int(focused.ordinal)) : wxString::FromUTF8(focused.name);
     if (focused.customization.setting_overrides > 0)
-        accessible_name += middle_dot() + wxString::Format(_L("%d per-object settings"), int(focused.customization.setting_overrides));
+        accessible_name += middle_dot() + wxString::Format(_L_PLURAL("%d per-object setting", "%d per-object settings",
+                                                                     int(focused.customization.setting_overrides)),
+                                                           int(focused.customization.setting_overrides));
     SetName(accessible_name);
     activate_row(focused);
     Refresh();
@@ -1104,7 +1107,7 @@ void LeftPane::draw_object_row(wxGraphicsContext& gc, const PaneRow& row, std::s
         if (row.all_wont_print())
             put_right(_L("won't print"), p.text_secondary);
         else if (row.wont_print > 0)
-            put_right(wxString::Format(_L("%d won't print"), int(row.wont_print)), p.text_secondary);
+            put_right(wxString::Format(_L_PLURAL("%d won't print", "%d won't print", int(row.wont_print)), int(row.wont_print)), p.text_secondary);
         if (row.customized)
             right -= draw_customization_mark(gc, index, right, y, line) + gap;
         if (row.filament) {
@@ -1147,7 +1150,9 @@ void LeftPane::draw_object_row(wxGraphicsContext& gc, const PaneRow& row, std::s
             }
         }
         switch (row.role) {
+        // TRN A tag beside one part of an object, saying what kind of part it is: an ordinary part.
         case VolumeRole::Part: put_right(_L("part"), p.text_secondary); break;
+        // TRN A tag beside one part of an object, saying what kind of part it is: a modifier, which changes settings where it overlaps.
         case VolumeRole::Modifier: put_right(_L("modifier"), p.text_secondary); break;
         case VolumeRole::NegativePart: put_right(_L("negative part"), p.text_secondary); break;
         case VolumeRole::SupportEnforcer: put_right(_L("support enforcer"), p.text_secondary); break;

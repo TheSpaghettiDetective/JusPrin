@@ -1,0 +1,2317 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the JusPrin package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: JusPrin\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-15 09:46-0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: hu\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n==1) ? 0 : 1;\n"
+
+# AI Translated
+# Needs human review: "until restoration is recovered": check what the person must do before the chat unlocks
+msgid "Project chat is blocked until restoration is recovered."
+msgstr "A projekt csevegése zárolva van, amíg a visszaállítás helyre nem áll."
+
+# AI Translated
+msgid "Return to the active chat or restore this chat before sending."
+msgstr "Küldés előtt térj vissza az aktív csevegéshez, vagy állítsd vissza ezt a csevegést."
+
+# AI Translated
+msgid "Finish or cancel AI configuration before sending a message."
+msgstr "Üzenet küldése előtt fejezd be vagy szakítsd meg az AI beállítását."
+
+# AI Translated
+msgid "This message belongs to a different chat."
+msgstr "Ez az üzenet egy másik csevegéshez tartozik."
+
+# AI Translated
+msgid "A message needs text or an attachment."
+msgstr "Az üzenethez szöveg vagy melléklet szükséges."
+
+# AI Translated
+msgid "The file could not be read."
+msgstr "A fájlt nem sikerült beolvasni."
+
+# AI Translated
+msgid "This file is too large to attach."
+msgstr "Ez a fájl túl nagy ahhoz, hogy csatolni lehessen."
+
+# AI Translated
+msgid "This file type can't be read by AI."
+msgstr "Ezt a fájltípust az AI nem tudja beolvasni."
+
+# AI Translated
+msgid "This file is not readable UTF-8 text."
+msgstr "Ez a fájl nem olvasható UTF-8 szöveg."
+
+# AI Translated
+msgid "The attachment could not be stored."
+msgstr "A mellékletet nem sikerült tárolni."
+
+# AI Translated
+msgid "Photo or image"
+msgstr "Fénykép vagy kép"
+
+# AI Translated
+msgid "3D model"
+msgstr "3D-modell"
+
+# AI Translated
+msgid "Document (PDF)"
+msgstr "Dokumentum (PDF)"
+
+# AI Translated
+msgid "This build cannot open a file dialog."
+msgstr "Ez a verzió nem tud fájlválasztó ablakot megnyitni."
+
+# AI Translated
+#. TRN A calibration chat's first line. %1%: where it was started from, %2%: a printer.
+#, boost-format
+msgid "From %1% · %2% · filament not chosen · temporary test settings"
+msgstr "Innen: %1% · %2% · nincs filament kiválasztva · ideiglenes tesztbeállítások"
+
+# AI Translated
+#. TRN A calibration chat's first line. %1%: where it was started from, %2%: a filament, %3%: a printer.
+#, boost-format
+msgid "From %1% · %2% on %3% · temporary test settings"
+msgstr "Innen: %1% · %2% ezen: %3% · ideiglenes tesztbeállítások"
+
+# AI Translated
+#. TRN A reopened calibration test's line. %1%: the day it was made, as "21 Oct 2026".
+#, boost-format
+msgid "Reopened · generated %1%"
+msgstr "Újra megnyitva · létrehozva: %1%"
+
+# AI Translated
+#. TRN %1%: where the test was opened from, %2%: the day it was made, as "21 Oct 2026".
+#, boost-format
+msgid "Opened from %1% · generated %2%"
+msgstr "Megnyitva innen: %1% · létrehozva: %2%"
+
+# AI Translated
+#. TRN %1% is a calibration result, such as 215 °C.
+#, boost-format
+msgid "result %1% saved"
+msgstr "eredmény (%1%) mentve"
+
+# AI Translated
+#. TRN %1% is a plate's name, %2% why the slice did not succeed.
+#, boost-format
+msgid "The app did not slice %1%: %2%"
+msgstr "Az app nem szeletelte a tálcát (%1%): %2%"
+
+# AI Translated
+#. TRN %1% is a plate's name, %2% why the slice did not succeed.
+#, boost-format
+msgid "The app stopped the slice of %1%: %2%"
+msgstr "Az app leállította a tálca (%1%) szeletelését: %2%"
+
+# AI Translated
+msgid "The slice of every plate finished."
+msgstr "Minden tálca szeletelése befejeződött."
+
+# AI Translated
+#. TRN %1% is a plate's name.
+#, boost-format
+msgid "The slice of %1% finished."
+msgstr "A tálca (%1%) szeletelése befejeződött."
+
+# AI Translated
+msgid "Historical replies cannot be retried."
+msgstr "Korábbi válaszok nem próbálhatók újra."
+
+# AI Translated
+msgid "Only a failed or stopped assistant message in the active conversation can be retried."
+msgstr "Csak az aktív beszélgetés sikertelen vagy leállított asszisztensüzenete próbálható újra."
+
+# AI Translated
+msgid "Only the chat's last reply can be retried."
+msgstr "Csak a csevegés utolsó válasza próbálható újra."
+
+# AI Translated
+msgid "Another reply is currently streaming."
+msgstr "Egy másik válasz érkezése még folyamatban van."
+
+# AI Translated
+msgid "Historical tool actions cannot be changed."
+msgstr "A korábbi eszközműveletek nem módosíthatók."
+
+# AI Translated
+msgid "This proposal is no longer open. Ask AI again."
+msgstr "Ez a javaslat már nem érvényes. Kérdezd újra az AI-t."
+
+# AI Translated
+msgid "This save can no longer be undone."
+msgstr "Ez a mentés már nem vonható vissza."
+
+# AI Translated
+msgid "The earlier values cannot be put back."
+msgstr "A korábbi értékek nem állíthatók vissza."
+
+# AI Translated
+msgid "Finish or resolve pending work before creating a chat."
+msgstr "Új csevegés létrehozása előtt fejezd be vagy rendezd a függőben lévő műveleteket."
+
+# AI Translated
+msgid "The current chat could not be saved."
+msgstr "Az aktuális csevegést nem sikerült menteni."
+
+# AI Translated
+msgid "The new chat could not be saved."
+msgstr "Az új csevegést nem sikerült menteni."
+
+# AI Translated
+msgid "The selected chat could not be saved."
+msgstr "A kiválasztott csevegést nem sikerült menteni."
+
+# AI Translated
+msgid "The project or selected chat changed. Review it again."
+msgstr "A projekt vagy a kiválasztott csevegés megváltozott. Nézd át újra."
+
+# AI Translated
+msgid "Finish or resolve pending work before resuming a chat."
+msgstr "Csevegés folytatása előtt fejezd be vagy rendezd a függőben lévő műveleteket."
+
+# AI Translated
+msgid "This chat is already active."
+msgstr "Ez a csevegés már aktív."
+
+# AI Translated
+msgid "JusPrin can't find the project version this chat was working on."
+msgstr "A JusPrin nem találja a projektnek azt a verzióját, amelyen ez a csevegés dolgozott."
+
+# AI Translated
+msgid "The current project could not be saved before restoration."
+msgstr "Az aktuális projektet nem sikerült menteni a visszaállítás előtt."
+
+# AI Translated
+msgid "JusPrin couldn't put the project back."
+msgstr "A JusPrin nem tudta visszaállítani a projektet."
+
+# AI Translated
+msgid "Restored this chat's saved project setup. Check the current printer and material before printing."
+msgstr "A csevegés mentett projektbeállításai visszaállítva. Nyomtatás előtt ellenőrizd a nyomtatót és az anyagot."
+
+# AI Translated
+msgid "Use a non-empty, single-line title of at most 120 characters for an existing chat."
+msgstr "Meglévő csevegéshez legfeljebb 120 karakteres, egysoros, nem üres címet adj meg."
+
+# AI Translated
+msgid "This chat is still working. Stop it or let it finish, then delete it."
+msgstr "Ez a csevegés még dolgozik. Állítsd le, vagy várd meg, amíg befejezi, és utána töröld."
+
+# AI Translated
+msgid "This chat no longer exists."
+msgstr "Ez a csevegés már nem létezik."
+
+# AI Translated
+msgid "The replacement chat could not be saved."
+msgstr "A helyettesítő csevegést nem sikerült menteni."
+
+# AI Translated
+msgid "Historical chats cannot edit the current draft."
+msgstr "Korábbi csevegések nem szerkeszthetik az aktuális piszkozatot."
+
+# AI Translated
+msgid "Finish or stop the current reply before configuring AI."
+msgstr "Az AI beállítása előtt fejezd be vagy állítsd le az aktuális választ."
+
+# AI Translated
+msgid "This build cannot configure an AI provider."
+msgstr "Ez a verzió nem tud AI-szolgáltatót beállítani."
+
+# AI Translated
+msgid "A credential check is already running."
+msgstr "Már folyamatban van egy hitelesítőadat-ellenőrzés."
+
+# AI Translated
+msgid "This build cannot verify a key for that provider yet."
+msgstr "Ez a verzió még nem tudja ellenőrizni az ehhez a szolgáltatóhoz tartozó kulcsot."
+
+# AI Translated
+msgid "Finish or stop the current reply before removing a key."
+msgstr "Kulcs eltávolítása előtt fejezd be vagy állítsd le az aktuális választ."
+
+# AI Translated
+msgid "Finish or cancel the key check before removing a key."
+msgstr "Kulcs eltávolítása előtt fejezd be vagy szakítsd meg a kulcs ellenőrzését."
+
+# AI Translated
+msgid "That key could not be removed."
+msgstr "A kulcsot nem sikerült eltávolítani."
+
+# AI Translated
+msgid "This build cannot sign in to a JusPrin account."
+msgstr "Ez a verzió nem tud bejelentkezni JusPrin-fiókba."
+
+# AI Translated
+msgid "Finish or stop the current reply before signing in."
+msgstr "Bejelentkezés előtt fejezd be vagy állítsd le az aktuális választ."
+
+# AI Translated
+msgid "A sign-in or key check is already running."
+msgstr "Már folyamatban van egy bejelentkezés vagy kulcsellenőrzés."
+
+# AI Translated
+msgid "There is no JusPrin account on this computer to check."
+msgstr "Ezen a számítógépen nincs ellenőrizhető JusPrin-fiók."
+
+# AI Translated
+msgid "JusPrin couldn't start signing in. Try again."
+msgstr "A JusPrin nem tudta elindítani a bejelentkezést. Próbáld újra."
+
+# AI Translated
+msgid "JusPrin couldn't sign you in. Try again."
+msgstr "A JusPrin nem tudott bejelentkeztetni. Próbáld újra."
+
+# AI Translated
+msgid "This sign-in could not be saved, so you will have to sign in again next time JusPrin starts."
+msgstr "Ezt a bejelentkezést nem sikerült menteni, ezért a JusPrin következő indításakor újra be kell jelentkezned."
+
+# AI Translated
+msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
+msgstr "Ezt a kulcsot nem sikerült menteni, ezért a JusPrin következő indításakor újra meg kell adni."
+
+# AI Translated
+msgid "The panel is still loading. Try again in a moment."
+msgstr "A panel még töltődik. Próbáld újra egy pillanat múlva."
+
+# AI Translated
+msgid "The AI service is not available."
+msgstr "Az AI-szolgáltatás nem érhető el."
+
+# AI Translated
+msgid "The AI service could not start this request."
+msgstr "Az AI-szolgáltatás nem tudta elindítani ezt a kérést."
+
+# AI Translated
+msgid "AI could not receive the native tool result."
+msgstr "Az AI nem kapta meg a natív eszköz eredményét."
+
+# AI Translated
+msgid "The AI request failed."
+msgstr "Az AI-kérés sikertelen volt."
+
+# AI Translated
+msgid "The automatic chat title could not be generated. You can rename the chat."
+msgstr "Az automatikus csevegéscímet nem sikerült létrehozni. A csevegést átnevezheted."
+
+# AI Translated
+#. TRN %1% is an AI provider's account, such as JusPrin.
+#, boost-format
+msgid "This chat ran on your %1% account. Sign in again to continue it, or start a new chat."
+msgstr "Ez a csevegés a(z) %1%-fiókodon futott. A folytatáshoz jelentkezz be újra, vagy kezdj új csevegést."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "This chat ran on %1%, and no %1% API key is set up now. Add the key in the AI settings to continue it, or start a new chat."
+msgstr "Ez a csevegés a(z) %1% szolgáltatón futott, és most nincs beállítva %1% API-kulcs. A folytatáshoz add meg a kulcsot az AI-beállításokban, vagy kezdj új csevegést."
+
+# AI Translated
+msgid "JusPrin hasn't loaded the AI models for your account yet. Try again in a moment."
+msgstr "A JusPrin még nem töltötte be a fiókodhoz tartozó AI-modelleket. Próbáld újra egy pillanat múlva."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "No %1% API key is set up. Add it in the AI settings, or choose another model."
+msgstr "Nincs beállítva %1% API-kulcs. Add meg az AI-beállításokban, vagy válassz másik modellt."
+
+# AI Translated
+msgid "A connection is already being saved."
+msgstr "Egy kapcsolat mentése már folyamatban van."
+
+# AI Translated
+msgid "JusPrin's connection helper is missing. Reinstall or rebuild JusPrin."
+msgstr "Hiányzik a JusPrin kapcsolódási segédprogramja. Telepítsd vagy fordítsd újra a JusPrint."
+
+# AI Translated
+msgid "The AppImage launcher is missing. Reopen the installed AppImage."
+msgstr "Hiányzik az AppImage indítója. Nyisd meg újra a telepített AppImage-et."
+
+# AI Translated
+msgid "Review the change before connecting."
+msgstr "Csatlakozás előtt nézd át a módosítást."
+
+# AI Translated
+#. TRN %1% is an AI client app, such as Claude Code.
+#, boost-format
+msgid "%1% isn't installed. Install it, or copy the command and run it later."
+msgstr "A(z) %1% nincs telepítve. Telepítsd, vagy másold ki a parancsot, és futtasd később."
+
+# AI Translated
+msgid "This build cannot run the client CLI."
+msgstr "Ez a verzió nem tudja futtatni a kliens parancssori eszközét."
+
+# AI Translated
+msgid "This build cannot open a file manager."
+msgstr "Ez a verzió nem tud fájlkezelőt megnyitni."
+
+# AI Translated
+msgid "The provider did not answer."
+msgstr "A szolgáltató nem válaszolt."
+
+# AI Translated
+msgid "Attach files"
+msgstr "Fájlok csatolása"
+
+# AI Translated
+msgid "The AI panel could not connect"
+msgstr "Az AI-panel nem tudott csatlakozni"
+
+# AI Translated
+msgid "Back to Prepare"
+msgstr "Vissza az Előkészítéshez"
+
+# AI Translated
+msgid "Open filament settings"
+msgstr "Filament beállítások megnyitása"
+
+# AI Translated
+msgid "The packaged AI page is missing from this build."
+msgstr "Ebből a verzióból hiányzik a beépített AI-oldal."
+
+# AI Translated
+msgid "The system web view could not be created."
+msgstr "A rendszer webnézetét nem sikerült létrehozni."
+
+# AI Translated
+msgid "The AI page failed to load."
+msgstr "Az AI-oldalt nem sikerült betölteni."
+
+# AI Translated
+msgid "The AI page did not complete the bridge handshake."
+msgstr "Az AI-oldal nem fejezte be a kapcsolódási kézfogást."
+
+# AI Translated
+msgid "Restart the application to load the AI page."
+msgstr "Az AI-oldal betöltéséhez indítsd újra az alkalmazást."
+
+# AI Translated
+msgid "This is an internal connection between the application and its AI panel, not a network service."
+msgstr "Ez az alkalmazás és az AI-panele közötti belső kapcsolat, nem hálózati szolgáltatás."
+
+# AI Translated
+#. TRN %1% is the web view's own error text.
+#, boost-format
+msgid "Last load error: %1%"
+msgstr "Utolsó betöltési hiba: %1%"
+
+# AI Translated
+#. TRN The messages the app and its AI panel exchanged. %1% and %2% are counts.
+#, boost-format
+msgid "Bridge traffic: %1% sent / %2% received"
+msgstr "Hídforgalom: %1% elküldve / %2% fogadva"
+
+# AI Translated
+msgid "The AI service returned an unreadable streaming response."
+msgstr "Az AI-szolgáltatás olvashatatlan adatfolyam-választ küldött."
+
+# AI Translated
+msgid "The AI service streamed a delta for a block it never opened."
+msgstr "Az AI-szolgáltatás olyan blokkhoz küldött változást, amelyet meg sem nyitott."
+
+# AI Translated
+msgid "The AI service sent a tool call whose arguments are not JSON."
+msgstr "Az AI-szolgáltatás olyan eszközhívást küldött, amelynek argumentumai nem JSON formátumúak."
+
+# AI Translated
+msgid "The AI service could not complete the response."
+msgstr "Az AI-szolgáltatás nem tudta befejezni a választ."
+
+# AI Translated
+#. TRN %1% is the AI service's own reason, in English, such as "cyber".
+#, boost-format
+msgid "The AI service declined to answer (%1%)."
+msgstr "Az AI-szolgáltatás megtagadta a választ (%1%)."
+
+# AI Translated
+msgid "The AI service ended its response for a reason this build does not know."
+msgstr "Az AI-szolgáltatás olyan okból fejezte be a válaszát, amelyet ez a verzió nem ismer."
+
+# AI Translated
+msgid "This version of JusPrin can no longer connect to JusPrin accounts. Get the new version to keep using your account."
+msgstr "A JusPrin ezen verziója már nem tud csatlakozni a JusPrin-fiókokhoz. A fiókod további használatához töltsd le az új verziót."
+
+# AI Translated
+msgid "Signing in didn't finish. Nothing was saved. Try again."
+msgstr "A bejelentkezés nem fejeződött be. Semmi sem lett mentve. Próbáld újra."
+
+# AI Translated
+msgid "JusPrin couldn't be reached to finish signing in. Try again."
+msgstr "A bejelentkezés befejezéséhez nem sikerült elérni a JusPrint. Próbáld újra."
+
+# AI Translated
+msgid "JusPrin has no AI model for this account right now. Try again later."
+msgstr "A JusPrinnek jelenleg nincs AI-modellje ehhez a fiókhoz. Próbáld újra később."
+
+# AI Translated
+msgid "Restored an earlier project version"
+msgstr "Egy korábbi projektverzió visszaállítva"
+
+# AI Translated
+msgid "Restored this chat's saved project setup"
+msgstr "A csevegés mentett projektbeállításai visszaállítva"
+
+# AI Translated
+#. TRN The chat list's preview of a message that has only attachments.
+msgid "Attachment"
+msgstr "Melléklet"
+
+# AI Translated
+msgid "The AI service stopped before finishing its response."
+msgstr "Az AI-szolgáltatás leállt, mielőtt befejezte volna a válaszát."
+
+# AI Translated
+msgid "The AI service kept pausing its response."
+msgstr "Az AI-szolgáltatás többször megakadt a válasz közben."
+
+# AI Translated
+msgid "AI could not be asked to continue its response."
+msgstr "Nem sikerült megkérni az AI-t, hogy folytassa a válaszát."
+
+# AI Translated
+msgid "AI could not be told the results of its tool calls."
+msgstr "Nem sikerült közölni az AI-jal az eszközhívásai eredményét."
+
+# AI Translated
+msgid "AI returned an invalid tool call."
+msgstr "Az AI érvénytelen eszközhívást küldött."
+
+# AI Translated
+msgid "The AI service ended before a complete response arrived."
+msgstr "Az AI-szolgáltatás leállt, mielőtt teljes válasz érkezett volna."
+
+# AI Translated
+msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
+msgstr "A JusPrin-bejelentkezésed lejárt. Jelentkezz be újra a Beállításokban, majd próbáld újra."
+
+# AI Translated
+#, boost-format
+msgid "This message needs %1% credit; you have %2%."
+msgid_plural "This message needs %1% credits; you have %2%."
+msgstr[0] "Ehhez az üzenethez %1% kredit kell; neked %2% van."
+msgstr[1] "Ehhez az üzenethez %1% kredit kell; neked %2% van."
+
+# AI Translated
+msgid "You're out of credits."
+msgstr "Elfogytak a kreditjeid."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% API key was rejected. Update the AI configuration and try again."
+msgstr "A(z) %1% API-kulcsot elutasították. Frissítsd az AI-beállításokat, és próbáld újra."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The request was too large for the %1% service."
+msgstr "A kérés túl nagy volt a(z) %1% szolgáltatás számára."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% service is rate limited. Try again shortly."
+msgstr "A(z) %1% szolgáltatás korlátozza a kérések számát. Próbáld újra hamarosan."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% service is overloaded. Try again shortly."
+msgstr "A(z) %1% szolgáltatás túlterhelt. Próbáld újra hamarosan."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% service is temporarily unavailable."
+msgstr "A(z) %1% szolgáltatás átmenetileg nem érhető el."
+
+# AI Translated
+msgid "The AI request timed out."
+msgstr "Az AI-kérés túllépte az időkorlátot."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The AI request could not reach the %1% service."
+msgstr "Az AI-kérés nem érte el a(z) %1% szolgáltatást."
+
+# AI Translated
+msgid "The AI service response did not contain valid output."
+msgstr "Az AI-szolgáltatás válasza nem tartalmazott érvényes kimenetet."
+
+# AI Translated
+#. TRN A button that asks the AI to choose another block of a calibration test.
+msgid "Pick another block"
+msgstr "Másik blokk választása"
+
+# AI Translated
+#. TRN A button that asks the AI to choose another tile of a calibration test.
+msgid "Pick another tile"
+msgstr "Másik csempe választása"
+
+# AI Translated
+#. TRN A button that asks the AI to choose another line of a calibration test.
+msgid "Pick another line"
+msgstr "Másik vonal választása"
+
+# AI Translated
+#. TRN A button that asks the AI to choose another corner of a calibration test.
+msgid "Pick another corner"
+msgstr "Másik sarok választása"
+
+# AI Translated
+#. TRN A button that asks the AI to choose another height of a calibration tower.
+msgid "Pick another height"
+msgstr "Másik magasság választása"
+
+# AI Translated
+#. TRN %1% is a preset's name.
+#, boost-format
+msgid "Preset · %1%"
+msgstr "Beállítás · %1%"
+
+# AI Translated
+#. TRN %1% is a preset's name.
+#, boost-format
+msgid "New preset · %1%"
+msgstr "Új beállítás · %1%"
+
+# AI Translated
+#. TRN %1% is the preset the new one is made from.
+#, boost-format
+msgid "%1% itself is unchanged"
+msgstr "A(z) %1% változatlan marad"
+
+# AI Translated
+#. TRN %1% is a setting's new value, such as 215 °C.
+#, boost-format
+msgid "Save %1% as a new filament preset"
+msgstr "%1% mentése új filament beállításként"
+
+# AI Translated
+#. TRN %1% is a setting's new value, such as 215 °C.
+#, boost-format
+msgid "Save %1% as a new printer preset"
+msgstr "%1% mentése új nyomtatóbeállításként"
+
+# AI Translated
+#. TRN %1% is a setting's new value, such as 215 °C.
+#, boost-format
+msgid "Save %1% as a new process preset"
+msgstr "%1% mentése új folyamatbeállításként"
+
+# AI Translated
+#. TRN %1% is a setting's new value, such as 215 °C, %2% a preset's name.
+#, boost-format
+msgid "Save %1% to %2%"
+msgstr "%1% mentése ide: %2%"
+
+# AI Translated
+msgid "This proposal is already saved."
+msgstr "Ez a javaslat már el van mentve."
+
+# AI Translated
+msgid "Drop a model here or add one"
+msgstr "Húzz ide egy modellt, vagy adj hozzá egyet"
+
+# AI Translated
+msgid "World coordinates"
+msgstr "Világkoordináták"
+
+# AI Translated
+msgid "Object coordinates"
+msgstr "Objektumkoordináták"
+
+# AI Translated
+msgid "Translate(Relative)"
+msgstr "Mozgatás (relatív)"
+
+# AI Translated
+msgid "Rotate (absolute)"
+msgstr "Forgatás (abszolút)"
+
+# AI Translated
+msgid "Part coordinates"
+msgstr "Tárgykoordináták"
+
+# AI Translated
+msgid "The packaged Home page is missing from this build."
+msgstr "Ebből a verzióból hiányzik a beépített Kezdőlap oldal."
+
+# AI Translated
+msgid "The Home page failed to load."
+msgstr "A Kezdőlapot nem sikerült betölteni."
+
+# AI Translated
+msgid "This window stopped updating because the app switched to another printer."
+msgstr "Ez az ablak nem frissül tovább, mert az app másik nyomtatóra váltott."
+
+# AI Translated
+#. TRN A length in millimetres, such as a nozzle diameter on a printer card: "0.4 mm". %s is the number.
+#, c-format, boost-format
+msgid "%s mm"
+msgstr "%s mm"
+
+# AI Translated
+#, c-format, boost-format
+msgid "The printer reports error %s."
+msgstr "A nyomtató %s hibát jelez."
+
+# AI Translated
+msgid "LAN"
+msgstr "LAN"
+
+# AI Translated
+msgid "Cloud"
+msgstr "Felhő"
+
+# AI Translated
+msgid "The printer stopped sending updates."
+msgstr "A nyomtató már nem küld frissítéseket."
+
+# AI Translated
+#, c-format, boost-format
+msgid "%s isn't answering."
+msgstr "A(z) %s nem válaszol."
+
+# AI Translated
+msgid "Klipper isn't running."
+msgstr "A Klipper nem fut."
+
+# AI Translated
+#. TRN %1% is Klipper's own message, in English, saying why it stopped.
+#, boost-format
+msgid "Klipper stopped: %1%"
+msgstr "A Klipper leállt: %1%"
+
+# AI Translated
+msgid "This printer no longer exists."
+msgstr "Ez a nyomtató már nem létezik."
+
+# AI Translated
+# Needs human review: Short Hungarian date "okt. 20."; check the month abbreviation already ends in a period and the result is not "okt.. 20."
+#. TRN A date in this year on a project card: %1% is the abbreviated month name, %2% the day of the month, as in "Oct 20".
+#, boost-format
+msgctxt "short date"
+msgid "%1% %2%"
+msgstr "%1% %2%."
+
+# AI Translated
+# Needs human review: Hungarian date with year "2026. okt. 20."; %1% is the short date, check the order reads right on project cards
+#. TRN A date outside this year on a project card: %1% is the date without the year, as in "Oct 20", %2% the year.
+#, boost-format
+msgctxt "date with year"
+msgid "%1%, %2%"
+msgstr "%2%. %1%"
+
+# AI Translated
+msgid "G-code exported"
+msgstr "G-code exportálva"
+
+# AI Translated
+#. TRN A project's status: %1% is a date, as in "Nov 3".
+#, boost-format
+msgid "G-code exported %1%"
+msgstr "G-code exportálva: %1%"
+
+# AI Translated
+#. TRN A project's status: %1% is a printer model, as in "Ender-3 V3 KE".
+#, boost-format
+msgid "G-code exported for %1%"
+msgstr "G-code exportálva ehhez: %1%"
+
+# AI Translated
+#. TRN A project's status: %1% is a date, as in "Nov 3", %2% a printer model, as in "Ender-3 V3 KE".
+#, boost-format
+msgid "G-code exported %1% for %2%"
+msgstr "G-code exportálva: %1%, ehhez: %2%"
+
+# AI Translated
+msgctxt "project status"
+msgid "Printed"
+msgstr "Kinyomtatva"
+
+# AI Translated
+#. TRN A project's status: %1% is a date, as in "Oct 20".
+#, boost-format
+msgid "Printed %1%"
+msgstr "Kinyomtatva: %1%"
+
+# AI Translated
+msgctxt "project status"
+msgid "Sent"
+msgstr "Elküldve"
+
+# AI Translated
+#. TRN A project's status: %1% is a date, as in "Oct 20".
+#, boost-format
+msgid "Sent %1%"
+msgstr "Elküldve: %1%"
+
+# AI Translated
+#. TRN A project's status: it has not been sliced to G-code yet.
+msgctxt "project status"
+msgid "Draft"
+msgstr "Piszkozat"
+
+# AI Translated
+msgid "That sign-in expired. Try again."
+msgstr "Ez a bejelentkezés lejárt. Próbáld újra."
+
+# AI Translated
+#, c-format, boost-format
+msgid "JusPrin found no %s printers to bring. Choose your printer instead."
+msgstr "A JusPrin nem talált áthozható nyomtatót (%s). Válaszd ki inkább a nyomtatódat."
+
+# AI Translated
+msgid "Generic printer"
+msgstr "Általános nyomtató"
+
+# AI Translated
+msgid "Your projects couldn't be loaded. JusPrin will keep trying."
+msgstr "A projektjeidet nem sikerült betölteni. A JusPrin tovább próbálkozik."
+
+# AI Translated
+msgid "Untitled project"
+msgstr "Névtelen projekt"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Printing on %s"
+msgstr "Nyomtatás ezen: %s"
+
+# AI Translated
+msgid "JusPrin no longer keeps this G-code. Slice the project again to export it."
+msgstr "A JusPrin már nem őrzi ezt a G-code-ot. Az exportáláshoz szeleteld újra a projektet."
+
+# AI Translated
+msgid "Couldn't export G-code"
+msgstr "A G-code exportálása nem sikerült"
+
+# AI Translated
+#, c-format, boost-format
+msgid "The G-code couldn't be written to %s."
+msgstr "A G-code-ot nem sikerült ide írni: %s."
+
+# AI Translated
+msgid "Choose a photo of the printed object"
+msgstr "Válassz egy fényképet a kinyomtatott tárgyról"
+
+# AI Translated
+msgid "Photos"
+msgstr "Fényképek"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%s couldn't be opened. Try opening it with Open… instead."
+msgstr "A(z) %s nem nyitható meg. Próbáld inkább a Megnyitás… paranccsal."
+
+# AI Translated
+msgid "Couldn't open file"
+msgstr "A fájl megnyitása nem sikerült"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Import from %s"
+msgstr "Importálás innen: %s"
+
+# AI Translated
+msgid "Importing these printers loads their profiles, which replaces unsaved changes to the project's settings."
+msgstr "A nyomtatók importálása betölti a profiljaikat, ami felülírja a projekt beállításainak nem mentett módosításait."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Imported from %s"
+msgstr "Importálva innen: %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "JusPrin couldn't read this file. To try again, choose Printer › Import printers from %s…"
+msgstr "A JusPrin nem tudta beolvasni ezt a fájlt. Az újrapróbáláshoz válaszd a Nyomtató › Nyomtatók importálása (%s)… menüpontot."
+
+# AI Translated
+msgid "Not imported. The file has no version."
+msgstr "Nincs importálva. A fájlnak nincs verziója."
+
+# AI Translated
+msgid "Not imported. It isn't a printer, filament or process preset."
+msgstr "Nincs importálva. Nem nyomtató-, filament- vagy folyamatbeállítás."
+
+# AI Translated
+#. TRN %1% is the filament preset the file is based on, %2% the app it was imported from.
+#, boost-format
+msgid "Not imported, because it's based on %1%, which JusPrin doesn't have. It stays in %2%. When you prepare a print, choose a similar filament instead."
+msgstr "Nincs importálva, mert a(z) %1% alapján készült, amely a JusPrinben nincs meg. A(z) %2% alkalmazásban marad. Nyomtatás előkészítésekor válassz helyette egy hasonló filamentet."
+
+# AI Translated
+#. TRN %1% is the print settings preset the file is based on, %2% the app it was imported from.
+#, boost-format
+msgid "Not imported, because they're based on %1%, which JusPrin doesn't have. They stay in %2%. When you prepare a print, choose similar print settings instead."
+msgstr "Nincsenek importálva, mert a(z) %1% alapján készültek, amely a JusPrinben nincs meg. A(z) %2% alkalmazásban maradnak. Nyomtatás előkészítésekor válassz helyettük hasonló nyomtatási beállításokat."
+
+# AI Translated
+#. TRN %1% is the printer profile the file is based on, %2% the app it was imported from.
+#, boost-format
+msgid "Not imported, because it's based on %1%, which JusPrin doesn't have. It stays in %2%. When you add a printer, choose a similar one instead."
+msgstr "Nincs importálva, mert a(z) %1% alapján készült, amely a JusPrinben nincs meg. A(z) %2% alkalmazásban marad. Nyomtató hozzáadásakor válassz helyette egy hasonlót."
+
+# AI Translated
+#, c-format, boost-format
+msgid "JusPrin couldn't load this preset. To try again, choose Printer › Import printers from %s…"
+msgstr "A JusPrin nem tudta betölteni ezt a beállítást. Az újrapróbáláshoz válaszd a Nyomtató › Nyomtatók importálása (%s)… menüpontot."
+
+# AI Translated
+#, c-format, boost-format
+msgid "It's based on %s, which JusPrin doesn't have. When you prepare a print, choose a similar filament instead."
+msgstr "A(z) %s alapján készült, amely a JusPrinben nincs meg. Nyomtatás előkészítésekor válassz helyette egy hasonló filamentet."
+
+# AI Translated
+#, c-format, boost-format
+msgid "It's based on %s, which JusPrin doesn't have. When you prepare a print, choose similar print settings instead."
+msgstr "A(z) %s alapján készült, amely a JusPrinben nincs meg. Nyomtatás előkészítésekor válassz helyette hasonló nyomtatási beállításokat."
+
+# AI Translated
+#, c-format, boost-format
+msgid "It's based on %s, which JusPrin doesn't have. When you add a printer, choose a similar one instead."
+msgstr "A(z) %s alapján készült, amely a JusPrinben nincs meg. Nyomtató hozzáadásakor válassz helyette egy hasonlót."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Choose your %s folder"
+msgstr "Válaszd ki a(z) %s mappádat"
+
+# AI Translated
+#. TRN %1% is the app the printers are imported from, such as OrcaSlicer.
+#, boost-format
+msgid "JusPrin found no %1% printers in that folder. If %1% keeps its settings somewhere else, choose that folder."
+msgstr "A JusPrin nem talált %1%-nyomtatót ebben a mappában. Ha a(z) %1% máshol tárolja a beállításait, azt a mappát válaszd."
+
+# AI Translated
+msgid "The printer's page didn't load"
+msgstr "A nyomtató oldala nem töltődött be"
+
+# AI Translated
+msgid "Try again"
+msgstr "Próbáld újra"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
+msgstr "Semmi sem válaszolt itt: %s. Ellenőrizd, hogy a nyomtató be van-e kapcsolva, és ugyanazon a hálózaton van-e, mint ez a számítógép, majd próbáld újra."
+
+# AI Translated
+msgid "Client configuration is a symbolic link. Use Copy and update its target manually."
+msgstr "A kliens konfigurációja szimbolikus hivatkozás. Használd a Másolás lehetőséget, és frissítsd kézzel a célfájlt."
+
+# AI Translated
+msgid "Client configuration exceeds the 1 MiB setup limit."
+msgstr "A kliens konfigurációja meghaladja az 1 MiB-os beállítási korlátot."
+
+# AI Translated
+msgid "Client configuration exceeds nesting depth 32."
+msgstr "A kliens konfigurációja meghaladja a 32-es beágyazási mélységet."
+
+# AI Translated
+msgid "Client configuration has an unterminated comment."
+msgstr "A kliens konfigurációjában lezáratlan megjegyzés van."
+
+# AI Translated
+msgid "Client configuration and its server map must be JSON objects. No changes made."
+msgstr "A kliens konfigurációjának és a szerverlistájának JSON-objektumnak kell lennie. Nem történt módosítás."
+
+# AI Translated
+msgid "Client configuration has ambiguous duplicate keys. No changes made."
+msgstr "A kliens konfigurációjában kétértelmű, ismétlődő kulcsok vannak. Nem történt módosítás."
+
+# AI Translated
+msgid "Client configuration changed after the preview. Review the new change and confirm again."
+msgstr "A kliens konfigurációja megváltozott az előnézet óta. Nézd át az új módosítást, és erősítsd meg újra."
+
+# AI Translated
+msgid "Client configuration changed while preparing the write. Original file retained; review again."
+msgstr "A kliens konfigurációja megváltozott az írás előkészítése közben. Az eredeti fájl megmaradt; nézd át újra."
+
+# AI Translated
+msgid "JusPrin couldn't close the project, so it didn't restart. Your project stays open, and JusPrin will use the new language the next time it starts."
+msgstr "A JusPrin nem tudta bezárni a projektet, ezért nem indult újra. A projekted nyitva marad, és a JusPrin a következő indításkor használja az új nyelvet."
+
+# AI Translated
+msgid "Restart"
+msgstr "Újraindítás"
+
+# AI Translated
+msgid "Checking..."
+msgstr "Ellenőrzés..."
+
+# AI Translated
+msgid "Whole plate"
+msgstr "Teljes tálca"
+
+# AI Translated
+msgid "Ignored"
+msgstr "Mellőzve"
+
+# AI Translated
+#, boost-format
+msgid "%1% warning ignored"
+msgid_plural "%1% warnings ignored"
+msgstr[0] "%1% figyelmeztetés mellőzve"
+msgstr[1] "%1% figyelmeztetés mellőzve"
+
+# AI Translated
+#, boost-format
+msgid "%1% print issue"
+msgid_plural "%1% print issues"
+msgstr[0] "%1% nyomtatási probléma"
+msgstr[1] "%1% nyomtatási probléma"
+
+# AI Translated
+#, boost-format
+msgid "%1% blocks printing."
+msgid_plural "%1% block printing."
+msgstr[0] "%1% akadályozza a nyomtatást."
+msgstr[1] "%1% akadályozza a nyomtatást."
+
+# AI Translated
+#. TRN The print-issue pill: %1% is "3 print issues", %2% the sentence "2 block printing."
+#, boost-format
+msgid "%1%. %2%"
+msgstr "%1%. %2%"
+
+# AI Translated
+msgid "Blocks printing"
+msgstr "Akadályozza a nyomtatást"
+
+# AI Translated
+msgid "out of view"
+msgstr "nem látható"
+
+# AI Translated
+msgid "Checking whether this is fixed..."
+msgstr "Annak ellenőrzése, hogy megoldódott-e..."
+
+# AI Translated
+#, boost-format
+msgid "%1% of %2%"
+msgstr "%1% / %2%"
+
+# AI Translated
+msgid "AI is replying..."
+msgstr "Az AI válaszol..."
+
+# AI Translated
+msgid "Stop ignoring"
+msgstr "Mellőzés visszavonása"
+
+# AI Translated
+msgid "Ignore this warning"
+msgstr "Figyelmeztetés mellőzése"
+
+# AI Translated
+msgid "Ask AI"
+msgstr "Kérdezd az AI-t"
+
+# AI Translated
+msgid "Explain this issue and my options."
+msgstr "Magyarázd el ezt a problémát és a lehetőségeimet."
+
+# AI Translated
+msgid "Set up AI..."
+msgstr "AI beállítása..."
+
+# AI Translated
+msgid "A G-code path goes beyond the plate boundaries."
+msgstr "Egy G-code útvonal túlnyúlik a tálca határain."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Filaments %s cannot be printed directly on the surface of this plate."
+msgstr "A(z) %s filament nem nyomtatható közvetlenül ennek a tálcának a felületére."
+
+# AI Translated
+#, boost-format
+msgid "Slicing plate %1%"
+msgstr "%1%. tálca szeletelése"
+
+# AI Translated
+msgid "The form was out of date. Choose the printer again."
+msgstr "Az űrlap elavult. Válaszd ki újra a nyomtatót."
+
+# AI Translated
+msgid "Choose the plate on this printer."
+msgstr "Válaszd ki a tálcát ezen a nyomtatón."
+
+# AI Translated
+msgid "That filament is no longer on the list. Choose another."
+msgstr "Ez a filament már nincs a listán. Válassz másikat."
+
+# AI Translated
+msgid "That printer is no longer on the list. Choose it again."
+msgstr "Ez a nyomtató már nincs a listán. Válaszd ki újra."
+
+# AI Translated
+msgid "Printer conversation"
+msgstr "Beszélgetés a nyomtatóról"
+
+# AI Translated
+msgid "Filament conversation"
+msgstr "Beszélgetés a filamentről"
+
+# AI Translated
+msgid "Browse the full printer list"
+msgstr "A teljes nyomtatólista böngészése"
+
+# AI Translated
+msgid "Open printer settings"
+msgstr "Nyomtatóbeállítások megnyitása"
+
+# AI Translated
+#. TRN %1% is the profile loader's own error, in English.
+#, boost-format
+msgid "The printer profiles could not be read: %1%"
+msgstr "A nyomtatóprofilokat nem sikerült beolvasni: %1%"
+
+# AI Translated
+msgid "Enter a name for the printer."
+msgstr "Adj nevet a nyomtatónak."
+
+# AI Translated
+msgid "A printer name can't start or end with a space."
+msgstr "A nyomtató neve nem kezdődhet és nem végződhet szóközzel."
+
+# AI Translated
+#, c-format, boost-format
+msgid "A printer name can't contain any of these characters: %s"
+msgstr "A nyomtató neve nem tartalmazhatja a következő karaktereket: %s"
+
+# AI Translated
+msgid "That name is reserved. Choose another."
+msgstr "Ez a név foglalt. Válassz másikat."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Another printer or profile is already named \"%s\"."
+msgstr "Már van „%s” nevű nyomtató vagy profil."
+
+# AI Translated
+msgid "A new name has to differ from the old one by more than capitalization."
+msgstr "Az új névnek nemcsak a kis- és nagybetűkben kell különböznie a régitől."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Other printer profiles are based on \"%s\". Remove those first in Printer settings."
+msgstr "Más nyomtatóprofilok is a(z) „%s” alapján készültek. Először azokat távolítsd el a Nyomtatóbeállításokban."
+
+# AI Translated
+msgid "The app couldn't open your browser."
+msgstr "Az app nem tudta megnyitni a böngésződet."
+
+# AI Translated
+msgid "About JusPrin"
+msgstr "A JusPrin névjegye"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Version %s"
+msgstr "Verzió: %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Built on OrcaSlicer %s"
+msgstr "Az OrcaSlicer %s alapján"
+
+# AI Translated
+#. TRN A noun: the label before the commit this copy of the app was built from.
+msgid "Build"
+msgstr "Build"
+
+# AI Translated
+msgid "Copy version"
+msgstr "Verzió másolása"
+
+# AI Translated
+msgid "Get help"
+msgstr "Segítség kérése"
+
+# AI Translated
+msgid "Email"
+msgstr "E-mail"
+
+# AI Translated
+msgid "License…"
+msgstr "Licenc…"
+
+# AI Translated
+msgid "Free software under the GNU Affero General Public License v3."
+msgstr "Szabad szoftver a GNU Affero General Public License v3 alatt."
+
+# AI Translated
+msgid "Copied"
+msgstr "Másolva"
+
+# AI Translated
+#. TRN The menu of print actions: Slice plate, Check print…, Print….
+msgctxt "Menu"
+msgid "Print"
+msgstr "Nyomtatás"
+
+# AI Translated
+msgid "New project"
+msgstr "Új projekt"
+
+# AI Translated
+msgid "Open…"
+msgstr "Megnyitás…"
+
+# AI Translated
+msgid "Open recent"
+msgstr "Legutóbbiak megnyitása"
+
+# AI Translated
+msgid "Version history…"
+msgstr "Verzióelőzmények…"
+
+# AI Translated
+msgid "Project 3MF…"
+msgstr "Projekt 3MF…"
+
+# AI Translated
+msgid "Exit"
+msgstr "Kilépés"
+
+# AI Translated
+msgid "Plates and project panel"
+msgstr "Tálca- és projektpanel"
+
+# AI Translated
+msgid "Show plates and project panel"
+msgstr "Tálca- és projektpanel megjelenítése"
+
+# AI Translated
+msgid "Hide plates and project panel"
+msgstr "Tálca- és projektpanel elrejtése"
+
+# AI Translated
+msgid "AI panel"
+msgstr "AI-panel"
+
+# AI Translated
+msgid "Show AI panel"
+msgstr "AI-panel megjelenítése"
+
+# AI Translated
+msgid "Hide AI panel"
+msgstr "AI-panel elrejtése"
+
+# AI Translated
+msgid "Switch to classic view…"
+msgstr "Váltás klasszikus nézetre…"
+
+# AI Translated
+msgid "JusPrin guide…"
+msgstr "JusPrin útmutató…"
+
+# AI Translated
+msgid "Ask AI…"
+msgstr "Kérdezd az AI-t…"
+
+# AI Translated
+msgid "Report a problem…"
+msgstr "Probléma bejelentése…"
+
+# AI Translated
+msgid "Report a problem"
+msgstr "Probléma bejelentése"
+
+# AI Translated
+msgid "Slice all plates"
+msgstr "Minden tálca szeletelése"
+
+# AI Translated
+msgid "Check print…"
+msgstr "Nyomtatás ellenőrzése…"
+
+# AI Translated
+msgid "Print…"
+msgstr "Nyomtatás…"
+
+# AI Translated
+msgid "Print all plates…"
+msgstr "Minden tálca nyomtatása…"
+
+# AI Translated
+msgid "Add a printer…"
+msgstr "Nyomtató hozzáadása…"
+
+# AI Translated
+msgid "Import printers from OrcaSlicer…"
+msgstr "Nyomtatók importálása (OrcaSlicer)…"
+
+# AI Translated
+msgid "Import printers from JusPrin 1…"
+msgstr "Nyomtatók importálása (JusPrin 1)…"
+
+# AI Translated
+msgid "Printer settings…"
+msgstr "Nyomtatóbeállítások…"
+
+# AI Translated
+msgid "Ask AI about printer settings…"
+msgstr "Kérdezd az AI-t a nyomtatóbeállításokról…"
+
+# AI Translated
+msgid "Filament settings…"
+msgstr "Filament beállítások…"
+
+# AI Translated
+msgid "Ask AI about filament settings…"
+msgstr "Kérdezd az AI-t a filament beállításokról…"
+
+# AI Translated
+msgid "Calibrate…"
+msgstr "Kalibrálás…"
+
+# AI Translated
+msgid "Check print"
+msgstr "Nyomtatás ellenőrzése"
+
+# AI Translated
+msgid "Check Print"
+msgstr "Nyomtatás ellenőrzése"
+
+# AI Translated
+msgid "Legend"
+msgstr "Jelmagyarázat"
+
+# AI Translated
+msgid "Close and return to Prepare"
+msgstr "Bezárás és vissza az Előkészítéshez"
+
+# AI Translated
+#, c-format, boost-format
+msgid "sliced for %s"
+msgstr "szeletelve ehhez: %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Layer %d"
+msgstr "%d. réteg"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d s"
+msgstr "%d mp"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d min"
+msgstr "%d perc"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d h %d min"
+msgstr "%d ó %d perc"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%.0f g"
+msgstr "%.0f g"
+
+# AI Translated
+#. TRN A length in metres, such as the filament a print uses: "12.4 m". %s is the number.
+#, c-format, boost-format
+msgid "%s m"
+msgstr "%s m"
+
+# AI Translated
+msgid "no supports were needed"
+msgstr "nem volt szükség támaszra"
+
+# AI Translated
+msgid "no seams are on the faces you marked"
+msgstr "a megjelölt felületeken nincs varrat"
+
+# AI Translated
+msgid "nothing prints in the air"
+msgstr "semmi sem nyomtatódik a levegőbe"
+
+# AI Translated
+msgid "no paths cross or leave the plate"
+msgstr "egyetlen útvonal sem keresztez másikat, és egyik sem hagyja el a tálcát"
+
+# AI Translated
+msgid "no paths cross each other"
+msgstr "egyetlen útvonal sem keresztez másikat"
+
+# AI Translated
+msgid "no paths leave the plate"
+msgstr "egyetlen útvonal sem hagyja el a tálcát"
+
+# AI Translated
+msgid "the slicer gave no warnings"
+msgstr "a szeletelő nem adott figyelmeztetést"
+
+# AI Translated
+msgid "Print report"
+msgstr "Nyomtatási jelentés"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Print report, %s"
+msgstr "Nyomtatási jelentés, %s"
+
+# AI Translated
+#. TRN A section title of the print report: the support structures the slice made.
+msgid "Supports"
+msgstr "Támaszok"
+
+# AI Translated
+msgid "Slicer warnings"
+msgstr "Szeletelési figyelmeztetések"
+
+# AI Translated
+msgid "Unsupported islands"
+msgstr "Alátámasztatlan szigetek"
+
+# AI Translated
+msgid "Crossing paths"
+msgstr "Egymást keresztező útvonalak"
+
+# AI Translated
+msgid "Paths outside the plate"
+msgstr "Tálcán kívüli útvonalak"
+
+# AI Translated
+msgid "Nothing to flag."
+msgstr "Nincs mit jelezni."
+
+# AI Translated
+#. TRN Print report's closing line, a list of clauses such as "nothing prints in the air": joins the list so far to a clause that is not the last.
+#, c-format, boost-format
+msgid "%s, %s"
+msgstr "%s, %s"
+
+# AI Translated
+#. TRN Print report's closing line, a list of clauses such as "nothing prints in the air": joins its only two clauses.
+#, c-format, boost-format
+msgid "%s and %s"
+msgstr "%s és %s"
+
+# AI Translated
+#. TRN Print report's closing line, a list of clauses such as "nothing prints in the air": joins the list so far to the last of three or more.
+#, c-format, boost-format
+msgid "%s, and %s"
+msgstr "%s és %s"
+
+# AI Translated
+#. TRN Ends the print report's closing line; %s is its list of what the checks found clean, first letter capitalised.
+#, c-format, boost-format
+msgid "%s."
+msgstr "%s."
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d layer"
+msgid_plural "%d layers"
+msgstr[0] "%d réteg"
+msgstr[1] "%d réteg"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d object"
+msgid_plural "%d objects"
+msgstr[0] "%d objektum"
+msgstr[1] "%d objektum"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d on a marked face"
+msgid_plural "%d on marked faces"
+msgstr[0] "%d megjelölt felületen"
+msgstr[1] "%d megjelölt felületen"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d or more"
+msgstr "%d vagy több"
+
+# AI Translated
+msgid "A toolpath runs outside the printable area"
+msgstr "Egy szerszámút a nyomtatható területen kívül halad"
+
+# AI Translated
+# Needs human review: %s is a region's label; check the sentence reads right with the labels the print report shows
+#, c-format, boost-format
+msgid "Support touches %s, which you asked to keep clear"
+msgstr "A támasz hozzáér ehhez: %s, pedig ezt szabadon akartad hagyni"
+
+# AI Translated
+# Needs human review: "Support inside the %s": %s is a region label such as a hole; check it reads right in the print report
+#, c-format, boost-format
+msgid "Support inside the %s"
+msgstr "Támasz itt: %s"
+
+# AI Translated
+msgid "No support in a hole or a region you kept clear"
+msgstr "Nincs támasz lyukban vagy szabadon hagyott területen"
+
+# AI Translated
+msgid "No support in a hole"
+msgstr "Nincs támasz lyukban"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Printed in the air: %s"
+msgstr "Levegőben nyomtatva: %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d seam on %s"
+msgid_plural "%d seams on %s"
+msgstr[0] "%d varrat itt: %s"
+msgstr[1] "%d varrat itt: %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%s on the plate"
+msgstr "%s a tálcán"
+
+# AI Translated
+msgid "only when recording a timelapse"
+msgstr "csak Timelapse-felvételkor"
+
+# AI Translated
+#, c-format, boost-format
+msgid "around %s"
+msgstr "%s körül"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d layer of support"
+msgid_plural "%d layers of support"
+msgstr[0] "%d réteg támasz"
+msgstr[1] "%d réteg támasz"
+
+# AI Translated
+msgid "No brim"
+msgstr "Nincs perem"
+
+# AI Translated
+msgid "This plate has no current slice."
+msgstr "Ennek a tálcának nincs aktuális szeletelése."
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d filament change"
+msgid_plural "%d filament changes"
+msgstr[0] "%d filamentcsere"
+msgstr[1] "%d filamentcsere"
+
+# AI Translated
+msgid "You're in the classic OrcaSlicer view."
+msgstr "A klasszikus OrcaSlicer nézetben vagy."
+
+# AI Translated
+msgid "Back to JusPrin"
+msgstr "Vissza a JusPrinhez"
+
+# AI Translated
+msgid "Switch to JusPrin view"
+msgstr "Váltás JusPrin nézetre"
+
+# AI Translated
+#. TRN A menu caption in capitals: the printer's name (in capitals), then its nozzle size in millimetres.
+#, c-format, boost-format
+msgid "%s, %s MM NOZZLE"
+msgstr "%s, %s MM-ES FÚVÓKA"
+
+# AI Translated
+msgid "COLOUR"
+msgstr "SZÍN"
+
+# AI Translated
+msgid "Other colour…"
+msgstr "Más szín…"
+
+# AI Translated
+msgid "Use what's loaded on the printer…"
+msgstr "A nyomtatóba töltött filament használata…"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%s is offline. Turn it on to read what's loaded."
+msgstr "A(z) %s offline. Kapcsold be, hogy beolvashassuk a betöltött filamentet."
+
+# AI Translated
+#, c-format, boost-format
+msgid "FILAMENTS FOR %s"
+msgstr "FILAMENTEK: %s"
+
+# AI Translated
+msgid "on plate"
+msgstr "a tálcán"
+
+# AI Translated
+msgid "Add another filament to this print"
+msgstr "Újabb filament hozzáadása ehhez a nyomtatáshoz"
+
+# AI Translated
+#, c-format, boost-format
+msgid "FILAMENT · SLOT %d · %s"
+msgstr "FILAMENT · %d. FÉRŐHELY · %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "FILAMENT FOR %s"
+msgstr "FILAMENT: %s"
+
+# AI Translated
+msgid "FILAMENTS FOR THIS PRINTER"
+msgstr "FILAMENTEK EHHEZ A NYOMTATÓHOZ"
+
+# AI Translated
+msgid "Other filament…"
+msgstr "Más filament…"
+
+# AI Translated
+msgid "Calibrate this filament…"
+msgstr "A filament kalibrálása…"
+
+# AI Translated
+msgid "JusPrin guide"
+msgstr "JusPrin útmutató"
+
+# AI Translated
+msgid "Plates and Project panel"
+msgstr "Tálca- és projektpanel"
+
+# AI Translated
+msgid "Hide the Plates and Project panel"
+msgstr "A tálca- és projektpanel elrejtése"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Slicing %d%%"
+msgstr "Szeletelés %d%%"
+
+# AI Translated
+msgid "Slicing…"
+msgstr "Szeletelés…"
+
+# AI Translated
+msgid "Sliced"
+msgstr "Szeletelve"
+
+# AI Translated
+msgid "Not sliced yet"
+msgstr "Még nincs szeletelve"
+
+# AI Translated
+#. TRN How many objects or copies on the plate are set not to print.
+#, c-format, boost-format
+msgid "%d won't print"
+msgid_plural "%d won't print"
+msgstr[0] "%d nem lesz nyomtatva"
+msgstr[1] "%d nem lesz nyomtatva"
+
+# AI Translated
+msgid "Couldn't do that"
+msgstr "Ez nem sikerült"
+
+# AI Translated
+msgid "Support painting"
+msgstr "Támaszok festése"
+
+# AI Translated
+msgid "Color painting"
+msgstr "Színfestés"
+
+# AI Translated
+msgid "Fuzzy skin painting"
+msgstr "Barázdált felület festése"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Per-object settings · %d"
+msgstr "Objektumonkénti beállítások · %d"
+
+# AI Translated
+msgid "Auto-orient"
+msgstr "Automatikus tájolás"
+
+# AI Translated
+msgid "Plate settings…"
+msgstr "Tálca beállítások…"
+
+# AI Translated
+# Needs human review: Plate menu item that moves the plate to the front of the plate list; check it is not read as moving objects forward
+msgid "Move to front"
+msgstr "Áthelyezés az elejére"
+
+# AI Translated
+msgid "Delete plate"
+msgstr "Tálca törlése"
+
+# AI Translated
+msgid "Rename object"
+msgstr "Objektum átnevezése"
+
+# AI Translated
+msgid "Set number of instances…"
+msgstr "Példányszám beállítása…"
+
+# AI Translated
+msgid "Fix model"
+msgstr "Modell javítása"
+
+# AI Translated
+msgid "Change object filament"
+msgstr "Objektum filamentjének módosítása"
+
+# AI Translated
+msgid "Delete copy"
+msgstr "Másolat törlése"
+
+# AI Translated
+msgid "To objects"
+msgstr "Objektumokra"
+
+# AI Translated
+msgid "To parts"
+msgstr "Tárgyakra"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Copy %d"
+msgstr "%d. másolat"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d per-object setting"
+msgid_plural "%d per-object settings"
+msgstr[0] "%d objektumonkénti beállítás"
+msgstr[1] "%d objektumonkénti beállítás"
+
+# AI Translated
+msgid "Plates tab"
+msgstr "Tálcák lap"
+
+# AI Translated
+msgid "Project tab"
+msgstr "Projekt lap"
+
+# AI Translated
+msgid "Plates"
+msgstr "Tálcák"
+
+# AI Translated
+msgid "Add model"
+msgstr "Modell hozzáadása"
+
+# AI Translated
+msgid "Not on a plate"
+msgstr "Nincs tálcán"
+
+# AI Translated
+msgid "Mesh needs repair"
+msgstr "A háló javításra szorul"
+
+# AI Translated
+msgid "Mesh repaired"
+msgstr "Háló javítva"
+
+# AI Translated
+msgid "won't print"
+msgstr "nem lesz nyomtatva"
+
+# AI Translated
+#. TRN A tag beside one part of an object, saying what kind of part it is: an ordinary part.
+msgid "part"
+msgstr "tárgy"
+
+# AI Translated
+#. TRN A tag beside one part of an object, saying what kind of part it is: a modifier, which changes settings where it overlaps.
+msgid "modifier"
+msgstr "módosító"
+
+# AI Translated
+msgid "negative part"
+msgstr "negatív tárgy"
+
+# AI Translated
+msgid "support enforcer"
+msgstr "támasz kényszerítő"
+
+# AI Translated
+msgid "support blocker"
+msgstr "támasz blokkoló"
+
+# AI Translated
+#. TRN %s is a weekday or a date, such as "Mon" or "Mar 14", when this project's last print finished.
+#, c-format, boost-format
+msgid "last finished %s"
+msgstr "utolsó nyomtatás: %s"
+
+# AI Translated
+msgid "last finished today"
+msgstr "utolsó nyomtatás: ma"
+
+# AI Translated
+msgid "last finished yesterday"
+msgstr "utolsó nyomtatás: tegnap"
+
+# AI Translated
+msgid "Version history unavailable"
+msgstr "A verzióelőzmények nem érhetők el"
+
+# AI Translated
+msgid "Version history couldn't be loaded. Try again."
+msgstr "A verzióelőzményeket nem sikerült betölteni. Próbáld újra."
+
+# AI Translated
+msgid "Export project 3MF"
+msgstr "Projekt 3MF exportálása"
+
+# AI Translated
+msgid "Export failed"
+msgstr "Sikertelen exportálás"
+
+# AI Translated
+msgid "The project couldn't be exported. Try again."
+msgstr "A projektet nem sikerült exportálni. Próbáld újra."
+
+# AI Translated
+msgid "Restore this version of the model and project settings? The current model will be saved as a version first. Conversations and print records will stay current."
+msgstr "Visszaállítod a modell és a projektbeállítások ezen verzióját? Előtte az aktuális modell verzióként mentésre kerül. A beszélgetések és a nyomtatási előzmények változatlanok maradnak."
+
+# AI Translated
+msgid "Restore project version"
+msgstr "Projektverzió visszaállítása"
+
+# AI Translated
+msgid "Restore failed"
+msgstr "Sikertelen visszaállítás"
+
+# AI Translated
+msgid "This version couldn't be restored. Try again."
+msgstr "Ezt a verziót nem sikerült visszaállítani. Próbáld újra."
+
+# AI Translated
+msgid "Back to Project"
+msgstr "Vissza a projekthez"
+
+# AI Translated
+msgid "Nothing printed or exported yet"
+msgstr "Még semmi sincs kinyomtatva vagy exportálva"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d G-code"
+msgid_plural "%d G-codes"
+msgstr[0] "%d G-code"
+msgstr[1] "%d G-code"
+
+# AI Translated
+msgid "printing now"
+msgstr "nyomtatás folyamatban"
+
+# AI Translated
+msgid "never sent to a printer"
+msgstr "még nem került nyomtatóra"
+
+# AI Translated
+msgid "Print history"
+msgstr "Nyomtatási előzmények"
+
+# AI Translated
+msgid "Saving…"
+msgstr "Mentés…"
+
+# AI Translated
+msgid "Saved"
+msgstr "Mentve"
+
+# AI Translated
+msgid "Couldn't save"
+msgstr "A mentés nem sikerült"
+
+# AI Translated
+msgid "No title, designer or description yet."
+msgstr "Még nincs cím, tervező vagy leírás."
+
+# AI Translated
+#. TRN Who designed the model; %s is the designer's name.
+#, c-format, boost-format
+msgid "by %s"
+msgstr "Tervező: %s"
+
+# AI Translated
+msgid "Version history"
+msgstr "Verzióelőzmények"
+
+# AI Translated
+msgid "Export project 3MF…"
+msgstr "Projekt 3MF exportálása…"
+
+# AI Translated
+msgid "Bill of materials"
+msgstr "Anyagjegyzék"
+
+# AI Translated
+msgid "Assembly guide"
+msgstr "Összeszerelési útmutató"
+
+# AI Translated
+msgid "Attachments"
+msgstr "Mellékletek"
+
+# AI Translated
+msgid "The file couldn't be opened."
+msgstr "A fájlt nem sikerült megnyitni."
+
+# AI Translated
+msgid "More files are attached than are listed here."
+msgstr "Több fájl van csatolva, mint amennyi itt látható."
+
+# AI Translated
+msgid "Profile"
+msgstr "Profil"
+
+# AI Translated
+msgid "No earlier saved versions yet."
+msgstr "Még nincsenek korábban mentett verziók."
+
+# AI Translated
+#. TRN The Restore button's name for a screen reader; %s is when the version was saved.
+#, c-format, boost-format
+msgid "Restore %s"
+msgstr "%s visszaállítása"
+
+# AI Translated
+msgid "Connecting AI tool"
+msgstr "AI-eszköz csatlakoztatása"
+
+# AI Translated
+msgid "Saving the MCP entry using the client's own CLI..."
+msgstr "Az MCP-bejegyzés mentése a kliens saját parancssori eszközével..."
+
+# AI Translated
+msgid "The setup command timed out. Stopping it..."
+msgstr "A beállítási parancs túllépte az időkorlátot. Leállítás..."
+
+# AI Translated
+msgid "Select printer"
+msgstr "Nyomtató kiválasztása"
+
+# AI Translated
+msgid "from the file"
+msgstr "a fájlból"
+
+# AI Translated
+msgid "Select filament"
+msgstr "Filament kiválasztása"
+
+# AI Translated
+msgid "Paused"
+msgstr "Szüneteltetve"
+
+# AI Translated
+msgid "Needs attention"
+msgstr "Beavatkozás szükséges"
+
+# AI Translated
+msgid "Ready"
+msgstr "Kész"
+
+# AI Translated
+msgid "Connected"
+msgstr "Csatlakoztatva"
+
+# AI Translated
+msgid "Connecting…"
+msgstr "Csatlakozás…"
+
+# AI Translated
+msgid "Not connected"
+msgstr "Nincs csatlakoztatva"
+
+# AI Translated
+msgid "No printer selected"
+msgstr "Nincs kiválasztott nyomtató"
+
+# AI Translated
+msgid "From the file · not one of your printers"
+msgstr "A fájlból · nem a saját nyomtatóid egyike"
+
+# AI Translated
+msgid "Checking connection…"
+msgstr "Kapcsolat ellenőrzése…"
+
+# AI Translated
+msgid "Export the G-code to print from a card."
+msgstr "Exportáld a G-code-ot, hogy kártyáról nyomtathass."
+
+# AI Translated
+msgid "OTHER PRINTERS"
+msgstr "EGYÉB NYOMTATÓK"
+
+# AI Translated
+msgid "Billing and usage"
+msgstr "Számlázás és használat"
+
+# AI Translated
+msgid "Credits and plans"
+msgstr "Kreditek és előfizetések"
+
+# AI Translated
+msgid "Check your internet connection, then try again."
+msgstr "Ellenőrizd az internetkapcsolatot, majd próbáld újra."
+
+# AI Translated
+msgid "Open in browser"
+msgstr "Megnyitás böngészőben"
+
+# AI Translated
+msgid "Loading Billing and usage…"
+msgstr "Számlázás és használat betöltése…"
+
+# AI Translated
+msgid "Loading Credits and plans…"
+msgstr "Kreditek és előfizetések betöltése…"
+
+# AI Translated
+msgid "Couldn't load Billing and usage"
+msgstr "A Számlázás és használat oldalt nem sikerült betölteni"
+
+# AI Translated
+msgid "Couldn't load Credits and plans"
+msgstr "A Kreditek és előfizetések oldalt nem sikerült betölteni"
+
+# AI Translated
+msgid "Resize AI panel"
+msgstr "AI-panel átméretezése"
+
+# AI Translated
+msgid "Drag to resize the AI panel"
+msgstr "Húzd az AI-panel átméretezéséhez"
+
+# AI Translated
+msgid "The setup changed. Review the current plate and try again."
+msgstr "A beállítás megváltozott. Nézd át az aktuális tálcát, és próbáld újra."
+
+# AI Translated
+msgid "Couldn't slice"
+msgstr "A szeletelés nem sikerült"
+
+# AI Translated
+msgid "This saved version couldn't be restored. Try again from Version history."
+msgstr "Ezt a mentett verziót nem sikerült visszaállítani. Próbáld újra a Verzióelőzményekből."
+
+# AI Translated
+msgid "Revert failed"
+msgstr "A visszaállítás nem sikerült"
+
+# AI Translated
+msgid "Your saved projects couldn't be read, so JusPrin can't check whether you've opened this file before. The file wasn't opened. Try again once JusPrin can read its projects folder."
+msgstr "A mentett projektjeidet nem sikerült beolvasni, ezért a JusPrin nem tudja ellenőrizni, hogy megnyitottad-e már ezt a fájlt. A fájl nem nyílt meg. Próbáld újra, amikor a JusPrin már olvasni tudja a projektmappáját."
+
+# AI Translated
+msgid "This file has changed since this project was made from it. Create a new project from the updated file, or continue the current project, which keeps the earlier version."
+msgstr "Ez a fájl megváltozott, mióta ez a projekt készült belőle. Hozz létre új projektet a frissített fájlból, vagy folytasd az aktuális projektet, amely a korábbi verziót tartja meg."
+
+# AI Translated
+msgid "This file is already open as a project. Continue working in it, or create a new project from this file."
+msgstr "Ez a fájl már meg van nyitva projektként. Folytasd benne a munkát, vagy hozz létre új projektet ebből a fájlból."
+
+# AI Translated
+msgid "This file has changed since you last opened it. Create a new project from the updated file, or open the existing project, which keeps the earlier version."
+msgstr "Ez a fájl megváltozott, mióta utoljára megnyitottad. Hozz létre új projektet a frissített fájlból, vagy nyisd meg a meglévő projektet, amely a korábbi verziót tartja meg."
+
+# AI Translated
+msgid "You've opened this file before. Open the most recently updated project or create another project from this file."
+msgstr "Ezt a fájlt már megnyitottad korábban. Nyisd meg a legutóbb frissített projektet, vagy hozz létre egy másik projektet ebből a fájlból."
+
+# AI Translated
+msgid "You've opened this file before. Open the existing project to continue where you left off, or create a new project from this file."
+msgstr "Ezt a fájlt már megnyitottad korábban. Nyisd meg a meglévő projektet, és folytasd, ahol abbahagytad, vagy hozz létre új projektet ebből a fájlból."
+
+# AI Translated
+msgid "Previously opened file"
+msgstr "Korábban megnyitott fájl"
+
+# AI Translated
+msgid "Continue current project"
+msgstr "Aktuális projekt folytatása"
+
+# AI Translated
+msgid "Open most recent project"
+msgstr "Legutóbbi projekt megnyitása"
+
+# AI Translated
+msgid "Open existing project"
+msgstr "Meglévő projekt megnyitása"
+
+# AI Translated
+msgid "Resize Plates and Project panel"
+msgstr "Tálca- és projektpanel átméretezése"
+
+# AI Translated
+msgid "Drag to resize the Plates and Project panel"
+msgstr "Húzd a tálca- és projektpanel átméretezéséhez"
+
+# AI Translated
+msgid "The open project couldn't be saved, so the file wasn't opened. Try again."
+msgstr "A megnyitott projektet nem sikerült menteni, ezért a fájl nem nyílt meg. Próbáld újra."
+
+# AI Translated
+#. TRN What a calibration tests: a filament's name, then the printer's, such as "Generic PLA on Bambu Lab P1S".
+#, c-format, boost-format
+msgid "%1$s on %2$s"
+msgstr "%1$s, %2$s nyomtatón"
+
+# AI Translated
+#. TRN %s is the name of the open project, which is saved and closed before a calibration project opens.
+#, c-format, boost-format
+msgid "%s will be saved and closed."
+msgstr "A(z) %s mentésre és bezárásra kerül."
+
+# AI Translated
+#, c-format, boost-format
+msgid "A new calibration project opens for %s, and AI picks the spool and the test with you there."
+msgstr "Megnyílik egy új kalibrálási projekt ehhez: %s, és ott az AI veled együtt választja ki a tekercset és a tesztet."
+
+# AI Translated
+#, c-format, boost-format
+msgid "A new calibration project opens for %s, and AI picks the test with you there."
+msgstr "Megnyílik egy új kalibrálási projekt ehhez: %s, és ott az AI veled együtt választja ki a tesztet."
+
+# AI Translated
+msgid "AI isn't set up yet; the test needs it to choose the range and read the result."
+msgstr "Az AI még nincs beállítva; a tesztnek szüksége van rá a tartomány kiválasztásához és az eredmény kiértékeléséhez."
+
+# AI Translated
+msgid "Settings the test changes are temporary and are not saved to your filament."
+msgstr "A teszt által módosított beállítások ideiglenesek, és nem kerülnek a filamentedbe."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Calibrate %s?"
+msgstr "Kalibrálod ezt: %s?"
+
+# AI Translated
+msgid "Set up AI…"
+msgstr "AI beállítása…"
+
+# AI Translated
+msgid "The calibration project could not be opened, so your project stays open."
+msgstr "A kalibrálási projektet nem sikerült megnyitni, ezért a projekted nyitva marad."
+
+# AI Translated
+#, c-format, boost-format
+msgid "The printer \"%s\" could not be selected."
+msgstr "A(z) „%s” nyomtatót nem sikerült kiválasztani."
+
+# AI Translated
+#, c-format, boost-format
+msgid "The printer preset \"%s\" was not found."
+msgstr "A(z) „%s” nyomtatóbeállítás nem található."
+
+# AI Translated
+msgid "The plate to print is no longer in the project."
+msgstr "A nyomtatandó tálca már nincs a projektben."
+
+# AI Translated
+msgid "Couldn't open the print dialog"
+msgstr "A nyomtatási párbeszédablakot nem sikerült megnyitni"
+
+# AI Translated
+msgid "The chat this G-code went out from is no longer in the project."
+msgstr "A csevegés, amelyből ez a G-code indult, már nincs a projektben."
+
+# AI Translated
+msgid "Chat not found"
+msgstr "A csevegés nem található"
+
+# AI Translated
+#, c-format, boost-format
+msgid "The filament preset \"%s\" was not found."
+msgstr "A(z) „%s” filament beállítás nem található."
+
+# AI Translated
+msgid "Back to Preview"
+msgstr "Vissza az Előnézethez"
+
+# AI Translated
+msgid "Couldn't open project"
+msgstr "A projektet nem sikerült megnyitni"
+
+# AI Translated
+msgid "Get the new version…"
+msgstr "Az új verzió letöltése…"
+
+# AI Translated
+msgid "JusPrin's view couldn't be opened."
+msgstr "A JusPrin nézetét nem sikerült megnyitni."
+
+# AI Translated
+msgid "Show the Plates and Project panel"
+msgstr "A tálca- és projektpanel megjelenítése"
+
+# AI Translated
+msgid "Back to Home"
+msgstr "Vissza a Kezdőlapra"
+
+# AI Translated
+msgid "Print actions"
+msgstr "Nyomtatási műveletek"
+
+# AI Translated
+msgid "Project details and preferences"
+msgstr "Projekt részletei és beállításai"
+
+# AI Translated
+msgid "Hide the AI panel"
+msgstr "Az AI-panel elrejtése"
+
+# AI Translated
+msgid "Cancel slicing"
+msgstr "Szeletelés megszakítása"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Print plate %d"
+msgstr "%d. tálca nyomtatása"
+
+# AI Translated
+msgid "Export G-code…"
+msgstr "G-code exportálása…"
+
+# AI Translated
+#. TRN Detail beside "Print all plates…": how many of the plates are sliced.
+#, c-format, boost-format
+msgid "%d sliced"
+msgid_plural "%d sliced"
+msgstr[0] "%d szeletelve"
+msgstr[1] "%d szeletelve"
+
+# AI Translated
+msgid "Show the AI panel"
+msgstr "Az AI-panel megjelenítése"
+
+# AI Translated
+msgid "Unsaved changes"
+msgstr "Nem mentett módosítások"
+
+# AI Translated
+#. TRN %s is one nozzle size, or several joined by " / ", such as "0.4 / 0.6".
+#, c-format, boost-format
+msgid "%s mm nozzle"
+msgid_plural "%s mm nozzles"
+msgstr[0] "%s mm-es fúvóka"
+msgstr[1] "%s mm-es fúvókák"
+
+# AI Translated
+msgid "from the file, not one of the printers you set up"
+msgstr "a fájlból, nem a beállított nyomtatóid egyike"
+
+# AI Translated
+#. TRN %s is the project's file name, such as "Benchy.3mf".
+#, c-format, boost-format
+msgid "from %s, not one of the printers you set up"
+msgstr "innen: %s, nem a beállított nyomtatóid egyike"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d filament"
+msgid_plural "%d filaments"
+msgstr[0] "%d filament"
+msgstr[1] "%d filament"
+
+# AI Translated
+#. TRN The first %d is how many of the filament slots this plate uses; the second is how many slots there are.
+#, c-format, boost-format
+msgid "%d of %d slot on this plate"
+msgid_plural "%d of %d slots on this plate"
+msgstr[0] "%d/%d férőhely ezen a tálcán"
+msgstr[1] "%d/%d férőhely ezen a tálcán"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d slot"
+msgid_plural "%d slots"
+msgstr[0] "%d férőhely"
+msgstr[1] "%d férőhely"
+
+# AI Translated
+msgid "not on this plate"
+msgstr "nincs ezen a tálcán"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Filament is now %s."
+msgstr "A filament mostantól: %s."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Slot %d is now %s."
+msgstr "%d. férőhely mostantól: %s."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Heat and cooling follow %s; walls and infill unchanged."
+msgstr "A fűtés és a hűtés a(z) %s beállításait követi; a falak és a kitöltés változatlanok."
+
+# AI Translated
+#, c-format, boost-format
+msgid "slot %d %s"
+msgstr "%d. férőhely (%s)"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Filaments changed: %s."
+msgstr "Módosított filamentek: %s."
+
+# AI Translated
+msgid "Slice again when ready."
+msgstr "Ha elkészültél, szeleteld újra."
+
+# AI Translated
+msgid "Preferences…"
+msgstr "Beállítások…"
+
+# AI Translated
+msgid "Changes couldn't be saved. JusPrin will retry."
+msgstr "A módosításokat nem sikerült menteni. A JusPrin újra megpróbálja."
+
+# AI Translated
+msgid "Some older project data couldn't be removed."
+msgstr "Néhány régebbi projektadatot nem sikerült eltávolítani."
+
+# AI Translated
+msgid "Configure a printer connection in Printer settings before printing. You can also export the sliced file."
+msgstr "Nyomtatás előtt állíts be nyomtatókapcsolatot a Nyomtatóbeállításokban. A szeletelt fájlt exportálhatod is."
+
+# AI Translated
+msgid "Printer connection required"
+msgstr "Nyomtatókapcsolat szükséges"
+
+# AI Translated
+msgid "This project was saved by a newer version of JusPrin. Get the new version to open it."
+msgstr "Ezt a projektet a JusPrin egy újabb verziója mentette. A megnyitásához töltsd le az új verziót."
+
+# AI Translated
+msgid "The project couldn't be opened. Try again."
+msgstr "A projektet nem sikerült megnyitni. Próbáld újra."

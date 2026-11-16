@@ -20,6 +20,7 @@
 #include "libslic3r/miniz_extension.hpp"
 #include "slic3r/GUI/BackgroundSlicingProcess.hpp"
 #include "slic3r/GUI/GLCanvas3D.hpp"
+#include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/DeviceCore/DevManager.h"
 #include "slic3r/GUI/GLToolbar.hpp"
 #include "slic3r/GUI/GUI.hpp"
@@ -348,6 +349,14 @@ AppliedSetup applied_setup_of(ProjectSessionId session, Plater& plater, PartPlat
     return result;
 }
 
+// Text for the All settings panel in the app's language, through
+// OrcaSlicer's catalog. Empty stays empty: the catalog's empty entry is its
+// header.
+std::string shown_text(const std::string& english)
+{
+    return english.empty() ? english : I18N::translate_utf8(english);
+}
+
 // Every setting a preset holds, in Orca's order, under its tab's page and
 // group, with the saved preset's value beside each one that differs. The
 // selected preset is read with its unsaved edits, as read_settings reads it;
@@ -370,16 +379,21 @@ std::vector<CatalogSetting> catalog_settings(const PresetCollection& collection,
         const SettingDefinition definition = setting_definition(key);
         CatalogSetting row;
         row.key   = key;
-        row.label = definition.label.empty() ? key : definition.label;
+        // Only the All settings panel reads this table, so it is put into the
+        // app's language here, through OrcaSlicer's catalog, as its own
+        // settings tabs show them; text the catalog does not hold, such as a
+        // number with its unit, comes back as it was.
+        row.label = definition.label.empty() ? key : shown_text(definition.label);
         const Search::GroupAndCategory location = tab_location(searcher, key, type);
-        row.page    = into_u8(location.category);
-        row.group   = into_u8(location.group);
-        row.value   = option->serialize();
-        row.display = display_value(definition, row.value);
+        row.page       = into_u8(location.category);
+        row.page_label = shown_text(row.page);
+        row.group      = shown_text(into_u8(location.group));
+        row.value      = option->serialize();
+        row.display    = shown_text(display_value(definition, row.value));
         if (saved != nullptr && dirty.count(key) > 0)
             if (const ConfigOption* before = saved->option(key); before != nullptr && before->serialize() != row.value) {
                 row.preset         = before->serialize();
-                row.preset_display = display_value(definition, *row.preset);
+                row.preset_display = shown_text(display_value(definition, *row.preset));
             }
         result.push_back(std::move(row));
     }
@@ -406,7 +420,7 @@ void mark_inherited(std::vector<CatalogSetting>& settings, const DynamicPrintCon
         const ConfigOption* in_force    = printer_config.option(printer_key);
         if (in_force == nullptr || print_config_def.get(printer_key) == nullptr) continue;
         row.inherited         = true;
-        row.inherited_display = display_value(setting_definition(printer_key), in_force->serialize());
+        row.inherited_display = shown_text(display_value(setting_definition(printer_key), in_force->serialize()));
     }
 }
 

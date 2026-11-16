@@ -1,0 +1,2297 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the JusPrin package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: JusPrin\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-15 09:46-0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: zh_CN\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+# AI Translated
+msgid "Project chat is blocked until restoration is recovered."
+msgstr "在恢复完成之前，无法使用项目对话。"
+
+# AI Translated
+msgid "Return to the active chat or restore this chat before sending."
+msgstr "请先返回当前对话或恢复此对话，然后再发送。"
+
+# AI Translated
+msgid "Finish or cancel AI configuration before sending a message."
+msgstr "请先完成或取消 AI 配置，然后再发送消息。"
+
+# AI Translated
+msgid "This message belongs to a different chat."
+msgstr "此消息属于另一个对话。"
+
+# AI Translated
+msgid "A message needs text or an attachment."
+msgstr "消息需要包含文字或附件。"
+
+# AI Translated
+msgid "The file could not be read."
+msgstr "无法读取该文件。"
+
+# AI Translated
+msgid "This file is too large to attach."
+msgstr "此文件太大，无法作为附件。"
+
+# AI Translated
+msgid "This file type can't be read by AI."
+msgstr "AI 无法读取此类型的文件。"
+
+# AI Translated
+msgid "This file is not readable UTF-8 text."
+msgstr "此文件不是可读的 UTF-8 文本。"
+
+# AI Translated
+msgid "The attachment could not be stored."
+msgstr "无法保存附件。"
+
+# AI Translated
+msgid "Photo or image"
+msgstr "照片或图像"
+
+# AI Translated
+msgid "3D model"
+msgstr "3D 模型"
+
+# AI Translated
+msgid "Document (PDF)"
+msgstr "文档（PDF）"
+
+# AI Translated
+msgid "This build cannot open a file dialog."
+msgstr "此版本无法打开文件对话框。"
+
+# AI Translated
+#. TRN A calibration chat's first line. %1%: where it was started from, %2%: a printer.
+#, boost-format
+msgid "From %1% · %2% · filament not chosen · temporary test settings"
+msgstr "来自 %1% · %2% · 未选择耗材丝 · 临时测试设置"
+
+# AI Translated
+#. TRN A calibration chat's first line. %1%: where it was started from, %2%: a filament, %3%: a printer.
+#, boost-format
+msgid "From %1% · %2% on %3% · temporary test settings"
+msgstr "来自 %1% · %2%，用于 %3% · 临时测试设置"
+
+# AI Translated
+#. TRN A reopened calibration test's line. %1%: the day it was made, as "21 Oct 2026".
+#, boost-format
+msgid "Reopened · generated %1%"
+msgstr "已重新打开 · 生成于 %1%"
+
+# AI Translated
+#. TRN %1%: where the test was opened from, %2%: the day it was made, as "21 Oct 2026".
+#, boost-format
+msgid "Opened from %1% · generated %2%"
+msgstr "从 %1% 打开 · 生成于 %2%"
+
+# AI Translated
+#. TRN %1% is a calibration result, such as 215 °C.
+#, boost-format
+msgid "result %1% saved"
+msgstr "已保存结果 %1%"
+
+# AI Translated
+#. TRN %1% is a plate's name, %2% why the slice did not succeed.
+#, boost-format
+msgid "The app did not slice %1%: %2%"
+msgstr "本应用未能切片 %1%：%2%"
+
+# AI Translated
+#. TRN %1% is a plate's name, %2% why the slice did not succeed.
+#, boost-format
+msgid "The app stopped the slice of %1%: %2%"
+msgstr "本应用停止了 %1% 的切片：%2%"
+
+# AI Translated
+msgid "The slice of every plate finished."
+msgstr "所有盘的切片均已完成。"
+
+# AI Translated
+#. TRN %1% is a plate's name.
+#, boost-format
+msgid "The slice of %1% finished."
+msgstr "%1% 的切片已完成。"
+
+# AI Translated
+msgid "Historical replies cannot be retried."
+msgstr "无法重试历史回复。"
+
+# AI Translated
+msgid "Only a failed or stopped assistant message in the active conversation can be retried."
+msgstr "只能重试当前对话中失败或已停止的助手消息。"
+
+# AI Translated
+msgid "Only the chat's last reply can be retried."
+msgstr "只能重试对话的最后一条回复。"
+
+# AI Translated
+msgid "Another reply is currently streaming."
+msgstr "另一条回复正在生成中。"
+
+# AI Translated
+msgid "Historical tool actions cannot be changed."
+msgstr "无法更改历史工具操作。"
+
+# AI Translated
+msgid "This proposal is no longer open. Ask AI again."
+msgstr "此提议已失效。请再次询问 AI。"
+
+# AI Translated
+msgid "This save can no longer be undone."
+msgstr "此次保存已无法撤销。"
+
+# AI Translated
+msgid "The earlier values cannot be put back."
+msgstr "无法恢复之前的值。"
+
+# AI Translated
+msgid "Finish or resolve pending work before creating a chat."
+msgstr "请先完成或处理待办工作，然后再新建对话。"
+
+# AI Translated
+msgid "The current chat could not be saved."
+msgstr "无法保存当前对话。"
+
+# AI Translated
+msgid "The new chat could not be saved."
+msgstr "无法保存新对话。"
+
+# AI Translated
+msgid "The selected chat could not be saved."
+msgstr "无法保存所选对话。"
+
+# AI Translated
+msgid "The project or selected chat changed. Review it again."
+msgstr "项目或所选对话已更改。请重新检查。"
+
+# AI Translated
+msgid "Finish or resolve pending work before resuming a chat."
+msgstr "请先完成或处理待办工作，然后再继续对话。"
+
+# AI Translated
+msgid "This chat is already active."
+msgstr "此对话已处于活动状态。"
+
+# AI Translated
+msgid "JusPrin can't find the project version this chat was working on."
+msgstr "JusPrin 找不到此对话当时所用的项目版本。"
+
+# AI Translated
+msgid "The current project could not be saved before restoration."
+msgstr "恢复前无法保存当前项目。"
+
+# AI Translated
+msgid "JusPrin couldn't put the project back."
+msgstr "JusPrin 无法恢复该项目。"
+
+# AI Translated
+msgid "Restored this chat's saved project setup. Check the current printer and material before printing."
+msgstr "已恢复此对话保存的项目设置。打印前请检查当前的打印机和材料。"
+
+# AI Translated
+msgid "Use a non-empty, single-line title of at most 120 characters for an existing chat."
+msgstr "现有对话的标题不能为空，只能有一行，且最多 120 个字符。"
+
+# AI Translated
+msgid "This chat is still working. Stop it or let it finish, then delete it."
+msgstr "此对话仍在进行中。请先停止或等待其完成，然后再删除。"
+
+# AI Translated
+msgid "This chat no longer exists."
+msgstr "此对话已不存在。"
+
+# AI Translated
+msgid "The replacement chat could not be saved."
+msgstr "无法保存替换的对话。"
+
+# AI Translated
+msgid "Historical chats cannot edit the current draft."
+msgstr "历史对话无法编辑当前草稿。"
+
+# AI Translated
+msgid "Finish or stop the current reply before configuring AI."
+msgstr "请先完成或停止当前回复，然后再配置 AI。"
+
+# AI Translated
+msgid "This build cannot configure an AI provider."
+msgstr "此版本无法配置 AI 服务商。"
+
+# AI Translated
+msgid "A credential check is already running."
+msgstr "凭据检查已在进行中。"
+
+# AI Translated
+msgid "This build cannot verify a key for that provider yet."
+msgstr "此版本暂时无法验证该服务商的密钥。"
+
+# AI Translated
+msgid "Finish or stop the current reply before removing a key."
+msgstr "请先完成或停止当前回复，然后再移除密钥。"
+
+# AI Translated
+msgid "Finish or cancel the key check before removing a key."
+msgstr "请先完成或取消密钥检查，然后再移除密钥。"
+
+# AI Translated
+msgid "That key could not be removed."
+msgstr "无法移除该密钥。"
+
+# AI Translated
+msgid "This build cannot sign in to a JusPrin account."
+msgstr "此版本无法登录 JusPrin 账户。"
+
+# AI Translated
+msgid "Finish or stop the current reply before signing in."
+msgstr "请先完成或停止当前回复，然后再登录。"
+
+# AI Translated
+msgid "A sign-in or key check is already running."
+msgstr "登录或密钥检查已在进行中。"
+
+# AI Translated
+msgid "There is no JusPrin account on this computer to check."
+msgstr "此计算机上没有可检查的 JusPrin 账户。"
+
+# AI Translated
+msgid "JusPrin couldn't start signing in. Try again."
+msgstr "JusPrin 无法开始登录。请重试。"
+
+# AI Translated
+msgid "JusPrin couldn't sign you in. Try again."
+msgstr "JusPrin 无法为您登录。请重试。"
+
+# AI Translated
+msgid "This sign-in could not be saved, so you will have to sign in again next time JusPrin starts."
+msgstr "无法保存此次登录，下次启动 JusPrin 时您需要重新登录。"
+
+# AI Translated
+msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
+msgstr "无法保存此密钥，下次启动 JusPrin 时需要重新输入。"
+
+# AI Translated
+msgid "The panel is still loading. Try again in a moment."
+msgstr "面板仍在加载中。请稍后重试。"
+
+# AI Translated
+msgid "The AI service is not available."
+msgstr "AI 服务不可用。"
+
+# AI Translated
+msgid "The AI service could not start this request."
+msgstr "AI 服务无法开始此请求。"
+
+# AI Translated
+msgid "AI could not receive the native tool result."
+msgstr "AI 无法接收原生工具结果。"
+
+# AI Translated
+msgid "The AI request failed."
+msgstr "AI 请求失败。"
+
+# AI Translated
+msgid "The automatic chat title could not be generated. You can rename the chat."
+msgstr "无法自动生成对话标题。您可以重命名该对话。"
+
+# AI Translated
+#. TRN %1% is an AI provider's account, such as JusPrin.
+#, boost-format
+msgid "This chat ran on your %1% account. Sign in again to continue it, or start a new chat."
+msgstr "此对话使用的是您的 %1% 账户。请重新登录以继续，或新建对话。"
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "This chat ran on %1%, and no %1% API key is set up now. Add the key in the AI settings to continue it, or start a new chat."
+msgstr "此对话使用的是 %1%，但目前没有设置 %1% API 密钥。请在 AI 设置中添加密钥以继续，或新建对话。"
+
+# AI Translated
+msgid "JusPrin hasn't loaded the AI models for your account yet. Try again in a moment."
+msgstr "JusPrin 尚未加载您账户的 AI 模型。请稍后重试。"
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "No %1% API key is set up. Add it in the AI settings, or choose another model."
+msgstr "未设置 %1% API 密钥。请在 AI 设置中添加，或选择其他模型。"
+
+# AI Translated
+msgid "A connection is already being saved."
+msgstr "正在保存一个连接。"
+
+# AI Translated
+msgid "JusPrin's connection helper is missing. Reinstall or rebuild JusPrin."
+msgstr "缺少 JusPrin 的连接助手。请重新安装或重新构建 JusPrin。"
+
+# AI Translated
+msgid "The AppImage launcher is missing. Reopen the installed AppImage."
+msgstr "缺少 AppImage 启动器。请重新打开已安装的 AppImage。"
+
+# AI Translated
+msgid "Review the change before connecting."
+msgstr "连接前请先检查此更改。"
+
+# AI Translated
+#. TRN %1% is an AI client app, such as Claude Code.
+#, boost-format
+msgid "%1% isn't installed. Install it, or copy the command and run it later."
+msgstr "%1% 未安装。请安装，或复制命令稍后运行。"
+
+# AI Translated
+msgid "This build cannot run the client CLI."
+msgstr "此版本无法运行客户端 CLI。"
+
+# AI Translated
+msgid "This build cannot open a file manager."
+msgstr "此版本无法打开文件管理器。"
+
+# AI Translated
+msgid "The provider did not answer."
+msgstr "服务商没有响应。"
+
+# AI Translated
+msgid "Attach files"
+msgstr "添加附件"
+
+# AI Translated
+msgid "The AI panel could not connect"
+msgstr "AI 面板无法连接"
+
+# AI Translated
+msgid "Back to Prepare"
+msgstr "返回准备"
+
+# AI Translated
+msgid "Open filament settings"
+msgstr "打开耗材丝设置"
+
+# AI Translated
+msgid "The packaged AI page is missing from this build."
+msgstr "此版本缺少打包的 AI 页面。"
+
+# AI Translated
+msgid "The system web view could not be created."
+msgstr "无法创建系统网页视图。"
+
+# AI Translated
+msgid "The AI page failed to load."
+msgstr "AI 页面加载失败。"
+
+# AI Translated
+msgid "The AI page did not complete the bridge handshake."
+msgstr "AI 页面未完成桥接握手。"
+
+# AI Translated
+msgid "Restart the application to load the AI page."
+msgstr "请重启应用以加载 AI 页面。"
+
+# AI Translated
+msgid "This is an internal connection between the application and its AI panel, not a network service."
+msgstr "这是应用与其 AI 面板之间的内部连接，不是网络服务。"
+
+# AI Translated
+#. TRN %1% is the web view's own error text.
+#, boost-format
+msgid "Last load error: %1%"
+msgstr "上次加载错误：%1%"
+
+# AI Translated
+#. TRN The messages the app and its AI panel exchanged. %1% and %2% are counts.
+#, boost-format
+msgid "Bridge traffic: %1% sent / %2% received"
+msgstr "桥接通信：已发送 %1% / 已接收 %2%"
+
+# AI Translated
+msgid "The AI service returned an unreadable streaming response."
+msgstr "AI 服务返回了无法读取的流式响应。"
+
+# AI Translated
+msgid "The AI service streamed a delta for a block it never opened."
+msgstr "AI 服务为一个从未开启的块发送了增量数据。"
+
+# AI Translated
+msgid "The AI service sent a tool call whose arguments are not JSON."
+msgstr "AI 服务发送的工具调用参数不是 JSON。"
+
+# AI Translated
+msgid "The AI service could not complete the response."
+msgstr "AI 服务无法完成响应。"
+
+# AI Translated
+#. TRN %1% is the AI service's own reason, in English, such as "cyber".
+#, boost-format
+msgid "The AI service declined to answer (%1%)."
+msgstr "AI 服务拒绝回答（%1%）。"
+
+# AI Translated
+msgid "The AI service ended its response for a reason this build does not know."
+msgstr "AI 服务因此版本无法识别的原因结束了响应。"
+
+# AI Translated
+msgid "This version of JusPrin can no longer connect to JusPrin accounts. Get the new version to keep using your account."
+msgstr "此版本的 JusPrin 已无法连接 JusPrin 账户。请获取新版本以继续使用您的账户。"
+
+# AI Translated
+msgid "Signing in didn't finish. Nothing was saved. Try again."
+msgstr "登录未完成。未保存任何内容。请重试。"
+
+# AI Translated
+msgid "JusPrin couldn't be reached to finish signing in. Try again."
+msgstr "无法连接 JusPrin 以完成登录。请重试。"
+
+# AI Translated
+msgid "JusPrin has no AI model for this account right now. Try again later."
+msgstr "JusPrin 目前没有可供此账户使用的 AI 模型。请稍后重试。"
+
+# AI Translated
+msgid "Restored an earlier project version"
+msgstr "已恢复较早的项目版本"
+
+# AI Translated
+msgid "Restored this chat's saved project setup"
+msgstr "已恢复此对话保存的项目设置"
+
+# AI Translated
+#. TRN The chat list's preview of a message that has only attachments.
+msgid "Attachment"
+msgstr "附件"
+
+# AI Translated
+msgid "The AI service stopped before finishing its response."
+msgstr "AI 服务在完成响应之前停止了。"
+
+# AI Translated
+msgid "The AI service kept pausing its response."
+msgstr "AI 服务的响应反复暂停。"
+
+# AI Translated
+msgid "AI could not be asked to continue its response."
+msgstr "无法让 AI 继续其响应。"
+
+# AI Translated
+msgid "AI could not be told the results of its tool calls."
+msgstr "无法将工具调用的结果告知 AI。"
+
+# AI Translated
+msgid "AI returned an invalid tool call."
+msgstr "AI 返回了无效的工具调用。"
+
+# AI Translated
+msgid "The AI service ended before a complete response arrived."
+msgstr "AI 服务在收到完整响应之前结束了。"
+
+# AI Translated
+msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
+msgstr "您的 JusPrin 登录已失效。请在偏好设置中重新登录，然后重试。"
+
+# AI Translated
+#, boost-format
+msgid "This message needs %1% credit; you have %2%."
+msgid_plural "This message needs %1% credits; you have %2%."
+msgstr[0] "这条消息需要 %1% 积分；您有 %2% 积分。"
+
+# AI Translated
+msgid "You're out of credits."
+msgstr "您的积分已用完。"
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% API key was rejected. Update the AI configuration and try again."
+msgstr "%1% API 密钥被拒绝。请更新 AI 配置后重试。"
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The request was too large for the %1% service."
+msgstr "请求太大，%1% 服务无法处理。"
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% service is rate limited. Try again shortly."
+msgstr "%1% 服务已达到速率限制。请稍后重试。"
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% service is overloaded. Try again shortly."
+msgstr "%1% 服务负载过高。请稍后重试。"
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% service is temporarily unavailable."
+msgstr "%1% 服务暂时不可用。"
+
+# AI Translated
+msgid "The AI request timed out."
+msgstr "AI 请求超时。"
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The AI request could not reach the %1% service."
+msgstr "AI 请求无法连接到 %1% 服务。"
+
+# AI Translated
+msgid "The AI service response did not contain valid output."
+msgstr "AI 服务的响应中没有有效输出。"
+
+# AI Translated
+# Needs human review: Calibration test button; check 区块 (block) and 色块 (tile, next entry) are told apart the way the test pattern names them.
+#. TRN A button that asks the AI to choose another block of a calibration test.
+msgid "Pick another block"
+msgstr "换一个区块"
+
+# AI Translated
+# Needs human review: Calibration test button; check 色块 fits the tiles of the test pattern.
+#. TRN A button that asks the AI to choose another tile of a calibration test.
+msgid "Pick another tile"
+msgstr "换一个色块"
+
+# AI Translated
+#. TRN A button that asks the AI to choose another line of a calibration test.
+msgid "Pick another line"
+msgstr "换一条线"
+
+# AI Translated
+#. TRN A button that asks the AI to choose another corner of a calibration test.
+msgid "Pick another corner"
+msgstr "换一个角"
+
+# AI Translated
+#. TRN A button that asks the AI to choose another height of a calibration tower.
+msgid "Pick another height"
+msgstr "换一个高度"
+
+# AI Translated
+#. TRN %1% is a preset's name.
+#, boost-format
+msgid "Preset · %1%"
+msgstr "预设 · %1%"
+
+# AI Translated
+#. TRN %1% is a preset's name.
+#, boost-format
+msgid "New preset · %1%"
+msgstr "新预设 · %1%"
+
+# AI Translated
+#. TRN %1% is the preset the new one is made from.
+#, boost-format
+msgid "%1% itself is unchanged"
+msgstr "%1% 本身保持不变"
+
+# AI Translated
+#. TRN %1% is a setting's new value, such as 215 °C.
+#, boost-format
+msgid "Save %1% as a new filament preset"
+msgstr "将 %1% 保存为新的耗材丝预设"
+
+# AI Translated
+#. TRN %1% is a setting's new value, such as 215 °C.
+#, boost-format
+msgid "Save %1% as a new printer preset"
+msgstr "将 %1% 保存为新的打印机预设"
+
+# AI Translated
+#. TRN %1% is a setting's new value, such as 215 °C.
+#, boost-format
+msgid "Save %1% as a new process preset"
+msgstr "将 %1% 保存为新的工艺预设"
+
+# AI Translated
+#. TRN %1% is a setting's new value, such as 215 °C, %2% a preset's name.
+#, boost-format
+msgid "Save %1% to %2%"
+msgstr "将 %1% 保存到 %2%"
+
+# AI Translated
+msgid "This proposal is already saved."
+msgstr "此提议已保存。"
+
+# AI Translated
+msgid "Drop a model here or add one"
+msgstr "将模型拖放到此处，或添加一个模型"
+
+# AI Translated
+msgid "World coordinates"
+msgstr "世界坐标"
+
+# AI Translated
+msgid "Object coordinates"
+msgstr "对象坐标"
+
+# AI Translated
+msgid "Translate(Relative)"
+msgstr "平移（相对）"
+
+# AI Translated
+msgid "Rotate (absolute)"
+msgstr "旋转（绝对）"
+
+# AI Translated
+msgid "Part coordinates"
+msgstr "零件坐标"
+
+# AI Translated
+msgid "The packaged Home page is missing from this build."
+msgstr "此版本缺少打包的主页。"
+
+# AI Translated
+msgid "The Home page failed to load."
+msgstr "主页加载失败。"
+
+# AI Translated
+msgid "This window stopped updating because the app switched to another printer."
+msgstr "由于应用已切换到另一台打印机，此窗口已停止更新。"
+
+# AI Translated
+#. TRN A length in millimetres, such as a nozzle diameter on a printer card: "0.4 mm". %s is the number.
+#, c-format, boost-format
+msgid "%s mm"
+msgstr "%s mm"
+
+# AI Translated
+#, c-format, boost-format
+msgid "The printer reports error %s."
+msgstr "打印机报告错误 %s。"
+
+# AI Translated
+msgid "LAN"
+msgstr "局域网"
+
+# AI Translated
+msgid "Cloud"
+msgstr "云端"
+
+# AI Translated
+msgid "The printer stopped sending updates."
+msgstr "打印机已停止发送更新。"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%s isn't answering."
+msgstr "%s 没有响应。"
+
+# AI Translated
+msgid "Klipper isn't running."
+msgstr "Klipper 未运行。"
+
+# AI Translated
+#. TRN %1% is Klipper's own message, in English, saying why it stopped.
+#, boost-format
+msgid "Klipper stopped: %1%"
+msgstr "Klipper 已停止：%1%"
+
+# AI Translated
+msgid "This printer no longer exists."
+msgstr "此打印机已不存在。"
+
+# AI Translated
+# Needs human review: %1% is wxDateTime's abbreviated month name; check it comes out as 10月 in Chinese (giving 10月20日), not as Oct.
+#. TRN A date in this year on a project card: %1% is the abbreviated month name, %2% the day of the month, as in "Oct 20".
+#, boost-format
+msgctxt "short date"
+msgid "%1% %2%"
+msgstr "%1%%2%日"
+
+# AI Translated
+# Needs human review: Check the result reads 2025年10月20日 on a project card.
+#. TRN A date outside this year on a project card: %1% is the date without the year, as in "Oct 20", %2% the year.
+#, boost-format
+msgctxt "date with year"
+msgid "%1%, %2%"
+msgstr "%2%年%1%"
+
+# AI Translated
+msgid "G-code exported"
+msgstr "已导出 G-code"
+
+# AI Translated
+#. TRN A project's status: %1% is a date, as in "Nov 3".
+#, boost-format
+msgid "G-code exported %1%"
+msgstr "已于 %1% 导出 G-code"
+
+# AI Translated
+#. TRN A project's status: %1% is a printer model, as in "Ender-3 V3 KE".
+#, boost-format
+msgid "G-code exported for %1%"
+msgstr "已为 %1% 导出 G-code"
+
+# AI Translated
+#. TRN A project's status: %1% is a date, as in "Nov 3", %2% a printer model, as in "Ender-3 V3 KE".
+#, boost-format
+msgid "G-code exported %1% for %2%"
+msgstr "已于 %1% 为 %2% 导出 G-code"
+
+# AI Translated
+msgctxt "project status"
+msgid "Printed"
+msgstr "已打印"
+
+# AI Translated
+#. TRN A project's status: %1% is a date, as in "Oct 20".
+#, boost-format
+msgid "Printed %1%"
+msgstr "已于 %1% 打印"
+
+# AI Translated
+msgctxt "project status"
+msgid "Sent"
+msgstr "已发送"
+
+# AI Translated
+#. TRN A project's status: %1% is a date, as in "Oct 20".
+#, boost-format
+msgid "Sent %1%"
+msgstr "已于 %1% 发送"
+
+# AI Translated
+#. TRN A project's status: it has not been sliced to G-code yet.
+msgctxt "project status"
+msgid "Draft"
+msgstr "草稿"
+
+# AI Translated
+msgid "That sign-in expired. Try again."
+msgstr "该登录已过期。请重试。"
+
+# AI Translated
+#, c-format, boost-format
+msgid "JusPrin found no %s printers to bring. Choose your printer instead."
+msgstr "JusPrin 没有找到可导入的 %s 打印机。请改为选择您的打印机。"
+
+# AI Translated
+msgid "Generic printer"
+msgstr "通用打印机"
+
+# AI Translated
+msgid "Your projects couldn't be loaded. JusPrin will keep trying."
+msgstr "无法加载您的项目。JusPrin 会继续尝试。"
+
+# AI Translated
+msgid "Untitled project"
+msgstr "未命名项目"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Printing on %s"
+msgstr "正在 %s 上打印"
+
+# AI Translated
+msgid "JusPrin no longer keeps this G-code. Slice the project again to export it."
+msgstr "JusPrin 已不再保留此 G-code。请重新切片项目后再导出。"
+
+# AI Translated
+msgid "Couldn't export G-code"
+msgstr "无法导出 G-code"
+
+# AI Translated
+#, c-format, boost-format
+msgid "The G-code couldn't be written to %s."
+msgstr "无法将 G-code 写入 %s。"
+
+# AI Translated
+msgid "Choose a photo of the printed object"
+msgstr "选择一张打印成品的照片"
+
+# AI Translated
+msgid "Photos"
+msgstr "照片"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%s couldn't be opened. Try opening it with Open… instead."
+msgstr "无法打开 %s。请尝试改用“打开…”来打开它。"
+
+# AI Translated
+msgid "Couldn't open file"
+msgstr "无法打开文件"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Import from %s"
+msgstr "从 %s 导入"
+
+# AI Translated
+msgid "Importing these printers loads their profiles, which replaces unsaved changes to the project's settings."
+msgstr "导入这些打印机会加载它们的配置文件，这将替换项目设置中未保存的更改。"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Imported from %s"
+msgstr "已从 %s 导入"
+
+# AI Translated
+#, c-format, boost-format
+msgid "JusPrin couldn't read this file. To try again, choose Printer › Import printers from %s…"
+msgstr "JusPrin 无法读取此文件。如需重试，请选择“打印机 › 从 %s 导入打印机…”"
+
+# AI Translated
+msgid "Not imported. The file has no version."
+msgstr "未导入。该文件没有版本信息。"
+
+# AI Translated
+msgid "Not imported. It isn't a printer, filament or process preset."
+msgstr "未导入。它不是打印机、耗材丝或工艺预设。"
+
+# AI Translated
+#. TRN %1% is the filament preset the file is based on, %2% the app it was imported from.
+#, boost-format
+msgid "Not imported, because it's based on %1%, which JusPrin doesn't have. It stays in %2%. When you prepare a print, choose a similar filament instead."
+msgstr "未导入，因为它基于 %1%，而 JusPrin 中没有该预设。它仍保留在 %2% 中。准备打印时，请改为选择相近的耗材丝。"
+
+# AI Translated
+#. TRN %1% is the print settings preset the file is based on, %2% the app it was imported from.
+#, boost-format
+msgid "Not imported, because they're based on %1%, which JusPrin doesn't have. They stay in %2%. When you prepare a print, choose similar print settings instead."
+msgstr "未导入，因为它们基于 %1%，而 JusPrin 中没有该预设。它们仍保留在 %2% 中。准备打印时，请改为选择相近的打印设置。"
+
+# AI Translated
+#. TRN %1% is the printer profile the file is based on, %2% the app it was imported from.
+#, boost-format
+msgid "Not imported, because it's based on %1%, which JusPrin doesn't have. It stays in %2%. When you add a printer, choose a similar one instead."
+msgstr "未导入，因为它基于 %1%，而 JusPrin 中没有该配置文件。它仍保留在 %2% 中。添加打印机时，请改为选择相近的打印机。"
+
+# AI Translated
+#, c-format, boost-format
+msgid "JusPrin couldn't load this preset. To try again, choose Printer › Import printers from %s…"
+msgstr "JusPrin 无法加载此预设。如需重试，请选择“打印机 › 从 %s 导入打印机…”"
+
+# AI Translated
+#, c-format, boost-format
+msgid "It's based on %s, which JusPrin doesn't have. When you prepare a print, choose a similar filament instead."
+msgstr "它基于 %s，而 JusPrin 中没有该预设。准备打印时，请改为选择相近的耗材丝。"
+
+# AI Translated
+#, c-format, boost-format
+msgid "It's based on %s, which JusPrin doesn't have. When you prepare a print, choose similar print settings instead."
+msgstr "它基于 %s，而 JusPrin 中没有该预设。准备打印时，请改为选择相近的打印设置。"
+
+# AI Translated
+#, c-format, boost-format
+msgid "It's based on %s, which JusPrin doesn't have. When you add a printer, choose a similar one instead."
+msgstr "它基于 %s，而 JusPrin 中没有该配置文件。添加打印机时，请改为选择相近的打印机。"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Choose your %s folder"
+msgstr "选择您的 %s 文件夹"
+
+# AI Translated
+#. TRN %1% is the app the printers are imported from, such as OrcaSlicer.
+#, boost-format
+msgid "JusPrin found no %1% printers in that folder. If %1% keeps its settings somewhere else, choose that folder."
+msgstr "JusPrin 在该文件夹中没有找到 %1% 打印机。如果 %1% 将设置保存在其他位置，请选择那个文件夹。"
+
+# AI Translated
+msgid "The printer's page didn't load"
+msgstr "打印机页面未加载"
+
+# AI Translated
+msgid "Try again"
+msgstr "重试"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
+msgstr "%s 没有响应。请确认打印机已开机，并与此计算机处于同一网络，然后重试。"
+
+# AI Translated
+msgid "Client configuration is a symbolic link. Use Copy and update its target manually."
+msgstr "客户端配置是一个符号链接。请使用“复制”，并手动更新其目标文件。"
+
+# AI Translated
+msgid "Client configuration exceeds the 1 MiB setup limit."
+msgstr "客户端配置超出了 1 MiB 的设置限制。"
+
+# AI Translated
+msgid "Client configuration exceeds nesting depth 32."
+msgstr "客户端配置的嵌套深度超过 32。"
+
+# AI Translated
+msgid "Client configuration has an unterminated comment."
+msgstr "客户端配置中有未结束的注释。"
+
+# AI Translated
+msgid "Client configuration and its server map must be JSON objects. No changes made."
+msgstr "客户端配置及其服务器映射必须是 JSON 对象。未做任何更改。"
+
+# AI Translated
+msgid "Client configuration has ambiguous duplicate keys. No changes made."
+msgstr "客户端配置中有含义不明的重复键。未做任何更改。"
+
+# AI Translated
+msgid "Client configuration changed after the preview. Review the new change and confirm again."
+msgstr "客户端配置在预览后发生了变化。请检查新的更改并再次确认。"
+
+# AI Translated
+msgid "Client configuration changed while preparing the write. Original file retained; review again."
+msgstr "客户端配置在准备写入时发生了变化。已保留原始文件；请重新检查。"
+
+# AI Translated
+msgid "JusPrin couldn't close the project, so it didn't restart. Your project stays open, and JusPrin will use the new language the next time it starts."
+msgstr "JusPrin 无法关闭项目，因此没有重启。您的项目保持打开，JusPrin 将在下次启动时使用新语言。"
+
+# AI Translated
+msgid "Restart"
+msgstr "重启"
+
+# AI Translated
+msgid "Checking..."
+msgstr "正在检查..."
+
+# AI Translated
+msgid "Whole plate"
+msgstr "整个盘"
+
+# AI Translated
+msgid "Ignored"
+msgstr "已忽略"
+
+# AI Translated
+#, boost-format
+msgid "%1% warning ignored"
+msgid_plural "%1% warnings ignored"
+msgstr[0] "已忽略 %1% 条警告"
+
+# AI Translated
+#, boost-format
+msgid "%1% print issue"
+msgid_plural "%1% print issues"
+msgstr[0] "%1% 个打印问题"
+
+# AI Translated
+#, boost-format
+msgid "%1% blocks printing."
+msgid_plural "%1% block printing."
+msgstr[0] "其中 %1% 个阻止打印。"
+
+# AI Translated
+#. TRN The print-issue pill: %1% is "3 print issues", %2% the sentence "2 block printing."
+#, boost-format
+msgid "%1%. %2%"
+msgstr "%1%。%2%"
+
+# AI Translated
+msgid "Blocks printing"
+msgstr "阻止打印"
+
+# AI Translated
+msgid "out of view"
+msgstr "不在视野内"
+
+# AI Translated
+msgid "Checking whether this is fixed..."
+msgstr "正在检查是否已修复..."
+
+# AI Translated
+#, boost-format
+msgid "%1% of %2%"
+msgstr "%1% / %2%"
+
+# AI Translated
+msgid "AI is replying..."
+msgstr "AI 正在回复..."
+
+# AI Translated
+msgid "Stop ignoring"
+msgstr "取消忽略"
+
+# AI Translated
+msgid "Ignore this warning"
+msgstr "忽略此警告"
+
+# AI Translated
+msgid "Ask AI"
+msgstr "询问 AI"
+
+# AI Translated
+msgid "Explain this issue and my options."
+msgstr "请解释这个问题以及我有哪些选择。"
+
+# AI Translated
+msgid "Set up AI..."
+msgstr "设置 AI..."
+
+# AI Translated
+msgid "A G-code path goes beyond the plate boundaries."
+msgstr "有 G-code 路径超出了盘的边界。"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Filaments %s cannot be printed directly on the surface of this plate."
+msgstr "耗材丝 %s 无法直接打印在此盘的表面上。"
+
+# AI Translated
+#, boost-format
+msgid "Slicing plate %1%"
+msgstr "正在切片盘 %1%"
+
+# AI Translated
+msgid "The form was out of date. Choose the printer again."
+msgstr "表单已过期。请重新选择打印机。"
+
+# AI Translated
+msgid "Choose the plate on this printer."
+msgstr "选择此打印机上的打印板。"
+
+# AI Translated
+msgid "That filament is no longer on the list. Choose another."
+msgstr "该耗材丝已不在列表中。请选择其他耗材丝。"
+
+# AI Translated
+msgid "That printer is no longer on the list. Choose it again."
+msgstr "该打印机已不在列表中。请重新选择。"
+
+# AI Translated
+msgid "Printer conversation"
+msgstr "打印机对话"
+
+# AI Translated
+msgid "Filament conversation"
+msgstr "耗材丝对话"
+
+# AI Translated
+msgid "Browse the full printer list"
+msgstr "浏览完整的打印机列表"
+
+# AI Translated
+msgid "Open printer settings"
+msgstr "打开打印机设置"
+
+# AI Translated
+#. TRN %1% is the profile loader's own error, in English.
+#, boost-format
+msgid "The printer profiles could not be read: %1%"
+msgstr "无法读取打印机配置文件：%1%"
+
+# AI Translated
+msgid "Enter a name for the printer."
+msgstr "请输入打印机名称。"
+
+# AI Translated
+msgid "A printer name can't start or end with a space."
+msgstr "打印机名称不能以空格开头或结尾。"
+
+# AI Translated
+#, c-format, boost-format
+msgid "A printer name can't contain any of these characters: %s"
+msgstr "打印机名称不能包含以下任何字符：%s"
+
+# AI Translated
+msgid "That name is reserved. Choose another."
+msgstr "该名称已被保留。请选择其他名称。"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Another printer or profile is already named \"%s\"."
+msgstr "已有其他打印机或配置文件名为“%s”。"
+
+# AI Translated
+msgid "A new name has to differ from the old one by more than capitalization."
+msgstr "新名称与旧名称的区别不能仅在于大小写。"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Other printer profiles are based on \"%s\". Remove those first in Printer settings."
+msgstr "其他打印机配置文件基于“%s”。请先在打印机设置中移除它们。"
+
+# AI Translated
+msgid "The app couldn't open your browser."
+msgstr "本应用无法打开您的浏览器。"
+
+# AI Translated
+msgid "About JusPrin"
+msgstr "关于 JusPrin"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Version %s"
+msgstr "版本 %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Built on OrcaSlicer %s"
+msgstr "基于 OrcaSlicer %s 构建"
+
+# AI Translated
+#. TRN A noun: the label before the commit this copy of the app was built from.
+msgid "Build"
+msgstr "构建"
+
+# AI Translated
+msgid "Copy version"
+msgstr "复制版本号"
+
+# AI Translated
+msgid "Get help"
+msgstr "获取帮助"
+
+# AI Translated
+msgid "Email"
+msgstr "电子邮件"
+
+# AI Translated
+msgid "License…"
+msgstr "许可证…"
+
+# AI Translated
+msgid "Free software under the GNU Affero General Public License v3."
+msgstr "自由软件，采用 GNU Affero 通用公共许可证第 3 版（AGPL v3）。"
+
+# AI Translated
+msgid "Copied"
+msgstr "已复制"
+
+# AI Translated
+#. TRN The menu of print actions: Slice plate, Check print…, Print….
+msgctxt "Menu"
+msgid "Print"
+msgstr "打印"
+
+# AI Translated
+msgid "New project"
+msgstr "新建项目"
+
+# AI Translated
+msgid "Open…"
+msgstr "打开…"
+
+# AI Translated
+msgid "Open recent"
+msgstr "最近打开"
+
+# AI Translated
+msgid "Version history…"
+msgstr "版本历史…"
+
+# AI Translated
+msgid "Project 3MF…"
+msgstr "项目 3MF…"
+
+# AI Translated
+msgid "Exit"
+msgstr "退出"
+
+# AI Translated
+msgid "Plates and project panel"
+msgstr "盘与项目面板"
+
+# AI Translated
+msgid "Show plates and project panel"
+msgstr "显示盘与项目面板"
+
+# AI Translated
+msgid "Hide plates and project panel"
+msgstr "隐藏盘与项目面板"
+
+# AI Translated
+msgid "AI panel"
+msgstr "AI 面板"
+
+# AI Translated
+msgid "Show AI panel"
+msgstr "显示 AI 面板"
+
+# AI Translated
+msgid "Hide AI panel"
+msgstr "隐藏 AI 面板"
+
+# AI Translated
+msgid "Switch to classic view…"
+msgstr "切换到经典视图…"
+
+# AI Translated
+msgid "JusPrin guide…"
+msgstr "JusPrin 指南…"
+
+# AI Translated
+msgid "Ask AI…"
+msgstr "询问 AI…"
+
+# AI Translated
+msgid "Report a problem…"
+msgstr "报告问题…"
+
+# AI Translated
+msgid "Report a problem"
+msgstr "报告问题"
+
+# AI Translated
+msgid "Slice all plates"
+msgstr "切片所有盘"
+
+# AI Translated
+msgid "Check print…"
+msgstr "检查打印…"
+
+# AI Translated
+msgid "Print…"
+msgstr "打印…"
+
+# AI Translated
+msgid "Print all plates…"
+msgstr "打印所有盘…"
+
+# AI Translated
+msgid "Add a printer…"
+msgstr "添加打印机…"
+
+# AI Translated
+msgid "Import printers from OrcaSlicer…"
+msgstr "从 OrcaSlicer 导入打印机…"
+
+# AI Translated
+msgid "Import printers from JusPrin 1…"
+msgstr "从 JusPrin 1 导入打印机…"
+
+# AI Translated
+msgid "Printer settings…"
+msgstr "打印机设置…"
+
+# AI Translated
+msgid "Ask AI about printer settings…"
+msgstr "向 AI 询问打印机设置…"
+
+# AI Translated
+msgid "Filament settings…"
+msgstr "耗材丝设置…"
+
+# AI Translated
+msgid "Ask AI about filament settings…"
+msgstr "向 AI 询问耗材丝设置…"
+
+# AI Translated
+msgid "Calibrate…"
+msgstr "校准…"
+
+# AI Translated
+msgid "Check print"
+msgstr "检查打印"
+
+# AI Translated
+msgid "Check Print"
+msgstr "检查打印"
+
+# AI Translated
+msgid "Legend"
+msgstr "图例"
+
+# AI Translated
+msgid "Close and return to Prepare"
+msgstr "关闭并返回准备"
+
+# AI Translated
+#, c-format, boost-format
+msgid "sliced for %s"
+msgstr "已为 %s 切片"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Layer %d"
+msgstr "第 %d 层"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d s"
+msgstr "%d 秒"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d min"
+msgstr "%d 分钟"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d h %d min"
+msgstr "%d 小时 %d 分钟"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%.0f g"
+msgstr "%.0f g"
+
+# AI Translated
+#. TRN A length in metres, such as the filament a print uses: "12.4 m". %s is the number.
+#, c-format, boost-format
+msgid "%s m"
+msgstr "%s m"
+
+# AI Translated
+msgid "no supports were needed"
+msgstr "不需要支撑"
+
+# AI Translated
+msgid "no seams are on the faces you marked"
+msgstr "您标记的面上没有接缝"
+
+# AI Translated
+msgid "nothing prints in the air"
+msgstr "没有悬空打印的部分"
+
+# AI Translated
+msgid "no paths cross or leave the plate"
+msgstr "没有交叉或超出盘的路径"
+
+# AI Translated
+msgid "no paths cross each other"
+msgstr "没有相互交叉的路径"
+
+# AI Translated
+msgid "no paths leave the plate"
+msgstr "没有超出盘的路径"
+
+# AI Translated
+msgid "the slicer gave no warnings"
+msgstr "切片器没有给出警告"
+
+# AI Translated
+msgid "Print report"
+msgstr "打印报告"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Print report, %s"
+msgstr "打印报告，%s"
+
+# AI Translated
+#. TRN A section title of the print report: the support structures the slice made.
+msgid "Supports"
+msgstr "支撑"
+
+# AI Translated
+msgid "Slicer warnings"
+msgstr "切片器警告"
+
+# AI Translated
+msgid "Unsupported islands"
+msgstr "无支撑的孤岛"
+
+# AI Translated
+msgid "Crossing paths"
+msgstr "交叉路径"
+
+# AI Translated
+msgid "Paths outside the plate"
+msgstr "超出盘的路径"
+
+# AI Translated
+msgid "Nothing to flag."
+msgstr "没有需要提示的问题。"
+
+# AI Translated
+#. TRN Print report's closing line, a list of clauses such as "nothing prints in the air": joins the list so far to a clause that is not the last.
+#, c-format, boost-format
+msgid "%s, %s"
+msgstr "%s、%s"
+
+# AI Translated
+#. TRN Print report's closing line, a list of clauses such as "nothing prints in the air": joins its only two clauses.
+#, c-format, boost-format
+msgid "%s and %s"
+msgstr "%s，且%s"
+
+# AI Translated
+#. TRN Print report's closing line, a list of clauses such as "nothing prints in the air": joins the list so far to the last of three or more.
+#, c-format, boost-format
+msgid "%s, and %s"
+msgstr "%s，且%s"
+
+# AI Translated
+#. TRN Ends the print report's closing line; %s is its list of what the checks found clean, first letter capitalised.
+#, c-format, boost-format
+msgid "%s."
+msgstr "%s。"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d layer"
+msgid_plural "%d layers"
+msgstr[0] "%d 层"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d object"
+msgid_plural "%d objects"
+msgstr[0] "%d 个对象"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d on a marked face"
+msgid_plural "%d on marked faces"
+msgstr[0] "%d 个在标记的面上"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d or more"
+msgstr "%d 个或更多"
+
+# AI Translated
+msgid "A toolpath runs outside the printable area"
+msgstr "有工具路径超出了可打印区域"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Support touches %s, which you asked to keep clear"
+msgstr "支撑接触到了 %s，而您要求该处不放支撑"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Support inside the %s"
+msgstr "%s 内有支撑"
+
+# AI Translated
+msgid "No support in a hole or a region you kept clear"
+msgstr "孔内或您要求保持空出的区域中没有支撑"
+
+# AI Translated
+msgid "No support in a hole"
+msgstr "孔内没有支撑"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Printed in the air: %s"
+msgstr "悬空打印：%s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d seam on %s"
+msgid_plural "%d seams on %s"
+msgstr[0] "%d 条接缝位于 %s 上"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%s on the plate"
+msgstr "与盘接触 %s"
+
+# AI Translated
+msgid "only when recording a timelapse"
+msgstr "仅在录制延时摄影时"
+
+# AI Translated
+#, c-format, boost-format
+msgid "around %s"
+msgstr "约在 %s 处"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d layer of support"
+msgid_plural "%d layers of support"
+msgstr[0] "%d 层支撑"
+
+# AI Translated
+msgid "No brim"
+msgstr "无 Brim"
+
+# AI Translated
+msgid "This plate has no current slice."
+msgstr "此盘当前没有切片结果。"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d filament change"
+msgid_plural "%d filament changes"
+msgstr[0] "%d 次耗材丝更换"
+
+# AI Translated
+msgid "You're in the classic OrcaSlicer view."
+msgstr "您正在使用经典 OrcaSlicer 视图。"
+
+# AI Translated
+msgid "Back to JusPrin"
+msgstr "返回 JusPrin"
+
+# AI Translated
+msgid "Switch to JusPrin view"
+msgstr "切换到 JusPrin 视图"
+
+# AI Translated
+#. TRN A menu caption in capitals: the printer's name (in capitals), then its nozzle size in millimetres.
+#, c-format, boost-format
+msgid "%s, %s MM NOZZLE"
+msgstr "%s，%s MM 喷嘴"
+
+# AI Translated
+msgid "COLOUR"
+msgstr "颜色"
+
+# AI Translated
+msgid "Other colour…"
+msgstr "其他颜色…"
+
+# AI Translated
+msgid "Use what's loaded on the printer…"
+msgstr "使用打印机上已装载的耗材丝…"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%s is offline. Turn it on to read what's loaded."
+msgstr "%s 处于离线状态。请将其开机以读取已装载的耗材丝。"
+
+# AI Translated
+#, c-format, boost-format
+msgid "FILAMENTS FOR %s"
+msgstr "%s 的耗材丝"
+
+# AI Translated
+msgid "on plate"
+msgstr "在盘上"
+
+# AI Translated
+msgid "Add another filament to this print"
+msgstr "为此次打印添加另一种耗材丝"
+
+# AI Translated
+#, c-format, boost-format
+msgid "FILAMENT · SLOT %d · %s"
+msgstr "耗材丝 · 槽位 %d · %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "FILAMENT FOR %s"
+msgstr "%s 的耗材丝"
+
+# AI Translated
+msgid "FILAMENTS FOR THIS PRINTER"
+msgstr "此打印机的耗材丝"
+
+# AI Translated
+msgid "Other filament…"
+msgstr "其他耗材丝…"
+
+# AI Translated
+msgid "Calibrate this filament…"
+msgstr "校准此耗材丝…"
+
+# AI Translated
+msgid "JusPrin guide"
+msgstr "JusPrin 指南"
+
+# AI Translated
+msgid "Plates and Project panel"
+msgstr "盘与项目面板"
+
+# AI Translated
+msgid "Hide the Plates and Project panel"
+msgstr "隐藏盘与项目面板"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Slicing %d%%"
+msgstr "正在切片 %d%%"
+
+# AI Translated
+msgid "Slicing…"
+msgstr "正在切片…"
+
+# AI Translated
+msgid "Sliced"
+msgstr "已切片"
+
+# AI Translated
+msgid "Not sliced yet"
+msgstr "尚未切片"
+
+# AI Translated
+#. TRN How many objects or copies on the plate are set not to print.
+#, c-format, boost-format
+msgid "%d won't print"
+msgid_plural "%d won't print"
+msgstr[0] "%d 个不会打印"
+
+# AI Translated
+msgid "Couldn't do that"
+msgstr "无法执行该操作"
+
+# AI Translated
+msgid "Support painting"
+msgstr "支撑绘制"
+
+# AI Translated
+msgid "Color painting"
+msgstr "涂色"
+
+# AI Translated
+msgid "Fuzzy skin painting"
+msgstr "绒毛表面绘制"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Per-object settings · %d"
+msgstr "对象设置 · %d"
+
+# AI Translated
+msgid "Auto-orient"
+msgstr "自动朝向"
+
+# AI Translated
+msgid "Plate settings…"
+msgstr "盘参数设置…"
+
+# AI Translated
+msgid "Move to front"
+msgstr "移到最前"
+
+# AI Translated
+msgid "Delete plate"
+msgstr "删除盘"
+
+# AI Translated
+msgid "Rename object"
+msgstr "重命名对象"
+
+# AI Translated
+msgid "Set number of instances…"
+msgstr "设置实例数量…"
+
+# AI Translated
+msgid "Fix model"
+msgstr "修复模型"
+
+# AI Translated
+msgid "Change object filament"
+msgstr "更换对象耗材丝"
+
+# AI Translated
+msgid "Delete copy"
+msgstr "删除副本"
+
+# AI Translated
+msgid "To objects"
+msgstr "拆分到对象"
+
+# AI Translated
+msgid "To parts"
+msgstr "拆分到零件"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Copy %d"
+msgstr "副本 %d"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d per-object setting"
+msgid_plural "%d per-object settings"
+msgstr[0] "%d 项对象设置"
+
+# AI Translated
+msgid "Plates tab"
+msgstr "盘选项卡"
+
+# AI Translated
+msgid "Project tab"
+msgstr "项目选项卡"
+
+# AI Translated
+msgid "Plates"
+msgstr "盘"
+
+# AI Translated
+msgid "Add model"
+msgstr "添加模型"
+
+# AI Translated
+msgid "Not on a plate"
+msgstr "不在盘上"
+
+# AI Translated
+msgid "Mesh needs repair"
+msgstr "网格需要修复"
+
+# AI Translated
+msgid "Mesh repaired"
+msgstr "网格已修复"
+
+# AI Translated
+msgid "won't print"
+msgstr "不会打印"
+
+# AI Translated
+#. TRN A tag beside one part of an object, saying what kind of part it is: an ordinary part.
+msgid "part"
+msgstr "零件"
+
+# AI Translated
+#. TRN A tag beside one part of an object, saying what kind of part it is: a modifier, which changes settings where it overlaps.
+msgid "modifier"
+msgstr "修改器"
+
+# AI Translated
+msgid "negative part"
+msgstr "负零件"
+
+# AI Translated
+msgid "support enforcer"
+msgstr "支撑生成器"
+
+# AI Translated
+msgid "support blocker"
+msgstr "支撑屏蔽器"
+
+# AI Translated
+#. TRN %s is a weekday or a date, such as "Mon" or "Mar 14", when this project's last print finished.
+#, c-format, boost-format
+msgid "last finished %s"
+msgstr "上次完成于 %s"
+
+# AI Translated
+msgid "last finished today"
+msgstr "上次完成于今天"
+
+# AI Translated
+msgid "last finished yesterday"
+msgstr "上次完成于昨天"
+
+# AI Translated
+msgid "Version history unavailable"
+msgstr "版本历史不可用"
+
+# AI Translated
+msgid "Version history couldn't be loaded. Try again."
+msgstr "无法加载版本历史。请重试。"
+
+# AI Translated
+msgid "Export project 3MF"
+msgstr "导出项目 3MF"
+
+# AI Translated
+msgid "Export failed"
+msgstr "导出失败"
+
+# AI Translated
+msgid "The project couldn't be exported. Try again."
+msgstr "无法导出项目。请重试。"
+
+# AI Translated
+msgid "Restore this version of the model and project settings? The current model will be saved as a version first. Conversations and print records will stay current."
+msgstr "要恢复此版本的模型和项目设置吗？当前模型会先保存为一个版本。对话和打印记录将保持最新状态。"
+
+# AI Translated
+msgid "Restore project version"
+msgstr "恢复项目版本"
+
+# AI Translated
+msgid "Restore failed"
+msgstr "恢复失败"
+
+# AI Translated
+msgid "This version couldn't be restored. Try again."
+msgstr "无法恢复此版本。请重试。"
+
+# AI Translated
+msgid "Back to Project"
+msgstr "返回项目"
+
+# AI Translated
+msgid "Nothing printed or exported yet"
+msgstr "尚未打印或导出任何内容"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d G-code"
+msgid_plural "%d G-codes"
+msgstr[0] "%d 个 G-code"
+
+# AI Translated
+msgid "printing now"
+msgstr "正在打印"
+
+# AI Translated
+msgid "never sent to a printer"
+msgstr "从未发送到打印机"
+
+# AI Translated
+msgid "Print history"
+msgstr "打印历史"
+
+# AI Translated
+msgid "Saving…"
+msgstr "正在保存…"
+
+# AI Translated
+msgid "Saved"
+msgstr "已保存"
+
+# AI Translated
+msgid "Couldn't save"
+msgstr "无法保存"
+
+# AI Translated
+msgid "No title, designer or description yet."
+msgstr "尚无标题、设计者或描述。"
+
+# AI Translated
+#. TRN Who designed the model; %s is the designer's name.
+#, c-format, boost-format
+msgid "by %s"
+msgstr "设计者：%s"
+
+# AI Translated
+msgid "Version history"
+msgstr "版本历史"
+
+# AI Translated
+msgid "Export project 3MF…"
+msgstr "导出项目 3MF…"
+
+# AI Translated
+msgid "Bill of materials"
+msgstr "物料清单"
+
+# AI Translated
+msgid "Assembly guide"
+msgstr "装配指南"
+
+# AI Translated
+msgid "Attachments"
+msgstr "附件"
+
+# AI Translated
+msgid "The file couldn't be opened."
+msgstr "无法打开该文件。"
+
+# AI Translated
+msgid "More files are attached than are listed here."
+msgstr "附加的文件比此处列出的更多。"
+
+# AI Translated
+msgid "Profile"
+msgstr "配置"
+
+# AI Translated
+msgid "No earlier saved versions yet."
+msgstr "尚无较早保存的版本。"
+
+# AI Translated
+#. TRN The Restore button's name for a screen reader; %s is when the version was saved.
+#, c-format, boost-format
+msgid "Restore %s"
+msgstr "恢复 %s"
+
+# AI Translated
+msgid "Connecting AI tool"
+msgstr "正在连接 AI 工具"
+
+# AI Translated
+msgid "Saving the MCP entry using the client's own CLI..."
+msgstr "正在使用客户端自己的 CLI 保存 MCP 条目..."
+
+# AI Translated
+msgid "The setup command timed out. Stopping it..."
+msgstr "设置命令超时。正在停止..."
+
+# AI Translated
+msgid "Select printer"
+msgstr "选择打印机"
+
+# AI Translated
+msgid "from the file"
+msgstr "来自文件"
+
+# AI Translated
+msgid "Select filament"
+msgstr "选择耗材丝"
+
+# AI Translated
+msgid "Paused"
+msgstr "已暂停"
+
+# AI Translated
+msgid "Needs attention"
+msgstr "需要处理"
+
+# AI Translated
+msgid "Ready"
+msgstr "就绪"
+
+# AI Translated
+msgid "Connected"
+msgstr "已连接"
+
+# AI Translated
+msgid "Connecting…"
+msgstr "正在连接…"
+
+# AI Translated
+msgid "Not connected"
+msgstr "未连接"
+
+# AI Translated
+msgid "No printer selected"
+msgstr "未选择打印机"
+
+# AI Translated
+msgid "From the file · not one of your printers"
+msgstr "来自文件 · 不是您的打印机"
+
+# AI Translated
+msgid "Checking connection…"
+msgstr "正在检查连接…"
+
+# AI Translated
+msgid "Export the G-code to print from a card."
+msgstr "导出 G-code 以便从存储卡打印。"
+
+# AI Translated
+msgid "OTHER PRINTERS"
+msgstr "其他打印机"
+
+# AI Translated
+msgid "Billing and usage"
+msgstr "账单与用量"
+
+# AI Translated
+msgid "Credits and plans"
+msgstr "积分与套餐"
+
+# AI Translated
+msgid "Check your internet connection, then try again."
+msgstr "请检查您的网络连接，然后重试。"
+
+# AI Translated
+msgid "Open in browser"
+msgstr "在浏览器中打开"
+
+# AI Translated
+msgid "Loading Billing and usage…"
+msgstr "正在加载账单与用量…"
+
+# AI Translated
+msgid "Loading Credits and plans…"
+msgstr "正在加载积分与套餐…"
+
+# AI Translated
+msgid "Couldn't load Billing and usage"
+msgstr "无法加载账单与用量"
+
+# AI Translated
+msgid "Couldn't load Credits and plans"
+msgstr "无法加载积分与套餐"
+
+# AI Translated
+msgid "Resize AI panel"
+msgstr "调整 AI 面板大小"
+
+# AI Translated
+msgid "Drag to resize the AI panel"
+msgstr "拖动以调整 AI 面板大小"
+
+# AI Translated
+msgid "The setup changed. Review the current plate and try again."
+msgstr "设置已更改。请检查当前盘后重试。"
+
+# AI Translated
+msgid "Couldn't slice"
+msgstr "无法切片"
+
+# AI Translated
+msgid "This saved version couldn't be restored. Try again from Version history."
+msgstr "无法恢复此保存的版本。请从版本历史中重试。"
+
+# AI Translated
+msgid "Revert failed"
+msgstr "还原失败"
+
+# AI Translated
+msgid "Your saved projects couldn't be read, so JusPrin can't check whether you've opened this file before. The file wasn't opened. Try again once JusPrin can read its projects folder."
+msgstr "无法读取您保存的项目，因此 JusPrin 无法确认您以前是否打开过此文件。文件未打开。请在 JusPrin 能够读取其项目文件夹后重试。"
+
+# AI Translated
+msgid "This file has changed since this project was made from it. Create a new project from the updated file, or continue the current project, which keeps the earlier version."
+msgstr "自从用此文件创建本项目以来，该文件已发生更改。请用更新后的文件新建项目，或继续当前项目（保留较早的版本）。"
+
+# AI Translated
+msgid "This file is already open as a project. Continue working in it, or create a new project from this file."
+msgstr "此文件已作为项目打开。请继续在其中工作，或用此文件新建项目。"
+
+# AI Translated
+msgid "This file has changed since you last opened it. Create a new project from the updated file, or open the existing project, which keeps the earlier version."
+msgstr "自您上次打开以来，此文件已发生更改。请用更新后的文件新建项目，或打开现有项目（保留较早的版本）。"
+
+# AI Translated
+msgid "You've opened this file before. Open the most recently updated project or create another project from this file."
+msgstr "您以前打开过此文件。请打开最近更新的项目，或用此文件再新建一个项目。"
+
+# AI Translated
+msgid "You've opened this file before. Open the existing project to continue where you left off, or create a new project from this file."
+msgstr "您以前打开过此文件。请打开现有项目从上次中断处继续，或用此文件新建项目。"
+
+# AI Translated
+msgid "Previously opened file"
+msgstr "以前打开过的文件"
+
+# AI Translated
+msgid "Continue current project"
+msgstr "继续当前项目"
+
+# AI Translated
+msgid "Open most recent project"
+msgstr "打开最近的项目"
+
+# AI Translated
+msgid "Open existing project"
+msgstr "打开现有项目"
+
+# AI Translated
+msgid "Resize Plates and Project panel"
+msgstr "调整盘与项目面板大小"
+
+# AI Translated
+msgid "Drag to resize the Plates and Project panel"
+msgstr "拖动以调整盘与项目面板大小"
+
+# AI Translated
+msgid "The open project couldn't be saved, so the file wasn't opened. Try again."
+msgstr "无法保存已打开的项目，因此未打开该文件。请重试。"
+
+# AI Translated
+#. TRN What a calibration tests: a filament's name, then the printer's, such as "Generic PLA on Bambu Lab P1S".
+#, c-format, boost-format
+msgid "%1$s on %2$s"
+msgstr "%2$s 上的 %1$s"
+
+# AI Translated
+#. TRN %s is the name of the open project, which is saved and closed before a calibration project opens.
+#, c-format, boost-format
+msgid "%s will be saved and closed."
+msgstr "%s 将被保存并关闭。"
+
+# AI Translated
+#, c-format, boost-format
+msgid "A new calibration project opens for %s, and AI picks the spool and the test with you there."
+msgstr "将为 %s 打开一个新的校准项目，AI 会在那里与您一起选择料盘和测试。"
+
+# AI Translated
+#, c-format, boost-format
+msgid "A new calibration project opens for %s, and AI picks the test with you there."
+msgstr "将为 %s 打开一个新的校准项目，AI 会在那里与您一起选择测试。"
+
+# AI Translated
+msgid "AI isn't set up yet; the test needs it to choose the range and read the result."
+msgstr "AI 尚未设置；测试需要 AI 来选择范围并读取结果。"
+
+# AI Translated
+msgid "Settings the test changes are temporary and are not saved to your filament."
+msgstr "测试所更改的设置是临时的，不会保存到您的耗材丝中。"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Calibrate %s?"
+msgstr "校准 %s？"
+
+# AI Translated
+msgid "Set up AI…"
+msgstr "设置 AI…"
+
+# AI Translated
+msgid "The calibration project could not be opened, so your project stays open."
+msgstr "无法打开校准项目，因此您的项目保持打开。"
+
+# AI Translated
+#, c-format, boost-format
+msgid "The printer \"%s\" could not be selected."
+msgstr "无法选择打印机“%s”。"
+
+# AI Translated
+#, c-format, boost-format
+msgid "The printer preset \"%s\" was not found."
+msgstr "未找到打印机预设“%s”。"
+
+# AI Translated
+msgid "The plate to print is no longer in the project."
+msgstr "要打印的盘已不在项目中。"
+
+# AI Translated
+msgid "Couldn't open the print dialog"
+msgstr "无法打开打印对话框"
+
+# AI Translated
+msgid "The chat this G-code went out from is no longer in the project."
+msgstr "发出此 G-code 的对话已不在项目中。"
+
+# AI Translated
+msgid "Chat not found"
+msgstr "未找到对话"
+
+# AI Translated
+#, c-format, boost-format
+msgid "The filament preset \"%s\" was not found."
+msgstr "未找到耗材丝预设“%s”。"
+
+# AI Translated
+msgid "Back to Preview"
+msgstr "返回预览"
+
+# AI Translated
+msgid "Couldn't open project"
+msgstr "无法打开项目"
+
+# AI Translated
+msgid "Get the new version…"
+msgstr "获取新版本…"
+
+# AI Translated
+msgid "JusPrin's view couldn't be opened."
+msgstr "无法打开 JusPrin 视图。"
+
+# AI Translated
+msgid "Show the Plates and Project panel"
+msgstr "显示盘与项目面板"
+
+# AI Translated
+msgid "Back to Home"
+msgstr "返回主页"
+
+# AI Translated
+msgid "Print actions"
+msgstr "打印操作"
+
+# AI Translated
+msgid "Project details and preferences"
+msgstr "项目详情与偏好设置"
+
+# AI Translated
+msgid "Hide the AI panel"
+msgstr "隐藏 AI 面板"
+
+# AI Translated
+msgid "Cancel slicing"
+msgstr "取消切片"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Print plate %d"
+msgstr "打印盘 %d"
+
+# AI Translated
+msgid "Export G-code…"
+msgstr "导出 G-code…"
+
+# AI Translated
+#. TRN Detail beside "Print all plates…": how many of the plates are sliced.
+#, c-format, boost-format
+msgid "%d sliced"
+msgid_plural "%d sliced"
+msgstr[0] "已切片 %d 个"
+
+# AI Translated
+msgid "Show the AI panel"
+msgstr "显示 AI 面板"
+
+# AI Translated
+msgid "Unsaved changes"
+msgstr "未保存的更改"
+
+# AI Translated
+#. TRN %s is one nozzle size, or several joined by " / ", such as "0.4 / 0.6".
+#, c-format, boost-format
+msgid "%s mm nozzle"
+msgid_plural "%s mm nozzles"
+msgstr[0] "%s mm 喷嘴"
+
+# AI Translated
+msgid "from the file, not one of the printers you set up"
+msgstr "来自文件，不是您设置的打印机"
+
+# AI Translated
+#. TRN %s is the project's file name, such as "Benchy.3mf".
+#, c-format, boost-format
+msgid "from %s, not one of the printers you set up"
+msgstr "来自 %s，不是您设置的打印机"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d filament"
+msgid_plural "%d filaments"
+msgstr[0] "%d 种耗材丝"
+
+# AI Translated
+#. TRN The first %d is how many of the filament slots this plate uses; the second is how many slots there are.
+#, c-format, boost-format
+msgid "%d of %d slot on this plate"
+msgid_plural "%d of %d slots on this plate"
+msgstr[0] "此盘使用了 %d 个槽位（共 %d 个）"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d slot"
+msgid_plural "%d slots"
+msgstr[0] "%d 个槽位"
+
+# AI Translated
+msgid "not on this plate"
+msgstr "不在此盘上"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Filament is now %s."
+msgstr "耗材丝已改为 %s。"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Slot %d is now %s."
+msgstr "槽位 %d 已改为 %s。"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Heat and cooling follow %s; walls and infill unchanged."
+msgstr "加热和冷却参数沿用 %s；墙和填充保持不变。"
+
+# AI Translated
+#, c-format, boost-format
+msgid "slot %d %s"
+msgstr "槽位 %d %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Filaments changed: %s."
+msgstr "已更改耗材丝：%s。"
+
+# AI Translated
+msgid "Slice again when ready."
+msgstr "准备好后请重新切片。"
+
+# AI Translated
+msgid "Preferences…"
+msgstr "偏好设置…"
+
+# AI Translated
+msgid "Changes couldn't be saved. JusPrin will retry."
+msgstr "无法保存更改。JusPrin 会重试。"
+
+# AI Translated
+msgid "Some older project data couldn't be removed."
+msgstr "部分较早的项目数据无法删除。"
+
+# AI Translated
+msgid "Configure a printer connection in Printer settings before printing. You can also export the sliced file."
+msgstr "打印前请先在打印机设置中配置打印机连接。您也可以导出切片文件。"
+
+# AI Translated
+msgid "Printer connection required"
+msgstr "需要打印机连接"
+
+# AI Translated
+msgid "This project was saved by a newer version of JusPrin. Get the new version to open it."
+msgstr "此项目由更新版本的 JusPrin 保存。请获取新版本以打开它。"
+
+# AI Translated
+msgid "The project couldn't be opened. Try again."
+msgstr "无法打开项目。请重试。"

@@ -5,6 +5,9 @@
 #include <set>
 #include <stdexcept>
 
+// Last: it defines the L marker.
+#include "slic3r/GUI/JusPrin/Support/Translate.hpp"
+
 namespace Slic3r::GUI::JusPrin::Agent {
 
 namespace {
@@ -638,7 +641,8 @@ std::vector<ConversationInfo> ProjectStateDocument::conversations() const
             if (!text.empty())
                 info.preview = text;
             else if (message.contains("attachments") && !message["attachments"].empty())
-                info.preview = "Attachment";
+                // TRN The chat list's preview of a message that has only attachments.
+                info.preview = translated(L("Attachment"));
         }
         // Bound bridge metadata without splitting a UTF-8 code point.
         if (info.preview.size() > 512) {

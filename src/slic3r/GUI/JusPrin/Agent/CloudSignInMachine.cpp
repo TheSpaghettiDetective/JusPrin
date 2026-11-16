@@ -6,6 +6,7 @@
 #include "slic3r/GUI/Jobs/OAuthJob.hpp"
 #include "slic3r/GUI/Jobs/ProgressIndicator.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
+#include "slic3r/GUI/JusPrin/Support/PageLanguage.hpp"
 #include "slic3r/GUI/JusPrin/Updates/Version.hpp"
 #include "slic3r/Utils/Http.hpp"
 
@@ -19,6 +20,7 @@
 
 #include <algorithm>
 #include <stdexcept>
+#include <string>
 
 namespace Slic3r::GUI::JusPrin::Agent {
 
@@ -154,6 +156,9 @@ CloudAccountDeps make_cloud_account_deps()
         auto http = Slic3r::Http::post(url);
         if (!session.empty())
             http.header("X-Session-Token", session);
+        // The sign-in code email is written in this language.
+        if (const std::string language = server_language(); !language.empty())
+            http.header("Accept-Language", language);
         http.header("User-Agent", Updates::user_agent())
             .header("Content-Type", "application/json")
             .header("Accept", "application/json")

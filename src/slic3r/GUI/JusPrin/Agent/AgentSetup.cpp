@@ -3,6 +3,9 @@
 
 #include <utility>
 
+// Last: it defines the L marker.
+#include "slic3r/GUI/JusPrin/Support/Translate.hpp"
+
 namespace Slic3r::GUI::JusPrin::Agent {
 
 namespace {
@@ -120,7 +123,7 @@ std::optional<SetupOutcome> ProviderKeySetup::poll()
         case AgentEventKind::Failed: {
             SetupOutcome outcome;
             outcome.error =
-                event->error.value_or(AgentError{"setup_failed", "The provider did not answer.", true});
+                event->error.value_or(AgentError{"setup_failed", translated(L("The provider did not answer.")), true});
             outcome.elapsed_ms = elapsed_ms();
             cancel();
             return outcome;

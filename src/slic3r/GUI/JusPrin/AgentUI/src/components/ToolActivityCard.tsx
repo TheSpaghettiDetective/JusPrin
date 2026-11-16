@@ -4,6 +4,8 @@
 import { ReactNode } from 'react';
 import { isStale, ToolActivityInfo, ToolStateName } from '../bridge/protocol';
 import { Progress } from './Progress';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 interface Props {
   activity: ToolActivityInfo;
@@ -12,10 +14,10 @@ interface Props {
 }
 
 const stateLabels: Record<ToolStateName, string> = {
-  running: 'Running…',
-  succeeded: 'Done',
-  failed: 'The action failed.',
-  cancelled: 'Cancelled — nothing was changed',
+  running: t`Running…`,
+  succeeded: t`Done`,
+  failed: t`The action failed.`,
+  cancelled: t`Cancelled — nothing was changed`,
 };
 
 // Which glyph a state's line leads with. Colour is never the only signal: the
@@ -48,13 +50,14 @@ export function ToolActivityCard({ activity, onCancel, readOnly = false }: Props
   const { state } = activity;
   const stale = isStale(activity);
   const measured = activity.progress.total > 0;
+  const title = activity.title;
   const percent = measured ? Math.round((100 * activity.progress.current) / activity.progress.total) : 0;
   const message =
     state === 'running' && measured
-      ? `Running… · ${percent}%`
+      ? t`Running… · ${percent}%`
       : state === 'failed'
         ? stale
-          ? 'The project changed before this could run. Ask AI again.'
+          ? t`The project changed before this could run. Ask AI again.`
           : shownLine(activity) ?? activity.error?.message ?? stateLabels.failed
         : stateLabels[state];
 
@@ -66,11 +69,11 @@ export function ToolActivityCard({ activity, onCancel, readOnly = false }: Props
 
       {state === 'running' && (
         <>
-          <Progress label={`${activity.title} progress`}
+          <Progress label={t`${title} progress`}
             value={state === 'running' && measured ? activity.progress.current : undefined}
             max={state === 'running' && measured ? activity.progress.total : undefined} />
           <div className="tool-actions">
-            <button disabled={readOnly} onClick={() => onCancel(activity.actionId)}>Cancel</button>
+            <button disabled={readOnly} onClick={() => onCancel(activity.actionId)}><Trans>Cancel</Trans></button>
           </div>
         </>
       )}

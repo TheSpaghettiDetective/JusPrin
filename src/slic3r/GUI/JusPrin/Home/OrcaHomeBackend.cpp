@@ -32,10 +32,12 @@
 #include "libslic3r/PresetBundle.hpp"
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/JusPrin/Updates/Version.hpp"
+#include "slic3r/GUI/JusPrin/Support/DecimalText.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/UtcTime.hpp"
 #include "slic3r/GUI/MsgDialog.hpp"
+#include "slic3r/GUI/format.hpp"
 #include "slic3r/Utils/Http.hpp"
 
 #include <boost/filesystem/operations.hpp>
@@ -162,7 +164,8 @@ std::string model_text(const std::string& model, double nozzle)
 {
     wxString text = wxString::FromUTF8(model);
     if (nozzle > 0.)
-        text += (text.empty() ? wxString() : middle_dot()) + wxString::Format("%g mm", nozzle);
+        // TRN A length in millimetres, such as a nozzle diameter on a printer card: "0.4 mm". %s is the number.
+        text += (text.empty() ? wxString() : middle_dot()) + wxString::Format(_L("%s mm"), wxString::FromUTF8(app_decimal_text(nozzle, 0, 2)));
     return utf8(text);
 }
 
@@ -324,7 +327,8 @@ void describe_host(const Printers::HostStatus& status, PrinterEntry& printer)
         printer.status  = PrinterStatus::NotConnected;
         printer.message = klipper.klippy_message.empty()
                               ? utf8(_L("Klipper isn't running."))
-                              : utf8(_L("Klipper stopped:") + " " + wxString::FromUTF8(klipper.klippy_message));
+                              // TRN %1% is Klipper's own message, in English, saying why it stopped.
+                              : format(_L("Klipper stopped: %1%"), klipper.klippy_message);
         if (status.last_connected)
             printer.last_connected_at = iso_utc(*status.last_connected);
         return;
@@ -367,8 +371,11 @@ wxString short_date(const std::string& iso_utc)
     if (iso_utc.size() < 19 || !when.ParseISOCombined(wxString::FromUTF8(iso_utc.substr(0, 19))))
         return {};
     when.MakeFromTimezone(wxDateTime::UTC);
-    const wxString day = wxString::Format("%s %d", wxDateTime::GetMonthName(when.GetMonth(), wxDateTime::Name_Abbr), when.GetDay());
-    return when.GetYear() == wxDateTime::Now().GetYear() ? day : wxString::Format("%s, %d", day, when.GetYear());
+    // TRN A date in this year on a project card: %1% is the abbreviated month name, %2% the day of the month, as in "Oct 20".
+    const wxString day = format_wxstr(_L_CONTEXT("%1% %2%", "short date"), wxDateTime::GetMonthName(when.GetMonth(), wxDateTime::Name_Abbr),
+                                      when.GetDay());
+    // TRN A date outside this year on a project card: %1% is the date without the year, as in "Oct 20", %2% the year.
+    return when.GetYear() == wxDateTime::Now().GetYear() ? day : format_wxstr(_L_CONTEXT("%1%, %2%", "date with year"), day, when.GetYear());
 }
 
 // A recorded printer as the rest of Home names one, "X1 Carbon", and a
@@ -397,13 +404,27 @@ wxString ledger_text(const LedgerStatus& status)
     case ProjectStatusKind::Exported: {
         const wxString printer = printer_label(status.printer);
         if (printer.empty())
-            return date.empty() ? _L("G-code exported") : wxString::Format(_L("G-code exported %s"), date);
-        return date.empty() ? wxString::Format(_L("G-code exported for %s"), printer) :
-                              wxString::Format(_L("G-code exported %s for %s"), date, printer);
+            return date.empty() ? _L("G-code exported") :
+                                  // TRN A project's status: %1% is a date, as in "Nov 3".
+                                  format_wxstr(_L("G-code exported %1%"), date);
+        // TRN A project's status: %1% is a printer model, as in "Ender-3 V3 KE".
+        return date.empty() ? format_wxstr(_L("G-code exported for %1%"), printer) :
+                              // TRN A project's status: %1% is a date, as in "Nov 3", %2% a printer model, as in "Ender-3 V3 KE".
+                              format_wxstr(_L("G-code exported %1% for %2%"), date, printer);
     }
-    case ProjectStatusKind::Completed: text = date.empty() ? _L("Printed") : wxString::Format(_L("Printed %s"), date); break;
-    case ProjectStatusKind::Sent: text = date.empty() ? _L("Sent") : wxString::Format(_L("Sent %s"), date); break;
-    default: return _L("Draft");
+    case ProjectStatusKind::Completed:
+        text = date.empty() ? _L_CONTEXT("Printed", "project status") :
+                              // TRN A project's status: %1% is a date, as in "Oct 20".
+                              format_wxstr(_L("Printed %1%"), date);
+        break;
+    case ProjectStatusKind::Sent:
+        text = date.empty() ? _L_CONTEXT("Sent", "project status") :
+                              // TRN A project's status: %1% is a date, as in "Oct 20".
+                              format_wxstr(_L("Sent %1%"), date);
+        break;
+    default:
+        // TRN A project's status: it has not been sliced to G-code yet.
+        return _L_CONTEXT("Draft", "project status");
     }
     for (const wxString& part : {printer_label(status.printer), material_label(status.material)})
         if (!part.empty())
@@ -1317,7 +1338,7 @@ std::optional<PrintReportPhoto> OrcaHomeBackend::choose_report_photo()
         path = m_choose_report_photo();
     } else {
         wxFileDialog dialog(&m_frame, _L("Choose a photo of the printed object"), wxEmptyString, wxEmptyString,
-                            "Photos (*.jpg;*.jpeg;*.png;*.webp)|*.jpg;*.jpeg;*.png;*.webp", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+                            _L("Photos") + " (*.jpg;*.jpeg;*.png;*.webp)|*.jpg;*.jpeg;*.png;*.webp", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
         if (dialog.ShowModal() == wxID_OK)
             path = utf8(dialog.GetPath());
     }

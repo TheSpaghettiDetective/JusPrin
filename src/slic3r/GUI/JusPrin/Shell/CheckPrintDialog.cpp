@@ -13,6 +13,7 @@
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/GUI_Preview.hpp"
 #include "slic3r/GUI/I18N.hpp"
+#include "slic3r/GUI/JusPrin/Support/DecimalText.hpp"
 #include "slic3r/GUI/IMSlider.hpp"
 #include "slic3r/GUI/ImGuiWrapper.hpp"
 
@@ -341,7 +342,7 @@ void CheckPrintDialog::draw_caption()
     const std::string where = m_caption->layer == 0 ? std::string()
                                                      : wxString::Format(_L("Layer %d"), int(m_caption->layer)).ToUTF8().data() +
                                                            std::string(middle_dot().ToUTF8().data()) +
-                                                           wxString::Format(_L("%.1f mm"), m_caption->z).ToUTF8().data();
+                                                           wxString::Format(_L("%s mm"), wxString::FromUTF8(app_decimal_text(m_caption->z, 1, 1))).ToUTF8().data();
     const float pad_x = std::round(m.space_2 * scale);
     const float pad_y = std::round(m.space_1 * scale);
     const float gap   = std::round(m.space_half * scale);

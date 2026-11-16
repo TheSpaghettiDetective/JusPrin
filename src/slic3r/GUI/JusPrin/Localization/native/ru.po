@@ -1,0 +1,2336 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the JusPrin package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: JusPrin\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-15 09:46-0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<12 || n%100>14) ? 1 : 2);\n"
+
+# AI Translated
+# Needs human review: The English ("until restoration is recovered") is unclear; check the meaning in the code.
+msgid "Project chat is blocked until restoration is recovered."
+msgstr "Чат проекта недоступен, пока восстановление не будет завершено."
+
+# AI Translated
+msgid "Return to the active chat or restore this chat before sending."
+msgstr "Вернитесь в активный чат или восстановите этот чат, прежде чем отправлять сообщение."
+
+# AI Translated
+msgid "Finish or cancel AI configuration before sending a message."
+msgstr "Завершите или отмените настройку ИИ, прежде чем отправлять сообщение."
+
+# AI Translated
+msgid "This message belongs to a different chat."
+msgstr "Это сообщение относится к другому чату."
+
+# AI Translated
+msgid "A message needs text or an attachment."
+msgstr "Сообщение должно содержать текст или вложение."
+
+# AI Translated
+msgid "The file could not be read."
+msgstr "Не удалось прочитать файл."
+
+# AI Translated
+msgid "This file is too large to attach."
+msgstr "Файл слишком большой для вложения."
+
+# AI Translated
+msgid "This file type can't be read by AI."
+msgstr "ИИ не может прочитать файлы этого типа."
+
+# AI Translated
+msgid "This file is not readable UTF-8 text."
+msgstr "Этот файл не является текстом в кодировке UTF-8."
+
+# AI Translated
+msgid "The attachment could not be stored."
+msgstr "Не удалось сохранить вложение."
+
+# AI Translated
+msgid "Photo or image"
+msgstr "Фото или изображение"
+
+# AI Translated
+msgid "3D model"
+msgstr "3D-модель"
+
+# AI Translated
+msgid "Document (PDF)"
+msgstr "Документ (PDF)"
+
+# AI Translated
+msgid "This build cannot open a file dialog."
+msgstr "Эта сборка приложения не может открыть окно выбора файла."
+
+# AI Translated
+# Needs human review: "From %1%" rendered as "Источник: %1%" so the substituted place name needs no case; check it reads well with real values.
+#. TRN A calibration chat's first line. %1%: where it was started from, %2%: a printer.
+#, boost-format
+msgid "From %1% · %2% · filament not chosen · temporary test settings"
+msgstr "Источник: %1% · %2% · материал не выбран · временные тестовые настройки"
+
+# AI Translated
+# Needs human review: "From %1%" rendered as "Источник: %1%"; check with real values.
+#. TRN A calibration chat's first line. %1%: where it was started from, %2%: a filament, %3%: a printer.
+#, boost-format
+msgid "From %1% · %2% on %3% · temporary test settings"
+msgstr "Источник: %1% · %2% на %3% · временные тестовые настройки"
+
+# AI Translated
+#. TRN A reopened calibration test's line. %1%: the day it was made, as "21 Oct 2026".
+#, boost-format
+msgid "Reopened · generated %1%"
+msgstr "Открыт повторно · создан %1%"
+
+# AI Translated
+#. TRN %1%: where the test was opened from, %2%: the day it was made, as "21 Oct 2026".
+#, boost-format
+msgid "Opened from %1% · generated %2%"
+msgstr "Открыт из: %1% · создан %2%"
+
+# AI Translated
+#. TRN %1% is a calibration result, such as 215 °C.
+#, boost-format
+msgid "result %1% saved"
+msgstr "результат %1% сохранён"
+
+# AI Translated
+#. TRN %1% is a plate's name, %2% why the slice did not succeed.
+#, boost-format
+msgid "The app did not slice %1%: %2%"
+msgstr "Приложение не выполнило нарезку %1%: %2%"
+
+# AI Translated
+#. TRN %1% is a plate's name, %2% why the slice did not succeed.
+#, boost-format
+msgid "The app stopped the slice of %1%: %2%"
+msgstr "Приложение остановило нарезку %1%: %2%"
+
+# AI Translated
+msgid "The slice of every plate finished."
+msgstr "Нарезка всех столов завершена."
+
+# AI Translated
+#. TRN %1% is a plate's name.
+#, boost-format
+msgid "The slice of %1% finished."
+msgstr "Нарезка %1% завершена."
+
+# AI Translated
+msgid "Historical replies cannot be retried."
+msgstr "Ответы из истории нельзя запросить повторно."
+
+# AI Translated
+msgid "Only a failed or stopped assistant message in the active conversation can be retried."
+msgstr "Повторить можно только неудавшееся или остановленное сообщение ассистента в активном разговоре."
+
+# AI Translated
+msgid "Only the chat's last reply can be retried."
+msgstr "Повторить можно только последний ответ в чате."
+
+# AI Translated
+msgid "Another reply is currently streaming."
+msgstr "Сейчас уже выводится другой ответ."
+
+# AI Translated
+msgid "Historical tool actions cannot be changed."
+msgstr "Действия инструментов из истории нельзя изменить."
+
+# AI Translated
+msgid "This proposal is no longer open. Ask AI again."
+msgstr "Это предложение больше не актуально. Спросите ИИ снова."
+
+# AI Translated
+msgid "This save can no longer be undone."
+msgstr "Это сохранение больше нельзя отменить."
+
+# AI Translated
+msgid "The earlier values cannot be put back."
+msgstr "Прежние значения невозможно вернуть."
+
+# AI Translated
+msgid "Finish or resolve pending work before creating a chat."
+msgstr "Завершите или разрешите ожидающие действия, прежде чем создавать чат."
+
+# AI Translated
+msgid "The current chat could not be saved."
+msgstr "Не удалось сохранить текущий чат."
+
+# AI Translated
+msgid "The new chat could not be saved."
+msgstr "Не удалось сохранить новый чат."
+
+# AI Translated
+msgid "The selected chat could not be saved."
+msgstr "Не удалось сохранить выбранный чат."
+
+# AI Translated
+msgid "The project or selected chat changed. Review it again."
+msgstr "Проект или выбранный чат изменились. Проверьте ещё раз."
+
+# AI Translated
+msgid "Finish or resolve pending work before resuming a chat."
+msgstr "Завершите или разрешите ожидающие действия, прежде чем возобновлять чат."
+
+# AI Translated
+msgid "This chat is already active."
+msgstr "Этот чат уже активен."
+
+# AI Translated
+msgid "JusPrin can't find the project version this chat was working on."
+msgstr "JusPrin не может найти версию проекта, с которой работал этот чат."
+
+# AI Translated
+msgid "The current project could not be saved before restoration."
+msgstr "Не удалось сохранить текущий проект перед восстановлением."
+
+# AI Translated
+msgid "JusPrin couldn't put the project back."
+msgstr "JusPrin не удалось вернуть проект."
+
+# AI Translated
+msgid "Restored this chat's saved project setup. Check the current printer and material before printing."
+msgstr "Восстановлена сохранённая в этом чате настройка проекта. Перед печатью проверьте текущий принтер и материал."
+
+# AI Translated
+msgid "Use a non-empty, single-line title of at most 120 characters for an existing chat."
+msgstr "Для существующего чата укажите непустое однострочное название длиной не более 120 символов."
+
+# AI Translated
+msgid "This chat is still working. Stop it or let it finish, then delete it."
+msgstr "Этот чат ещё работает. Остановите его или дождитесь завершения, затем удалите."
+
+# AI Translated
+msgid "This chat no longer exists."
+msgstr "Этот чат больше не существует."
+
+# AI Translated
+msgid "The replacement chat could not be saved."
+msgstr "Не удалось сохранить заменяющий чат."
+
+# AI Translated
+msgid "Historical chats cannot edit the current draft."
+msgstr "Чаты из истории не могут изменять текущий черновик."
+
+# AI Translated
+msgid "Finish or stop the current reply before configuring AI."
+msgstr "Завершите или остановите текущий ответ, прежде чем настраивать ИИ."
+
+# AI Translated
+msgid "This build cannot configure an AI provider."
+msgstr "Эта сборка не может настроить поставщика ИИ."
+
+# AI Translated
+msgid "A credential check is already running."
+msgstr "Проверка учётных данных уже выполняется."
+
+# AI Translated
+msgid "This build cannot verify a key for that provider yet."
+msgstr "Эта сборка пока не может проверить ключ этого поставщика."
+
+# AI Translated
+msgid "Finish or stop the current reply before removing a key."
+msgstr "Завершите или остановите текущий ответ, прежде чем удалять ключ."
+
+# AI Translated
+msgid "Finish or cancel the key check before removing a key."
+msgstr "Завершите или отмените проверку ключа, прежде чем удалять ключ."
+
+# AI Translated
+msgid "That key could not be removed."
+msgstr "Не удалось удалить этот ключ."
+
+# AI Translated
+msgid "This build cannot sign in to a JusPrin account."
+msgstr "Эта сборка не может войти в учётную запись JusPrin."
+
+# AI Translated
+msgid "Finish or stop the current reply before signing in."
+msgstr "Завершите или остановите текущий ответ, прежде чем входить в учётную запись."
+
+# AI Translated
+msgid "A sign-in or key check is already running."
+msgstr "Вход или проверка ключа уже выполняется."
+
+# AI Translated
+msgid "There is no JusPrin account on this computer to check."
+msgstr "На этом компьютере нет учётной записи JusPrin для проверки."
+
+# AI Translated
+msgid "JusPrin couldn't start signing in. Try again."
+msgstr "JusPrin не удалось начать вход. Попробуйте ещё раз."
+
+# AI Translated
+msgid "JusPrin couldn't sign you in. Try again."
+msgstr "JusPrin не удалось выполнить вход. Попробуйте ещё раз."
+
+# AI Translated
+msgid "This sign-in could not be saved, so you will have to sign in again next time JusPrin starts."
+msgstr "Не удалось сохранить данные входа, поэтому при следующем запуске JusPrin придётся войти снова."
+
+# AI Translated
+msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
+msgstr "Не удалось сохранить этот ключ, поэтому при следующем запуске JusPrin его придётся ввести снова."
+
+# AI Translated
+msgid "The panel is still loading. Try again in a moment."
+msgstr "Панель ещё загружается. Повторите попытку чуть позже."
+
+# AI Translated
+msgid "The AI service is not available."
+msgstr "Сервис ИИ недоступен."
+
+# AI Translated
+msgid "The AI service could not start this request."
+msgstr "Сервису ИИ не удалось начать обработку этого запроса."
+
+# AI Translated
+msgid "AI could not receive the native tool result."
+msgstr "ИИ не удалось получить результат инструмента приложения."
+
+# AI Translated
+msgid "The AI request failed."
+msgstr "Запрос к ИИ не выполнен."
+
+# AI Translated
+msgid "The automatic chat title could not be generated. You can rename the chat."
+msgstr "Не удалось автоматически создать название чата. Вы можете переименовать чат."
+
+# AI Translated
+#. TRN %1% is an AI provider's account, such as JusPrin.
+#, boost-format
+msgid "This chat ran on your %1% account. Sign in again to continue it, or start a new chat."
+msgstr "Этот чат работал через вашу учётную запись %1%. Войдите снова, чтобы продолжить его, или начните новый чат."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "This chat ran on %1%, and no %1% API key is set up now. Add the key in the AI settings to continue it, or start a new chat."
+msgstr "Этот чат работал через %1%, но API-ключ %1% сейчас не настроен. Добавьте ключ в настройках ИИ, чтобы продолжить чат, или начните новый."
+
+# AI Translated
+msgid "JusPrin hasn't loaded the AI models for your account yet. Try again in a moment."
+msgstr "JusPrin ещё не загрузил модели ИИ для вашей учётной записи. Повторите попытку чуть позже."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "No %1% API key is set up. Add it in the AI settings, or choose another model."
+msgstr "API-ключ %1% не настроен. Добавьте его в настройках ИИ или выберите другую модель."
+
+# AI Translated
+msgid "A connection is already being saved."
+msgstr "Подключение уже сохраняется."
+
+# AI Translated
+msgid "JusPrin's connection helper is missing. Reinstall or rebuild JusPrin."
+msgstr "Отсутствует вспомогательная программа подключения JusPrin. Переустановите или пересоберите JusPrin."
+
+# AI Translated
+msgid "The AppImage launcher is missing. Reopen the installed AppImage."
+msgstr "Отсутствует загрузчик AppImage. Откройте установленный AppImage заново."
+
+# AI Translated
+msgid "Review the change before connecting."
+msgstr "Проверьте изменение перед подключением."
+
+# AI Translated
+#. TRN %1% is an AI client app, such as Claude Code.
+#, boost-format
+msgid "%1% isn't installed. Install it, or copy the command and run it later."
+msgstr "%1% не установлен. Установите его или скопируйте команду и выполните её позже."
+
+# AI Translated
+msgid "This build cannot run the client CLI."
+msgstr "Эта сборка не может запустить CLI клиента."
+
+# AI Translated
+msgid "This build cannot open a file manager."
+msgstr "Эта сборка не может открыть файловый менеджер."
+
+# AI Translated
+msgid "The provider did not answer."
+msgstr "Поставщик не ответил."
+
+# AI Translated
+msgid "Attach files"
+msgstr "Прикрепить файлы"
+
+# AI Translated
+msgid "The AI panel could not connect"
+msgstr "Не удалось подключить панель ИИ"
+
+# AI Translated
+msgid "Back to Prepare"
+msgstr "Вернуться к подготовке"
+
+# AI Translated
+msgid "Open filament settings"
+msgstr "Открыть настройки материала"
+
+# AI Translated
+msgid "The packaged AI page is missing from this build."
+msgstr "В этой сборке отсутствует встроенная страница ИИ."
+
+# AI Translated
+msgid "The system web view could not be created."
+msgstr "Не удалось создать системный компонент веб-просмотра."
+
+# AI Translated
+msgid "The AI page failed to load."
+msgstr "Не удалось загрузить страницу ИИ."
+
+# AI Translated
+msgid "The AI page did not complete the bridge handshake."
+msgstr "Страница ИИ не завершила установку связи с приложением."
+
+# AI Translated
+msgid "Restart the application to load the AI page."
+msgstr "Перезапустите приложение, чтобы загрузить страницу ИИ."
+
+# AI Translated
+msgid "This is an internal connection between the application and its AI panel, not a network service."
+msgstr "Это внутреннее соединение между приложением и его панелью ИИ, а не сетевой сервис."
+
+# AI Translated
+#. TRN %1% is the web view's own error text.
+#, boost-format
+msgid "Last load error: %1%"
+msgstr "Последняя ошибка загрузки: %1%"
+
+# AI Translated
+#. TRN The messages the app and its AI panel exchanged. %1% and %2% are counts.
+#, boost-format
+msgid "Bridge traffic: %1% sent / %2% received"
+msgstr "Обмен с панелью: отправлено %1% / получено %2%"
+
+# AI Translated
+msgid "The AI service returned an unreadable streaming response."
+msgstr "Сервис ИИ вернул нечитаемый потоковый ответ."
+
+# AI Translated
+msgid "The AI service streamed a delta for a block it never opened."
+msgstr "Сервис ИИ передал фрагмент для блока, который он не открывал."
+
+# AI Translated
+msgid "The AI service sent a tool call whose arguments are not JSON."
+msgstr "Сервис ИИ отправил вызов инструмента с аргументами не в формате JSON."
+
+# AI Translated
+msgid "The AI service could not complete the response."
+msgstr "Сервису ИИ не удалось завершить ответ."
+
+# AI Translated
+#. TRN %1% is the AI service's own reason, in English, such as "cyber".
+#, boost-format
+msgid "The AI service declined to answer (%1%)."
+msgstr "Сервис ИИ отказался отвечать (%1%)."
+
+# AI Translated
+msgid "The AI service ended its response for a reason this build does not know."
+msgstr "Сервис ИИ завершил ответ по причине, неизвестной этой сборке."
+
+# AI Translated
+msgid "This version of JusPrin can no longer connect to JusPrin accounts. Get the new version to keep using your account."
+msgstr "Эта версия JusPrin больше не может подключаться к учётным записям JusPrin. Установите новую версию, чтобы и дальше пользоваться учётной записью."
+
+# AI Translated
+msgid "Signing in didn't finish. Nothing was saved. Try again."
+msgstr "Вход не завершён. Ничего не сохранено. Попробуйте ещё раз."
+
+# AI Translated
+msgid "JusPrin couldn't be reached to finish signing in. Try again."
+msgstr "Не удалось связаться с JusPrin для завершения входа. Попробуйте ещё раз."
+
+# AI Translated
+msgid "JusPrin has no AI model for this account right now. Try again later."
+msgstr "Сейчас для этой учётной записи в JusPrin нет модели ИИ. Повторите попытку позже."
+
+# AI Translated
+msgid "Restored an earlier project version"
+msgstr "Восстановлена более ранняя версия проекта"
+
+# AI Translated
+msgid "Restored this chat's saved project setup"
+msgstr "Восстановлена сохранённая в этом чате настройка проекта"
+
+# AI Translated
+#. TRN The chat list's preview of a message that has only attachments.
+msgid "Attachment"
+msgstr "Вложение"
+
+# AI Translated
+msgid "The AI service stopped before finishing its response."
+msgstr "Сервис ИИ остановился, не завершив ответ."
+
+# AI Translated
+msgid "The AI service kept pausing its response."
+msgstr "Сервис ИИ раз за разом приостанавливал ответ."
+
+# AI Translated
+msgid "AI could not be asked to continue its response."
+msgstr "Не удалось попросить ИИ продолжить ответ."
+
+# AI Translated
+msgid "AI could not be told the results of its tool calls."
+msgstr "Не удалось передать ИИ результаты вызовов инструментов."
+
+# AI Translated
+msgid "AI returned an invalid tool call."
+msgstr "ИИ вернул недопустимый вызов инструмента."
+
+# AI Translated
+msgid "The AI service ended before a complete response arrived."
+msgstr "Сервис ИИ завершил работу до получения полного ответа."
+
+# AI Translated
+msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
+msgstr "Срок вашего входа в JusPrin истёк. Войдите снова в настройках, затем повторите попытку."
+
+# AI Translated
+#, boost-format
+msgid "This message needs %1% credit; you have %2%."
+msgid_plural "This message needs %1% credits; you have %2%."
+msgstr[0] "Этому сообщению нужен %1% кредит; у вас %2%."
+msgstr[1] "Этому сообщению нужно %1% кредита; у вас %2%."
+msgstr[2] "Этому сообщению нужно %1% кредитов; у вас %2%."
+
+# AI Translated
+msgid "You're out of credits."
+msgstr "У вас закончились кредиты."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% API key was rejected. Update the AI configuration and try again."
+msgstr "API-ключ %1% отклонён. Обновите настройки ИИ и повторите попытку."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The request was too large for the %1% service."
+msgstr "Запрос слишком велик для сервиса %1%."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% service is rate limited. Try again shortly."
+msgstr "Сервис %1% ограничил частоту запросов. Повторите попытку чуть позже."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% service is overloaded. Try again shortly."
+msgstr "Сервис %1% перегружен. Повторите попытку чуть позже."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% service is temporarily unavailable."
+msgstr "Сервис %1% временно недоступен."
+
+# AI Translated
+msgid "The AI request timed out."
+msgstr "Истекло время ожидания запроса к ИИ."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The AI request could not reach the %1% service."
+msgstr "Не удалось связаться с сервисом %1% для запроса к ИИ."
+
+# AI Translated
+msgid "The AI service response did not contain valid output."
+msgstr "Ответ сервиса ИИ не содержит корректных данных."
+
+# AI Translated
+#. TRN A button that asks the AI to choose another block of a calibration test.
+msgid "Pick another block"
+msgstr "Выбрать другой блок"
+
+# AI Translated
+#. TRN A button that asks the AI to choose another tile of a calibration test.
+msgid "Pick another tile"
+msgstr "Выбрать другую плитку"
+
+# AI Translated
+#. TRN A button that asks the AI to choose another line of a calibration test.
+msgid "Pick another line"
+msgstr "Выбрать другую линию"
+
+# AI Translated
+#. TRN A button that asks the AI to choose another corner of a calibration test.
+msgid "Pick another corner"
+msgstr "Выбрать другой угол"
+
+# AI Translated
+#. TRN A button that asks the AI to choose another height of a calibration tower.
+msgid "Pick another height"
+msgstr "Выбрать другую высоту"
+
+# AI Translated
+#. TRN %1% is a preset's name.
+#, boost-format
+msgid "Preset · %1%"
+msgstr "Профиль · %1%"
+
+# AI Translated
+#. TRN %1% is a preset's name.
+#, boost-format
+msgid "New preset · %1%"
+msgstr "Новый профиль · %1%"
+
+# AI Translated
+#. TRN %1% is the preset the new one is made from.
+#, boost-format
+msgid "%1% itself is unchanged"
+msgstr "%1% остаётся без изменений"
+
+# AI Translated
+#. TRN %1% is a setting's new value, such as 215 °C.
+#, boost-format
+msgid "Save %1% as a new filament preset"
+msgstr "Сохранить %1% как новый профиль материала"
+
+# AI Translated
+#. TRN %1% is a setting's new value, such as 215 °C.
+#, boost-format
+msgid "Save %1% as a new printer preset"
+msgstr "Сохранить %1% как новый профиль принтера"
+
+# AI Translated
+#. TRN %1% is a setting's new value, such as 215 °C.
+#, boost-format
+msgid "Save %1% as a new process preset"
+msgstr "Сохранить %1% как новый профиль настроек печати"
+
+# AI Translated
+#. TRN %1% is a setting's new value, such as 215 °C, %2% a preset's name.
+#, boost-format
+msgid "Save %1% to %2%"
+msgstr "Сохранить %1% в %2%"
+
+# AI Translated
+msgid "This proposal is already saved."
+msgstr "Это предложение уже сохранено."
+
+# AI Translated
+msgid "Drop a model here or add one"
+msgstr "Перетащите модель сюда или добавьте её"
+
+# AI Translated
+msgid "World coordinates"
+msgstr "Глобальные координаты"
+
+# AI Translated
+msgid "Object coordinates"
+msgstr "Координаты модели"
+
+# AI Translated
+msgid "Translate(Relative)"
+msgstr "Перемещение (относительное)"
+
+# AI Translated
+msgid "Rotate (absolute)"
+msgstr "Поворот (абсолютный)"
+
+# AI Translated
+msgid "Part coordinates"
+msgstr "Координаты части"
+
+# AI Translated
+msgid "The packaged Home page is missing from this build."
+msgstr "В этой сборке отсутствует встроенная страница «Главная»."
+
+# AI Translated
+msgid "The Home page failed to load."
+msgstr "Не удалось загрузить страницу «Главная»."
+
+# AI Translated
+msgid "This window stopped updating because the app switched to another printer."
+msgstr "Это окно перестало обновляться, потому что приложение переключилось на другой принтер."
+
+# AI Translated
+#. TRN A length in millimetres, such as a nozzle diameter on a printer card: "0.4 mm". %s is the number.
+#, c-format, boost-format
+msgid "%s mm"
+msgstr "%s мм"
+
+# AI Translated
+#, c-format, boost-format
+msgid "The printer reports error %s."
+msgstr "Принтер сообщает об ошибке %s."
+
+# AI Translated
+msgid "LAN"
+msgstr "LAN"
+
+# AI Translated
+msgid "Cloud"
+msgstr "Облако"
+
+# AI Translated
+msgid "The printer stopped sending updates."
+msgstr "Принтер перестал присылать обновления."
+
+# AI Translated
+#, c-format, boost-format
+msgid "%s isn't answering."
+msgstr "%s не отвечает."
+
+# AI Translated
+msgid "Klipper isn't running."
+msgstr "Klipper не запущен."
+
+# AI Translated
+#. TRN %1% is Klipper's own message, in English, saying why it stopped.
+#, boost-format
+msgid "Klipper stopped: %1%"
+msgstr "Klipper остановлен: %1%"
+
+# AI Translated
+msgid "This printer no longer exists."
+msgstr "Этот принтер больше не существует."
+
+# AI Translated
+# Needs human review: Day before the abbreviated month ("20 окт."); check the month abbreviations the app substitutes read right after the day.
+#. TRN A date in this year on a project card: %1% is the abbreviated month name, %2% the day of the month, as in "Oct 20".
+#, boost-format
+msgctxt "short date"
+msgid "%1% %2%"
+msgstr "%2% %1%"
+
+# AI Translated
+#. TRN A date outside this year on a project card: %1% is the date without the year, as in "Oct 20", %2% the year.
+#, boost-format
+msgctxt "date with year"
+msgid "%1%, %2%"
+msgstr "%1% %2%"
+
+# AI Translated
+msgid "G-code exported"
+msgstr "G-code экспортирован"
+
+# AI Translated
+#. TRN A project's status: %1% is a date, as in "Nov 3".
+#, boost-format
+msgid "G-code exported %1%"
+msgstr "G-code экспортирован %1%"
+
+# AI Translated
+#. TRN A project's status: %1% is a printer model, as in "Ender-3 V3 KE".
+#, boost-format
+msgid "G-code exported for %1%"
+msgstr "G-code экспортирован для %1%"
+
+# AI Translated
+#. TRN A project's status: %1% is a date, as in "Nov 3", %2% a printer model, as in "Ender-3 V3 KE".
+#, boost-format
+msgid "G-code exported %1% for %2%"
+msgstr "G-code экспортирован %1% для %2%"
+
+# AI Translated
+msgctxt "project status"
+msgid "Printed"
+msgstr "Напечатан"
+
+# AI Translated
+#. TRN A project's status: %1% is a date, as in "Oct 20".
+#, boost-format
+msgid "Printed %1%"
+msgstr "Напечатан %1%"
+
+# AI Translated
+msgctxt "project status"
+msgid "Sent"
+msgstr "Отправлен"
+
+# AI Translated
+#. TRN A project's status: %1% is a date, as in "Oct 20".
+#, boost-format
+msgid "Sent %1%"
+msgstr "Отправлен %1%"
+
+# AI Translated
+#. TRN A project's status: it has not been sliced to G-code yet.
+msgctxt "project status"
+msgid "Draft"
+msgstr "Черновик"
+
+# AI Translated
+msgid "That sign-in expired. Try again."
+msgstr "Срок действия входа истёк. Попробуйте ещё раз."
+
+# AI Translated
+#, c-format, boost-format
+msgid "JusPrin found no %s printers to bring. Choose your printer instead."
+msgstr "JusPrin не нашёл принтеров %s для переноса. Выберите свой принтер вручную."
+
+# AI Translated
+msgid "Generic printer"
+msgstr "Универсальный принтер"
+
+# AI Translated
+msgid "Your projects couldn't be loaded. JusPrin will keep trying."
+msgstr "Не удалось загрузить ваши проекты. JusPrin продолжит попытки."
+
+# AI Translated
+msgid "Untitled project"
+msgstr "Проект без названия"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Printing on %s"
+msgstr "Печать на %s"
+
+# AI Translated
+msgid "JusPrin no longer keeps this G-code. Slice the project again to export it."
+msgstr "JusPrin больше не хранит этот G-code. Нарежьте проект снова, чтобы экспортировать его."
+
+# AI Translated
+msgid "Couldn't export G-code"
+msgstr "Не удалось экспортировать G-code"
+
+# AI Translated
+#, c-format, boost-format
+msgid "The G-code couldn't be written to %s."
+msgstr "Не удалось записать G-code в %s."
+
+# AI Translated
+msgid "Choose a photo of the printed object"
+msgstr "Выберите фото напечатанной модели"
+
+# AI Translated
+msgid "Photos"
+msgstr "Фотографии"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%s couldn't be opened. Try opening it with Open… instead."
+msgstr "Не удалось открыть %s. Попробуйте открыть файл через «Открыть…»."
+
+# AI Translated
+msgid "Couldn't open file"
+msgstr "Не удалось открыть файл"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Import from %s"
+msgstr "Импорт из %s"
+
+# AI Translated
+msgid "Importing these printers loads their profiles, which replaces unsaved changes to the project's settings."
+msgstr "При импорте этих принтеров загружаются их профили, и несохранённые изменения настроек проекта будут заменены."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Imported from %s"
+msgstr "Импортировано из %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "JusPrin couldn't read this file. To try again, choose Printer › Import printers from %s…"
+msgstr "JusPrin не удалось прочитать этот файл. Чтобы повторить попытку, выберите «Принтер › Импортировать принтеры из %s…»"
+
+# AI Translated
+msgid "Not imported. The file has no version."
+msgstr "Не импортировано. У файла нет версии."
+
+# AI Translated
+msgid "Not imported. It isn't a printer, filament or process preset."
+msgstr "Не импортировано. Это не профиль принтера, материала или настроек печати."
+
+# AI Translated
+#. TRN %1% is the filament preset the file is based on, %2% the app it was imported from.
+#, boost-format
+msgid "Not imported, because it's based on %1%, which JusPrin doesn't have. It stays in %2%. When you prepare a print, choose a similar filament instead."
+msgstr "Не импортировано: профиль основан на %1%, которого нет в JusPrin. Он остаётся в %2%. При подготовке печати выберите похожий материал."
+
+# AI Translated
+#. TRN %1% is the print settings preset the file is based on, %2% the app it was imported from.
+#, boost-format
+msgid "Not imported, because they're based on %1%, which JusPrin doesn't have. They stay in %2%. When you prepare a print, choose similar print settings instead."
+msgstr "Не импортировано: профили основаны на %1%, которого нет в JusPrin. Они остаются в %2%. При подготовке печати выберите похожие настройки печати."
+
+# AI Translated
+#. TRN %1% is the printer profile the file is based on, %2% the app it was imported from.
+#, boost-format
+msgid "Not imported, because it's based on %1%, which JusPrin doesn't have. It stays in %2%. When you add a printer, choose a similar one instead."
+msgstr "Не импортировано: профиль основан на %1%, которого нет в JusPrin. Он остаётся в %2%. При добавлении принтера выберите похожий."
+
+# AI Translated
+#, c-format, boost-format
+msgid "JusPrin couldn't load this preset. To try again, choose Printer › Import printers from %s…"
+msgstr "JusPrin не удалось загрузить этот профиль. Чтобы повторить попытку, выберите «Принтер › Импортировать принтеры из %s…»"
+
+# AI Translated
+#, c-format, boost-format
+msgid "It's based on %s, which JusPrin doesn't have. When you prepare a print, choose a similar filament instead."
+msgstr "Он основан на %s, которого нет в JusPrin. При подготовке печати выберите похожий материал."
+
+# AI Translated
+#, c-format, boost-format
+msgid "It's based on %s, which JusPrin doesn't have. When you prepare a print, choose similar print settings instead."
+msgstr "Он основан на %s, которого нет в JusPrin. При подготовке печати выберите похожие настройки печати."
+
+# AI Translated
+#, c-format, boost-format
+msgid "It's based on %s, which JusPrin doesn't have. When you add a printer, choose a similar one instead."
+msgstr "Он основан на %s, которого нет в JusPrin. При добавлении принтера выберите похожий."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Choose your %s folder"
+msgstr "Выберите папку %s"
+
+# AI Translated
+#. TRN %1% is the app the printers are imported from, such as OrcaSlicer.
+#, boost-format
+msgid "JusPrin found no %1% printers in that folder. If %1% keeps its settings somewhere else, choose that folder."
+msgstr "JusPrin не нашёл принтеров %1% в этой папке. Если %1% хранит настройки в другом месте, выберите ту папку."
+
+# AI Translated
+msgid "The printer's page didn't load"
+msgstr "Страница принтера не загрузилась"
+
+# AI Translated
+msgid "Try again"
+msgstr "Повторить"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
+msgstr "По адресу %s никто не ответил. Убедитесь, что принтер включён и находится в той же сети, что и этот компьютер, затем повторите попытку."
+
+# AI Translated
+msgid "Client configuration is a symbolic link. Use Copy and update its target manually."
+msgstr "Конфигурация клиента является символической ссылкой. Нажмите «Копировать» и обновите целевой файл вручную."
+
+# AI Translated
+msgid "Client configuration exceeds the 1 MiB setup limit."
+msgstr "Конфигурация клиента превышает допустимый размер 1 МиБ."
+
+# AI Translated
+msgid "Client configuration exceeds nesting depth 32."
+msgstr "Глубина вложенности конфигурации клиента превышает 32."
+
+# AI Translated
+msgid "Client configuration has an unterminated comment."
+msgstr "В конфигурации клиента есть незакрытый комментарий."
+
+# AI Translated
+msgid "Client configuration and its server map must be JSON objects. No changes made."
+msgstr "Конфигурация клиента и её список серверов должны быть объектами JSON. Ничего не изменено."
+
+# AI Translated
+msgid "Client configuration has ambiguous duplicate keys. No changes made."
+msgstr "В конфигурации клиента есть неоднозначные повторяющиеся ключи. Ничего не изменено."
+
+# AI Translated
+msgid "Client configuration changed after the preview. Review the new change and confirm again."
+msgstr "Конфигурация клиента изменилась после предпросмотра. Проверьте новое изменение и подтвердите снова."
+
+# AI Translated
+msgid "Client configuration changed while preparing the write. Original file retained; review again."
+msgstr "Конфигурация клиента изменилась во время подготовки записи. Исходный файл сохранён; проверьте снова."
+
+# AI Translated
+msgid "JusPrin couldn't close the project, so it didn't restart. Your project stays open, and JusPrin will use the new language the next time it starts."
+msgstr "JusPrin не удалось закрыть проект, поэтому перезапуск не выполнен. Проект остаётся открытым, а новый язык будет применён при следующем запуске JusPrin."
+
+# AI Translated
+msgid "Restart"
+msgstr "Перезапустить"
+
+# AI Translated
+msgid "Checking..."
+msgstr "Проверка..."
+
+# AI Translated
+msgid "Whole plate"
+msgstr "Весь стол"
+
+# AI Translated
+msgid "Ignored"
+msgstr "Проигнорировано"
+
+# AI Translated
+#, boost-format
+msgid "%1% warning ignored"
+msgid_plural "%1% warnings ignored"
+msgstr[0] "%1% предупреждение проигнорировано"
+msgstr[1] "%1% предупреждения проигнорированы"
+msgstr[2] "%1% предупреждений проигнорировано"
+
+# AI Translated
+#, boost-format
+msgid "%1% print issue"
+msgid_plural "%1% print issues"
+msgstr[0] "%1% проблема печати"
+msgstr[1] "%1% проблемы печати"
+msgstr[2] "%1% проблем печати"
+
+# AI Translated
+#, boost-format
+msgid "%1% blocks printing."
+msgid_plural "%1% block printing."
+msgstr[0] "%1% блокирует печать."
+msgstr[1] "%1% блокируют печать."
+msgstr[2] "%1% блокируют печать."
+
+# AI Translated
+#. TRN The print-issue pill: %1% is "3 print issues", %2% the sentence "2 block printing."
+#, boost-format
+msgid "%1%. %2%"
+msgstr "%1%. %2%"
+
+# AI Translated
+msgid "Blocks printing"
+msgstr "Блокирует печать"
+
+# AI Translated
+msgid "out of view"
+msgstr "вне видимой области"
+
+# AI Translated
+msgid "Checking whether this is fixed..."
+msgstr "Проверка, устранена ли проблема..."
+
+# AI Translated
+#, boost-format
+msgid "%1% of %2%"
+msgstr "%1% из %2%"
+
+# AI Translated
+msgid "AI is replying..."
+msgstr "ИИ отвечает..."
+
+# AI Translated
+msgid "Stop ignoring"
+msgstr "Не игнорировать"
+
+# AI Translated
+msgid "Ignore this warning"
+msgstr "Игнорировать это предупреждение"
+
+# AI Translated
+msgid "Ask AI"
+msgstr "Спросить ИИ"
+
+# AI Translated
+msgid "Explain this issue and my options."
+msgstr "Объясните эту проблему и что я могу сделать."
+
+# AI Translated
+msgid "Set up AI..."
+msgstr "Настроить ИИ..."
+
+# AI Translated
+msgid "A G-code path goes beyond the plate boundaries."
+msgstr "Траектория G-code выходит за границы стола."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Filaments %s cannot be printed directly on the surface of this plate."
+msgstr "Материалы %s нельзя печатать непосредственно на поверхности этого стола."
+
+# AI Translated
+#, boost-format
+msgid "Slicing plate %1%"
+msgstr "Нарезка стола %1%"
+
+# AI Translated
+msgid "The form was out of date. Choose the printer again."
+msgstr "Форма устарела. Выберите принтер снова."
+
+# AI Translated
+msgid "Choose the plate on this printer."
+msgstr "Выберите стол на этом принтере."
+
+# AI Translated
+msgid "That filament is no longer on the list. Choose another."
+msgstr "Этого материала больше нет в списке. Выберите другой."
+
+# AI Translated
+msgid "That printer is no longer on the list. Choose it again."
+msgstr "Этого принтера больше нет в списке. Выберите его снова."
+
+# AI Translated
+msgid "Printer conversation"
+msgstr "Разговор о принтере"
+
+# AI Translated
+msgid "Filament conversation"
+msgstr "Разговор о материале"
+
+# AI Translated
+msgid "Browse the full printer list"
+msgstr "Открыть полный список принтеров"
+
+# AI Translated
+msgid "Open printer settings"
+msgstr "Открыть настройки принтера"
+
+# AI Translated
+#. TRN %1% is the profile loader's own error, in English.
+#, boost-format
+msgid "The printer profiles could not be read: %1%"
+msgstr "Не удалось прочитать профили принтеров: %1%"
+
+# AI Translated
+msgid "Enter a name for the printer."
+msgstr "Введите имя принтера."
+
+# AI Translated
+msgid "A printer name can't start or end with a space."
+msgstr "Имя принтера не может начинаться или заканчиваться пробелом."
+
+# AI Translated
+#, c-format, boost-format
+msgid "A printer name can't contain any of these characters: %s"
+msgstr "Имя принтера не может содержать следующие символы: %s"
+
+# AI Translated
+msgid "That name is reserved. Choose another."
+msgstr "Это имя зарезервировано. Выберите другое."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Another printer or profile is already named \"%s\"."
+msgstr "Другой принтер или профиль уже называется «%s»."
+
+# AI Translated
+msgid "A new name has to differ from the old one by more than capitalization."
+msgstr "Новое имя должно отличаться от прежнего не только регистром букв."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Other printer profiles are based on \"%s\". Remove those first in Printer settings."
+msgstr "На «%s» основаны другие профили принтеров. Сначала удалите их в настройках принтера."
+
+# AI Translated
+msgid "The app couldn't open your browser."
+msgstr "Приложению не удалось открыть браузер."
+
+# AI Translated
+msgid "About JusPrin"
+msgstr "О программе JusPrin"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Version %s"
+msgstr "Версия %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Built on OrcaSlicer %s"
+msgstr "Основано на OrcaSlicer %s"
+
+# AI Translated
+#. TRN A noun: the label before the commit this copy of the app was built from.
+msgid "Build"
+msgstr "Сборка"
+
+# AI Translated
+msgid "Copy version"
+msgstr "Копировать версию"
+
+# AI Translated
+msgid "Get help"
+msgstr "Получить помощь"
+
+# AI Translated
+msgid "Email"
+msgstr "Эл. почта"
+
+# AI Translated
+msgid "License…"
+msgstr "Лицензия…"
+
+# AI Translated
+msgid "Free software under the GNU Affero General Public License v3."
+msgstr "Свободное программное обеспечение под лицензией GNU Affero General Public License v3."
+
+# AI Translated
+msgid "Copied"
+msgstr "Скопировано"
+
+# AI Translated
+#. TRN The menu of print actions: Slice plate, Check print…, Print….
+msgctxt "Menu"
+msgid "Print"
+msgstr "Печать"
+
+# AI Translated
+msgid "New project"
+msgstr "Новый проект"
+
+# AI Translated
+msgid "Open…"
+msgstr "Открыть…"
+
+# AI Translated
+msgid "Open recent"
+msgstr "Недавние проекты"
+
+# AI Translated
+msgid "Version history…"
+msgstr "История версий…"
+
+# AI Translated
+msgid "Project 3MF…"
+msgstr "Проект 3MF…"
+
+# AI Translated
+msgid "Exit"
+msgstr "Выход"
+
+# AI Translated
+msgid "Plates and project panel"
+msgstr "Панель столов и проекта"
+
+# AI Translated
+msgid "Show plates and project panel"
+msgstr "Показать панель столов и проекта"
+
+# AI Translated
+msgid "Hide plates and project panel"
+msgstr "Скрыть панель столов и проекта"
+
+# AI Translated
+msgid "AI panel"
+msgstr "Панель ИИ"
+
+# AI Translated
+msgid "Show AI panel"
+msgstr "Показать панель ИИ"
+
+# AI Translated
+msgid "Hide AI panel"
+msgstr "Скрыть панель ИИ"
+
+# AI Translated
+msgid "Switch to classic view…"
+msgstr "Перейти к классическому виду…"
+
+# AI Translated
+msgid "JusPrin guide…"
+msgstr "Руководство JusPrin…"
+
+# AI Translated
+msgid "Ask AI…"
+msgstr "Спросить ИИ…"
+
+# AI Translated
+msgid "Report a problem…"
+msgstr "Сообщить о проблеме…"
+
+# AI Translated
+msgid "Report a problem"
+msgstr "Сообщить о проблеме"
+
+# AI Translated
+msgid "Slice all plates"
+msgstr "Нарезать все столы"
+
+# AI Translated
+msgid "Check print…"
+msgstr "Проверить печать…"
+
+# AI Translated
+msgid "Print…"
+msgstr "Печать…"
+
+# AI Translated
+msgid "Print all plates…"
+msgstr "Печать всех столов…"
+
+# AI Translated
+msgid "Add a printer…"
+msgstr "Добавить принтер…"
+
+# AI Translated
+msgid "Import printers from OrcaSlicer…"
+msgstr "Импортировать принтеры из OrcaSlicer…"
+
+# AI Translated
+msgid "Import printers from JusPrin 1…"
+msgstr "Импортировать принтеры из JusPrin 1…"
+
+# AI Translated
+msgid "Printer settings…"
+msgstr "Настройки принтера…"
+
+# AI Translated
+msgid "Ask AI about printer settings…"
+msgstr "Спросить ИИ о настройках принтера…"
+
+# AI Translated
+msgid "Filament settings…"
+msgstr "Настройки материала…"
+
+# AI Translated
+msgid "Ask AI about filament settings…"
+msgstr "Спросить ИИ о настройках материала…"
+
+# AI Translated
+msgid "Calibrate…"
+msgstr "Калибровка…"
+
+# AI Translated
+msgid "Check print"
+msgstr "Проверить печать"
+
+# AI Translated
+msgid "Check Print"
+msgstr "Проверка печати"
+
+# AI Translated
+msgid "Legend"
+msgstr "Легенда"
+
+# AI Translated
+msgid "Close and return to Prepare"
+msgstr "Закрыть и вернуться к подготовке"
+
+# AI Translated
+#, c-format, boost-format
+msgid "sliced for %s"
+msgstr "нарезано для %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Layer %d"
+msgstr "Слой %d"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d s"
+msgstr "%d с"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d min"
+msgstr "%d мин"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d h %d min"
+msgstr "%d ч %d мин"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%.0f g"
+msgstr "%.0f г"
+
+# AI Translated
+#. TRN A length in metres, such as the filament a print uses: "12.4 m". %s is the number.
+#, c-format, boost-format
+msgid "%s m"
+msgstr "%s м"
+
+# AI Translated
+msgid "no supports were needed"
+msgstr "поддержки не понадобились"
+
+# AI Translated
+msgid "no seams are on the faces you marked"
+msgstr "на отмеченных гранях нет швов"
+
+# AI Translated
+msgid "nothing prints in the air"
+msgstr "ничего не печатается в воздухе"
+
+# AI Translated
+msgid "no paths cross or leave the plate"
+msgstr "ни одна траектория не пересекается с другими и не выходит за стол"
+
+# AI Translated
+msgid "no paths cross each other"
+msgstr "траектории не пересекаются"
+
+# AI Translated
+msgid "no paths leave the plate"
+msgstr "ни одна траектория не выходит за стол"
+
+# AI Translated
+msgid "the slicer gave no warnings"
+msgstr "слайсер не выдал предупреждений"
+
+# AI Translated
+msgid "Print report"
+msgstr "Отчёт о печати"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Print report, %s"
+msgstr "Отчёт о печати, %s"
+
+# AI Translated
+#. TRN A section title of the print report: the support structures the slice made.
+msgid "Supports"
+msgstr "Поддержки"
+
+# AI Translated
+msgid "Slicer warnings"
+msgstr "Предупреждения слайсера"
+
+# AI Translated
+msgid "Unsupported islands"
+msgstr "Участки без опоры"
+
+# AI Translated
+msgid "Crossing paths"
+msgstr "Пересекающиеся траектории"
+
+# AI Translated
+msgid "Paths outside the plate"
+msgstr "Траектории за пределами стола"
+
+# AI Translated
+msgid "Nothing to flag."
+msgstr "Замечаний нет."
+
+# AI Translated
+#. TRN Print report's closing line, a list of clauses such as "nothing prints in the air": joins the list so far to a clause that is not the last.
+#, c-format, boost-format
+msgid "%s, %s"
+msgstr "%s, %s"
+
+# AI Translated
+#. TRN Print report's closing line, a list of clauses such as "nothing prints in the air": joins its only two clauses.
+#, c-format, boost-format
+msgid "%s and %s"
+msgstr "%s и %s"
+
+# AI Translated
+#. TRN Print report's closing line, a list of clauses such as "nothing prints in the air": joins the list so far to the last of three or more.
+#, c-format, boost-format
+msgid "%s, and %s"
+msgstr "%s и %s"
+
+# AI Translated
+#. TRN Ends the print report's closing line; %s is its list of what the checks found clean, first letter capitalised.
+#, c-format, boost-format
+msgid "%s."
+msgstr "%s."
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d layer"
+msgid_plural "%d layers"
+msgstr[0] "%d слой"
+msgstr[1] "%d слоя"
+msgstr[2] "%d слоёв"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d object"
+msgid_plural "%d objects"
+msgstr[0] "%d модель"
+msgstr[1] "%d модели"
+msgstr[2] "%d моделей"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d on a marked face"
+msgid_plural "%d on marked faces"
+msgstr[0] "%d на отмеченной грани"
+msgstr[1] "%d на отмеченных гранях"
+msgstr[2] "%d на отмеченных гранях"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d or more"
+msgstr "%d или больше"
+
+# AI Translated
+msgid "A toolpath runs outside the printable area"
+msgstr "Траектория выходит за пределы области печати"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Support touches %s, which you asked to keep clear"
+msgstr "Поддержка касается области «%s», которую вы просили оставить свободной"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Support inside the %s"
+msgstr "Поддержка внутри области «%s»"
+
+# AI Translated
+msgid "No support in a hole or a region you kept clear"
+msgstr "Нет поддержки в отверстиях и в областях, которые вы оставили свободными"
+
+# AI Translated
+msgid "No support in a hole"
+msgstr "Поддержки в отверстиях нет"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Printed in the air: %s"
+msgstr "Печать в воздухе: %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d seam on %s"
+msgid_plural "%d seams on %s"
+msgstr[0] "%d шов в области «%s»"
+msgstr[1] "%d шва в области «%s»"
+msgstr[2] "%d швов в области «%s»"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%s on the plate"
+msgstr "%s на столе"
+
+# AI Translated
+msgid "only when recording a timelapse"
+msgstr "только при записи таймлапса"
+
+# AI Translated
+#, c-format, boost-format
+msgid "around %s"
+msgstr "около %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d layer of support"
+msgid_plural "%d layers of support"
+msgstr[0] "%d слой поддержки"
+msgstr[1] "%d слоя поддержки"
+msgstr[2] "%d слоёв поддержки"
+
+# AI Translated
+msgid "No brim"
+msgstr "Без каймы"
+
+# AI Translated
+msgid "This plate has no current slice."
+msgstr "Для этого стола нет актуальной нарезки."
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d filament change"
+msgid_plural "%d filament changes"
+msgstr[0] "%d смена материала"
+msgstr[1] "%d смены материала"
+msgstr[2] "%d смен материала"
+
+# AI Translated
+msgid "You're in the classic OrcaSlicer view."
+msgstr "Вы в классическом виде OrcaSlicer."
+
+# AI Translated
+msgid "Back to JusPrin"
+msgstr "Вернуться в JusPrin"
+
+# AI Translated
+msgid "Switch to JusPrin view"
+msgstr "Перейти к виду JusPrin"
+
+# AI Translated
+#. TRN A menu caption in capitals: the printer's name (in capitals), then its nozzle size in millimetres.
+#, c-format, boost-format
+msgid "%s, %s MM NOZZLE"
+msgstr "%s, СОПЛО %s ММ"
+
+# AI Translated
+msgid "COLOUR"
+msgstr "ЦВЕТ"
+
+# AI Translated
+msgid "Other colour…"
+msgstr "Другой цвет…"
+
+# AI Translated
+msgid "Use what's loaded on the printer…"
+msgstr "Использовать загруженное в принтер…"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%s is offline. Turn it on to read what's loaded."
+msgstr "%s не в сети. Включите принтер, чтобы узнать, что в него загружено."
+
+# AI Translated
+#, c-format, boost-format
+msgid "FILAMENTS FOR %s"
+msgstr "МАТЕРИАЛЫ ДЛЯ %s"
+
+# AI Translated
+msgid "on plate"
+msgstr "на столе"
+
+# AI Translated
+msgid "Add another filament to this print"
+msgstr "Добавить ещё один материал в эту печать"
+
+# AI Translated
+#, c-format, boost-format
+msgid "FILAMENT · SLOT %d · %s"
+msgstr "МАТЕРИАЛ · СЛОТ %d · %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "FILAMENT FOR %s"
+msgstr "МАТЕРИАЛ ДЛЯ %s"
+
+# AI Translated
+msgid "FILAMENTS FOR THIS PRINTER"
+msgstr "МАТЕРИАЛЫ ДЛЯ ЭТОГО ПРИНТЕРА"
+
+# AI Translated
+msgid "Other filament…"
+msgstr "Другой материал…"
+
+# AI Translated
+msgid "Calibrate this filament…"
+msgstr "Откалибровать этот материал…"
+
+# AI Translated
+msgid "JusPrin guide"
+msgstr "Руководство JusPrin"
+
+# AI Translated
+msgid "Plates and Project panel"
+msgstr "Панель столов и проекта"
+
+# AI Translated
+msgid "Hide the Plates and Project panel"
+msgstr "Скрыть панель столов и проекта"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Slicing %d%%"
+msgstr "Нарезка %d%%"
+
+# AI Translated
+msgid "Slicing…"
+msgstr "Нарезка…"
+
+# AI Translated
+msgid "Sliced"
+msgstr "Нарезано"
+
+# AI Translated
+msgid "Not sliced yet"
+msgstr "Ещё не нарезано"
+
+# AI Translated
+#. TRN How many objects or copies on the plate are set not to print.
+#, c-format, boost-format
+msgid "%d won't print"
+msgid_plural "%d won't print"
+msgstr[0] "%d элемент не печатается"
+msgstr[1] "%d элемента не печатаются"
+msgstr[2] "%d элементов не печатаются"
+
+# AI Translated
+msgid "Couldn't do that"
+msgstr "Не удалось выполнить действие"
+
+# AI Translated
+msgid "Support painting"
+msgstr "Рисование поддержек"
+
+# AI Translated
+msgid "Color painting"
+msgstr "Покраска"
+
+# AI Translated
+msgid "Fuzzy skin painting"
+msgstr "Рисование нечёткой оболочки"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Per-object settings · %d"
+msgstr "Настройки для модели · %d"
+
+# AI Translated
+# Needs human review: Upstream's catalog renders "Auto-orient" as "Положить на стол"; choose one for both.
+msgid "Auto-orient"
+msgstr "Автоориентация"
+
+# AI Translated
+msgid "Plate settings…"
+msgstr "Настройки стола…"
+
+# AI Translated
+# Needs human review: Plate menu item "Move to front"; check whether it moves the plate to the first position.
+msgid "Move to front"
+msgstr "Переместить в начало"
+
+# AI Translated
+msgid "Delete plate"
+msgstr "Удалить стол"
+
+# AI Translated
+msgid "Rename object"
+msgstr "Переименовать модель"
+
+# AI Translated
+msgid "Set number of instances…"
+msgstr "Изменить количество…"
+
+# AI Translated
+msgid "Fix model"
+msgstr "Восстановить модель"
+
+# AI Translated
+msgid "Change object filament"
+msgstr "Сменить материал модели"
+
+# AI Translated
+msgid "Delete copy"
+msgstr "Удалить копию"
+
+# AI Translated
+msgid "To objects"
+msgstr "На модели"
+
+# AI Translated
+msgid "To parts"
+msgstr "На части"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Copy %d"
+msgstr "Копия %d"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d per-object setting"
+msgid_plural "%d per-object settings"
+msgstr[0] "%d настройка для модели"
+msgstr[1] "%d настройки для модели"
+msgstr[2] "%d настроек для модели"
+
+# AI Translated
+msgid "Plates tab"
+msgstr "Вкладка «Столы»"
+
+# AI Translated
+msgid "Project tab"
+msgstr "Вкладка «Проект»"
+
+# AI Translated
+msgid "Plates"
+msgstr "Столы"
+
+# AI Translated
+msgid "Add model"
+msgstr "Добавить модель"
+
+# AI Translated
+msgid "Not on a plate"
+msgstr "Не на столе"
+
+# AI Translated
+msgid "Mesh needs repair"
+msgstr "Сетку нужно восстановить"
+
+# AI Translated
+msgid "Mesh repaired"
+msgstr "Сетка восстановлена"
+
+# AI Translated
+msgid "won't print"
+msgstr "не будет напечатано"
+
+# AI Translated
+#. TRN A tag beside one part of an object, saying what kind of part it is: an ordinary part.
+msgid "part"
+msgstr "часть"
+
+# AI Translated
+#. TRN A tag beside one part of an object, saying what kind of part it is: a modifier, which changes settings where it overlaps.
+msgid "modifier"
+msgstr "модификатор"
+
+# AI Translated
+msgid "negative part"
+msgstr "вырез"
+
+# AI Translated
+msgid "support enforcer"
+msgstr "принудительная поддержка"
+
+# AI Translated
+msgid "support blocker"
+msgstr "блокировщик поддержки"
+
+# AI Translated
+#. TRN %s is a weekday or a date, such as "Mon" or "Mar 14", when this project's last print finished.
+#, c-format, boost-format
+msgid "last finished %s"
+msgstr "последняя печать: %s"
+
+# AI Translated
+msgid "last finished today"
+msgstr "последняя печать: сегодня"
+
+# AI Translated
+msgid "last finished yesterday"
+msgstr "последняя печать: вчера"
+
+# AI Translated
+msgid "Version history unavailable"
+msgstr "История версий недоступна"
+
+# AI Translated
+msgid "Version history couldn't be loaded. Try again."
+msgstr "Не удалось загрузить историю версий. Попробуйте ещё раз."
+
+# AI Translated
+msgid "Export project 3MF"
+msgstr "Экспорт проекта 3MF"
+
+# AI Translated
+msgid "Export failed"
+msgstr "Ошибка экспорта"
+
+# AI Translated
+msgid "The project couldn't be exported. Try again."
+msgstr "Не удалось экспортировать проект. Попробуйте ещё раз."
+
+# AI Translated
+msgid "Restore this version of the model and project settings? The current model will be saved as a version first. Conversations and print records will stay current."
+msgstr "Восстановить эту версию модели и настроек проекта? Текущая модель сначала будет сохранена как версия. Разговоры и записи о печати останутся текущими."
+
+# AI Translated
+msgid "Restore project version"
+msgstr "Восстановить версию проекта"
+
+# AI Translated
+msgid "Restore failed"
+msgstr "Ошибка восстановления"
+
+# AI Translated
+msgid "This version couldn't be restored. Try again."
+msgstr "Не удалось восстановить эту версию. Попробуйте ещё раз."
+
+# AI Translated
+msgid "Back to Project"
+msgstr "Вернуться к проекту"
+
+# AI Translated
+msgid "Nothing printed or exported yet"
+msgstr "Ещё ничего не напечатано и не экспортировано"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d G-code"
+msgid_plural "%d G-codes"
+msgstr[0] "%d файл G-code"
+msgstr[1] "%d файла G-code"
+msgstr[2] "%d файлов G-code"
+
+# AI Translated
+msgid "printing now"
+msgstr "печатается сейчас"
+
+# AI Translated
+msgid "never sent to a printer"
+msgstr "не отправлялся на принтер"
+
+# AI Translated
+msgid "Print history"
+msgstr "История печати"
+
+# AI Translated
+msgid "Saving…"
+msgstr "Сохранение…"
+
+# AI Translated
+msgid "Saved"
+msgstr "Сохранено"
+
+# AI Translated
+msgid "Couldn't save"
+msgstr "Не удалось сохранить"
+
+# AI Translated
+msgid "No title, designer or description yet."
+msgstr "Названия, автора и описания пока нет."
+
+# AI Translated
+#. TRN Who designed the model; %s is the designer's name.
+#, c-format, boost-format
+msgid "by %s"
+msgstr "автор: %s"
+
+# AI Translated
+msgid "Version history"
+msgstr "История версий"
+
+# AI Translated
+msgid "Export project 3MF…"
+msgstr "Экспорт проекта 3MF…"
+
+# AI Translated
+msgid "Bill of materials"
+msgstr "Список комплектующих"
+
+# AI Translated
+msgid "Assembly guide"
+msgstr "Инструкция по сборке"
+
+# AI Translated
+msgid "Attachments"
+msgstr "Вложения"
+
+# AI Translated
+msgid "The file couldn't be opened."
+msgstr "Не удалось открыть файл."
+
+# AI Translated
+msgid "More files are attached than are listed here."
+msgstr "Вложенных файлов больше, чем показано здесь."
+
+# AI Translated
+# Needs human review: A heading in the Project tab; check whether it means a print profile of the model (as on model sites) or a settings preset.
+msgid "Profile"
+msgstr "Профиль"
+
+# AI Translated
+msgid "No earlier saved versions yet."
+msgstr "Ранее сохранённых версий пока нет."
+
+# AI Translated
+#. TRN The Restore button's name for a screen reader; %s is when the version was saved.
+#, c-format, boost-format
+msgid "Restore %s"
+msgstr "Восстановить версию от %s"
+
+# AI Translated
+msgid "Connecting AI tool"
+msgstr "Подключение инструмента ИИ"
+
+# AI Translated
+msgid "Saving the MCP entry using the client's own CLI..."
+msgstr "Сохранение записи MCP через CLI клиента..."
+
+# AI Translated
+msgid "The setup command timed out. Stopping it..."
+msgstr "Истекло время ожидания команды настройки. Остановка..."
+
+# AI Translated
+msgid "Select printer"
+msgstr "Выберите принтер"
+
+# AI Translated
+msgid "from the file"
+msgstr "из файла"
+
+# AI Translated
+msgid "Select filament"
+msgstr "Выберите материал"
+
+# AI Translated
+msgid "Paused"
+msgstr "На паузе"
+
+# AI Translated
+msgid "Needs attention"
+msgstr "Требует внимания"
+
+# AI Translated
+msgid "Ready"
+msgstr "Готов"
+
+# AI Translated
+msgid "Connected"
+msgstr "Подключён"
+
+# AI Translated
+msgid "Connecting…"
+msgstr "Подключение…"
+
+# AI Translated
+msgid "Not connected"
+msgstr "Не подключён"
+
+# AI Translated
+msgid "No printer selected"
+msgstr "Принтер не выбран"
+
+# AI Translated
+msgid "From the file · not one of your printers"
+msgstr "Из файла · не из ваших принтеров"
+
+# AI Translated
+msgid "Checking connection…"
+msgstr "Проверка подключения…"
+
+# AI Translated
+msgid "Export the G-code to print from a card."
+msgstr "Экспортируйте G-code, чтобы печатать с карты памяти."
+
+# AI Translated
+msgid "OTHER PRINTERS"
+msgstr "ДРУГИЕ ПРИНТЕРЫ"
+
+# AI Translated
+msgid "Billing and usage"
+msgstr "Оплата и использование"
+
+# AI Translated
+msgid "Credits and plans"
+msgstr "Кредиты и тарифы"
+
+# AI Translated
+msgid "Check your internet connection, then try again."
+msgstr "Проверьте подключение к интернету и повторите попытку."
+
+# AI Translated
+msgid "Open in browser"
+msgstr "Открыть в браузере"
+
+# AI Translated
+msgid "Loading Billing and usage…"
+msgstr "Загрузка раздела «Оплата и использование»…"
+
+# AI Translated
+msgid "Loading Credits and plans…"
+msgstr "Загрузка раздела «Кредиты и тарифы»…"
+
+# AI Translated
+msgid "Couldn't load Billing and usage"
+msgstr "Не удалось загрузить раздел «Оплата и использование»"
+
+# AI Translated
+msgid "Couldn't load Credits and plans"
+msgstr "Не удалось загрузить раздел «Кредиты и тарифы»"
+
+# AI Translated
+msgid "Resize AI panel"
+msgstr "Изменить размер панели ИИ"
+
+# AI Translated
+msgid "Drag to resize the AI panel"
+msgstr "Перетащите, чтобы изменить размер панели ИИ"
+
+# AI Translated
+msgid "The setup changed. Review the current plate and try again."
+msgstr "Настройка изменилась. Проверьте текущий стол и повторите попытку."
+
+# AI Translated
+msgid "Couldn't slice"
+msgstr "Не удалось нарезать"
+
+# AI Translated
+msgid "This saved version couldn't be restored. Try again from Version history."
+msgstr "Не удалось восстановить эту сохранённую версию. Попробуйте ещё раз из истории версий."
+
+# AI Translated
+msgid "Revert failed"
+msgstr "Не удалось вернуть версию"
+
+# AI Translated
+msgid "Your saved projects couldn't be read, so JusPrin can't check whether you've opened this file before. The file wasn't opened. Try again once JusPrin can read its projects folder."
+msgstr "Не удалось прочитать сохранённые проекты, поэтому JusPrin не может проверить, открывали ли вы этот файл раньше. Файл не открыт. Повторите попытку, когда JusPrin сможет прочитать папку проектов."
+
+# AI Translated
+msgid "This file has changed since this project was made from it. Create a new project from the updated file, or continue the current project, which keeps the earlier version."
+msgstr "Этот файл изменился с тех пор, как из него был создан этот проект. Создайте новый проект из обновлённого файла или продолжите текущий проект, в котором остаётся прежняя версия."
+
+# AI Translated
+msgid "This file is already open as a project. Continue working in it, or create a new project from this file."
+msgstr "Этот файл уже открыт как проект. Продолжите работу в нём или создайте из этого файла новый проект."
+
+# AI Translated
+msgid "This file has changed since you last opened it. Create a new project from the updated file, or open the existing project, which keeps the earlier version."
+msgstr "Этот файл изменился с тех пор, как вы открывали его в последний раз. Создайте новый проект из обновлённого файла или откройте существующий проект, в котором остаётся прежняя версия."
+
+# AI Translated
+msgid "You've opened this file before. Open the most recently updated project or create another project from this file."
+msgstr "Вы уже открывали этот файл. Откройте последний обновлённый проект или создайте из этого файла ещё один проект."
+
+# AI Translated
+msgid "You've opened this file before. Open the existing project to continue where you left off, or create a new project from this file."
+msgstr "Вы уже открывали этот файл. Откройте существующий проект, чтобы продолжить с того места, где остановились, или создайте из этого файла новый проект."
+
+# AI Translated
+msgid "Previously opened file"
+msgstr "Ранее открытый файл"
+
+# AI Translated
+msgid "Continue current project"
+msgstr "Продолжить текущий проект"
+
+# AI Translated
+msgid "Open most recent project"
+msgstr "Открыть последний проект"
+
+# AI Translated
+msgid "Open existing project"
+msgstr "Открыть существующий проект"
+
+# AI Translated
+msgid "Resize Plates and Project panel"
+msgstr "Изменить размер панели столов и проекта"
+
+# AI Translated
+msgid "Drag to resize the Plates and Project panel"
+msgstr "Перетащите, чтобы изменить размер панели столов и проекта"
+
+# AI Translated
+msgid "The open project couldn't be saved, so the file wasn't opened. Try again."
+msgstr "Не удалось сохранить открытый проект, поэтому файл не открыт. Попробуйте ещё раз."
+
+# AI Translated
+#. TRN What a calibration tests: a filament's name, then the printer's, such as "Generic PLA on Bambu Lab P1S".
+#, c-format, boost-format
+msgid "%1$s on %2$s"
+msgstr "%1$s на %2$s"
+
+# AI Translated
+#. TRN %s is the name of the open project, which is saved and closed before a calibration project opens.
+#, c-format, boost-format
+msgid "%s will be saved and closed."
+msgstr "Проект «%s» будет сохранён и закрыт."
+
+# AI Translated
+#, c-format, boost-format
+msgid "A new calibration project opens for %s, and AI picks the spool and the test with you there."
+msgstr "Для %s откроется новый проект калибровки, и там ИИ вместе с вами выберет катушку и тест."
+
+# AI Translated
+#, c-format, boost-format
+msgid "A new calibration project opens for %s, and AI picks the test with you there."
+msgstr "Для %s откроется новый проект калибровки, и там ИИ вместе с вами выберет тест."
+
+# AI Translated
+msgid "AI isn't set up yet; the test needs it to choose the range and read the result."
+msgstr "ИИ ещё не настроен, а он нужен тесту, чтобы выбрать диапазон и оценить результат."
+
+# AI Translated
+msgid "Settings the test changes are temporary and are not saved to your filament."
+msgstr "Настройки, которые меняет тест, временные и не сохраняются в профиле материала."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Calibrate %s?"
+msgstr "Откалибровать %s?"
+
+# AI Translated
+msgid "Set up AI…"
+msgstr "Настроить ИИ…"
+
+# AI Translated
+msgid "The calibration project could not be opened, so your project stays open."
+msgstr "Не удалось открыть проект калибровки, поэтому ваш проект остаётся открытым."
+
+# AI Translated
+#, c-format, boost-format
+msgid "The printer \"%s\" could not be selected."
+msgstr "Не удалось выбрать принтер «%s»."
+
+# AI Translated
+#, c-format, boost-format
+msgid "The printer preset \"%s\" was not found."
+msgstr "Профиль принтера «%s» не найден."
+
+# AI Translated
+msgid "The plate to print is no longer in the project."
+msgstr "Стола для печати больше нет в проекте."
+
+# AI Translated
+msgid "Couldn't open the print dialog"
+msgstr "Не удалось открыть окно печати"
+
+# AI Translated
+msgid "The chat this G-code went out from is no longer in the project."
+msgstr "Чата, из которого был отправлен этот G-code, больше нет в проекте."
+
+# AI Translated
+msgid "Chat not found"
+msgstr "Чат не найден"
+
+# AI Translated
+#, c-format, boost-format
+msgid "The filament preset \"%s\" was not found."
+msgstr "Профиль материала «%s» не найден."
+
+# AI Translated
+msgid "Back to Preview"
+msgstr "Вернуться к просмотру нарезки"
+
+# AI Translated
+msgid "Couldn't open project"
+msgstr "Не удалось открыть проект"
+
+# AI Translated
+msgid "Get the new version…"
+msgstr "Скачать новую версию…"
+
+# AI Translated
+msgid "JusPrin's view couldn't be opened."
+msgstr "Не удалось открыть вид JusPrin."
+
+# AI Translated
+msgid "Show the Plates and Project panel"
+msgstr "Показать панель столов и проекта"
+
+# AI Translated
+msgid "Back to Home"
+msgstr "Вернуться на главную"
+
+# AI Translated
+msgid "Print actions"
+msgstr "Действия печати"
+
+# AI Translated
+msgid "Project details and preferences"
+msgstr "Сведения о проекте и настройки"
+
+# AI Translated
+msgid "Hide the AI panel"
+msgstr "Скрыть панель ИИ"
+
+# AI Translated
+msgid "Cancel slicing"
+msgstr "Отменить нарезку"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Print plate %d"
+msgstr "Печать стола %d"
+
+# AI Translated
+msgid "Export G-code…"
+msgstr "Экспорт G-code…"
+
+# AI Translated
+#. TRN Detail beside "Print all plates…": how many of the plates are sliced.
+#, c-format, boost-format
+msgid "%d sliced"
+msgid_plural "%d sliced"
+msgstr[0] "%d нарезан"
+msgstr[1] "%d нарезано"
+msgstr[2] "%d нарезано"
+
+# AI Translated
+msgid "Show the AI panel"
+msgstr "Показать панель ИИ"
+
+# AI Translated
+msgid "Unsaved changes"
+msgstr "Несохранённые изменения"
+
+# AI Translated
+#. TRN %s is one nozzle size, or several joined by " / ", such as "0.4 / 0.6".
+#, c-format, boost-format
+msgid "%s mm nozzle"
+msgid_plural "%s mm nozzles"
+msgstr[0] "сопло %s мм"
+msgstr[1] "сопла %s мм"
+msgstr[2] "сопла %s мм"
+
+# AI Translated
+msgid "from the file, not one of the printers you set up"
+msgstr "из файла, не из настроенных вами принтеров"
+
+# AI Translated
+#. TRN %s is the project's file name, such as "Benchy.3mf".
+#, c-format, boost-format
+msgid "from %s, not one of the printers you set up"
+msgstr "из %s, не из настроенных вами принтеров"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d filament"
+msgid_plural "%d filaments"
+msgstr[0] "%d материал"
+msgstr[1] "%d материала"
+msgstr[2] "%d материалов"
+
+# AI Translated
+#. TRN The first %d is how many of the filament slots this plate uses; the second is how many slots there are.
+#, c-format, boost-format
+msgid "%d of %d slot on this plate"
+msgid_plural "%d of %d slots on this plate"
+msgstr[0] "На этом столе используется %d из %d слота"
+msgstr[1] "На этом столе используется %d из %d слотов"
+msgstr[2] "На этом столе используется %d из %d слотов"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d slot"
+msgid_plural "%d slots"
+msgstr[0] "%d слот"
+msgstr[1] "%d слота"
+msgstr[2] "%d слотов"
+
+# AI Translated
+msgid "not on this plate"
+msgstr "не на этом столе"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Filament is now %s."
+msgstr "Теперь материал: %s."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Slot %d is now %s."
+msgstr "Слот %d теперь: %s."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Heat and cooling follow %s; walls and infill unchanged."
+msgstr "Нагрев и охлаждение — как у %s; периметры и заполнение не изменены."
+
+# AI Translated
+#, c-format, boost-format
+msgid "slot %d %s"
+msgstr "слот %d %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Filaments changed: %s."
+msgstr "Материалы изменены: %s."
+
+# AI Translated
+msgid "Slice again when ready."
+msgstr "Когда будете готовы, нарежьте снова."
+
+# AI Translated
+msgid "Preferences…"
+msgstr "Настройки…"
+
+# AI Translated
+msgid "Changes couldn't be saved. JusPrin will retry."
+msgstr "Не удалось сохранить изменения. JusPrin повторит попытку."
+
+# AI Translated
+msgid "Some older project data couldn't be removed."
+msgstr "Не удалось удалить часть старых данных проекта."
+
+# AI Translated
+msgid "Configure a printer connection in Printer settings before printing. You can also export the sliced file."
+msgstr "Перед печатью настройте подключение к принтеру в настройках принтера. Также можно экспортировать нарезанный файл."
+
+# AI Translated
+msgid "Printer connection required"
+msgstr "Требуется подключение к принтеру"
+
+# AI Translated
+msgid "This project was saved by a newer version of JusPrin. Get the new version to open it."
+msgstr "Этот проект сохранён более новой версией JusPrin. Установите новую версию, чтобы открыть его."
+
+# AI Translated
+msgid "The project couldn't be opened. Try again."
+msgstr "Не удалось открыть проект. Попробуйте ещё раз."

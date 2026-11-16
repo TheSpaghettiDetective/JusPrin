@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { plural, t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 import type { PrinterCamera, PrinterInfo, PrinterStatus, SpoolInfo } from '../bridge/protocol';
 import { printerHistoryLine } from '../history';
 import { HistoryGlyph, MonitorGlyph, PrinterGlyph } from './Glyphs';
@@ -13,19 +15,23 @@ import { STAND_IN_PRINTER } from './Onboarding';
 // not report.
 
 const STATUS_WORD: Record<PrinterStatus, string> = {
-  not_connected: 'Not connected',
-  connecting: 'Connecting…',
-  connected: 'Connected',
-  ready: 'Ready',
-  printing: 'Printing',
-  paused: 'Paused',
-  attention: 'Needs attention',
+  not_connected: t`Not connected`,
+  connecting: t`Connecting…`,
+  connected: t`Connected`,
+  ready: t({ message: 'Ready', comment: 'A printer status: idle and ready to print' }),
+  printing: t`Printing`,
+  paused: t({ message: 'Paused', comment: 'A printer status: the print is paused' }),
+  attention: t`Needs attention`,
 };
 
 // "2h 14m left", "14m left".
 export function timeLeft(seconds: number): string {
   const minutes = Math.max(1, Math.floor(seconds / 60));
-  return minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m left` : `${minutes}m left`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return minutes >= 60
+    ? t({ message: `${hours}h ${mins}m left`, comment: 'Time left in a print, hours and minutes abbreviated: 2h 14m left' })
+    : t({ message: `${minutes}m left`, comment: 'Time left in a print, minutes abbreviated: 14m left' });
 }
 
 // What follows the status word: how far a job is, or how the last one ended.
@@ -37,9 +43,11 @@ export function statusDetail(printer: PrinterInfo): string | undefined {
     if (printer.secondsLeft) parts.push(timeLeft(printer.secondsLeft));
     return parts.length > 0 ? parts.join(' · ') : undefined;
   }
-  if (printer.status === 'paused' || printer.status === 'attention')
-    return percent !== undefined ? `at ${Math.round(percent)}%` : undefined;
-  if (printer.status === 'ready' && printer.lastPrint) return `last print ${printer.lastPrint}`;
+  if (printer.status === 'paused' || printer.status === 'attention') {
+    const rounded = percent === undefined ? undefined : Math.round(percent);
+    return rounded !== undefined ? t({ message: `at ${rounded}%`, comment: 'How far a paused print got: at 27%' }) : undefined;
+  }
+  if (printer.status === 'ready' && printer.lastPrint === 'finished') return t`last print finished`;
   return undefined;
 }
 
@@ -48,12 +56,12 @@ export function lastConnected(iso: string, now: Date = new Date()): string | und
   const at = Date.parse(iso);
   if (Number.isNaN(at)) return undefined;
   const minutes = Math.floor((now.getTime() - at) / 60000);
-  if (minutes < 1) return 'Last connected just now';
-  if (minutes < 60) return `Last connected ${minutes} min ago`;
+  if (minutes < 1) return t`Last connected just now`;
+  if (minutes < 60) return plural(minutes, { one: `Last connected ${minutes} min ago`, other: `Last connected ${minutes} min ago` });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `Last connected ${hours}h ago`;
+  if (hours < 24) return plural(hours, { one: `Last connected ${hours}h ago`, other: `Last connected ${hours}h ago` });
   const days = Math.floor(hours / 24);
-  return `Last connected ${days} ${days === 1 ? 'day' : 'days'} ago`;
+  return plural(days, { one: `Last connected ${days} day ago`, other: `Last connected ${days} days ago` });
 }
 
 // The distinct materials, in the order the spools hold them.
@@ -73,10 +81,10 @@ export function NoPrinterCard({ onAdd }: { onAdd: () => void }) {
     <div className="printer-card no-printer-card">
       <span className="printer-name-row">
         <PrinterGlyph />
-        <span className="printer-name">No printer yet</span>
+        <span className="printer-name"><Trans>No printer yet</Trans></span>
       </span>
       <p className="no-printer-text">{STAND_IN_PRINTER}</p>
-      <button type="button" className="button-primary button-primary-small" onClick={onAdd}>Add your printer</button>
+      <button type="button" className="button-primary button-primary-small" onClick={onAdd}><Trans>Add your printer</Trans></button>
     </div>
   );
 }
@@ -160,10 +168,10 @@ function Camera({ camera, name, status }: { camera: PrinterCamera; name: string;
   if (!source) return null;
   return (
     <div className="printer-camera">
-      <img key={connection} src={source} alt={`Camera view of ${name}`} onError={() => setAnswering(false)} />
+      <img key={connection} src={source} alt={t`Camera view of ${name}`} onError={() => setAnswering(false)} />
       <span className="printer-camera-live">
         <span className={`status-dot ${status}`} aria-hidden="true" />
-        LIVE
+        {t({ message: 'LIVE', comment: 'On a camera picture: it shows the printer as it is now' })}
       </span>
     </div>
   );
@@ -202,6 +210,8 @@ export function PrinterCard({
   const loadedText = materials(printer.spools);
   const swatches = printer.spools.filter((spool) => spool.colour);
   const quiet = printer.status === 'not_connected' || printer.status === 'connecting';
+  const job = printer.job;
+  const percent = printer.progressPercent === undefined ? undefined : Math.round(printer.progressPercent);
   return (
     <div className={highlighted ? 'printer-card printer-card-added' : 'printer-card'}>
       {printer.camera && <Camera camera={printer.camera} name={printer.name} status={printer.status} />}
@@ -226,7 +236,7 @@ export function PrinterCard({
         <div
           className={`printer-progress ${printer.status}`}
           role="progressbar"
-          aria-label={printer.job ? `${printer.job}, ${Math.round(printer.progressPercent)} percent` : undefined}
+          aria-label={job ? t({ message: `${job}, ${percent} percent`, comment: '{job} is the file printing' }) : undefined}
           aria-valuenow={Math.round(printer.progressPercent)}
           aria-valuemin={0}
           aria-valuemax={100}
@@ -256,15 +266,15 @@ export function PrinterCard({
       {(printer.action === 'monitor' || printer.action === 'printer_window') && (
         <button type="button" className="button-secondary launch-monitor" onClick={() => onLaunchMonitor(printer.id)}>
           <MonitorGlyph />
-          Open printer window
+          <Trans>Open printer window</Trans>
         </button>
       )}
       {(printer.action === 'reconnect' || printer.action === 'connect') && actions.onConnect && (
         <div className={printer.noConnection ? 'printer-connect-row with-why' : 'printer-connect-row'}>
           <button type="button" className="button-secondary launch-monitor" onClick={() => actions.onConnect?.(printer.id)}>
-            {printer.action === 'reconnect' ? 'Reconnect' : 'Connect…'}
+            {printer.action === 'reconnect' ? t`Reconnect` : t`Connect…`}
           </button>
-          {printer.noConnection && <span className="printer-connect-why">Connect it to send prints straight from JusPrin</span>}
+          {printer.noConnection && <span className="printer-connect-why"><Trans>Connect it to send prints straight from JusPrin</Trans></span>}
         </div>
       )}
     </div>

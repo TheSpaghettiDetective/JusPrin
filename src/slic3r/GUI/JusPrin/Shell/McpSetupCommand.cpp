@@ -1,3 +1,7 @@
+// First: slic3r/GUI/I18N.hpp defines _L only while the _ macro is still
+// undefined, so it has to precede any header that brings one in.
+#include "slic3r/GUI/I18N.hpp"
+
 #include "McpSetupCommand.hpp"
 
 #include <algorithm>
@@ -16,8 +20,8 @@ namespace Slic3r::GUI::JusPrin {
 McpSetupResult run_mcp_setup_command(wxWindow* parent, const std::vector<std::string>& arguments)
 {
     if (arguments.empty()) throw std::invalid_argument("Missing setup executable");
-    wxDialog progress(parent, wxID_ANY, "Connecting AI tool", wxDefaultPosition, parent->FromDIP(wxSize(460, 140)));
-    auto* label = new wxStaticText(&progress, wxID_ANY, "Saving the MCP entry using the client's own CLI...");
+    wxDialog progress(parent, wxID_ANY, _L("Connecting AI tool"), wxDefaultPosition, parent->FromDIP(wxSize(460, 140)));
+    auto* label = new wxStaticText(&progress, wxID_ANY, _L("Saving the MCP entry using the client's own CLI..."));
     auto* layout = new wxBoxSizer(wxVERTICAL);
     layout->Add(label, 1, wxEXPAND | wxALL, progress.FromDIP(16));
     progress.SetSizer(layout);
@@ -52,7 +56,7 @@ McpSetupResult run_mcp_setup_command(wxWindow* parent, const std::vector<std::st
         const auto elapsed = std::chrono::steady_clock::now() - started;
         if (!timed_out && elapsed > std::chrono::seconds(30)) {
             timed_out = true;
-            label->SetLabel("The setup command timed out. Stopping it...");
+            label->SetLabel(_L("The setup command timed out. Stopping it..."));
             wxProcess::Kill(pid, wxSIGTERM);
         } else if (timed_out && elapsed > std::chrono::seconds(32)) wxProcess::Kill(pid, wxSIGKILL);
     });

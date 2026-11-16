@@ -1,0 +1,2298 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the JusPrin package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: JusPrin\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-15 09:46-0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: ko\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+# AI Translated
+msgid "Project chat is blocked until restoration is recovered."
+msgstr "복원이 완료될 때까지 프로젝트 채팅을 사용할 수 없습니다."
+
+# AI Translated
+msgid "Return to the active chat or restore this chat before sending."
+msgstr "보내기 전에 활성 채팅으로 돌아가거나 이 채팅을 복원하세요."
+
+# AI Translated
+msgid "Finish or cancel AI configuration before sending a message."
+msgstr "메시지를 보내기 전에 AI 구성을 완료하거나 취소하세요."
+
+# AI Translated
+msgid "This message belongs to a different chat."
+msgstr "이 메시지는 다른 채팅에 속해 있습니다."
+
+# AI Translated
+msgid "A message needs text or an attachment."
+msgstr "메시지에는 텍스트나 첨부 파일이 있어야 합니다."
+
+# AI Translated
+msgid "The file could not be read."
+msgstr "파일을 읽을 수 없습니다."
+
+# AI Translated
+msgid "This file is too large to attach."
+msgstr "이 파일은 너무 커서 첨부할 수 없습니다."
+
+# AI Translated
+msgid "This file type can't be read by AI."
+msgstr "AI가 읽을 수 없는 파일 형식입니다."
+
+# AI Translated
+msgid "This file is not readable UTF-8 text."
+msgstr "이 파일은 읽을 수 있는 UTF-8 텍스트가 아닙니다."
+
+# AI Translated
+msgid "The attachment could not be stored."
+msgstr "첨부 파일을 저장할 수 없습니다."
+
+# AI Translated
+msgid "Photo or image"
+msgstr "사진 또는 이미지"
+
+# AI Translated
+msgid "3D model"
+msgstr "3D 모델"
+
+# AI Translated
+msgid "Document (PDF)"
+msgstr "문서(PDF)"
+
+# AI Translated
+msgid "This build cannot open a file dialog."
+msgstr "이 빌드에서는 파일 대화 상자를 열 수 없습니다."
+
+# AI Translated
+#. TRN A calibration chat's first line. %1%: where it was started from, %2%: a printer.
+#, boost-format
+msgid "From %1% · %2% · filament not chosen · temporary test settings"
+msgstr "%1%에서 시작 · %2% · 필라멘트 선택 안 함 · 임시 테스트 설정"
+
+# AI Translated
+#. TRN A calibration chat's first line. %1%: where it was started from, %2%: a filament, %3%: a printer.
+#, boost-format
+msgid "From %1% · %2% on %3% · temporary test settings"
+msgstr "%1%에서 시작 · %3%의 %2% · 임시 테스트 설정"
+
+# AI Translated
+#. TRN A reopened calibration test's line. %1%: the day it was made, as "21 Oct 2026".
+#, boost-format
+msgid "Reopened · generated %1%"
+msgstr "다시 열림 · %1% 생성"
+
+# AI Translated
+#. TRN %1%: where the test was opened from, %2%: the day it was made, as "21 Oct 2026".
+#, boost-format
+msgid "Opened from %1% · generated %2%"
+msgstr "%1%에서 열림 · %2% 생성"
+
+# AI Translated
+#. TRN %1% is a calibration result, such as 215 °C.
+#, boost-format
+msgid "result %1% saved"
+msgstr "결과 %1% 저장됨"
+
+# AI Translated
+#. TRN %1% is a plate's name, %2% why the slice did not succeed.
+#, boost-format
+msgid "The app did not slice %1%: %2%"
+msgstr "앱이 %1%을(를) 슬라이스하지 않았습니다: %2%"
+
+# AI Translated
+#. TRN %1% is a plate's name, %2% why the slice did not succeed.
+#, boost-format
+msgid "The app stopped the slice of %1%: %2%"
+msgstr "앱이 %1%의 슬라이스를 중지했습니다: %2%"
+
+# AI Translated
+msgid "The slice of every plate finished."
+msgstr "모든 플레이트의 슬라이스가 완료되었습니다."
+
+# AI Translated
+#. TRN %1% is a plate's name.
+#, boost-format
+msgid "The slice of %1% finished."
+msgstr "%1%의 슬라이스가 완료되었습니다."
+
+# AI Translated
+msgid "Historical replies cannot be retried."
+msgstr "이전 응답은 다시 시도할 수 없습니다."
+
+# AI Translated
+msgid "Only a failed or stopped assistant message in the active conversation can be retried."
+msgstr "활성 대화에서 실패했거나 중지된 어시스턴트 메시지만 다시 시도할 수 있습니다."
+
+# AI Translated
+msgid "Only the chat's last reply can be retried."
+msgstr "채팅의 마지막 응답만 다시 시도할 수 있습니다."
+
+# AI Translated
+msgid "Another reply is currently streaming."
+msgstr "다른 응답이 스트리밍 중입니다."
+
+# AI Translated
+msgid "Historical tool actions cannot be changed."
+msgstr "이전 도구 작업은 변경할 수 없습니다."
+
+# AI Translated
+msgid "This proposal is no longer open. Ask AI again."
+msgstr "이 제안은 더 이상 유효하지 않습니다. AI에게 다시 요청하세요."
+
+# AI Translated
+msgid "This save can no longer be undone."
+msgstr "이 저장은 더 이상 실행 취소할 수 없습니다."
+
+# AI Translated
+msgid "The earlier values cannot be put back."
+msgstr "이전 값을 되돌릴 수 없습니다."
+
+# AI Translated
+msgid "Finish or resolve pending work before creating a chat."
+msgstr "채팅을 만들기 전에 대기 중인 작업을 완료하거나 해결하세요."
+
+# AI Translated
+msgid "The current chat could not be saved."
+msgstr "현재 채팅을 저장할 수 없습니다."
+
+# AI Translated
+msgid "The new chat could not be saved."
+msgstr "새 채팅을 저장할 수 없습니다."
+
+# AI Translated
+msgid "The selected chat could not be saved."
+msgstr "선택한 채팅을 저장할 수 없습니다."
+
+# AI Translated
+msgid "The project or selected chat changed. Review it again."
+msgstr "프로젝트나 선택한 채팅이 변경되었습니다. 다시 검토하세요."
+
+# AI Translated
+msgid "Finish or resolve pending work before resuming a chat."
+msgstr "채팅을 재개하기 전에 대기 중인 작업을 완료하거나 해결하세요."
+
+# AI Translated
+msgid "This chat is already active."
+msgstr "이 채팅은 이미 활성 상태입니다."
+
+# AI Translated
+msgid "JusPrin can't find the project version this chat was working on."
+msgstr "JusPrin에서 이 채팅이 작업하던 프로젝트 버전을 찾을 수 없습니다."
+
+# AI Translated
+msgid "The current project could not be saved before restoration."
+msgstr "복원 전에 현재 프로젝트를 저장할 수 없습니다."
+
+# AI Translated
+msgid "JusPrin couldn't put the project back."
+msgstr "JusPrin에서 프로젝트를 되돌리지 못했습니다."
+
+# AI Translated
+msgid "Restored this chat's saved project setup. Check the current printer and material before printing."
+msgstr "이 채팅에 저장된 프로젝트 설정을 복원했습니다. 출력하기 전에 현재 프린터와 재료를 확인하세요."
+
+# AI Translated
+msgid "Use a non-empty, single-line title of at most 120 characters for an existing chat."
+msgstr "기존 채팅에는 비어 있지 않은 한 줄, 120자 이하의 제목을 사용하세요."
+
+# AI Translated
+msgid "This chat is still working. Stop it or let it finish, then delete it."
+msgstr "이 채팅은 아직 작업 중입니다. 중지하거나 완료될 때까지 기다린 후 삭제하세요."
+
+# AI Translated
+msgid "This chat no longer exists."
+msgstr "이 채팅은 더 이상 존재하지 않습니다."
+
+# AI Translated
+msgid "The replacement chat could not be saved."
+msgstr "대체 채팅을 저장할 수 없습니다."
+
+# AI Translated
+msgid "Historical chats cannot edit the current draft."
+msgstr "이전 채팅에서는 현재 초안을 편집할 수 없습니다."
+
+# AI Translated
+msgid "Finish or stop the current reply before configuring AI."
+msgstr "AI를 구성하기 전에 현재 응답을 완료하거나 중지하세요."
+
+# AI Translated
+msgid "This build cannot configure an AI provider."
+msgstr "이 빌드에서는 AI 제공자를 구성할 수 없습니다."
+
+# AI Translated
+msgid "A credential check is already running."
+msgstr "자격 증명 확인이 이미 실행 중입니다."
+
+# AI Translated
+msgid "This build cannot verify a key for that provider yet."
+msgstr "이 빌드에서는 아직 해당 제공자의 키를 확인할 수 없습니다."
+
+# AI Translated
+msgid "Finish or stop the current reply before removing a key."
+msgstr "키를 제거하기 전에 현재 응답을 완료하거나 중지하세요."
+
+# AI Translated
+msgid "Finish or cancel the key check before removing a key."
+msgstr "키를 제거하기 전에 키 확인을 완료하거나 취소하세요."
+
+# AI Translated
+msgid "That key could not be removed."
+msgstr "해당 키를 제거할 수 없습니다."
+
+# AI Translated
+msgid "This build cannot sign in to a JusPrin account."
+msgstr "이 빌드에서는 JusPrin 계정에 로그인할 수 없습니다."
+
+# AI Translated
+msgid "Finish or stop the current reply before signing in."
+msgstr "로그인하기 전에 현재 응답을 완료하거나 중지하세요."
+
+# AI Translated
+msgid "A sign-in or key check is already running."
+msgstr "로그인 또는 키 확인이 이미 실행 중입니다."
+
+# AI Translated
+msgid "There is no JusPrin account on this computer to check."
+msgstr "이 컴퓨터에는 확인할 JusPrin 계정이 없습니다."
+
+# AI Translated
+msgid "JusPrin couldn't start signing in. Try again."
+msgstr "JusPrin에서 로그인을 시작하지 못했습니다. 다시 시도하세요."
+
+# AI Translated
+msgid "JusPrin couldn't sign you in. Try again."
+msgstr "JusPrin에서 로그인하지 못했습니다. 다시 시도하세요."
+
+# AI Translated
+msgid "This sign-in could not be saved, so you will have to sign in again next time JusPrin starts."
+msgstr "이 로그인 정보를 저장할 수 없어 다음에 JusPrin을 시작할 때 다시 로그인해야 합니다."
+
+# AI Translated
+msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
+msgstr "이 키를 저장할 수 없어 다음에 JusPrin을 시작할 때 다시 입력해야 합니다."
+
+# AI Translated
+msgid "The panel is still loading. Try again in a moment."
+msgstr "패널을 아직 불러오는 중입니다. 잠시 후 다시 시도하세요."
+
+# AI Translated
+msgid "The AI service is not available."
+msgstr "AI 서비스를 사용할 수 없습니다."
+
+# AI Translated
+msgid "The AI service could not start this request."
+msgstr "AI 서비스가 이 요청을 시작할 수 없습니다."
+
+# AI Translated
+msgid "AI could not receive the native tool result."
+msgstr "AI가 네이티브 도구 결과를 받지 못했습니다."
+
+# AI Translated
+msgid "The AI request failed."
+msgstr "AI 요청이 실패했습니다."
+
+# AI Translated
+msgid "The automatic chat title could not be generated. You can rename the chat."
+msgstr "채팅 제목을 자동으로 만들지 못했습니다. 채팅 이름을 직접 변경할 수 있습니다."
+
+# AI Translated
+#. TRN %1% is an AI provider's account, such as JusPrin.
+#, boost-format
+msgid "This chat ran on your %1% account. Sign in again to continue it, or start a new chat."
+msgstr "이 채팅은 %1% 계정으로 실행되었습니다. 계속하려면 다시 로그인하거나 새 채팅을 시작하세요."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "This chat ran on %1%, and no %1% API key is set up now. Add the key in the AI settings to continue it, or start a new chat."
+msgstr "이 채팅은 %1%에서 실행되었지만 현재 %1% API 키가 설정되어 있지 않습니다. 계속하려면 AI 설정에서 키를 추가하거나 새 채팅을 시작하세요."
+
+# AI Translated
+msgid "JusPrin hasn't loaded the AI models for your account yet. Try again in a moment."
+msgstr "JusPrin에서 아직 계정의 AI 모델을 불러오지 않았습니다. 잠시 후 다시 시도하세요."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "No %1% API key is set up. Add it in the AI settings, or choose another model."
+msgstr "%1% API 키가 설정되어 있지 않습니다. AI 설정에서 추가하거나 다른 모델을 선택하세요."
+
+# AI Translated
+msgid "A connection is already being saved."
+msgstr "연결을 이미 저장하는 중입니다."
+
+# AI Translated
+msgid "JusPrin's connection helper is missing. Reinstall or rebuild JusPrin."
+msgstr "JusPrin의 연결 도우미가 없습니다. JusPrin을 다시 설치하거나 다시 빌드하세요."
+
+# AI Translated
+msgid "The AppImage launcher is missing. Reopen the installed AppImage."
+msgstr "AppImage 실행기가 없습니다. 설치된 AppImage를 다시 여세요."
+
+# AI Translated
+msgid "Review the change before connecting."
+msgstr "연결하기 전에 변경 사항을 검토하세요."
+
+# AI Translated
+#. TRN %1% is an AI client app, such as Claude Code.
+#, boost-format
+msgid "%1% isn't installed. Install it, or copy the command and run it later."
+msgstr "%1%이(가) 설치되어 있지 않습니다. 설치하거나, 명령을 복사해 나중에 실행하세요."
+
+# AI Translated
+msgid "This build cannot run the client CLI."
+msgstr "이 빌드에서는 클라이언트 CLI를 실행할 수 없습니다."
+
+# AI Translated
+msgid "This build cannot open a file manager."
+msgstr "이 빌드에서는 파일 관리자를 열 수 없습니다."
+
+# AI Translated
+msgid "The provider did not answer."
+msgstr "제공자가 응답하지 않았습니다."
+
+# AI Translated
+msgid "Attach files"
+msgstr "파일 첨부"
+
+# AI Translated
+msgid "The AI panel could not connect"
+msgstr "AI 패널을 연결할 수 없습니다"
+
+# AI Translated
+msgid "Back to Prepare"
+msgstr "준비 하기로 돌아가기"
+
+# AI Translated
+msgid "Open filament settings"
+msgstr "필라멘트 설정 열기"
+
+# AI Translated
+msgid "The packaged AI page is missing from this build."
+msgstr "이 빌드에 패키지된 AI 페이지가 없습니다."
+
+# AI Translated
+msgid "The system web view could not be created."
+msgstr "시스템 웹 보기를 만들 수 없습니다."
+
+# AI Translated
+msgid "The AI page failed to load."
+msgstr "AI 페이지를 불러오지 못했습니다."
+
+# AI Translated
+msgid "The AI page did not complete the bridge handshake."
+msgstr "AI 페이지가 브리지 핸드셰이크를 완료하지 않았습니다."
+
+# AI Translated
+msgid "Restart the application to load the AI page."
+msgstr "AI 페이지를 불러오려면 애플리케이션을 다시 시작하세요."
+
+# AI Translated
+msgid "This is an internal connection between the application and its AI panel, not a network service."
+msgstr "이것은 애플리케이션과 AI 패널 사이의 내부 연결이며, 네트워크 서비스가 아닙니다."
+
+# AI Translated
+#. TRN %1% is the web view's own error text.
+#, boost-format
+msgid "Last load error: %1%"
+msgstr "마지막 불러오기 오류: %1%"
+
+# AI Translated
+#. TRN The messages the app and its AI panel exchanged. %1% and %2% are counts.
+#, boost-format
+msgid "Bridge traffic: %1% sent / %2% received"
+msgstr "브리지 트래픽: 보냄 %1% / 받음 %2%"
+
+# AI Translated
+msgid "The AI service returned an unreadable streaming response."
+msgstr "AI 서비스가 읽을 수 없는 스트리밍 응답을 반환했습니다."
+
+# AI Translated
+msgid "The AI service streamed a delta for a block it never opened."
+msgstr "AI 서비스가 열지 않은 블록에 대한 델타를 스트리밍했습니다."
+
+# AI Translated
+msgid "The AI service sent a tool call whose arguments are not JSON."
+msgstr "AI 서비스가 인수가 JSON이 아닌 도구 호출을 보냈습니다."
+
+# AI Translated
+msgid "The AI service could not complete the response."
+msgstr "AI 서비스가 응답을 완료하지 못했습니다."
+
+# AI Translated
+#. TRN %1% is the AI service's own reason, in English, such as "cyber".
+#, boost-format
+msgid "The AI service declined to answer (%1%)."
+msgstr "AI 서비스가 응답을 거부했습니다(%1%)."
+
+# AI Translated
+msgid "The AI service ended its response for a reason this build does not know."
+msgstr "AI 서비스가 이 빌드에서 알 수 없는 이유로 응답을 종료했습니다."
+
+# AI Translated
+msgid "This version of JusPrin can no longer connect to JusPrin accounts. Get the new version to keep using your account."
+msgstr "이 버전의 JusPrin은 더 이상 JusPrin 계정에 연결할 수 없습니다. 계정을 계속 사용하려면 새 버전을 받으세요."
+
+# AI Translated
+msgid "Signing in didn't finish. Nothing was saved. Try again."
+msgstr "로그인이 완료되지 않았습니다. 아무것도 저장되지 않았습니다. 다시 시도하세요."
+
+# AI Translated
+msgid "JusPrin couldn't be reached to finish signing in. Try again."
+msgstr "로그인을 완료하기 위해 JusPrin에 연결할 수 없습니다. 다시 시도하세요."
+
+# AI Translated
+msgid "JusPrin has no AI model for this account right now. Try again later."
+msgstr "현재 이 계정에서 사용할 수 있는 JusPrin AI 모델이 없습니다. 나중에 다시 시도하세요."
+
+# AI Translated
+msgid "Restored an earlier project version"
+msgstr "이전 프로젝트 버전을 복원했습니다"
+
+# AI Translated
+msgid "Restored this chat's saved project setup"
+msgstr "이 채팅에 저장된 프로젝트 설정을 복원했습니다"
+
+# AI Translated
+#. TRN The chat list's preview of a message that has only attachments.
+msgid "Attachment"
+msgstr "첨부 파일"
+
+# AI Translated
+msgid "The AI service stopped before finishing its response."
+msgstr "AI 서비스가 응답을 완료하기 전에 중지되었습니다."
+
+# AI Translated
+msgid "The AI service kept pausing its response."
+msgstr "AI 서비스가 응답 중에 계속 멈췄습니다."
+
+# AI Translated
+msgid "AI could not be asked to continue its response."
+msgstr "AI에게 응답을 계속하도록 요청할 수 없습니다."
+
+# AI Translated
+msgid "AI could not be told the results of its tool calls."
+msgstr "AI에게 도구 호출 결과를 전달할 수 없습니다."
+
+# AI Translated
+msgid "AI returned an invalid tool call."
+msgstr "AI가 잘못된 도구 호출을 반환했습니다."
+
+# AI Translated
+msgid "The AI service ended before a complete response arrived."
+msgstr "완전한 응답을 받기 전에 AI 서비스가 종료되었습니다."
+
+# AI Translated
+msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
+msgstr "JusPrin 로그인이 만료되었습니다. 기본 설정에서 다시 로그인한 후 다시 시도하세요."
+
+# AI Translated
+#, boost-format
+msgid "This message needs %1% credit; you have %2%."
+msgid_plural "This message needs %1% credits; you have %2%."
+msgstr[0] "이 메시지에는 %1% 크레딧이 필요합니다. 보유 크레딧은 %2%입니다."
+
+# AI Translated
+msgid "You're out of credits."
+msgstr "크레딧이 모두 소진되었습니다."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% API key was rejected. Update the AI configuration and try again."
+msgstr "%1% API 키가 거부되었습니다. AI 구성을 업데이트하고 다시 시도하세요."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The request was too large for the %1% service."
+msgstr "%1% 서비스에 보내기에는 요청이 너무 큽니다."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% service is rate limited. Try again shortly."
+msgstr "%1% 서비스의 요청 한도에 도달했습니다. 잠시 후 다시 시도하세요."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% service is overloaded. Try again shortly."
+msgstr "%1% 서비스가 과부하 상태입니다. 잠시 후 다시 시도하세요."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% service is temporarily unavailable."
+msgstr "%1% 서비스를 일시적으로 사용할 수 없습니다."
+
+# AI Translated
+msgid "The AI request timed out."
+msgstr "AI 요청 시간이 초과되었습니다."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The AI request could not reach the %1% service."
+msgstr "AI 요청이 %1% 서비스에 연결하지 못했습니다."
+
+# AI Translated
+msgid "The AI service response did not contain valid output."
+msgstr "AI 서비스 응답에 유효한 출력이 없습니다."
+
+# AI Translated
+#. TRN A button that asks the AI to choose another block of a calibration test.
+msgid "Pick another block"
+msgstr "다른 블록 선택"
+
+# AI Translated
+#. TRN A button that asks the AI to choose another tile of a calibration test.
+msgid "Pick another tile"
+msgstr "다른 타일 선택"
+
+# AI Translated
+#. TRN A button that asks the AI to choose another line of a calibration test.
+msgid "Pick another line"
+msgstr "다른 선 선택"
+
+# AI Translated
+#. TRN A button that asks the AI to choose another corner of a calibration test.
+msgid "Pick another corner"
+msgstr "다른 모서리 선택"
+
+# AI Translated
+#. TRN A button that asks the AI to choose another height of a calibration tower.
+msgid "Pick another height"
+msgstr "다른 높이 선택"
+
+# AI Translated
+#. TRN %1% is a preset's name.
+#, boost-format
+msgid "Preset · %1%"
+msgstr "사전 설정 · %1%"
+
+# AI Translated
+#. TRN %1% is a preset's name.
+#, boost-format
+msgid "New preset · %1%"
+msgstr "새 사전 설정 · %1%"
+
+# AI Translated
+#. TRN %1% is the preset the new one is made from.
+#, boost-format
+msgid "%1% itself is unchanged"
+msgstr "%1% 자체는 변경되지 않습니다"
+
+# AI Translated
+#. TRN %1% is a setting's new value, such as 215 °C.
+#, boost-format
+msgid "Save %1% as a new filament preset"
+msgstr "%1%을(를) 새 필라멘트 사전 설정으로 저장"
+
+# AI Translated
+#. TRN %1% is a setting's new value, such as 215 °C.
+#, boost-format
+msgid "Save %1% as a new printer preset"
+msgstr "%1%을(를) 새 프린터 사전 설정으로 저장"
+
+# AI Translated
+#. TRN %1% is a setting's new value, such as 215 °C.
+#, boost-format
+msgid "Save %1% as a new process preset"
+msgstr "%1%을(를) 새 프로세스 사전 설정으로 저장"
+
+# AI Translated
+#. TRN %1% is a setting's new value, such as 215 °C, %2% a preset's name.
+#, boost-format
+msgid "Save %1% to %2%"
+msgstr "%1%을(를) %2%에 저장"
+
+# AI Translated
+msgid "This proposal is already saved."
+msgstr "이 제안은 이미 저장되었습니다."
+
+# AI Translated
+msgid "Drop a model here or add one"
+msgstr "여기에 모델을 끌어다 놓거나 추가하세요"
+
+# AI Translated
+msgid "World coordinates"
+msgstr "월드 좌표"
+
+# AI Translated
+msgid "Object coordinates"
+msgstr "객체 좌표"
+
+# AI Translated
+msgid "Translate(Relative)"
+msgstr "이동(상대)"
+
+# AI Translated
+msgid "Rotate (absolute)"
+msgstr "회전 (절대)"
+
+# AI Translated
+msgid "Part coordinates"
+msgstr "부품 좌표"
+
+# AI Translated
+msgid "The packaged Home page is missing from this build."
+msgstr "이 빌드에 패키지된 홈 페이지가 없습니다."
+
+# AI Translated
+msgid "The Home page failed to load."
+msgstr "홈 페이지를 불러오지 못했습니다."
+
+# AI Translated
+msgid "This window stopped updating because the app switched to another printer."
+msgstr "앱이 다른 프린터로 전환되어 이 창의 업데이트가 중지되었습니다."
+
+# AI Translated
+#. TRN A length in millimetres, such as a nozzle diameter on a printer card: "0.4 mm". %s is the number.
+#, c-format, boost-format
+msgid "%s mm"
+msgstr "%s mm"
+
+# AI Translated
+#, c-format, boost-format
+msgid "The printer reports error %s."
+msgstr "프린터에서 오류 %s을(를) 보고했습니다."
+
+# AI Translated
+msgid "LAN"
+msgstr "LAN"
+
+# AI Translated
+msgid "Cloud"
+msgstr "클라우드"
+
+# AI Translated
+msgid "The printer stopped sending updates."
+msgstr "프린터가 업데이트 전송을 중지했습니다."
+
+# AI Translated
+#, c-format, boost-format
+msgid "%s isn't answering."
+msgstr "%s이(가) 응답하지 않습니다."
+
+# AI Translated
+msgid "Klipper isn't running."
+msgstr "Klipper가 실행되고 있지 않습니다."
+
+# AI Translated
+#. TRN %1% is Klipper's own message, in English, saying why it stopped.
+#, boost-format
+msgid "Klipper stopped: %1%"
+msgstr "Klipper 중지됨: %1%"
+
+# AI Translated
+msgid "This printer no longer exists."
+msgstr "이 프린터는 더 이상 존재하지 않습니다."
+
+# AI Translated
+# Needs human review: Korean short date: %1% is the abbreviated month name; check the month name source gives e.g. "10월" so the result reads "10월 20일".
+#. TRN A date in this year on a project card: %1% is the abbreviated month name, %2% the day of the month, as in "Oct 20".
+#, boost-format
+msgctxt "short date"
+msgid "%1% %2%"
+msgstr "%1% %2%일"
+
+# AI Translated
+# Needs human review: Korean puts the year first: reads "2025년 10월 20일" only if %1% is the month-day date from the short-date entry.
+#. TRN A date outside this year on a project card: %1% is the date without the year, as in "Oct 20", %2% the year.
+#, boost-format
+msgctxt "date with year"
+msgid "%1%, %2%"
+msgstr "%2%년 %1%"
+
+# AI Translated
+msgid "G-code exported"
+msgstr "G-code 내보냄"
+
+# AI Translated
+#. TRN A project's status: %1% is a date, as in "Nov 3".
+#, boost-format
+msgid "G-code exported %1%"
+msgstr "%1%에 G-code 내보냄"
+
+# AI Translated
+#. TRN A project's status: %1% is a printer model, as in "Ender-3 V3 KE".
+#, boost-format
+msgid "G-code exported for %1%"
+msgstr "%1%용 G-code 내보냄"
+
+# AI Translated
+#. TRN A project's status: %1% is a date, as in "Nov 3", %2% a printer model, as in "Ender-3 V3 KE".
+#, boost-format
+msgid "G-code exported %1% for %2%"
+msgstr "%1%에 %2%용 G-code 내보냄"
+
+# AI Translated
+msgctxt "project status"
+msgid "Printed"
+msgstr "출력됨"
+
+# AI Translated
+#. TRN A project's status: %1% is a date, as in "Oct 20".
+#, boost-format
+msgid "Printed %1%"
+msgstr "%1%에 출력됨"
+
+# AI Translated
+msgctxt "project status"
+msgid "Sent"
+msgstr "전송됨"
+
+# AI Translated
+#. TRN A project's status: %1% is a date, as in "Oct 20".
+#, boost-format
+msgid "Sent %1%"
+msgstr "%1%에 전송됨"
+
+# AI Translated
+#. TRN A project's status: it has not been sliced to G-code yet.
+msgctxt "project status"
+msgid "Draft"
+msgstr "초안"
+
+# AI Translated
+msgid "That sign-in expired. Try again."
+msgstr "로그인이 만료되었습니다. 다시 시도하세요."
+
+# AI Translated
+#, c-format, boost-format
+msgid "JusPrin found no %s printers to bring. Choose your printer instead."
+msgstr "JusPrin에서 가져올 %s 프린터를 찾지 못했습니다. 대신 프린터를 직접 선택하세요."
+
+# AI Translated
+msgid "Generic printer"
+msgstr "일반 프린터"
+
+# AI Translated
+msgid "Your projects couldn't be loaded. JusPrin will keep trying."
+msgstr "프로젝트를 불러올 수 없습니다. JusPrin에서 계속 시도합니다."
+
+# AI Translated
+msgid "Untitled project"
+msgstr "제목 없는 프로젝트"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Printing on %s"
+msgstr "%s에서 출력 중"
+
+# AI Translated
+msgid "JusPrin no longer keeps this G-code. Slice the project again to export it."
+msgstr "JusPrin에 이 G-code가 더 이상 보관되어 있지 않습니다. 내보내려면 프로젝트를 다시 슬라이스하세요."
+
+# AI Translated
+msgid "Couldn't export G-code"
+msgstr "G-code를 내보낼 수 없음"
+
+# AI Translated
+#, c-format, boost-format
+msgid "The G-code couldn't be written to %s."
+msgstr "G-code를 %s에 쓸 수 없습니다."
+
+# AI Translated
+msgid "Choose a photo of the printed object"
+msgstr "출력물 사진 선택"
+
+# AI Translated
+msgid "Photos"
+msgstr "사진"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%s couldn't be opened. Try opening it with Open… instead."
+msgstr "%s을(를) 열 수 없습니다. 대신 열기…로 열어 보세요."
+
+# AI Translated
+msgid "Couldn't open file"
+msgstr "파일을 열 수 없음"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Import from %s"
+msgstr "%s에서 가져오기"
+
+# AI Translated
+msgid "Importing these printers loads their profiles, which replaces unsaved changes to the project's settings."
+msgstr "이 프린터를 가져오면 프로필이 로드되며, 프로젝트 설정의 저장되지 않은 변경 사항이 대체됩니다."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Imported from %s"
+msgstr "%s에서 가져옴"
+
+# AI Translated
+#, c-format, boost-format
+msgid "JusPrin couldn't read this file. To try again, choose Printer › Import printers from %s…"
+msgstr "JusPrin에서 이 파일을 읽을 수 없습니다. 다시 시도하려면 프린터 › %s에서 프린터 가져오기…를 선택하세요."
+
+# AI Translated
+msgid "Not imported. The file has no version."
+msgstr "가져오지 않았습니다. 파일에 버전이 없습니다."
+
+# AI Translated
+msgid "Not imported. It isn't a printer, filament or process preset."
+msgstr "가져오지 않았습니다. 프린터, 필라멘트 또는 프로세스 사전 설정이 아닙니다."
+
+# AI Translated
+#. TRN %1% is the filament preset the file is based on, %2% the app it was imported from.
+#, boost-format
+msgid "Not imported, because it's based on %1%, which JusPrin doesn't have. It stays in %2%. When you prepare a print, choose a similar filament instead."
+msgstr "JusPrin에 없는 %1%을(를) 기반으로 하므로 가져오지 않았습니다. %2%에 그대로 남아 있습니다. 출력을 준비할 때 비슷한 필라멘트를 대신 선택하세요."
+
+# AI Translated
+#. TRN %1% is the print settings preset the file is based on, %2% the app it was imported from.
+#, boost-format
+msgid "Not imported, because they're based on %1%, which JusPrin doesn't have. They stay in %2%. When you prepare a print, choose similar print settings instead."
+msgstr "JusPrin에 없는 %1%을(를) 기반으로 하므로 가져오지 않았습니다. %2%에 그대로 남아 있습니다. 출력을 준비할 때 비슷한 출력 설정을 대신 선택하세요."
+
+# AI Translated
+#. TRN %1% is the printer profile the file is based on, %2% the app it was imported from.
+#, boost-format
+msgid "Not imported, because it's based on %1%, which JusPrin doesn't have. It stays in %2%. When you add a printer, choose a similar one instead."
+msgstr "JusPrin에 없는 %1%을(를) 기반으로 하므로 가져오지 않았습니다. %2%에 그대로 남아 있습니다. 프린터를 추가할 때 비슷한 프린터를 대신 선택하세요."
+
+# AI Translated
+#, c-format, boost-format
+msgid "JusPrin couldn't load this preset. To try again, choose Printer › Import printers from %s…"
+msgstr "JusPrin에서 이 사전 설정을 불러올 수 없습니다. 다시 시도하려면 프린터 › %s에서 프린터 가져오기…를 선택하세요."
+
+# AI Translated
+#, c-format, boost-format
+msgid "It's based on %s, which JusPrin doesn't have. When you prepare a print, choose a similar filament instead."
+msgstr "JusPrin에 없는 %s을(를) 기반으로 합니다. 출력을 준비할 때 비슷한 필라멘트를 대신 선택하세요."
+
+# AI Translated
+#, c-format, boost-format
+msgid "It's based on %s, which JusPrin doesn't have. When you prepare a print, choose similar print settings instead."
+msgstr "JusPrin에 없는 %s을(를) 기반으로 합니다. 출력을 준비할 때 비슷한 출력 설정을 대신 선택하세요."
+
+# AI Translated
+#, c-format, boost-format
+msgid "It's based on %s, which JusPrin doesn't have. When you add a printer, choose a similar one instead."
+msgstr "JusPrin에 없는 %s을(를) 기반으로 합니다. 프린터를 추가할 때 비슷한 프린터를 대신 선택하세요."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Choose your %s folder"
+msgstr "%s 폴더 선택"
+
+# AI Translated
+#. TRN %1% is the app the printers are imported from, such as OrcaSlicer.
+#, boost-format
+msgid "JusPrin found no %1% printers in that folder. If %1% keeps its settings somewhere else, choose that folder."
+msgstr "JusPrin에서 해당 폴더에 %1% 프린터를 찾지 못했습니다. %1%이(가) 설정을 다른 곳에 보관한다면 그 폴더를 선택하세요."
+
+# AI Translated
+msgid "The printer's page didn't load"
+msgstr "프린터 페이지를 불러오지 못했습니다"
+
+# AI Translated
+msgid "Try again"
+msgstr "다시 시도"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
+msgstr "%s에서 응답이 없습니다. 프린터가 켜져 있고 이 컴퓨터와 같은 네트워크에 있는지 확인한 후 다시 시도하세요."
+
+# AI Translated
+msgid "Client configuration is a symbolic link. Use Copy and update its target manually."
+msgstr "클라이언트 구성이 심볼릭 링크입니다. 복사를 사용해 대상 파일을 직접 업데이트하세요."
+
+# AI Translated
+msgid "Client configuration exceeds the 1 MiB setup limit."
+msgstr "클라이언트 구성이 설정 한도인 1 MiB를 초과합니다."
+
+# AI Translated
+msgid "Client configuration exceeds nesting depth 32."
+msgstr "클라이언트 구성이 중첩 깊이 32를 초과합니다."
+
+# AI Translated
+msgid "Client configuration has an unterminated comment."
+msgstr "클라이언트 구성에 닫히지 않은 주석이 있습니다."
+
+# AI Translated
+msgid "Client configuration and its server map must be JSON objects. No changes made."
+msgstr "클라이언트 구성과 서버 맵은 JSON 객체여야 합니다. 변경된 내용이 없습니다."
+
+# AI Translated
+msgid "Client configuration has ambiguous duplicate keys. No changes made."
+msgstr "클라이언트 구성에 모호한 중복 키가 있습니다. 변경된 내용이 없습니다."
+
+# AI Translated
+msgid "Client configuration changed after the preview. Review the new change and confirm again."
+msgstr "미리 보기 이후 클라이언트 구성이 변경되었습니다. 새 변경 사항을 검토하고 다시 확인하세요."
+
+# AI Translated
+msgid "Client configuration changed while preparing the write. Original file retained; review again."
+msgstr "쓰기를 준비하는 동안 클라이언트 구성이 변경되었습니다. 원본 파일은 유지되었습니다. 다시 검토하세요."
+
+# AI Translated
+msgid "JusPrin couldn't close the project, so it didn't restart. Your project stays open, and JusPrin will use the new language the next time it starts."
+msgstr "JusPrin에서 프로젝트를 닫지 못해 다시 시작하지 않았습니다. 프로젝트는 열린 상태로 유지되며, 다음에 JusPrin을 시작할 때 새 언어가 적용됩니다."
+
+# AI Translated
+msgid "Restart"
+msgstr "다시 시작"
+
+# AI Translated
+msgid "Checking..."
+msgstr "확인 중..."
+
+# AI Translated
+msgid "Whole plate"
+msgstr "전체 플레이트"
+
+# AI Translated
+msgid "Ignored"
+msgstr "무시됨"
+
+# AI Translated
+#, boost-format
+msgid "%1% warning ignored"
+msgid_plural "%1% warnings ignored"
+msgstr[0] "경고 %1%개 무시됨"
+
+# AI Translated
+#, boost-format
+msgid "%1% print issue"
+msgid_plural "%1% print issues"
+msgstr[0] "출력 문제 %1%개"
+
+# AI Translated
+#, boost-format
+msgid "%1% blocks printing."
+msgid_plural "%1% block printing."
+msgstr[0] "%1%개가 출력을 막고 있습니다."
+
+# AI Translated
+#. TRN The print-issue pill: %1% is "3 print issues", %2% the sentence "2 block printing."
+#, boost-format
+msgid "%1%. %2%"
+msgstr "%1%. %2%"
+
+# AI Translated
+msgid "Blocks printing"
+msgstr "출력을 막음"
+
+# AI Translated
+msgid "out of view"
+msgstr "화면 밖"
+
+# AI Translated
+msgid "Checking whether this is fixed..."
+msgstr "해결되었는지 확인하는 중..."
+
+# AI Translated
+#, boost-format
+msgid "%1% of %2%"
+msgstr "%1% / %2%"
+
+# AI Translated
+msgid "AI is replying..."
+msgstr "AI가 응답하는 중..."
+
+# AI Translated
+msgid "Stop ignoring"
+msgstr "무시 해제"
+
+# AI Translated
+msgid "Ignore this warning"
+msgstr "이 경고 무시"
+
+# AI Translated
+msgid "Ask AI"
+msgstr "AI에게 묻기"
+
+# AI Translated
+msgid "Explain this issue and my options."
+msgstr "이 문제와 선택할 수 있는 방법을 설명해 주세요."
+
+# AI Translated
+msgid "Set up AI..."
+msgstr "AI 설정..."
+
+# AI Translated
+msgid "A G-code path goes beyond the plate boundaries."
+msgstr "G-code 경로가 플레이트 경계를 벗어납니다."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Filaments %s cannot be printed directly on the surface of this plate."
+msgstr "필라멘트 %s은(는) 이 플레이트 표면에 직접 출력할 수 없습니다."
+
+# AI Translated
+#, boost-format
+msgid "Slicing plate %1%"
+msgstr "플레이트 %1% 슬라이스 중"
+
+# AI Translated
+msgid "The form was out of date. Choose the printer again."
+msgstr "양식이 오래되었습니다. 프린터를 다시 선택하세요."
+
+# AI Translated
+msgid "Choose the plate on this printer."
+msgstr "이 프린터의 플레이트를 선택하세요."
+
+# AI Translated
+msgid "That filament is no longer on the list. Choose another."
+msgstr "해당 필라멘트가 더 이상 목록에 없습니다. 다른 필라멘트를 선택하세요."
+
+# AI Translated
+msgid "That printer is no longer on the list. Choose it again."
+msgstr "해당 프린터가 더 이상 목록에 없습니다. 다시 선택하세요."
+
+# AI Translated
+msgid "Printer conversation"
+msgstr "프린터 대화"
+
+# AI Translated
+msgid "Filament conversation"
+msgstr "필라멘트 대화"
+
+# AI Translated
+msgid "Browse the full printer list"
+msgstr "전체 프린터 목록 보기"
+
+# AI Translated
+msgid "Open printer settings"
+msgstr "프린터 설정 열기"
+
+# AI Translated
+#. TRN %1% is the profile loader's own error, in English.
+#, boost-format
+msgid "The printer profiles could not be read: %1%"
+msgstr "프린터 프로필을 읽을 수 없습니다: %1%"
+
+# AI Translated
+msgid "Enter a name for the printer."
+msgstr "프린터 이름을 입력하세요."
+
+# AI Translated
+msgid "A printer name can't start or end with a space."
+msgstr "프린터 이름은 공백으로 시작하거나 끝날 수 없습니다."
+
+# AI Translated
+#, c-format, boost-format
+msgid "A printer name can't contain any of these characters: %s"
+msgstr "프린터 이름에는 다음 문자를 사용할 수 없습니다: %s"
+
+# AI Translated
+msgid "That name is reserved. Choose another."
+msgstr "예약된 이름입니다. 다른 이름을 선택하세요."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Another printer or profile is already named \"%s\"."
+msgstr "\"%s\"(이)라는 이름의 프린터나 프로필이 이미 있습니다."
+
+# AI Translated
+msgid "A new name has to differ from the old one by more than capitalization."
+msgstr "새 이름은 대소문자 이외의 부분이 이전 이름과 달라야 합니다."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Other printer profiles are based on \"%s\". Remove those first in Printer settings."
+msgstr "다른 프린터 프로필이 \"%s\"을(를) 기반으로 합니다. 먼저 프린터 설정에서 해당 프로필을 제거하세요."
+
+# AI Translated
+msgid "The app couldn't open your browser."
+msgstr "앱에서 브라우저를 열 수 없습니다."
+
+# AI Translated
+msgid "About JusPrin"
+msgstr "JusPrin 정보"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Version %s"
+msgstr "버전 %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Built on OrcaSlicer %s"
+msgstr "OrcaSlicer %s 기반"
+
+# AI Translated
+#. TRN A noun: the label before the commit this copy of the app was built from.
+msgid "Build"
+msgstr "빌드"
+
+# AI Translated
+msgid "Copy version"
+msgstr "버전 복사"
+
+# AI Translated
+msgid "Get help"
+msgstr "도움 받기"
+
+# AI Translated
+msgid "Email"
+msgstr "이메일"
+
+# AI Translated
+msgid "License…"
+msgstr "라이선스…"
+
+# AI Translated
+msgid "Free software under the GNU Affero General Public License v3."
+msgstr "GNU Affero General Public License v3에 따른 자유 소프트웨어입니다."
+
+# AI Translated
+msgid "Copied"
+msgstr "복사됨"
+
+# AI Translated
+#. TRN The menu of print actions: Slice plate, Check print…, Print….
+msgctxt "Menu"
+msgid "Print"
+msgstr "출력"
+
+# AI Translated
+msgid "New project"
+msgstr "새 프로젝트"
+
+# AI Translated
+msgid "Open…"
+msgstr "열기…"
+
+# AI Translated
+msgid "Open recent"
+msgstr "최근 항목 열기"
+
+# AI Translated
+msgid "Version history…"
+msgstr "버전 기록…"
+
+# AI Translated
+msgid "Project 3MF…"
+msgstr "프로젝트 3MF…"
+
+# AI Translated
+msgid "Exit"
+msgstr "종료"
+
+# AI Translated
+msgid "Plates and project panel"
+msgstr "플레이트 및 프로젝트 패널"
+
+# AI Translated
+msgid "Show plates and project panel"
+msgstr "플레이트 및 프로젝트 패널 표시"
+
+# AI Translated
+msgid "Hide plates and project panel"
+msgstr "플레이트 및 프로젝트 패널 숨기기"
+
+# AI Translated
+msgid "AI panel"
+msgstr "AI 패널"
+
+# AI Translated
+msgid "Show AI panel"
+msgstr "AI 패널 표시"
+
+# AI Translated
+msgid "Hide AI panel"
+msgstr "AI 패널 숨기기"
+
+# AI Translated
+msgid "Switch to classic view…"
+msgstr "클래식 보기로 전환…"
+
+# AI Translated
+msgid "JusPrin guide…"
+msgstr "JusPrin 가이드…"
+
+# AI Translated
+msgid "Ask AI…"
+msgstr "AI에게 묻기…"
+
+# AI Translated
+msgid "Report a problem…"
+msgstr "문제 신고…"
+
+# AI Translated
+msgid "Report a problem"
+msgstr "문제 신고"
+
+# AI Translated
+msgid "Slice all plates"
+msgstr "모든 플레이트 슬라이스"
+
+# AI Translated
+msgid "Check print…"
+msgstr "출력 점검…"
+
+# AI Translated
+msgid "Print…"
+msgstr "출력…"
+
+# AI Translated
+msgid "Print all plates…"
+msgstr "모든 플레이트 출력…"
+
+# AI Translated
+msgid "Add a printer…"
+msgstr "프린터 추가…"
+
+# AI Translated
+msgid "Import printers from OrcaSlicer…"
+msgstr "OrcaSlicer에서 프린터 가져오기…"
+
+# AI Translated
+msgid "Import printers from JusPrin 1…"
+msgstr "JusPrin 1에서 프린터 가져오기…"
+
+# AI Translated
+msgid "Printer settings…"
+msgstr "프린터 설정…"
+
+# AI Translated
+msgid "Ask AI about printer settings…"
+msgstr "프린터 설정에 대해 AI에게 묻기…"
+
+# AI Translated
+msgid "Filament settings…"
+msgstr "필라멘트 설정…"
+
+# AI Translated
+msgid "Ask AI about filament settings…"
+msgstr "필라멘트 설정에 대해 AI에게 묻기…"
+
+# AI Translated
+msgid "Calibrate…"
+msgstr "교정…"
+
+# AI Translated
+msgid "Check print"
+msgstr "출력 점검"
+
+# AI Translated
+msgid "Check Print"
+msgstr "출력 점검"
+
+# AI Translated
+msgid "Legend"
+msgstr "범례"
+
+# AI Translated
+msgid "Close and return to Prepare"
+msgstr "닫고 준비 하기로 돌아가기"
+
+# AI Translated
+#, c-format, boost-format
+msgid "sliced for %s"
+msgstr "%s용으로 슬라이스됨"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Layer %d"
+msgstr "레이어 %d"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d s"
+msgstr "%d초"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d min"
+msgstr "%d분"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d h %d min"
+msgstr "%d시간 %d분"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%.0f g"
+msgstr "%.0f g"
+
+# AI Translated
+#. TRN A length in metres, such as the filament a print uses: "12.4 m". %s is the number.
+#, c-format, boost-format
+msgid "%s m"
+msgstr "%s m"
+
+# AI Translated
+msgid "no supports were needed"
+msgstr "서포트 필요 없음"
+
+# AI Translated
+msgid "no seams are on the faces you marked"
+msgstr "표시한 면에 재봉선 없음"
+
+# AI Translated
+msgid "nothing prints in the air"
+msgstr "공중에 출력되는 부분 없음"
+
+# AI Translated
+msgid "no paths cross or leave the plate"
+msgstr "교차하거나 플레이트를 벗어나는 경로 없음"
+
+# AI Translated
+msgid "no paths cross each other"
+msgstr "서로 교차하는 경로 없음"
+
+# AI Translated
+msgid "no paths leave the plate"
+msgstr "플레이트를 벗어나는 경로 없음"
+
+# AI Translated
+msgid "the slicer gave no warnings"
+msgstr "슬라이서 경고 없음"
+
+# AI Translated
+msgid "Print report"
+msgstr "출력 보고서"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Print report, %s"
+msgstr "출력 보고서, %s"
+
+# AI Translated
+#. TRN A section title of the print report: the support structures the slice made.
+msgid "Supports"
+msgstr "서포트"
+
+# AI Translated
+msgid "Slicer warnings"
+msgstr "슬라이서 경고"
+
+# AI Translated
+msgid "Unsupported islands"
+msgstr "지지되지 않는 섬"
+
+# AI Translated
+msgid "Crossing paths"
+msgstr "교차하는 경로"
+
+# AI Translated
+msgid "Paths outside the plate"
+msgstr "플레이트 밖의 경로"
+
+# AI Translated
+msgid "Nothing to flag."
+msgstr "표시할 문제가 없습니다."
+
+# AI Translated
+# Needs human review: Clause joiner in the print report's closing line; the clauses are noun phrases ending in 없음, joined with commas only. Check the whole line reads naturally.
+#. TRN Print report's closing line, a list of clauses such as "nothing prints in the air": joins the list so far to a clause that is not the last.
+#, c-format, boost-format
+msgid "%s, %s"
+msgstr "%s, %s"
+
+# AI Translated
+# Needs human review: Two-clause joiner of the print report's closing line; Korean uses a comma rather than 및 between the noun-phrase clauses. Check the whole line.
+#. TRN Print report's closing line, a list of clauses such as "nothing prints in the air": joins its only two clauses.
+#, c-format, boost-format
+msgid "%s and %s"
+msgstr "%s, %s"
+
+# AI Translated
+# Needs human review: Last-clause joiner of the print report's closing line; comma only in Korean. Check the whole line.
+#. TRN Print report's closing line, a list of clauses such as "nothing prints in the air": joins the list so far to the last of three or more.
+#, c-format, boost-format
+msgid "%s, and %s"
+msgstr "%s, %s"
+
+# AI Translated
+#. TRN Ends the print report's closing line; %s is its list of what the checks found clean, first letter capitalised.
+#, c-format, boost-format
+msgid "%s."
+msgstr "%s."
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d layer"
+msgid_plural "%d layers"
+msgstr[0] "%d개 레이어"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d object"
+msgid_plural "%d objects"
+msgstr[0] "객체 %d개"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d on a marked face"
+msgid_plural "%d on marked faces"
+msgstr[0] "표시한 면에 %d개"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d or more"
+msgstr "%d개 이상"
+
+# AI Translated
+msgid "A toolpath runs outside the printable area"
+msgstr "툴패스가 출력 가능 영역을 벗어납니다"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Support touches %s, which you asked to keep clear"
+msgstr "비워 두도록 요청한 %s에 서포트가 닿습니다"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Support inside the %s"
+msgstr "%s 내부의 서포트"
+
+# AI Translated
+msgid "No support in a hole or a region you kept clear"
+msgstr "구멍이나 비워 둔 영역에 서포트 없음"
+
+# AI Translated
+msgid "No support in a hole"
+msgstr "구멍에 서포트 없음"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Printed in the air: %s"
+msgstr "공중에 출력됨: %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d seam on %s"
+msgid_plural "%d seams on %s"
+msgstr[0] "재봉선 %d개: %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%s on the plate"
+msgstr "플레이트 위 %s"
+
+# AI Translated
+msgid "only when recording a timelapse"
+msgstr "타임랩스를 녹화할 때만"
+
+# AI Translated
+#, c-format, boost-format
+msgid "around %s"
+msgstr "약 %s 높이"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d layer of support"
+msgid_plural "%d layers of support"
+msgstr[0] "서포트 %d개 레이어"
+
+# AI Translated
+msgid "No brim"
+msgstr "브림 없음"
+
+# AI Translated
+msgid "This plate has no current slice."
+msgstr "이 플레이트에는 현재 슬라이스가 없습니다."
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d filament change"
+msgid_plural "%d filament changes"
+msgstr[0] "필라멘트 교체 %d회"
+
+# AI Translated
+msgid "You're in the classic OrcaSlicer view."
+msgstr "클래식 OrcaSlicer 보기를 사용 중입니다."
+
+# AI Translated
+msgid "Back to JusPrin"
+msgstr "JusPrin으로 돌아가기"
+
+# AI Translated
+msgid "Switch to JusPrin view"
+msgstr "JusPrin 보기로 전환"
+
+# AI Translated
+#. TRN A menu caption in capitals: the printer's name (in capitals), then its nozzle size in millimetres.
+#, c-format, boost-format
+msgid "%s, %s MM NOZZLE"
+msgstr "%s, %s MM 노즐"
+
+# AI Translated
+msgid "COLOUR"
+msgstr "색상"
+
+# AI Translated
+msgid "Other colour…"
+msgstr "다른 색상…"
+
+# AI Translated
+msgid "Use what's loaded on the printer…"
+msgstr "프린터에 장착된 필라멘트 사용…"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%s is offline. Turn it on to read what's loaded."
+msgstr "%s이(가) 오프라인입니다. 장착된 필라멘트를 읽으려면 프린터를 켜세요."
+
+# AI Translated
+#, c-format, boost-format
+msgid "FILAMENTS FOR %s"
+msgstr "%s용 필라멘트"
+
+# AI Translated
+msgid "on plate"
+msgstr "플레이트에 있음"
+
+# AI Translated
+msgid "Add another filament to this print"
+msgstr "이 출력에 다른 필라멘트 추가"
+
+# AI Translated
+#, c-format, boost-format
+msgid "FILAMENT · SLOT %d · %s"
+msgstr "필라멘트 · 슬롯 %d · %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "FILAMENT FOR %s"
+msgstr "%s용 필라멘트"
+
+# AI Translated
+msgid "FILAMENTS FOR THIS PRINTER"
+msgstr "이 프린터용 필라멘트"
+
+# AI Translated
+msgid "Other filament…"
+msgstr "다른 필라멘트…"
+
+# AI Translated
+msgid "Calibrate this filament…"
+msgstr "이 필라멘트 교정…"
+
+# AI Translated
+msgid "JusPrin guide"
+msgstr "JusPrin 가이드"
+
+# AI Translated
+msgid "Plates and Project panel"
+msgstr "플레이트 및 프로젝트 패널"
+
+# AI Translated
+msgid "Hide the Plates and Project panel"
+msgstr "플레이트 및 프로젝트 패널 숨기기"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Slicing %d%%"
+msgstr "슬라이스 중 %d%%"
+
+# AI Translated
+msgid "Slicing…"
+msgstr "슬라이스 중…"
+
+# AI Translated
+msgid "Sliced"
+msgstr "슬라이스됨"
+
+# AI Translated
+msgid "Not sliced yet"
+msgstr "아직 슬라이스되지 않음"
+
+# AI Translated
+#. TRN How many objects or copies on the plate are set not to print.
+#, c-format, boost-format
+msgid "%d won't print"
+msgid_plural "%d won't print"
+msgstr[0] "%d개 출력 안 함"
+
+# AI Translated
+msgid "Couldn't do that"
+msgstr "작업을 수행할 수 없음"
+
+# AI Translated
+msgid "Support painting"
+msgstr "서포트 칠하기"
+
+# AI Translated
+msgid "Color painting"
+msgstr "색상 칠하기"
+
+# AI Translated
+msgid "Fuzzy skin painting"
+msgstr "퍼지 스킨 칠하기"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Per-object settings · %d"
+msgstr "객체별 설정 · %d"
+
+# AI Translated
+msgid "Auto-orient"
+msgstr "자동 방향 지정"
+
+# AI Translated
+msgid "Plate settings…"
+msgstr "플레이트 설정…"
+
+# AI Translated
+msgid "Move to front"
+msgstr "맨 앞으로 이동"
+
+# AI Translated
+msgid "Delete plate"
+msgstr "플레이트 삭제"
+
+# AI Translated
+msgid "Rename object"
+msgstr "객체 이름 변경"
+
+# AI Translated
+msgid "Set number of instances…"
+msgstr "인스턴스 수 설정…"
+
+# AI Translated
+msgid "Fix model"
+msgstr "모델 수리"
+
+# AI Translated
+msgid "Change object filament"
+msgstr "객체 필라멘트 변경"
+
+# AI Translated
+msgid "Delete copy"
+msgstr "사본 삭제"
+
+# AI Translated
+msgid "To objects"
+msgstr "객체로"
+
+# AI Translated
+msgid "To parts"
+msgstr "부품으로"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Copy %d"
+msgstr "사본 %d"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d per-object setting"
+msgid_plural "%d per-object settings"
+msgstr[0] "객체별 설정 %d개"
+
+# AI Translated
+msgid "Plates tab"
+msgstr "플레이트 탭"
+
+# AI Translated
+msgid "Project tab"
+msgstr "프로젝트 탭"
+
+# AI Translated
+msgid "Plates"
+msgstr "플레이트"
+
+# AI Translated
+msgid "Add model"
+msgstr "모델 추가"
+
+# AI Translated
+msgid "Not on a plate"
+msgstr "플레이트에 없음"
+
+# AI Translated
+msgid "Mesh needs repair"
+msgstr "메시 수리 필요"
+
+# AI Translated
+msgid "Mesh repaired"
+msgstr "메시 수리됨"
+
+# AI Translated
+msgid "won't print"
+msgstr "출력 안 함"
+
+# AI Translated
+#. TRN A tag beside one part of an object, saying what kind of part it is: an ordinary part.
+msgid "part"
+msgstr "부품"
+
+# AI Translated
+#. TRN A tag beside one part of an object, saying what kind of part it is: a modifier, which changes settings where it overlaps.
+msgid "modifier"
+msgstr "수정자"
+
+# AI Translated
+msgid "negative part"
+msgstr "비우기 부품"
+
+# AI Translated
+msgid "support enforcer"
+msgstr "서포트 강제기"
+
+# AI Translated
+msgid "support blocker"
+msgstr "서포트 차단기"
+
+# AI Translated
+#. TRN %s is a weekday or a date, such as "Mon" or "Mar 14", when this project's last print finished.
+#, c-format, boost-format
+msgid "last finished %s"
+msgstr "마지막 완료 %s"
+
+# AI Translated
+msgid "last finished today"
+msgstr "오늘 마지막 완료"
+
+# AI Translated
+msgid "last finished yesterday"
+msgstr "어제 마지막 완료"
+
+# AI Translated
+msgid "Version history unavailable"
+msgstr "버전 기록을 사용할 수 없음"
+
+# AI Translated
+msgid "Version history couldn't be loaded. Try again."
+msgstr "버전 기록을 불러올 수 없습니다. 다시 시도하세요."
+
+# AI Translated
+msgid "Export project 3MF"
+msgstr "프로젝트 3MF 내보내기"
+
+# AI Translated
+msgid "Export failed"
+msgstr "내보내기 실패"
+
+# AI Translated
+msgid "The project couldn't be exported. Try again."
+msgstr "프로젝트를 내보낼 수 없습니다. 다시 시도하세요."
+
+# AI Translated
+msgid "Restore this version of the model and project settings? The current model will be saved as a version first. Conversations and print records will stay current."
+msgstr "이 버전의 모델과 프로젝트 설정을 복원하시겠습니까? 현재 모델은 먼저 버전으로 저장됩니다. 대화와 출력 기록은 현재 상태로 유지됩니다."
+
+# AI Translated
+msgid "Restore project version"
+msgstr "프로젝트 버전 복원"
+
+# AI Translated
+msgid "Restore failed"
+msgstr "복원 실패"
+
+# AI Translated
+msgid "This version couldn't be restored. Try again."
+msgstr "이 버전을 복원할 수 없습니다. 다시 시도하세요."
+
+# AI Translated
+msgid "Back to Project"
+msgstr "프로젝트로 돌아가기"
+
+# AI Translated
+msgid "Nothing printed or exported yet"
+msgstr "아직 출력하거나 내보낸 항목이 없습니다"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d G-code"
+msgid_plural "%d G-codes"
+msgstr[0] "G-code %d개"
+
+# AI Translated
+msgid "printing now"
+msgstr "지금 출력 중"
+
+# AI Translated
+msgid "never sent to a printer"
+msgstr "프린터로 전송한 적 없음"
+
+# AI Translated
+msgid "Print history"
+msgstr "출력 기록"
+
+# AI Translated
+msgid "Saving…"
+msgstr "저장 중…"
+
+# AI Translated
+msgid "Saved"
+msgstr "저장됨"
+
+# AI Translated
+msgid "Couldn't save"
+msgstr "저장할 수 없음"
+
+# AI Translated
+msgid "No title, designer or description yet."
+msgstr "아직 제목, 디자이너 또는 설명이 없습니다."
+
+# AI Translated
+#. TRN Who designed the model; %s is the designer's name.
+#, c-format, boost-format
+msgid "by %s"
+msgstr "디자이너: %s"
+
+# AI Translated
+msgid "Version history"
+msgstr "버전 기록"
+
+# AI Translated
+msgid "Export project 3MF…"
+msgstr "프로젝트 3MF 내보내기…"
+
+# AI Translated
+msgid "Bill of materials"
+msgstr "자재 명세서"
+
+# AI Translated
+msgid "Assembly guide"
+msgstr "조립 가이드"
+
+# AI Translated
+msgid "Attachments"
+msgstr "첨부 파일"
+
+# AI Translated
+msgid "The file couldn't be opened."
+msgstr "파일을 열 수 없습니다."
+
+# AI Translated
+msgid "More files are attached than are listed here."
+msgstr "여기에 나열된 것보다 더 많은 파일이 첨부되어 있습니다."
+
+# AI Translated
+msgid "Profile"
+msgstr "프로필"
+
+# AI Translated
+msgid "No earlier saved versions yet."
+msgstr "아직 이전에 저장된 버전이 없습니다."
+
+# AI Translated
+#. TRN The Restore button's name for a screen reader; %s is when the version was saved.
+#, c-format, boost-format
+msgid "Restore %s"
+msgstr "%s 복원"
+
+# AI Translated
+msgid "Connecting AI tool"
+msgstr "AI 도구 연결 중"
+
+# AI Translated
+msgid "Saving the MCP entry using the client's own CLI..."
+msgstr "클라이언트 자체 CLI를 사용해 MCP 항목을 저장하는 중..."
+
+# AI Translated
+msgid "The setup command timed out. Stopping it..."
+msgstr "설정 명령 시간이 초과되었습니다. 중지하는 중..."
+
+# AI Translated
+msgid "Select printer"
+msgstr "프린터 선택"
+
+# AI Translated
+msgid "from the file"
+msgstr "파일에서"
+
+# AI Translated
+msgid "Select filament"
+msgstr "필라멘트 선택"
+
+# AI Translated
+msgid "Paused"
+msgstr "일시 정지됨"
+
+# AI Translated
+msgid "Needs attention"
+msgstr "주의 필요"
+
+# AI Translated
+msgid "Ready"
+msgstr "준비됨"
+
+# AI Translated
+msgid "Connected"
+msgstr "연결됨"
+
+# AI Translated
+msgid "Connecting…"
+msgstr "연결 중…"
+
+# AI Translated
+msgid "Not connected"
+msgstr "연결되지 않음"
+
+# AI Translated
+msgid "No printer selected"
+msgstr "선택한 프린터 없음"
+
+# AI Translated
+msgid "From the file · not one of your printers"
+msgstr "파일에서 가져옴 · 내 프린터 아님"
+
+# AI Translated
+msgid "Checking connection…"
+msgstr "연결 확인 중…"
+
+# AI Translated
+msgid "Export the G-code to print from a card."
+msgstr "카드에서 출력하려면 G-code를 내보내세요."
+
+# AI Translated
+msgid "OTHER PRINTERS"
+msgstr "기타 프린터"
+
+# AI Translated
+msgid "Billing and usage"
+msgstr "결제 및 사용량"
+
+# AI Translated
+msgid "Credits and plans"
+msgstr "크레딧 및 요금제"
+
+# AI Translated
+msgid "Check your internet connection, then try again."
+msgstr "인터넷 연결을 확인한 후 다시 시도하세요."
+
+# AI Translated
+msgid "Open in browser"
+msgstr "브라우저에서 열기"
+
+# AI Translated
+msgid "Loading Billing and usage…"
+msgstr "결제 및 사용량 불러오는 중…"
+
+# AI Translated
+msgid "Loading Credits and plans…"
+msgstr "크레딧 및 요금제 불러오는 중…"
+
+# AI Translated
+msgid "Couldn't load Billing and usage"
+msgstr "결제 및 사용량을 불러올 수 없음"
+
+# AI Translated
+msgid "Couldn't load Credits and plans"
+msgstr "크레딧 및 요금제를 불러올 수 없음"
+
+# AI Translated
+msgid "Resize AI panel"
+msgstr "AI 패널 크기 조정"
+
+# AI Translated
+msgid "Drag to resize the AI panel"
+msgstr "끌어서 AI 패널 크기 조정"
+
+# AI Translated
+msgid "The setup changed. Review the current plate and try again."
+msgstr "설정이 변경되었습니다. 현재 플레이트를 검토하고 다시 시도하세요."
+
+# AI Translated
+msgid "Couldn't slice"
+msgstr "슬라이스할 수 없음"
+
+# AI Translated
+msgid "This saved version couldn't be restored. Try again from Version history."
+msgstr "이 저장된 버전을 복원할 수 없습니다. 버전 기록에서 다시 시도하세요."
+
+# AI Translated
+msgid "Revert failed"
+msgstr "되돌리기 실패"
+
+# AI Translated
+msgid "Your saved projects couldn't be read, so JusPrin can't check whether you've opened this file before. The file wasn't opened. Try again once JusPrin can read its projects folder."
+msgstr "저장된 프로젝트를 읽을 수 없어 이 파일을 이전에 열었는지 JusPrin에서 확인할 수 없습니다. 파일을 열지 않았습니다. JusPrin이 프로젝트 폴더를 읽을 수 있게 되면 다시 시도하세요."
+
+# AI Translated
+msgid "This file has changed since this project was made from it. Create a new project from the updated file, or continue the current project, which keeps the earlier version."
+msgstr "이 프로젝트를 만든 이후 파일이 변경되었습니다. 업데이트된 파일로 새 프로젝트를 만들거나, 이전 버전을 유지하는 현재 프로젝트를 계속하세요."
+
+# AI Translated
+msgid "This file is already open as a project. Continue working in it, or create a new project from this file."
+msgstr "이 파일은 이미 프로젝트로 열려 있습니다. 해당 프로젝트에서 계속 작업하거나 이 파일로 새 프로젝트를 만드세요."
+
+# AI Translated
+msgid "This file has changed since you last opened it. Create a new project from the updated file, or open the existing project, which keeps the earlier version."
+msgstr "마지막으로 연 이후 이 파일이 변경되었습니다. 업데이트된 파일로 새 프로젝트를 만들거나, 이전 버전을 유지하는 기존 프로젝트를 여세요."
+
+# AI Translated
+msgid "You've opened this file before. Open the most recently updated project or create another project from this file."
+msgstr "이전에 이 파일을 연 적이 있습니다. 가장 최근에 업데이트된 프로젝트를 열거나 이 파일로 다른 프로젝트를 만드세요."
+
+# AI Translated
+msgid "You've opened this file before. Open the existing project to continue where you left off, or create a new project from this file."
+msgstr "이전에 이 파일을 연 적이 있습니다. 기존 프로젝트를 열어 중단한 곳부터 계속하거나 이 파일로 새 프로젝트를 만드세요."
+
+# AI Translated
+msgid "Previously opened file"
+msgstr "이전에 연 파일"
+
+# AI Translated
+msgid "Continue current project"
+msgstr "현재 프로젝트 계속"
+
+# AI Translated
+msgid "Open most recent project"
+msgstr "가장 최근 프로젝트 열기"
+
+# AI Translated
+msgid "Open existing project"
+msgstr "기존 프로젝트 열기"
+
+# AI Translated
+msgid "Resize Plates and Project panel"
+msgstr "플레이트 및 프로젝트 패널 크기 조정"
+
+# AI Translated
+msgid "Drag to resize the Plates and Project panel"
+msgstr "끌어서 플레이트 및 프로젝트 패널 크기 조정"
+
+# AI Translated
+msgid "The open project couldn't be saved, so the file wasn't opened. Try again."
+msgstr "열려 있는 프로젝트를 저장할 수 없어 파일을 열지 않았습니다. 다시 시도하세요."
+
+# AI Translated
+#. TRN What a calibration tests: a filament's name, then the printer's, such as "Generic PLA on Bambu Lab P1S".
+#, c-format, boost-format
+msgid "%1$s on %2$s"
+msgstr "%2$s의 %1$s"
+
+# AI Translated
+#. TRN %s is the name of the open project, which is saved and closed before a calibration project opens.
+#, c-format, boost-format
+msgid "%s will be saved and closed."
+msgstr "%s이(가) 저장된 후 닫힙니다."
+
+# AI Translated
+#, c-format, boost-format
+msgid "A new calibration project opens for %s, and AI picks the spool and the test with you there."
+msgstr "%s의 새 교정 프로젝트가 열리고, 그곳에서 AI가 함께 스풀과 테스트를 선택합니다."
+
+# AI Translated
+#, c-format, boost-format
+msgid "A new calibration project opens for %s, and AI picks the test with you there."
+msgstr "%s의 새 교정 프로젝트가 열리고, 그곳에서 AI가 함께 테스트를 선택합니다."
+
+# AI Translated
+msgid "AI isn't set up yet; the test needs it to choose the range and read the result."
+msgstr "AI가 아직 설정되지 않았습니다. 테스트 범위를 정하고 결과를 읽으려면 AI가 필요합니다."
+
+# AI Translated
+msgid "Settings the test changes are temporary and are not saved to your filament."
+msgstr "테스트가 변경하는 설정은 임시이며 필라멘트에 저장되지 않습니다."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Calibrate %s?"
+msgstr "%s을(를) 교정하시겠습니까?"
+
+# AI Translated
+msgid "Set up AI…"
+msgstr "AI 설정…"
+
+# AI Translated
+msgid "The calibration project could not be opened, so your project stays open."
+msgstr "교정 프로젝트를 열 수 없어 현재 프로젝트가 열린 상태로 유지됩니다."
+
+# AI Translated
+#, c-format, boost-format
+msgid "The printer \"%s\" could not be selected."
+msgstr "프린터 \"%s\"을(를) 선택할 수 없습니다."
+
+# AI Translated
+#, c-format, boost-format
+msgid "The printer preset \"%s\" was not found."
+msgstr "프린터 사전 설정 \"%s\"을(를) 찾을 수 없습니다."
+
+# AI Translated
+msgid "The plate to print is no longer in the project."
+msgstr "출력할 플레이트가 더 이상 프로젝트에 없습니다."
+
+# AI Translated
+msgid "Couldn't open the print dialog"
+msgstr "출력 대화 상자를 열 수 없음"
+
+# AI Translated
+msgid "The chat this G-code went out from is no longer in the project."
+msgstr "이 G-code를 보낸 채팅이 더 이상 프로젝트에 없습니다."
+
+# AI Translated
+msgid "Chat not found"
+msgstr "채팅을 찾을 수 없음"
+
+# AI Translated
+#, c-format, boost-format
+msgid "The filament preset \"%s\" was not found."
+msgstr "필라멘트 사전 설정 \"%s\"을(를) 찾을 수 없습니다."
+
+# AI Translated
+msgid "Back to Preview"
+msgstr "미리 보기로 돌아가기"
+
+# AI Translated
+msgid "Couldn't open project"
+msgstr "프로젝트를 열 수 없음"
+
+# AI Translated
+msgid "Get the new version…"
+msgstr "새 버전 받기…"
+
+# AI Translated
+msgid "JusPrin's view couldn't be opened."
+msgstr "JusPrin 보기를 열 수 없습니다."
+
+# AI Translated
+msgid "Show the Plates and Project panel"
+msgstr "플레이트 및 프로젝트 패널 표시"
+
+# AI Translated
+msgid "Back to Home"
+msgstr "홈으로 돌아가기"
+
+# AI Translated
+msgid "Print actions"
+msgstr "출력 작업"
+
+# AI Translated
+msgid "Project details and preferences"
+msgstr "프로젝트 세부 정보 및 기본 설정"
+
+# AI Translated
+msgid "Hide the AI panel"
+msgstr "AI 패널 숨기기"
+
+# AI Translated
+msgid "Cancel slicing"
+msgstr "슬라이스 취소"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Print plate %d"
+msgstr "플레이트 %d 출력"
+
+# AI Translated
+msgid "Export G-code…"
+msgstr "G-code 내보내기…"
+
+# AI Translated
+#. TRN Detail beside "Print all plates…": how many of the plates are sliced.
+#, c-format, boost-format
+msgid "%d sliced"
+msgid_plural "%d sliced"
+msgstr[0] "%d개 슬라이스됨"
+
+# AI Translated
+msgid "Show the AI panel"
+msgstr "AI 패널 표시"
+
+# AI Translated
+msgid "Unsaved changes"
+msgstr "저장되지 않은 변경 사항"
+
+# AI Translated
+#. TRN %s is one nozzle size, or several joined by " / ", such as "0.4 / 0.6".
+#, c-format, boost-format
+msgid "%s mm nozzle"
+msgid_plural "%s mm nozzles"
+msgstr[0] "%s mm 노즐"
+
+# AI Translated
+msgid "from the file, not one of the printers you set up"
+msgstr "파일에서 가져옴, 설정한 프린터 아님"
+
+# AI Translated
+#. TRN %s is the project's file name, such as "Benchy.3mf".
+#, c-format, boost-format
+msgid "from %s, not one of the printers you set up"
+msgstr "%s에서 가져옴, 설정한 프린터 아님"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d filament"
+msgid_plural "%d filaments"
+msgstr[0] "필라멘트 %d개"
+
+# AI Translated
+#. TRN The first %d is how many of the filament slots this plate uses; the second is how many slots there are.
+#, c-format, boost-format
+msgid "%d of %d slot on this plate"
+msgid_plural "%d of %d slots on this plate"
+msgstr[0] "이 플레이트에서 슬롯 %d개 사용 (전체 %d개)"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d slot"
+msgid_plural "%d slots"
+msgstr[0] "슬롯 %d개"
+
+# AI Translated
+msgid "not on this plate"
+msgstr "이 플레이트에 없음"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Filament is now %s."
+msgstr "필라멘트가 이제 %s입니다."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Slot %d is now %s."
+msgstr "슬롯 %d이(가) 이제 %s입니다."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Heat and cooling follow %s; walls and infill unchanged."
+msgstr "가열과 냉각은 %s을(를) 따르며, 벽과 채우기는 변경되지 않습니다."
+
+# AI Translated
+#, c-format, boost-format
+msgid "slot %d %s"
+msgstr "슬롯 %d %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Filaments changed: %s."
+msgstr "변경된 필라멘트: %s."
+
+# AI Translated
+msgid "Slice again when ready."
+msgstr "준비되면 다시 슬라이스하세요."
+
+# AI Translated
+msgid "Preferences…"
+msgstr "기본 설정…"
+
+# AI Translated
+msgid "Changes couldn't be saved. JusPrin will retry."
+msgstr "변경 사항을 저장할 수 없습니다. JusPrin에서 다시 시도합니다."
+
+# AI Translated
+msgid "Some older project data couldn't be removed."
+msgstr "일부 이전 프로젝트 데이터를 제거할 수 없습니다."
+
+# AI Translated
+msgid "Configure a printer connection in Printer settings before printing. You can also export the sliced file."
+msgstr "출력하기 전에 프린터 설정에서 프린터 연결을 구성하세요. 슬라이스된 파일을 내보낼 수도 있습니다."
+
+# AI Translated
+msgid "Printer connection required"
+msgstr "프린터 연결 필요"
+
+# AI Translated
+msgid "This project was saved by a newer version of JusPrin. Get the new version to open it."
+msgstr "이 프로젝트는 최신 버전의 JusPrin에서 저장되었습니다. 열려면 새 버전을 받으세요."
+
+# AI Translated
+msgid "The project couldn't be opened. Try again."
+msgstr "프로젝트를 열 수 없습니다. 다시 시도하세요."

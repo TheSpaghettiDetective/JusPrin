@@ -106,10 +106,11 @@ struct FilamentOption
     std::string label;    // the name OrcaSlicer shows in its lists (the alias)
     std::string vendor;   // filament_vendor, e.g. "Generic", "eSUN"
     std::string material; // filament_type, e.g. "PLA"
-    // Empty when OrcaSlicer counts it as fitting the printer; otherwise the
-    // printers its profile names, as a phrase: "the Prusa CORE One and
-    // Prusa XL", or "other printers" when it names none it can say.
-    std::string made_for;
+    // Absent when OrcaSlicer counts it as fitting the printer; otherwise the
+    // printers its profile names, each by its model's name where the
+    // profiles know it ("Prusa CORE One", "Prusa XL"), empty when it names
+    // none. The page words the sentence, so each language can.
+    std::optional<std::vector<std::string>> made_for;
     // A person's own preset: the preset it was saved from, when it was.
     std::string base;
 };

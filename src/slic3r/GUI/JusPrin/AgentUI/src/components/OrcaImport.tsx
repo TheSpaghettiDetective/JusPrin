@@ -7,6 +7,8 @@
 // works the same way). The window's title bar carries the title; the host
 // finds the folder and does the importing.
 
+import { plural, t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 import { useEffect, useState } from 'react';
 import type { OrcaImportLine, OrcaImportPayload } from '../bridge/protocol';
 import { afterPaint } from '@shared/afterPaint';
@@ -19,16 +21,14 @@ export interface OrcaImportActions {
   close: () => void;
 }
 
-const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
-
 // Says whose folder it is, in the Printers step's words, so it isn't taken
 // for JusPrin's own: JusPrin 1's folder is called JusPrin.
 function Folder({ app, path, looked, onChoose }: { app: string; path: string; looked?: boolean; onChoose?: () => void }) {
   return (
     <div className="orca-import-folder">
       <span className="jp-icon jp-icon-monitor" aria-hidden="true" />
-      <span className="orca-import-folder-path">{looked ? `Looked in ${path}` : `${app} keeps these in ${path}`}</span>
-      {onChoose && <button type="button" className="link" onClick={onChoose}>Choose another folder…</button>}
+      <span className="orca-import-folder-path">{looked ? t`Looked in ${path}` : t`${app} keeps these in ${path}`}</span>
+      {onChoose && <button type="button" className="link" onClick={onChoose}>{t`Choose another folder…`}</button>}
     </div>
   );
 }
@@ -39,12 +39,16 @@ function Folder({ app, path, looked, onChoose }: { app: string; path: string; lo
 // the printer stayed.
 function Result({ app, result }: { app: string; result: OrcaImportLine[] }) {
   const printers = result.filter((line) => line.kind === 'printer' && line.imported);
-  const where = 'in the printer menu at the top of the window. ';
+  const name = printers.length === 1 ? printers[0].renamedTo || printers[0].name : '';
+  const where = printers.length === 1 ? t`${name} is now in the printer menu at the top of the window.`
+    : printers.length > 1 ? plural(printers.length, {
+      one: 'The # imported printers are now in the printer menu at the top of the window.',
+      other: 'The # imported printers are now in the printer menu at the top of the window.',
+    }) : '';
   return <>
     <p className="orca-import-lead">
-      {printers.length === 1 && `${printers[0].renamedTo || printers[0].name} is now ${where}`}
-      {printers.length > 1 && `The ${printers.length} imported printers are now ${where}`}
-      The open project still uses the same printer as before. {app}’s own files were not changed.
+      {where && `${where} `}
+      <Trans>The open project still uses the same printer as before. {app}’s own files were not changed.</Trans>
     </p>
     <OrcaImportResultLines app={app} lines={result} />
   </>;
@@ -66,15 +70,52 @@ function Offer({ state, chosen, onChoose, disabled }: {
     {printers.length > 0 &&
       <OrcaPrinterList app={state.app} printers={printers} chosen={chosen} onChoose={onChoose} disabled={disabled} />}
     {filaments.length + processes.length > 0 && <OrcaNewList filaments={filaments} processes={processes} />}
-    {skipped.length > 0 && <OrcaOutcomeList label="Can’t import" lines={skipped} />}
+    {skipped.length > 0 && <OrcaOutcomeList label={t`Can’t import`} lines={skipped} />}
   </>;
 }
 
-// What the found screen copies when no printer is new.
-function copied(filaments: number, processes: number) {
-  const what = [filaments === 1 ? 'a filament' : filaments > 1 ? 'filaments' : '', processes > 0 ? 'print settings' : '']
-    .filter(Boolean).join(' and ');
-  return { what, them: filaments === 1 && processes === 0 ? 'it' : 'them' };
+// The found screen's lead: what JusPrin found that it doesn't have yet, what
+// an import copies and skips, and that the other app keeps its own copy.
+// Each sentence is one message for every count it can have.
+function foundLead(app: string, newPrinters: number, filaments: number, processes: number, skipped: number): string {
+  let found: string;
+  if (newPrinters > 0)
+    found = plural(newPrinters, {
+      one: `JusPrin found # printer in ${app} that it doesn’t have yet.`,
+      other: `JusPrin found # printers in ${app} that it doesn’t have yet.`,
+    });
+  else if (filaments === 1)
+    found = processes > 0 ? t`JusPrin found a filament and print settings in ${app} that it doesn’t have yet.`
+      : t`JusPrin found a filament in ${app} that it doesn’t have yet.`;
+  else if (filaments > 1)
+    found = processes > 0 ? t`JusPrin found filaments and print settings in ${app} that it doesn’t have yet.`
+      : t`JusPrin found filaments in ${app} that it doesn’t have yet.`;
+  else found = t`JusPrin found print settings in ${app} that it doesn’t have yet.`;
+
+  // "It" is one printer, or one filament and nothing else; "them" is the rest.
+  const one = newPrinters > 0 ? newPrinters === 1 : filaments === 1 && processes === 0;
+  let copies: string;
+  if (newPrinters > 0 && one)
+    copies = skipped === 0 ? t`When you import, JusPrin copies it with its filaments and print settings.` : plural(skipped, {
+      1: 'When you import, JusPrin copies it with its filaments and print settings and skips the item with the warning sign.',
+      other: 'When you import, JusPrin copies it with its filaments and print settings and skips the # items with the warning sign.',
+    });
+  else if (newPrinters > 0)
+    copies = skipped === 0 ? t`When you import, JusPrin copies them with their filaments and print settings.` : plural(skipped, {
+      1: 'When you import, JusPrin copies them with their filaments and print settings and skips the item with the warning sign.',
+      other: 'When you import, JusPrin copies them with their filaments and print settings and skips the # items with the warning sign.',
+    });
+  else if (one)
+    copies = skipped === 0 ? t`When you import, JusPrin copies it.` : plural(skipped, {
+      1: 'When you import, JusPrin copies it and skips the item with the warning sign.',
+      other: 'When you import, JusPrin copies it and skips the # items with the warning sign.',
+    });
+  else
+    copies = skipped === 0 ? t`When you import, JusPrin copies them.` : plural(skipped, {
+      1: 'When you import, JusPrin copies them and skips the item with the warning sign.',
+      other: 'When you import, JusPrin copies them and skips the # items with the warning sign.',
+    });
+  return `${found} ${copies} ${t`${app} keeps its own copy.`}`;
 }
 
 export function OrcaImport({ state, actions }: { state: OrcaImportPayload; actions: OrcaImportActions }) {
@@ -100,61 +141,59 @@ export function OrcaImport({ state, actions }: { state: OrcaImportPayload; actio
   // Only the rows with the warning sign; the printers above them are fine.
   // Each of those rows says itself why JusPrin can't import it.
   const skipped = (state.skipped ?? []).length;
-  const warned = skipped === 1 ? 'the item with the warning sign' : `the ${skipped} items with the warning sign`;
-  const skips = skipped > 0 ? ` and skips ${warned}` : '';
-  const others = copied((state.filaments ?? []).length, (state.processes ?? []).length);
 
   let body;
   let buttons;
   switch (state.screen) {
     case 'imported':
       body = <Result app={app} result={state.result ?? []} />;
-      buttons = <button type="button" className="primary" onClick={actions.close}>Done</button>;
+      buttons = <button type="button" className="primary" onClick={actions.close}>{t`Done`}</button>;
       break;
     case 'nothing_new':
       body = <>
         <p className="orca-import-lead">
           {skipped > 0
-            ? `There is nothing to import. JusPrin already has everything in this ${app} folder except ${warned}, which it can’t import.`
-            : `Every printer in this ${app} folder is already in JusPrin, so there is nothing to import.`}
+            ? plural(skipped, {
+              1: `There is nothing to import. JusPrin already has everything in this ${app} folder except the item with the warning sign, which it can’t import.`,
+              other: `There is nothing to import. JusPrin already has everything in this ${app} folder except the # items with the warning sign, which it can’t import.`,
+            })
+            : t`Every printer in this ${app} folder is already in JusPrin, so there is nothing to import.`}
         </p>
         <Offer state={state} />
         <Folder app={app} path={folder} onChoose={actions.chooseFolder} />
       </>;
-      buttons = <button type="button" className="primary" onClick={actions.close}>Close</button>;
+      buttons = <button type="button" className="primary" onClick={actions.close}>{t`Close`}</button>;
       break;
     case 'no_folder':
     case 'no_printers':
       body = <>
         <p className="orca-import-lead">
           {state.screen === 'no_folder'
-            ? `JusPrin didn’t find ${app}’s folder on this computer. `
-            : `JusPrin found no ${app} printers in this folder. `}
-          If {app} keeps its settings somewhere else, choose that folder.
+            ? `${t`JusPrin didn’t find ${app}’s folder on this computer.`} `
+            : `${t`JusPrin found no ${app} printers in this folder.`} `}
+          <Trans>If {app} keeps its settings somewhere else, choose that folder.</Trans>
         </p>
         <Folder app={app} path={folder} looked />
       </>;
       buttons = <>
-        <button type="button" onClick={actions.close}>Cancel</button>
-        <button type="button" className="primary" onClick={actions.chooseFolder}>Choose the folder…</button>
+        <button type="button" onClick={actions.close}>{t`Cancel`}</button>
+        <button type="button" className="primary" onClick={actions.chooseFolder}>{t`Choose the folder…`}</button>
       </>;
       break;
     case 'found':
       body = <>
         <p className="orca-import-lead">
-          {newPrinters > 0
-            ? `JusPrin found ${plural(newPrinters, 'printer', 'printers')} in ${app} that it doesn’t have yet. When you import, JusPrin copies ${newPrinters === 1 ? 'it' : 'them'} with ${newPrinters === 1 ? 'its' : 'their'} filaments and print settings${skips}. `
-            : `JusPrin found ${others.what} in ${app} that it doesn’t have yet. When you import, JusPrin copies ${others.them}${skips}. `}
-          {app} keeps its own copy.
+          {foundLead(app, newPrinters, (state.filaments ?? []).length, (state.processes ?? []).length, skipped)}
         </p>
         <Offer state={state} chosen={chosen} onChoose={choose} disabled={busy} />
         <Folder app={app} path={folder} onChoose={busy ? undefined : actions.chooseFolder} />
       </>;
       buttons = <>
-        <button type="button" disabled={busy} onClick={actions.close}>Cancel</button>
+        <button type="button" disabled={busy} onClick={actions.close}>{t`Cancel`}</button>
         <button type="button" className="primary" disabled={busy || (newPrinters > 0 && chosen.length === 0)}
           onClick={() => run(() => actions.importPrinters(chosen))}>
-          {busy ? 'Importing…' : chosen.length > 0 ? `Import ${plural(chosen.length, 'printer', 'printers')}` : 'Import'}
+          {busy ? t`Importing…` : chosen.length > 0
+            ? plural(chosen.length, { one: 'Import # printer', other: 'Import # printers' }) : t`Import`}
         </button>
       </>;
       break;

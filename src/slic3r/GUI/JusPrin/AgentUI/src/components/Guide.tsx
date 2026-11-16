@@ -2,6 +2,8 @@
 // window"): the guide's pages at the left with Search the guide above them,
 // the open page at the right. Typing narrows the left to the sections that
 // hold every typed word; picking one opens its page there.
+import { plural, t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 import { Children, isValidElement, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import Markdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -40,6 +42,7 @@ export function Guide({ pages, openLink }: Props) {
   const page = pages.find((entry) => entry.area === area) ?? pages[0];
   const words = searchWords(query);
   const found = words.length > 0 ? searchGuide(pages.flatMap((entry) => entry.sections), query) : [];
+  const search = query.trim();
 
   useEffect(() => {
     const view = main.current;
@@ -85,15 +88,15 @@ export function Guide({ pages, openLink }: Props) {
 
   return (
     <div className="guide" data-testid="guide">
-      <nav className="guide-nav" aria-label="Guide pages">
+      <nav className="guide-nav" aria-label={t`Guide pages`}>
         <label className="field-search guide-search">
           <span className="jp-icon jp-icon-search" aria-hidden="true" />
           {/* The Mac's autocorrect would rewrite the words being searched for. */}
-          <input type="search" placeholder="Search the guide" aria-label="Search the guide" value={query}
+          <input type="search" placeholder={t`Search the guide`} aria-label={t`Search the guide`} value={query}
             autoCapitalize="off" autoCorrect="off" spellCheck={false}
             onChange={(event) => setQuery(event.target.value)} onKeyDown={onKeyDown} />
           {query && (
-            <button type="button" className="guide-clear" aria-label="Clear the search" title="Clear the search"
+            <button type="button" className="guide-clear" aria-label={t`Clear the search`} title={t`Clear the search`}
               onClick={() => setQuery('')}>
               <span className="jp-icon jp-icon-close" aria-hidden="true" />
             </button>
@@ -116,13 +119,13 @@ export function Guide({ pages, openLink }: Props) {
           </div>
         ) : found.length === 0 ? (
           <div className="guide-nothing" role="status">
-            <p className="guide-nothing-title">Nothing in the guide mentions “{query.trim()}”.</p>
-            <p>Check the spelling or try other words. You can also ask AI: choose Ask AI… in the Help menu.</p>
+            <p className="guide-nothing-title"><Trans>Nothing in the guide mentions “{search}”.</Trans></p>
+            <p><Trans>Check the spelling or try other words. You can also ask AI: choose Ask AI… in the Help menu.</Trans></p>
           </div>
         ) : (
           <div className="guide-results">
             <p className="guide-count" role="status">
-              {found.length === 1 ? 'Found in 1 section' : `Found in ${found.length} sections`}
+              {plural(found.length, { one: 'Found in # section', other: 'Found in # sections' })}
             </p>
             {found.map((section) => {
               const title = pages.find((entry) => entry.area === section.area)?.title ?? '';
@@ -131,7 +134,7 @@ export function Guide({ pages, openLink }: Props) {
                   aria-current={isChosen(section) ? 'location' : undefined}
                   onClick={() => open(section.area, section.id)}>
                   <span className="guide-result-heading">{section.heading}</span>
-                  <span className="guide-result-page">{section.id ? title : 'Start of the page'}</span>
+                  <span className="guide-result-page">{section.id ? title : t`Start of the page`}</span>
                   <span className="guide-result-text"><Marked text={searchSnippet(section, query)} words={words} /></span>
                 </button>
               );

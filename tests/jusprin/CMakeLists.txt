@@ -7,6 +7,7 @@ add_executable(jusprin_tests
     test_filament_chip_model.cpp
     test_printer_facts_store.cpp
     test_host_locale.cpp
+    test_decimal_text.cpp
     test_home_snapshot.cpp
     test_project_status.cpp
     test_home_host.cpp

@@ -8,7 +8,10 @@
 #include "slic3r/GUI/GUI.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/I18N.hpp"
+#include "slic3r/GUI/format.hpp"
 #include "slic3r/GUI/JusPrin/Shell/DroppedFileUrl.hpp"
+#include "slic3r/GUI/JusPrin/Support/PageLanguage.hpp"
+#include "slic3r/GUI/JusPrin/Support/Translate.hpp"
 #include "slic3r/GUI/JusPrin/Shell/McpSetupCommand.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellRecipes.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
@@ -41,6 +44,16 @@ constexpr int kHandshakeDeadlineMs = 20000;
 
 constexpr int kHandshakeTimerId = wxID_HIGHEST + 1802;
 
+// The translation for the JusPrin files that build without wxWidgets
+// (Support/Translate.hpp), installed when the app starts. It only stores the
+// function; the text is translated when it is shown.
+[[maybe_unused]] const bool translator_installed =
+    (install_translator([](const char* english) { return I18N::translate_utf8(english); }),
+     install_plural_translator([](const char* singular, const char* plural, unsigned n) {
+         return I18N::translate_utf8(singular, plural, n);
+     }),
+     true);
+
 boost::filesystem::path agent_page_path()
 {
     return boost::filesystem::path(resources_dir()) / "jusprin" / "agent" / "index.html";
@@ -65,7 +78,7 @@ wxString agent_page_url(AgentPageMode mode)
         url += "?panel=orca-import";
     else if (mode == AgentPageMode::Guide)
         url += "?panel=guide";
-    return url;
+    return with_page_language(url);
 }
 
 std::unique_ptr<Agent::ProjectPersistence> in_memory_document(Workspace::IWorkspace& workspace)
@@ -331,10 +344,12 @@ wxString AgentWebView::diagnostics_text(const wxString& reason) const
     text += "\n";
     text += wxString::Format("URL: %s", m_page_url.empty() ? wxString(agent_page_path().string()) : m_page_url);
     if (!m_last_load_error.empty())
-        text += wxString::Format("\n%s: %s", _L("Last load error"), m_last_load_error);
-    text += wxString::Format("\n%s: %llu %s / %llu %s", _L("Bridge traffic"),
-                             static_cast<unsigned long long>(m_host->messages_sent()), _L("sent"),
-                             static_cast<unsigned long long>(m_host->messages_received()), _L("received"));
+        // TRN %1% is the web view's own error text.
+        text += "\n" + format_wxstr(_L("Last load error: %1%"), m_last_load_error);
+    // TRN The messages the app and its AI panel exchanged. %1% and %2% are counts.
+    text += "\n" + format_wxstr(_L("Bridge traffic: %1% sent / %2% received"),
+                                static_cast<unsigned long long>(m_host->messages_sent()),
+                                static_cast<unsigned long long>(m_host->messages_received()));
     return text;
 }
 

@@ -13,6 +13,11 @@ application loads, with the product name substituted:
     product, so the untranslated UI switches too.
 
 Attribution strings that must keep naming OrcaSlicer are excluded.
+
+JusPrin's own text has catalogs of its own (Localization/native/<lang>.po,
+see Localization/update_catalogs.py); with --fork-po-dir their translations
+join each language's catalog as they are, without the name substitution:
+text JusPrin writes that names OrcaSlicer means OrcaSlicer.
 The .mo writer is self-contained so the build does not need gettext.
 """
 
@@ -129,12 +134,14 @@ def catalog_messages(entries, product, english):
             continue
         msgstr = dict(e.get("msgstr", {}))
         if not any(msgstr.values()):
-            if not (english or names_product(msgid) or names_product(e.get("msgid_plural", ""))):
+            if product is None or not (english or names_product(msgid) or names_product(e.get("msgid_plural", ""))):
                 continue  # untranslated and nothing to substitute
             msgstr = {0: msgid}
             if "msgid_plural" in e:
                 msgstr[1] = e["msgid_plural"]
-        if not keep_upstream(msgid):
+        if product is None:
+            pass  # JusPrin's own text: kept as written
+        elif not keep_upstream(msgid):
             msgstr = {i: substitute(t, product, msgid) for i, t in msgstr.items()}
         elif english:
             continue
@@ -158,6 +165,7 @@ def main():
     ap.add_argument("--out-dir", required=True, type=Path, help="resources/i18n")
     ap.add_argument("--domain", required=True, help="catalog file stem, the SLIC3R_APP_KEY")
     ap.add_argument("--product", required=True)
+    ap.add_argument("--fork-po-dir", type=Path, help="Localization/native: JusPrin's own <lang>.po")
     ap.add_argument("--stamp", type=Path)
     args = ap.parse_args()
 
@@ -171,6 +179,10 @@ def main():
             en_messages, _ = catalog_messages(pot_entries, args.product, english=True)
             en_messages.update(messages)
             messages = en_messages
+        fork_po = args.fork_po_dir / f"{lang}.po" if args.fork_po_dir else None
+        if fork_po is not None and fork_po.exists():
+            fork_messages, _ = catalog_messages(parse_po(fork_po), None, english=False)
+            messages.update(fork_messages)
         write_mo(args.out_dir / lang / f"{args.domain}.mo", messages, header)
         written += 1
     if not (args.out_dir / "en" / f"{args.domain}.mo").exists():

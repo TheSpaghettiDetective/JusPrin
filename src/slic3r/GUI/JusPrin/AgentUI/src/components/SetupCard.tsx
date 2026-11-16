@@ -7,8 +7,10 @@
 // never here, and a warning is only ever an annotation of the line it
 // contradicts, one per line. Every setting is on the All settings panel.
 
+import { plural, t } from '@lingui/core/macro';
 import { WorkspaceContext } from '../bridge/protocol';
 import { testStepsLost } from '../calibration';
+import { dateLocale, decimalText } from '../i18n';
 
 export interface SetupCardProps {
   context: WorkspaceContext | null;
@@ -26,12 +28,15 @@ export interface SetupCardProps {
 
 export function formatPrintTime(seconds: number): string {
   const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `~${minutes} min`;
-  return `~${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(2, '0')}m`;
+  if (minutes < 60) return t`~${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const rest = String(minutes % 60).padStart(2, '0');
+  return t({ message: `~${hours}h ${rest}m`, comment: 'A print time, as in ~2h 05m' });
 }
 
 export function formatGrams(grams: number): string {
-  return `${grams < 10 ? Math.round(grams * 10) / 10 : Math.round(grams)} g`;
+  const amount = grams < 10 ? Math.round(grams * 10) / 10 : Math.round(grams);
+  return t({ message: `${amount} g`, comment: 'Grams of filament' });
 }
 
 export function formatCost(cost: number, currency: string): string {
@@ -42,14 +47,15 @@ export function formatCost(cost: number, currency: string): string {
       // An unknown regional code does not make the native amount disappear.
     }
   }
-  return `cost ${cost.toFixed(2)}`;
+  const amount = decimalText(cost, 2, 2);
+  return t({ message: `cost ${amount}`, comment: 'A material cost with no known currency' });
 }
 
 export function formatMoment(value: string | undefined): string {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString(undefined, {
+  return date.toLocaleString(dateLocale(undefined), {
     month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
   });
 }
@@ -67,7 +73,7 @@ export interface EstimateView {
 export function estimateView(context: WorkspaceContext): EstimateView {
   const plate = context.plates.find((item) => item.active);
   const view: EstimateView = { metrics: [], cost: '', plate: plate?.name ?? '', line: '', status: 'none', sliced: !!plate?.sliced };
-  if (!plate) return { ...view, line: 'Estimate unavailable' };
+  if (!plate) return { ...view, line: t`Estimate unavailable` };
   const estimate = plate.estimate;
   const metrics: EstimateView['metrics'] = [];
   if (estimate && (estimate.timeAvailable ?? estimate.printTimeSeconds > 0))
@@ -75,9 +81,9 @@ export function estimateView(context: WorkspaceContext): EstimateView {
   if (estimate && (estimate.materialAvailable ?? estimate.materialGrams > 0))
     metrics.push({ icon: 'package', text: formatGrams(estimate.materialGrams) });
   if (plate.estimateStatus === 'recomputing')
-    return { ...view, status: 'recomputing', line: 'Time & material estimates recomputing…' };
+    return { ...view, status: 'recomputing', line: t`Time & material estimates recomputing…` };
   if (metrics.length === 0)
-    return { ...view, line: plate.sliced ? 'Estimate unavailable' : 'Not sliced yet' };
+    return { ...view, line: plate.sliced ? t`Estimate unavailable` : t`Not sliced yet` };
   const cost = estimate && estimate.materialCost !== null && estimate.materialCost >= 0.005
     ? formatCost(estimate.materialCost, context.currency) : '';
   return { ...view, status: plate.estimateStatus === 'stale' ? 'stale' : 'current', metrics, cost };
@@ -104,11 +110,18 @@ export function presetsLine(context: WorkspaceContext): string {
   const filaments = context.setupIdentity?.filaments ?? [];
   const first = (filaments[0]?.preset || context.printer.filament).trim();
   const more = filaments.length - 1;
-  const filament = first
-    ? ` with ${shortPreset(first)}${more > 0 ? ` and ${more} other ${more === 1 ? 'filament' : 'filaments'}` : ''}` : '';
+  const preset = shortPreset(process);
+  const filament = shortPreset(first);
+  const setup = !first ? `${preset}.`
+    : more > 0 ? plural(more, {
+      one: `${preset} with ${filament} and # other filament.`,
+      other: `${preset} with ${filament} and # other filaments.`,
+    })
+    : t`${preset} with ${filament}.`;
   const changed = changedSettingCount(context);
-  const differ = changed > 0 ? ` ${changed} ${changed === 1 ? 'setting differs' : 'settings differ'} from the presets.` : '';
-  return `${shortPreset(process)}${filament}.${differ}`;
+  const differ = changed > 0
+    ? ` ${plural(changed, { one: '# setting differs from the presets.', other: '# settings differ from the presets.' })}` : '';
+  return `${setup}${differ}`;
 }
 
 // The app's own mark that the project moved on since the plan was recorded,
@@ -123,7 +136,7 @@ export function planInDoubt(context: WorkspaceContext): boolean {
 // steps the file lost, since in a calibration chat the test is the plan.
 export function planNote(context: WorkspaceContext): string {
   if (planInDoubt(context))
-    return context.planInvalidatedBy || 'Plan needs another look';
+    return context.planInvalidatedBy || t`Plan needs another look`;
   return testStepsLost(context);
 }
 
@@ -134,7 +147,17 @@ export function presetsNote(context: WorkspaceContext): string {
   const review = context.printerReview;
   if (!review?.observed?.observedAt) return '';
   const material = review.mismatches.find((mismatch) => mismatch.what === 'filament' && mismatch.source === 'device');
-  return material ? `Printer last reported ${material.observed}` : '';
+  const observed = material?.observed ?? '';
+  return material ? t`Printer last reported ${observed}` : '';
+}
+
+// "Sent to Bambu Lab X1C · Nov 3, 14:20. Saved snapshot: …", each part only
+// when known.
+function sentLine(printer: string, when: string): string {
+  if (printer && when) return t`Sent to ${printer} · ${when}. Saved snapshot: the canvas shows your current project.`;
+  if (printer) return t`Sent to ${printer}. Saved snapshot: the canvas shows your current project.`;
+  if (when) return t`Sent · ${when}. Saved snapshot: the canvas shows your current project.`;
+  return t`Sent. Saved snapshot: the canvas shows your current project.`;
 }
 
 function Note({ text, action }: { text: string; action?: { label: string; onClick: () => void } }) {
@@ -152,10 +175,10 @@ export function SetupCard({ context, working: busy = false, historical = false, 
   // A saved card is never working, whatever the active chat happens to be
   // doing, and with no agent nothing is.
   const working = busy && !historical && agentAvailable;
-  const ariaLabel = historical ? 'Earlier setup — saved with this conversation' : 'Current setup';
-  const eyebrow = sent ? 'Saved sliced snapshot' : historical ? 'Earlier setup' : 'Setup summary';
+  const ariaLabel = historical ? t`Earlier setup — saved with this conversation` : t`Current setup`;
+  const eyebrow = sent ? t`Saved sliced snapshot` : historical ? t`Earlier setup` : t`Setup summary`;
   const saved = formatMoment(savedAt);
-  const state = historical ? (sent ? 'Sliced & sent' : saved ? `Saved ${saved}` : '') : working ? 'AI working' : '';
+  const state = historical ? (sent ? t`Sliced & sent` : saved ? t`Saved ${saved}` : '') : working ? t`AI working` : '';
 
   const purpose = context.setupIntent.trim();
   const plan = context.planHeadline.trim();
@@ -176,12 +199,12 @@ export function SetupCard({ context, working: busy = false, historical = false, 
       {purpose && <h2 className="current-setup-title" title={purpose}>{purpose}</h2>}
       {plan && <p className="current-setup-strategy">{plan}</p>}
       <Note text={planNote(context)} action={live && onCheckPlan && planInDoubt(context)
-        ? { label: 'Check plan', onClick: onCheckPlan } : undefined} />
+        ? { label: t`Check plan`, onClick: onCheckPlan } : undefined} />
       <hr className="current-setup-divider" />
     </>}
     <div className="current-setup-facts">
-      <p className="current-setup-facts-text" title={presets}>{presets || 'No settings read from the project'}</p>
-      {onViewSetup && presets && offers && <button type="button" className="current-setup-link" onClick={onViewSetup}>All settings</button>}
+      <p className="current-setup-facts-text" title={presets}>{presets || t`No settings read from the project`}</p>
+      {onViewSetup && presets && offers && <button type="button" className="current-setup-link" onClick={onViewSetup}>{t`All settings`}</button>}
     </div>
     <Note text={presetsNote(context)} />
     {estimate.metrics.length > 0
@@ -195,14 +218,14 @@ export function SetupCard({ context, working: busy = false, historical = false, 
       : <div className="current-setup-facts">
         <p className="current-setup-line">{estimate.line}</p>
         {live && estimate.status === 'none' && !estimate.sliced &&
-          <button type="button" className="current-setup-link" onClick={onCompute}>Slice to see time and filament</button>}
+          <button type="button" className="current-setup-link" onClick={onCompute}>{t`Slice to see time and filament`}</button>}
       </div>}
-    <Note text={estimate.status === 'stale' ? 'From before the last change.' : ''}
-      action={live ? { label: 'Slice again to update', onClick: onCompute! } : undefined} />
+    <Note text={estimate.status === 'stale' ? t`From before the last change.` : ''}
+      action={live ? { label: t`Slice again to update`, onClick: onCompute! } : undefined} />
     {!historical && !agentAvailable && <p className="current-setup-line">{changedSettingCount(context) > 0
-      ? 'No AI configured.' : 'No AI configured · using the selected preset.'}</p>}
+      ? t`No AI configured.` : t`No AI configured · using the selected preset.`}</p>}
     {historical && <p className="current-setup-line">{sent
-      ? `${sent.printer ? `Sent to ${sent.printer}` : 'Sent'}${sentWhen ? ` · ${sentWhen}` : ''}. Saved snapshot: the canvas shows your current project.`
-      : 'Saved with this chat. The canvas shows your current project.'}</p>}
+      ? sentLine(sent.printer, sentWhen)
+      : t`Saved with this chat. The canvas shows your current project.`}</p>}
   </section>;
 }

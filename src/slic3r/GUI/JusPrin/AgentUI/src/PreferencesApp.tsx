@@ -4,6 +4,7 @@
 // message of its own, preferences_action.
 
 import { useEffect, useMemo, useReducer } from 'react';
+import { t } from '@lingui/core/macro';
 import { BridgeClient, Transport } from './bridge/client';
 import { initialState, reducer } from './state/store';
 import { applyAppearance } from './tokens';
@@ -72,7 +73,7 @@ export function PreferencesApp({ getTransport }: { getTransport: () => Transport
   if (state.connection !== 'connected' && state.connection !== 'connecting') {
     return (
       <div className="app">
-        <BridgeErrorPane title="Preferences could not reach JusPrin" detail={state.connectionDetail}
+        <BridgeErrorPane title={t`Preferences could not reach JusPrin`} detail={state.connectionDetail}
           diagnostics={state.diagnostics} onRetry={() => client.retry()} />
       </div>
     );

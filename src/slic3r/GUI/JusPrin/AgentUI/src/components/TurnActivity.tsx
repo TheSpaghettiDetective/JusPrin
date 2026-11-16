@@ -13,6 +13,8 @@
 import { useEffect, useState } from 'react';
 import { isStale, ToolActivityInfo } from '../bridge/protocol';
 import { ToolActivityCard } from './ToolActivityCard';
+import { plural, t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 interface Props {
   activities: ToolActivityInfo[];
@@ -28,8 +30,13 @@ interface Props {
 
 // "44s" under a minute, "1m 9s" from a minute on.
 export function elapsedWords(milliseconds: number): string {
-  const seconds = Math.max(0, Math.floor(milliseconds / 1000));
-  return seconds >= 60 ? `${Math.floor(seconds / 60)}m ${seconds % 60}s` : `${seconds}s`;
+  const total = Math.max(0, Math.floor(milliseconds / 1000));
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  // TRN: a short duration, such as "1m 9s"; m is minutes and s seconds.
+  if (total >= 60) return t`${minutes}m ${seconds}s`;
+  // TRN: a short duration, such as "44s"; s is seconds.
+  return t`${total}s`;
 }
 
 function stamp(value?: string): number | undefined {
@@ -43,13 +50,17 @@ function stamp(value?: string): number | undefined {
 export function turnLineText(activities: ToolActivityInfo[], working: boolean, elapsed?: string): string {
   if (working) {
     const running = activities.find((activity) => activity.state === 'running');
-    const words = running ? `${running.title}…` : 'Working on it…';
+    const words = running ? `${running.title}…` : t`Working on it…`;
     return elapsed ? `${words} · ${elapsed}` : words;
   }
-  const count = `${activities.length} ${activities.length === 1 ? 'action' : 'actions'}`;
+  const count = activities.length;
   const failed = activities.filter((activity) => activity.state === 'failed').length;
-  const parts = [elapsed ? `Worked for ${elapsed} · ${count}` : count];
-  if (failed > 0) parts.push(`${failed} failed`);
+  const parts = [elapsed
+    // TRN: {elapsed} is a short duration, such as "1m 9s".
+    ? plural(count, { one: `Worked for ${elapsed} · # action`, other: `Worked for ${elapsed} · # actions` })
+    : plural(count, { one: '# action', other: '# actions' })];
+  // TRN: how many of a turn's actions failed, after the count of actions.
+  if (failed > 0) parts.push(plural(failed, { one: '# failed', other: '# failed' }));
   return parts.join(' · ');
 }
 
@@ -58,9 +69,9 @@ export function turnLineText(activities: ToolActivityInfo[], working: boolean, e
 export function actionLineText(activity: ToolActivityInfo): string {
   switch (activity.state) {
     case 'failed':
-      return `${activity.title} · ${isStale(activity) ? 'Not run' : 'Failed'}`;
+      return `${activity.title} · ${isStale(activity) ? t`Not run` : t`Failed`}`;
     case 'cancelled':
-      return `${activity.title} · Cancelled`;
+      return `${activity.title} · ${t`Cancelled`}`;
     default:
       return activity.title;
   }
@@ -127,29 +138,29 @@ function ActionDetails({ activity }: { activity: ToolActivityInfo }) {
       data-testid={`action-details-${activity.actionId}`}>
       {error && (
         <div className="turn-activity-details-section">
-          <span className="turn-activity-details-label">Error</span>
+          <span className="turn-activity-details-label"><Trans>Error</Trans></span>
           <span className="turn-activity-code">{error.code}</span>
           <span className="turn-activity-error-message">{error.message}</span>
           {details && <pre className="turn-activity-code">{pretty(details)}</pre>}
         </div>
       )}
       <div className="turn-activity-details-section">
-        <span className="turn-activity-details-label">Tool</span>
+        <span className="turn-activity-details-label"><Trans>Tool</Trans></span>
         <span className="turn-activity-code">{toolLine(activity)}</span>
       </div>
       {hasFields(activity.arguments) && (
         <div className="turn-activity-details-section">
-          <span className="turn-activity-details-label">Arguments</span>
+          <span className="turn-activity-details-label"><Trans>Arguments</Trans></span>
           <pre className="turn-activity-code">{pretty(activity.arguments)}</pre>
         </div>
       )}
       {result && (
         <div className="turn-activity-details-section">
-          <span className="turn-activity-details-label">Result</span>
+          <span className="turn-activity-details-label"><Trans>Result</Trans></span>
           <pre className="turn-activity-code">{result}</pre>
         </div>
       )}
-      <button type="button" className="link" onClick={copy}>{copied ? 'Copied' : 'Copy details'}</button>
+      <button type="button" className="link" onClick={copy}>{copied ? t`Copied` : t`Copy details`}</button>
     </div>
   );
 }
@@ -204,7 +215,7 @@ export function TurnActivity({ activities, working, startedAt, endedAt, onCancel
         )}
       </button>
       {open && (
-        <div className="turn-activity-log" role="list" aria-label="Actions">
+        <div className="turn-activity-log" role="list" aria-label={t`Actions`}>
           {activities.map((activity) => <ActionLine key={activity.actionId} activity={activity} />)}
         </div>
       )}

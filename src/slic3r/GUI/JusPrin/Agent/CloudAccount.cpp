@@ -7,6 +7,9 @@
 #include <cstdio>
 #include <deque>
 
+// Last: it defines the L marker.
+#include "slic3r/GUI/JusPrin/Support/Translate.hpp"
+
 namespace Slic3r::GUI::JusPrin::Agent {
 
 using nlohmann::json;
@@ -82,15 +85,13 @@ std::string cloud_server_from_gateway(const std::string& gateway)
     return path == std::string::npos ? gateway : gateway.substr(0, path);
 }
 
-std::optional<AgentError> update_required(unsigned status, const std::string& body)
+std::optional<AgentError> update_required(unsigned status, [[maybe_unused]] const std::string& body)
 {
     if (status != 426)
         return std::nullopt;
-    const json        answer  = json::parse(body, nullptr, false);
-    const std::string message = answer.is_object() && answer.contains("error") && answer["error"].is_object() ?
-                                    answer["error"].value("message", std::string()) : std::string();
+    // The app's own sentence, in its language; the server's is English.
     return AgentError{"update_required",
-                      message.empty() ? "This version of JusPrin can no longer connect to JusPrin accounts. Get the new version to keep using your account." : message,
+                      translated(L("This version of JusPrin can no longer connect to JusPrin accounts. Get the new version to keep using your account.")),
                       false};
 }
 
@@ -293,7 +294,7 @@ std::optional<CloudSignInOutcome> CloudSignIn::answered(CloudHttpResult http)
     else if (http.status == 400 && m_asked == "login")
         m_email.refusal = errors("too_many_login_attempts") ? "too_many_tries" : "wrong_password";
     else
-        return failed("sign_in_failed", "JusPrin couldn't sign you in. Try again.", true);
+        return failed("sign_in_failed", translated(L("JusPrin couldn't sign you in. Try again.")), true);
     return std::nullopt;
 }
 
@@ -321,7 +322,7 @@ std::optional<CloudSignInOutcome> CloudSignIn::poll()
             if (m_phase != CloudSignInPhase::Browser)
                 continue;
             if (!item->authorization.ok || item->authorization.access_token.empty())
-                return failed("sign_in_failed", "Signing in didn't finish. Nothing was saved. Try again.", true);
+                return failed("sign_in_failed", translated(L("Signing in didn't finish. Nothing was saved. Try again.")), true);
             begin_check(std::move(item->authorization.access_token));
             break;
         case Inbox::Kind::Auth:
@@ -358,7 +359,7 @@ std::optional<CloudSignInOutcome> CloudSignIn::finish_check()
     const json models_json = json::parse(models.body, nullptr, false);
     if (who.status != 200 || models.status != 200 || !who_json.is_object() || !models_json.is_object() ||
         !models_json.contains("data"))
-        return failed("account_unreachable", "JusPrin couldn't be reached to finish signing in. Try again.", true);
+        return failed("account_unreachable", translated(L("JusPrin couldn't be reached to finish signing in. Try again.")), true);
 
     CloudAccountRecord record;
     record.token = m_token;
@@ -377,7 +378,7 @@ std::optional<CloudSignInOutcome> CloudSignIn::finish_check()
         chosen = record.formats.begin();
     AgentServicePtr service = chosen == record.formats.end() ? nullptr : m_agents(m_token, chosen->first, chosen->second);
     if (!service)
-        return failed("account_no_models", "JusPrin has no AI model for this account right now. Try again later.", true);
+        return failed("account_no_models", translated(L("JusPrin has no AI model for this account right now. Try again later.")), true);
 
     CloudSignInOutcome outcome;
     outcome.kind    = CloudSignInOutcome::Kind::SignedIn;

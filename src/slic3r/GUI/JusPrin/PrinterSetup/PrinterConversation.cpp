@@ -10,6 +10,11 @@
 #include <regex>
 #include <sstream>
 
+// Also built into tests that have no GUI: the printer form's own text is
+// marked with L() and translated with translated() (Localization/README.md).
+// Everything the model reads stays English.
+#include "slic3r/GUI/JusPrin/Support/Translate.hpp"
+
 namespace Slic3r::GUI::JusPrin::PrinterSetup {
 
 using nlohmann::json;
@@ -1398,7 +1403,8 @@ void PrinterConversation::finish_form(const json& payload)
     };
     const std::optional<SetupOptions>& options = m_form->options;
     if (printer == nullptr || !options || options->catalog_id != id || options->nozzle != nozzle || !options->error.empty())
-        return refuse_form(options && !options->error.empty() ? options->error : "The form was out of date. Choose the printer again.");
+        return refuse_form(options && !options->error.empty() ? options->error :
+                                                                translated(L("The form was out of date. Choose the printer again.")));
 
     std::optional<int> plate;
     std::string        plate_label;
@@ -1407,7 +1413,7 @@ void PrinterConversation::finish_form(const json& payload)
         const auto found = std::find_if(options->plates.begin(), options->plates.end(),
                                         [type](const PlateOption& option) { return option.type == type; });
         if (found == options->plates.end())
-            return refuse_form("Choose the plate on this printer.");
+            return refuse_form(translated(L("Choose the plate on this printer.")));
         plate       = type;
         plate_label = found->label;
     }
@@ -1426,13 +1432,13 @@ void PrinterConversation::finish_form(const json& payload)
     const FilamentOption* other   = filament.empty() ? nullptr : in(options->others);
     const FilamentOption* own     = filament.empty() ? nullptr : in(options->own);
     if (!filament.empty() && fitting == nullptr && other == nullptr && own == nullptr)
-        return refuse_form("That filament is no longer on the list. Choose another.");
+        return refuse_form(translated(L("That filament is no longer on the list. Choose another.")));
 
     const std::string device = payload.value("deviceId", std::string());
     const auto        found  = std::find_if(m_form->nearby.begin(), m_form->nearby.end(),
                                             [&device](const auto& entry) { return entry.first.stable_id == device; });
     if (!device.empty() && (found == m_form->nearby.end() || found->second != id))
-        return refuse_form("That printer is no longer on the list. Choose it again.");
+        return refuse_form(translated(L("That printer is no longer on the list. Choose it again.")));
 
     // The printer is installed with a filament that fits: the chosen one, or
     // the profile's default until the chosen one is in place.
@@ -1456,7 +1462,7 @@ void PrinterConversation::finish_form(const json& payload)
     std::string filament_note;
     if (own != nullptr || other != nullptr) {
         const FilamentOption& chosen = own != nullptr ? *own : *other;
-        const bool            copy   = !chosen.made_for.empty();
+        const bool            copy   = chosen.made_for.has_value();
         std::string           used;
         if (const std::string problem = m_backend.start_with_filament(now.name, chosen.name, copy, used); !problem.empty())
             filament_note = " " + chosen.label + " could not be used: " + problem + " It starts with " + starting + ".";
@@ -1506,15 +1512,16 @@ json PrinterConversation::form_json() const
     json form{{"catalog", std::move(catalog)}, {"nearby", std::move(nearby)}, {"error", m_form->error},
               {"loading", m_form->reading.valid()}};
     if (const auto& options = m_form->options) {
-        json plates = json::array();
+        // OrcaSlicer's own plate names, which its catalogs translate.
+        json          plates  = json::array();
         for (const PlateOption& plate : options->plates)
-            plates.push_back(json{{"type", plate.type}, {"label", plate.label}});
+            plates.push_back(json{{"type", plate.type}, {"label", translated(plate.label.c_str())}});
         const auto list = [](const std::vector<FilamentOption>& filaments) {
             json entries = json::array();
             for (const FilamentOption& filament : filaments) {
                 json entry{{"name", filament.name}, {"label", filament.label}, {"vendor", filament.vendor}, {"material", filament.material}};
-                if (!filament.made_for.empty())
-                    entry["madeFor"] = filament.made_for;
+                if (filament.made_for)
+                    entry["madeFor"] = *filament.made_for;
                 if (!filament.base.empty())
                     entry["base"] = filament.base;
                 entries.push_back(std::move(entry));

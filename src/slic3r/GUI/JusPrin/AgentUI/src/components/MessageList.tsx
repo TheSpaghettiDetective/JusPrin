@@ -37,6 +37,8 @@ import { GcodeMarker, MarkerActions } from './GcodeMarker';
 import { PrinterBlockView } from './PrinterPanel';
 import { ProposalCard } from './ProposalCard';
 import { openChoices, splitChoices, withoutPartialChoices } from '../replyChoices';
+import { plural, t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 interface Props {
   messages: Message[];
@@ -148,13 +150,30 @@ interface Turn {
 // with its chat is not new: its note follows the chat's earlier messages.
 function openedLine(message: Message, report: FileReport, isFirst: boolean): ReactNode {
   const files = report.loads.flatMap((load) => load.files);
-  const name = (files[0] ?? '').split(/[\\/]/).pop() || 'a file';
-  const text = [`Opened ${name}${files.length > 1 ? ` and ${files.length - 1} more` : ''}${isFirst ? ' as a new project' : ''}`,
-    report.startedBy === 'agent' ? 'AI' : 'you', message.createdAt ? chatTimestamp(message.createdAt) : '']
+  const name = (files[0] ?? '').split(/[\\/]/).pop();
+  // TRN: who opened the file, between the file and the time ("Opened part.3mf · AI · 12:16").
+  const who = report.startedBy === 'agent' ? t({ message: 'AI', comment: 'Who opened a file: the AI' })
+    : t({ message: 'you', comment: 'Who opened a file: the person' });
+  const text = [openedWhat(name, files.length - 1, isFirst), who, message.createdAt ? chatTimestamp(message.createdAt) : '']
     .filter(Boolean).join(' · ');
   return <div className="message note" role="status">
     <span className="note-text" title={text}>{text}</span>
   </div>;
+}
+
+// "Opened part.3mf and 2 more as a new project", with `more` the files
+// after the first.
+function openedWhat(name: string | undefined, more: number, isFirst: boolean): string {
+  if (!name) {
+    if (more > 0) return isFirst
+      ? plural(more, { one: 'Opened a file and # more as a new project', other: 'Opened a file and # more as a new project' })
+      : plural(more, { one: 'Opened a file and # more', other: 'Opened a file and # more' });
+    return isFirst ? t`Opened a file as a new project` : t`Opened a file`;
+  }
+  if (more > 0) return isFirst
+    ? plural(more, { one: `Opened ${name} and # more as a new project`, other: `Opened ${name} and # more as a new project` })
+    : plural(more, { one: `Opened ${name} and # more`, other: `Opened ${name} and # more` });
+  return isFirst ? t`Opened ${name} as a new project` : t`Opened ${name}`;
 }
 
 export function turnsOf(messages: Message[], perMessage: boolean): Turn[] {
@@ -286,17 +305,22 @@ export function MessageList({
     if (message.role === 'note' && message.receipt) {
       const receipt = message.receipt;
       const removed = receipt.undone && receipt.undo?.newCopy;
+      const preset = receipt.name;
+      // Only a removed copy names it, and a copy always has its Undo.
+      const earlier = removed ? receipt.undo!.label : '';
       return (
         <div className={receipt.undone ? 'printer-added printer-added-removed' : 'printer-added'} role="status">
           <span className="printer-notice-heading">
             <span className={`jp-icon jp-icon-${receipt.undone ? 'rotate-ccw' : 'check'}`} aria-hidden="true" />
             <span className="printer-added-caption">
-              {removed ? 'Removed:' : receipt.undone ? 'Undone:' : 'Saved:'} <span className="printer-added-name">{receipt.name}</span>
+              {removed ? <Trans>Removed: <span className="printer-added-name">{preset}</span></Trans>
+                : receipt.undone ? <Trans>Undone: <span className="printer-added-name">{preset}</span></Trans>
+                : <Trans>Saved: <span className="printer-added-name">{preset}</span></Trans>}
             </span>
           </span>
           {receipt.undone ? (
             <span className="printer-notice-body">
-              {removed ? `Deleted from your filaments. This test uses ${receipt.undo!.label} again.` : 'Its earlier values are back.'}
+              {removed ? t`Deleted from your filaments. This test uses ${earlier} again.` : t`Its earlier values are back.`}
             </span>
           ) : (
             <span className="printer-added-detail">
@@ -304,7 +328,7 @@ export function MessageList({
               {receipt.undo && onUndoReceipt && !readOnly && (
                 <button type="button" className="panel-link-button printer-added-undo" disabled={replyDisabled}
                   onClick={() => onUndoReceipt(message.id)}>
-                  Undo
+                  <Trans>Undo</Trans>
                 </button>
               )}
             </span>
@@ -349,7 +373,7 @@ export function MessageList({
         <div className="message assistant">
           <div className="printer-activity" role="status">
             <span className="jp-icon jp-icon-rotate-cw" aria-hidden="true" />
-            Working on it…
+            <Trans>Working on it…</Trans>
           </div>
         </div>
       );
@@ -371,7 +395,7 @@ export function MessageList({
                   key={attachment.id}
                   className="message-photo"
                   src={attachment.previewDataUrl}
-                  alt={attachment.name || 'Photo'}
+                  alt={attachment.name || t`Photo`}
                 />
               ))}
             </div>
@@ -404,21 +428,21 @@ export function MessageList({
             <div className="message-failure">
               <div className="error">{message.error.message}</div>
               {message.error.code === 'credits_exhausted' && creditActions &&
-                <button className="primary" onClick={creditActions.onGetMore}>Get more credits</button>}
+                <button className="primary" onClick={creditActions.onGetMore}><Trans>Get more credits</Trans></button>}
               {message.error.code === 'invalid_credentials' && creditActions?.onSignIn && !readOnly &&
-                <button className="primary" onClick={creditActions.onSignIn}>Sign in</button>}
+                <button className="primary" onClick={creditActions.onSignIn}><Trans>Sign in</Trans></button>}
               {message.error.code === 'update_required' && onGetNewVersion &&
-                <button className="primary" onClick={onGetNewVersion}>Get the new version…</button>}
+                <button className="primary" onClick={onGetNewVersion}><Trans>Get the new version…</Trans></button>}
               {message.error.retryable && !readOnly && (
-                <button className="primary" onClick={() => onRetry(message.id)}>Retry</button>
+                <button className="primary" onClick={() => onRetry(message.id)}><Trans>Retry</Trans></button>
               )}
             </div>
           )}
           {message.state === 'stopped' && (
             <div className="message-failure">
-              <div className="meta">Stopped before it finished.</div>
+              <div className="meta"><Trans>Stopped before it finished.</Trans></div>
               {message.id === lastReplyId && !readOnly && (
-                <button className="primary" onClick={() => onRetry(message.id)}>Retry</button>
+                <button className="primary" onClick={() => onRetry(message.id)}><Trans>Retry</Trans></button>
               )}
             </div>
           )}
@@ -450,7 +474,7 @@ export function MessageList({
 
   return (
     <div className="message-thread">
-      <div className="message-list" role="log" aria-label="AI conversation"
+      <div className="message-list" role="log" aria-label={t`AI conversation`}
         ref={scrollRef} onScroll={handleScroll}>
         <div className="message-list-content" ref={contentRef}>
           <TimelineBlocks blocks={timeline(leadingMarkers, leadingChanges, leadingWork)} onWorkCancel={onWorkCancel} readOnly={readOnly} restorePoints={readOnly ? [] : restorePoints} onRevert={readOnly ? undefined : onRevert} markerActions={markerActions} />
@@ -495,7 +519,7 @@ export function MessageList({
       </div>
       {/* Chat/Jump to latest: only while the bottom is out of view. */}
       {!stick.isAtBottom && (
-        <button type="button" className="jump-to-latest" aria-label="Jump to latest" title="Jump to latest"
+        <button type="button" className="jump-to-latest" aria-label={t`Jump to latest`} title={t`Jump to latest`}
           onClick={() => scrollToBottom(motion ?? {})}>
           <span className="jp-icon jp-icon-arrow-down" aria-hidden="true" />
         </button>

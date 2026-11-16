@@ -250,7 +250,16 @@ body {
   overflow-wrap: anywhere;
 }
 
-.current-setup-link { flex: 0 0 auto; }
+/* A translated line and its link may not fit side by side: the link then
+   takes the next line, and one wider than the card wraps its own text. */
+.current-setup-facts { flex-wrap: wrap; }
+.current-setup-link {
+  flex: 0 1 auto;
+  min-width: 0;
+  height: auto;
+  min-height: var(--button-link-height);
+  text-align: start;
+}
 
 /* The notice on an earlier chat (Figma "Agent/Historical chat notice"): why
    the chat cannot continue as it is, and the ways on. It sits in the

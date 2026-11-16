@@ -5,6 +5,8 @@ import { ReactNode, Ref, useLayoutEffect, useRef } from 'react';
 import type { FileReport } from '../bridge/protocol';
 import { AgentPaneToggle } from './ChatNavigation';
 import { FileNotesCard } from './FileNotesCard';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 interface BridgeErrorProps {
   title: string;
@@ -19,8 +21,8 @@ interface BridgeErrorProps {
 export function ConnectingPane() {
   return (
     <div className="pane-state" data-testid="connecting">
-      <h1>Connecting…</h1>
-      <p>Starting the AI panel.</p>
+      <h1><Trans>Connecting…</Trans></h1>
+      <p><Trans>Starting the AI panel.</Trans></p>
     </div>
   );
 }
@@ -33,9 +35,9 @@ export function Diagnostics({ lines, open = false }: { lines: string[]; open?: b
     <details className="diagnostics" open={open}>
       <summary className="diagnostics-header">
         <span className="diagnostics-chevron" aria-hidden="true" />
-        Diagnostics
+        <Trans>Diagnostics</Trans>
       </summary>
-      <pre className="diagnostics-code">{lines.length > 0 ? lines.join('\n') : 'No bridge messages recorded.'}</pre>
+      <pre className="diagnostics-code">{lines.length > 0 ? lines.join('\n') : t`No bridge messages recorded.`}</pre>
     </details>
   );
 }
@@ -45,10 +47,10 @@ export function BridgeErrorPane({ title, detail, message, diagnostics, onRetry }
   return (
     <div className="pane-state" data-testid="bridge-error" role="alert">
       <h1>{title}</h1>
-      <p>This is an internal connection inside JusPrin, not a network service. The 3D canvas and all other controls keep working.</p>
+      <p><Trans>This is an internal connection inside JusPrin, not a network service. The 3D canvas and all other controls keep working.</Trans></p>
       {shown && <p className="pane-state-detail">{shown}</p>}
       <button className="primary" onClick={onRetry}>
-        Retry
+        <Trans>Retry</Trans>
       </button>
       <Diagnostics lines={message && detail ? [detail, ...diagnostics] : diagnostics} />
     </div>
@@ -64,8 +66,8 @@ export function BridgeErrorPane({ title, detail, message, diagnostics, onRetry }
 export function AgentNotConfiguredHeader({ onCollapse }: { onCollapse: () => void }) {
   return (
     <div className="agent-header" data-testid="agent-not-configured-header">
-      <span className="agent-title">AI</span>
-      <span className="agent-badge">NOT SET UP</span>
+      <span className="agent-title">{t({ message: 'AI', comment: 'The name of the AI chat feature, as a panel title' })}</span>
+      <span className="agent-badge"><Trans>NOT SET UP</Trans></span>
       <AgentPaneToggle onCollapse={onCollapse} />
     </div>
   );
@@ -78,16 +80,18 @@ export function AgentNotConfiguredPane({ onSetUp, fileReports, offerRef }: {
 }) {
   const offer = (
     <div className="pane-state" data-testid="agent-not-configured" ref={offerRef}>
-      <h1>No AI connected</h1>
+      <h1><Trans>No AI connected</Trans></h1>
       <p>
-        AI turns what you want — <em>“make it strong, it’ll bear weight”</em> — into the hundreds of
-        settings underneath, and shows you what it changed.
+        <Trans>
+          AI turns what you want — <em>“make it strong, it’ll bear weight”</em> — into the hundreds of
+          settings underneath, and shows you what it changed.
+        </Trans>
       </p>
-      <p>Until then JusPrin slices from the preset, exactly as it always has.</p>
+      <p><Trans>Until then JusPrin slices from the preset, exactly as it always has.</Trans></p>
       <button className="primary" onClick={onSetUp}>
-        Set up AI
+        <Trans>Set up AI</Trans>
       </button>
-      <p className="footnote">Registered JusPrin account, your own key, or an AI tool you already use.</p>
+      <p className="footnote"><Trans>Registered JusPrin account, your own key, or an AI tool you already use.</Trans></p>
     </div>
   );
   if (fileReports.length === 0) return offer;
@@ -118,9 +122,9 @@ export function AgentSetupBar({ onSetUp, from, notice }: {
     <div className="agent-setup-bar" data-testid="agent-setup-bar">
       {notice}
       <button ref={button} type="button" className="primary" onClick={onSetUp}>
-        Set up AI
+        <Trans>Set up AI</Trans>
       </button>
-      <p>Chatting here needs AI.</p>
+      <p><Trans>Chatting here needs AI.</Trans></p>
     </div>
   );
 }

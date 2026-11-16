@@ -4,6 +4,7 @@
 // own text handling (paste, autofill of one-time codes, deletion) stays.
 
 import { forwardRef, useState } from 'react';
+import { t } from '@lingui/core/macro';
 
 const LENGTH = 6;
 
@@ -32,7 +33,7 @@ export const CodeField = forwardRef<HTMLInputElement, Props>(function CodeField(
         type="text"
         inputMode="numeric"
         autoComplete="one-time-code"
-        aria-label="Sign-in code"
+        aria-label={t`Sign-in code`}
         aria-invalid={refused || undefined}
         value={value}
         disabled={disabled}

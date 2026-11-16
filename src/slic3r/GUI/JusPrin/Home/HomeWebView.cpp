@@ -11,6 +11,7 @@
 #include "slic3r/GUI/JusPrin/Shell/DroppedFileUrl.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellRecipes.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellTheme.hpp"
+#include "slic3r/GUI/JusPrin/Support/PageLanguage.hpp"
 #include "slic3r/GUI/Widgets/WebView.hpp"
 
 #include <boost/filesystem.hpp>
@@ -38,11 +39,11 @@ boost::filesystem::path home_page_path()
 wxString home_page_url()
 {
     if (const char* dev = std::getenv("JUSPRIN_HOME_DEV_URL"); dev != nullptr && *dev != '\0')
-        return wxString::FromUTF8(dev);
+        return with_page_language(wxString::FromUTF8(dev));
     const boost::filesystem::path page = home_page_path();
     if (!boost::filesystem::exists(page))
         return {};
-    return wxFileSystem::FileNameToURL(wxFileName(wxString::FromUTF8(page.string())));
+    return with_page_language(wxFileSystem::FileNameToURL(wxFileName(wxString::FromUTF8(page.string()))));
 }
 
 } // namespace

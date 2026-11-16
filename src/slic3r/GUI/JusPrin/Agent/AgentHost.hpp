@@ -191,8 +191,9 @@ public:
     // tool result; the skill stays once it is sent (AgentSkillUse::stays).
     void set_session_skill(std::function<std::optional<SessionSkill>()> skill) { m_session_skill = std::move(skill); }
     // Appends a message the agent is shown as having said, without asking the
-    // model for it: a panel whose opening line is always the same. Returns
-    // its id so the owner can anchor what it draws underneath.
+    // model for it: a panel whose opening line is always the same. The model
+    // reads it as an app note on the next request. Returns its id so the
+    // owner can anchor what it draws underneath.
     std::string post_assistant_message(const std::string& text);
 
     // Invoked after every successful hello handshake (initial load and every
@@ -328,10 +329,13 @@ public:
 
     // Appends one host-authored note to the active conversation: a short
     // factual line about something the shell just changed. It is durable like
-    // any message, renders without a bubble, starts no reply, and is never
-    // sent to the model. `swatch`, when given, is a colour ("#RRGGBB") the
-    // line leads with -- the filament a change landed on. Returns the note's ID.
-    std::string post_note(const std::string& text, const std::string& swatch = {});
+    // any message, renders without a bubble, and starts no reply; the model
+    // reads it as history on the next turn. `swatch`, when given, is a colour
+    // ("#RRGGBB") the line leads with -- the filament a change landed on.
+    // `for_model`, when given, is what the model reads in place of `text`:
+    // the English of a line shown in the person's language. Returns the
+    // note's ID.
+    std::string post_note(const std::string& text, const std::string& swatch = {}, const std::string& for_model = {});
 
     // Shows a chat of the open project and scrolls it to one of its items,
     // such as the marker where a G-code went out. False when the project has

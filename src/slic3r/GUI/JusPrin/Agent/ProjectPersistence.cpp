@@ -10,6 +10,9 @@
 #include <stdexcept>
 #include <utility>
 
+// Last: it defines the L marker.
+#include "slic3r/GUI/JusPrin/Support/Translate.hpp"
+
 namespace Slic3r::GUI::JusPrin::Agent {
 
 namespace {
@@ -439,7 +442,8 @@ void ProjectPersistence::record_managed_restore(const std::string& current_state
     ChangeEntry change;
     change.kind = "restore";
     change.actor = "person";
-    change.label = "Restored an earlier project version";
+    // Stored in English; the change log translates it where it is shown (AgentHost).
+    change.label = L("Restored an earlier project version");
     change.from = from_version;
     change.to = selected_version;
     current.add_change(std::move(change), m_config.clock());
@@ -478,7 +482,7 @@ void ProjectPersistence::record_chat_restore(const std::string& current_state,
         ChangeEntry change;
         change.kind = "restore";
         change.actor = "person";
-        change.label = "Restored this chat's saved project setup";
+        change.label = L("Restored this chat's saved project setup");
         change.from = from_version;
         change.to = selected_version;
         current.add_change(std::move(change), m_config.clock());

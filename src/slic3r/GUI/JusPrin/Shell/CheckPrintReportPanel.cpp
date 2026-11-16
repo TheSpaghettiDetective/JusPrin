@@ -2,6 +2,7 @@
 #include "HeaderControls.hpp"
 
 #include "slic3r/GUI/I18N.hpp"
+#include "slic3r/GUI/JusPrin/Support/DecimalText.hpp"
 
 #include <wx/dcbuffer.h>
 #include <wx/dcmemory.h>
@@ -72,16 +73,12 @@ std::vector<wxString> wrap(wxGraphicsContext& gc, const wxString& text, double m
 
 wxString utf8(const std::string& text) { return wxString::FromUTF8(text); }
 
-wxString millimetres(double value) { return wxString::Format(_L("%.1f mm"), value); }
+wxString millimetres(double value) { return wxString::Format(_L("%s mm"), utf8(app_decimal_text(value, 1, 1))); }
 
 wxString area_text(double mm2)
 {
     // Whole square millimetres with a thousands separator, the way the design writes 1,980 mm².
-    const long long whole = std::llround(mm2);
-    wxString digits = wxString::Format("%lld", whole);
-    for (int at = int(digits.length()) - 3; at > 0; at -= 3)
-        digits.insert(at, ",");
-    return (mm2 > 0 && mm2 < 1 ? wxString::Format("%.1f", mm2) : digits) + square_mm();
+    return utf8(mm2 > 0 && mm2 < 1 ? app_decimal_text(mm2, 1, 1) : app_whole_text(std::llround(mm2))) + square_mm();
 }
 
 wxString duration_text(std::uint32_t seconds)
@@ -97,17 +94,18 @@ wxString duration_text(std::uint32_t seconds)
 wxString cost_text(double cost, const std::string& currency)
 {
     if (currency == "USD")
-        return wxString::Format("$%.2f", cost);
+        return "$" + utf8(app_decimal_text(cost, 2, 2));
     if (currency.empty())
-        return wxString::Format("%.2f", cost);
-    return wxString::Format("%.2f %s", cost, utf8(currency));
+        return utf8(app_decimal_text(cost, 2, 2));
+    return utf8(app_decimal_text(cost, 2, 2)) + " " + utf8(currency);
 }
 
 wxString weight_and_length(const FilamentLine& line)
 {
     wxString text = wxString::Format(_L("%.0f g"), line.grams);
     if (line.length_mm > 0)
-        text += middle_dot() + wxString::Format(_L("%.1f m"), line.length_mm / 1000.0);
+        // TRN A length in metres, such as the filament a print uses: "12.4 m". %s is the number.
+        text += middle_dot() + wxString::Format(_L("%s m"), utf8(app_decimal_text(line.length_mm / 1000.0, 1, 1)));
     return text;
 }
 
@@ -211,6 +209,7 @@ bool CheckPrintReportPanel::is_collapsed(std::size_t section) const
 wxString CheckPrintReportPanel::section_title(PrintCheck check)
 {
     switch (check) {
+    // TRN A section title of the print report: the support structures the slice made.
     case PrintCheck::Supports:      return _L("Supports");
     case PrintCheck::Seams:         return _L("Seams");
     case PrintCheck::OrcaWarnings:  return _L("Slicer warnings");
@@ -237,13 +236,25 @@ wxString CheckPrintReportPanel::closing_line(const CheckPrintReportView& view)
     const wxString nothing = flagged ? wxString() : _L("Nothing to flag.");
     if (clauses.empty())
         return nothing;
-    wxString sentence;
-    for (std::size_t index = 0; index < clauses.size(); ++index) {
-        if (index > 0)
-            sentence += index + 1 < clauses.size() ? wxString(", ") : clauses.size() == 2 ? _L(" and ") : _L(", and ");
-        sentence += clauses[index];
+    // The clauses joined as a list: "A and B", or "A, B, and C". The
+    // closing line lists what the checks found clean, each a clause such as
+    // "nothing prints in the air".
+    wxString sentence = clauses.front();
+    for (std::size_t index = 1; index < clauses.size(); ++index) {
+        wxString join;
+        if (index + 1 < clauses.size())
+            // TRN Print report's closing line, a list of clauses such as "nothing prints in the air": joins the list so far to a clause that is not the last.
+            join = _L("%s, %s");
+        else if (clauses.size() == 2)
+            // TRN Print report's closing line, a list of clauses such as "nothing prints in the air": joins its only two clauses.
+            join = _L("%s and %s");
+        else
+            // TRN Print report's closing line, a list of clauses such as "nothing prints in the air": joins the list so far to the last of three or more.
+            join = _L("%s, and %s");
+        sentence = wxString::Format(join, sentence, clauses[index]);
     }
-    sentence = sentence.Left(1).Upper() + sentence.Mid(1) + ".";
+    // TRN Ends the print report's closing line; %s is its list of what the checks found clean, first letter capitalised.
+    sentence = wxString::Format(_L("%s."), sentence.Left(1).Upper() + sentence.Mid(1));
     return nothing.empty() ? sentence : nothing + " " + sentence;
 }
 

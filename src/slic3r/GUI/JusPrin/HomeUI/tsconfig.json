@@ -18,7 +18,9 @@
       "@resources/*": ["../../../../../resources/*"],
       "@shared/*": ["../WebShared/*"],
       "react": ["./node_modules/@types/react"],
-      "react/*": ["./node_modules/@types/react/*"]
+      "react/*": ["./node_modules/@types/react/*"],
+      "@lingui/react/server": ["./node_modules/@lingui/react/dist/server.d.ts"],
+      "@lingui/*": ["./node_modules/@lingui/*"]
     }
   },
   "include": ["src", "vite.config.ts"]

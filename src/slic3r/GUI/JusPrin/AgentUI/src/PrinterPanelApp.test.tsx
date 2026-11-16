@@ -599,7 +599,7 @@ describe('the printer form', () => {
     suggested: ['Bambu PLA Basic @BBL X1C', 'Bambu PETG HF @BBL X1C'],
     defaultFilament: 'Bambu PLA Basic @BBL X1C',
     error: '',
-    others: [{ name: 'Bambu PLA Basic @BBL H2D', label: 'Bambu PLA Galaxy', vendor: 'Bambu Lab', material: 'PLA', madeFor: 'the Bambu Lab H2D' }],
+    others: [{ name: 'Bambu PLA Basic @BBL H2D', label: 'Bambu PLA Galaxy', vendor: 'Bambu Lab', material: 'PLA', madeFor: ['Bambu Lab H2D'] }],
     own: [],
   };
   const mk4Options: PrinterFormOptions = {
@@ -607,12 +607,12 @@ describe('the printer form', () => {
     filaments: [{ name: 'Prusa Generic PLA @MK4', label: 'Prusa Generic PLA @MK4', vendor: 'Generic', material: 'PLA' }],
     suggested: ['Prusa Generic PLA @MK4'], defaultFilament: 'Prusa Generic PLA @MK4', error: '',
     others: [
-      { name: 'Prusament PLA @CORE One', label: 'Prusament PLA', vendor: 'Prusament', material: 'PLA', madeFor: 'the Prusa CORE One and Prusa XL' },
-      { name: 'Prusament PETG @CORE One', label: 'Prusament PETG', vendor: 'Prusament', material: 'PETG', madeFor: 'the Prusa CORE One and Prusa XL' },
+      { name: 'Prusament PLA @CORE One', label: 'Prusament PLA', vendor: 'Prusament', material: 'PLA', madeFor: ['Prusa CORE One', 'Prusa XL'] },
+      { name: 'Prusament PETG @CORE One', label: 'Prusament PETG', vendor: 'Prusament', material: 'PETG', madeFor: ['Prusa CORE One', 'Prusa XL'] },
     ],
     own: [
       { name: 'PETG fast walls', label: 'PETG fast walls', vendor: 'Generic', material: 'PETG', base: 'Prusa Generic PETG' },
-      { name: 'Matte PLA tuned', label: 'Matte PLA tuned', vendor: 'Bambu Lab', material: 'PLA', madeFor: 'the Bambu Lab X1 Carbon',
+      { name: 'Matte PLA tuned', label: 'Matte PLA tuned', vendor: 'Bambu Lab', material: 'PLA', madeFor: ['Bambu Lab X1 Carbon'],
         base: 'Bambu PLA Matte' },
     ],
   };

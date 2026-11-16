@@ -4,6 +4,8 @@
 // the Agent up is the pane's own: its offer, or the setup bar under the thread.
 
 import { FileReport, OrcaMessage } from '../bridge/protocol';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 interface Props {
   report: FileReport;
@@ -18,9 +20,11 @@ function heading(title: string): string {
 // What the answer given in the person's place did, when it did anything
 // they should know about.
 export function answerNote(message: OrcaMessage): string | undefined {
-  if (message.recognized === false) return 'JusPrin closed this without answering it.';
-  if (message.answer === 'no') return 'JusPrin answered No to this question.';
-  if (message.answer === 'cancel') return 'JusPrin chose Cancel for this question.';
+  if (message.recognized === false) return t`JusPrin closed this without answering it.`;
+  // TRN: No is the dialog's own button.
+  if (message.answer === 'no') return t`JusPrin answered No to this question.`;
+  // TRN: Cancel is the dialog's own button.
+  if (message.answer === 'cancel') return t`JusPrin chose Cancel for this question.`;
   return undefined;
 }
 
@@ -31,8 +35,8 @@ function fileName(path: string): string {
 export function FileNotesCard({ report }: Props) {
   const files = report.loads.flatMap((load) => load.files).map(fileName);
   return (
-    <article className="history-card file-notes-card" aria-label="Notes about this file">
-      <h3 className="file-notes-title">Notes about this file</h3>
+    <article className="history-card file-notes-card" aria-label={t`Notes about this file`}>
+      <h3 className="file-notes-title"><Trans>Notes about this file</Trans></h3>
       {files.length > 0 && <p className="file-notes-files">{files.join(', ')}</p>}
       <ul className="file-notes-list">
         {report.messages.items.map((message, index) => {
@@ -46,7 +50,7 @@ export function FileNotesCard({ report }: Props) {
           );
         })}
       </ul>
-      {report.messages.truncated && <p className="file-notes-more">Some notes from opening the file aren't shown.</p>}
+      {report.messages.truncated && <p className="file-notes-more"><Trans>Some notes from opening the file aren't shown.</Trans></p>}
     </article>
   );
 }

@@ -11,6 +11,7 @@
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Brand/BrandPalette.hpp"
+#include "slic3r/GUI/JusPrin/Support/PageLanguage.hpp"
 #include "slic3r/GUI/JusPrin/Updates/Version.hpp"
 #include "slic3r/GUI/Widgets/Button.hpp"
 #include "slic3r/GUI/Widgets/WebView.hpp"
@@ -68,6 +69,9 @@ void request_web_link(const std::string& page, const std::string& from, std::fun
     Http http = Http::post(Agent::cloud_web_link_url(config));
     if (!token.empty())
         http.header("Authorization", "Bearer " + token);
+    // The server opens the page in this language, not the web view's.
+    if (const std::string language = server_language(); !language.empty())
+        http.header("Accept-Language", language);
     http.header("User-Agent", Updates::user_agent())
         .header("Content-Type", "application/json")
         .header("Accept", "application/json")
@@ -357,10 +361,12 @@ void ServerSheet::open_in_browser()
 void ServerSheet::set_state(State state)
 {
     m_state = state;
+    // One sentence per page, so the page's title never goes inside another.
+    const bool billing = m_page == "billing";
     if (state == State::Loading)
-        m_status_title->SetLabel(wxString::Format(_L("Loading %s…"), page_title(m_page)));
+        m_status_title->SetLabel(billing ? _L("Loading Billing and usage…") : _L("Loading Credits and plans…"));
     else if (state == State::Failed)
-        m_status_title->SetLabel(wxString::Format(_L("Couldn't load %s"), page_title(m_page)));
+        m_status_title->SetLabel(billing ? _L("Couldn't load Billing and usage") : _L("Couldn't load Credits and plans"));
     m_status_detail->Show(state == State::Failed);
     m_retry->Show(state == State::Failed);
     if (m_view != nullptr)

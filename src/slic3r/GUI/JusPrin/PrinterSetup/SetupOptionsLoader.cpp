@@ -3,12 +3,17 @@
 #include "libslic3r/Preset.hpp"
 #include "libslic3r/PresetBundle.hpp"
 #include "libslic3r/PrintConfig.hpp"
+#include "libslic3r/format.hpp"
 
 #include <boost/algorithm/string/case_conv.hpp>
 
 #include <algorithm>
 #include <set>
 #include <stdexcept>
+
+// Also built into tests that have no GUI: text a person reads is marked with
+// L() and translated with translated() (Localization/README.md).
+#include "slic3r/GUI/JusPrin/Support/Translate.hpp"
 
 namespace Slic3r::GUI::JusPrin::PrinterSetup {
 
@@ -46,10 +51,10 @@ std::vector<PlateOption> plates_of(PresetBundle& bundle, const Preset& printer)
     return plates;
 }
 
-// The printers a filament's profile names, as a phrase for "Made for ...":
-// each by its model's name where the profiles know it, by the name the
-// profile gives otherwise (a person's own printer, say).
-std::string made_for(const PresetBundle& bundle, const Preset& filament)
+// The printers a filament's profile names: each by its model's name where
+// the profiles know it, by the name the profile gives otherwise (a person's
+// own printer, say).
+std::vector<std::string> made_for(const PresetBundle& bundle, const Preset& filament)
 {
     std::vector<std::string> printers;
     if (const auto* names = filament.config.option<ConfigOptionStrings>("compatible_printers"))
@@ -61,13 +66,7 @@ std::string made_for(const PresetBundle& bundle, const Preset& filament)
             if (std::find(printers.begin(), printers.end(), shown) == printers.end())
                 printers.push_back(shown);
         }
-    if (printers.empty())
-        return "other printers";
-    if (printers.size() == 1)
-        return "the " + printers[0];
-    if (printers.size() == 2)
-        return "the " + printers[0] + " and " + printers[1];
-    return "the " + printers[0] + ", " + printers[1] + " and " + std::to_string(printers.size() - 2) + " other printers";
+    return printers;
 }
 
 } // namespace
@@ -82,7 +81,8 @@ SetupOptions load_setup_options(const std::string& profiles_directory, const std
     const std::string errors =
         bundle.load_system_vendor_from_dir(profiles_directory, vendor_id, ForwardCompatibilitySubstitutionRule::EnableSilent, &failed).second;
     if (!failed.empty()) {
-        options.error = "The printer profiles could not be read: " + errors;
+        // TRN %1% is the profile loader's own error, in English.
+        options.error = Slic3r::format(translated(L("The printer profiles could not be read: %1%")), errors);
         return options;
     }
 

@@ -2079,9 +2079,9 @@ SetupOptions mini_options()
                                 FilamentOption{"Generic PETG", "Generic PETG", "Generic", "PETG"}};
     options.suggested        = {"Bambu PLA Basic @BBL A1M"};
     options.default_filament = "Bambu PLA Basic @BBL A1M";
-    options.others           = {FilamentOption{"Bambu PLA Basic @BBL H2D", "Bambu PLA Silk", "Bambu Lab", "PLA", "the Bambu Lab H2D"}};
-    options.own              = {FilamentOption{"PETG fast walls", "PETG fast walls", "Generic", "PETG", "", "Generic PETG"},
-                                FilamentOption{"Matte PLA tuned", "Matte PLA tuned", "Bambu Lab", "PLA", "the Bambu Lab X1 Carbon",
+    options.others           = {FilamentOption{"Bambu PLA Basic @BBL H2D", "Bambu PLA Silk", "Bambu Lab", "PLA", std::vector<std::string>{"Bambu Lab H2D"}}};
+    options.own              = {FilamentOption{"PETG fast walls", "PETG fast walls", "Generic", "PETG", std::nullopt, "Generic PETG"},
+                                FilamentOption{"Matte PLA tuned", "Matte PLA tuned", "Bambu Lab", "PLA", std::vector<std::string>{"Bambu Lab X1 Carbon"},
                                                "Bambu PLA Matte"}};
     return options;
 }
@@ -2265,10 +2265,10 @@ TEST_CASE("the printer form offers filaments made for other printers and the per
     open_on_mini(backend, conversation);
     const json options = form_of(conversation).at("options");
     CHECK(options.at("others") == json::array({json{{"name", "Bambu PLA Basic @BBL H2D"}, {"label", "Bambu PLA Silk"}, {"vendor", "Bambu Lab"},
-                                                    {"material", "PLA"}, {"madeFor", "the Bambu Lab H2D"}}}));
+                                                    {"material", "PLA"}, {"madeFor", json::array({"Bambu Lab H2D"})}}}));
     CHECK(options.at("own").at(0) == json{{"name", "PETG fast walls"}, {"label", "PETG fast walls"}, {"vendor", "Generic"},
                                           {"material", "PETG"}, {"base", "Generic PETG"}});
-    CHECK(options.at("own").at(1).at("madeFor") == "the Bambu Lab X1 Carbon");
+    CHECK(options.at("own").at(1).at("madeFor") == json::array({"Bambu Lab X1 Carbon"}));
     // A filament that fits says nothing about other printers.
     CHECK_FALSE(options.at("filaments").at(0).contains("madeFor"));
 }
@@ -3982,4 +3982,31 @@ TEST_CASE("the person answers the report card, once", "[printer-conversation][co
         CHECK(report_cards(printer.conversation).front().at("answer") == "failed");
         CHECK_THAT(notes(), ContainsSubstring("could not be saved"));
     }
+}
+
+TEST_CASE("the panel's opening line reaches the model before it answers the person's reply to it", "[printer-conversation][host]")
+{
+    PrinterHost harness(ConversationMode::Connect);
+    const std::string opening = "Let’s connect Lab Printer. Is it turned on, in LAN mode, and on the same network as this computer?\n"
+                                "Choices: Yes, it is | How do I check?";
+    harness.page("printer_opening", json{{"text", opening}});
+    harness.say("Yes, it is");
+    harness.pump();
+    REQUIRE(harness.agent->requests.size() == 1);
+    // An app note, not an assistant turn: Anthropic refuses a chat that opens
+    // with one.
+    const Agent::AgentRequest& first = harness.agent->requests.front();
+    const auto note = std::find_if(first.unsent.begin(), first.unsent.end(),
+                                   [](const Agent::RecordItem& item) { return item.kind == Agent::RecordItem::Kind::Operator; });
+    REQUIRE(note != first.unsent.end());
+    CHECK(note->text == "Before the person's first message, the chat showed them this line as yours: \"" + opening + "\"");
+
+    // Sent once: later requests repeat it from the record.
+    harness.say("it is on wifi");
+    harness.pump();
+    REQUIRE(harness.agent->requests.size() == 2);
+    const std::string all = everything_sent(harness.agent->requests.back());
+    const std::string line = "the chat showed them this line as yours";
+    REQUIRE(all.find(line) != std::string::npos);
+    CHECK(all.find(line, all.find(line) + 1) == std::string::npos);
 }

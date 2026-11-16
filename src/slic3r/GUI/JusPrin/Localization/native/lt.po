@@ -1,0 +1,2342 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the JusPrin package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: JusPrin\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-15 09:46-0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: lt\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && (n%100<11 || n%100>19) ? 0 : n%10>=2 && n%10<=9 && (n%100<11 || n%100>19) ? 1 : 2);\n"
+
+# AI Translated
+msgid "Project chat is blocked until restoration is recovered."
+msgstr "Projekto pokalbis užblokuotas, kol atkūrimas nebus sutvarkytas."
+
+# AI Translated
+msgid "Return to the active chat or restore this chat before sending."
+msgstr "Prieš siųsdami grįžkite į aktyvų pokalbį arba atkurkite šį pokalbį."
+
+# AI Translated
+msgid "Finish or cancel AI configuration before sending a message."
+msgstr "Prieš siųsdami žinutę, užbaikite arba atšaukite DI konfigūravimą."
+
+# AI Translated
+msgid "This message belongs to a different chat."
+msgstr "Ši žinutė priklauso kitam pokalbiui."
+
+# AI Translated
+msgid "A message needs text or an attachment."
+msgstr "Žinutėje turi būti teksto arba priedas."
+
+# AI Translated
+msgid "The file could not be read."
+msgstr "Nepavyko perskaityti failo."
+
+# AI Translated
+msgid "This file is too large to attach."
+msgstr "Šis failas per didelis, kad jį būtų galima pridėti."
+
+# AI Translated
+msgid "This file type can't be read by AI."
+msgstr "DI negali perskaityti šio tipo failų."
+
+# AI Translated
+msgid "This file is not readable UTF-8 text."
+msgstr "Šis failas nėra perskaitomas UTF-8 tekstas."
+
+# AI Translated
+msgid "The attachment could not be stored."
+msgstr "Nepavyko išsaugoti priedo."
+
+# AI Translated
+msgid "Photo or image"
+msgstr "Nuotrauka arba paveikslėlis"
+
+# AI Translated
+msgid "3D model"
+msgstr "3D modelis"
+
+# AI Translated
+msgid "Document (PDF)"
+msgstr "Dokumentas (PDF)"
+
+# AI Translated
+msgid "This build cannot open a file dialog."
+msgstr "Ši programos versija negali atverti failo pasirinkimo lango."
+
+# AI Translated
+#. TRN A calibration chat's first line. %1%: where it was started from, %2%: a printer.
+#, boost-format
+msgid "From %1% · %2% · filament not chosen · temporary test settings"
+msgstr "Iš %1% · %2% · gija nepasirinkta · laikini bandymo nustatymai"
+
+# AI Translated
+# Needs human review: %2% is a filament and %3% a printer; check the locative 'spausdintuve' reads right with real names.
+#. TRN A calibration chat's first line. %1%: where it was started from, %2%: a filament, %3%: a printer.
+#, boost-format
+msgid "From %1% · %2% on %3% · temporary test settings"
+msgstr "Iš %1% · %2% spausdintuve %3% · laikini bandymo nustatymai"
+
+# AI Translated
+#. TRN A reopened calibration test's line. %1%: the day it was made, as "21 Oct 2026".
+#, boost-format
+msgid "Reopened · generated %1%"
+msgstr "Atverta iš naujo · sugeneruota %1%"
+
+# AI Translated
+#. TRN %1%: where the test was opened from, %2%: the day it was made, as "21 Oct 2026".
+#, boost-format
+msgid "Opened from %1% · generated %2%"
+msgstr "Atverta iš %1% · sugeneruota %2%"
+
+# AI Translated
+#. TRN %1% is a calibration result, such as 215 °C.
+#, boost-format
+msgid "result %1% saved"
+msgstr "rezultatas %1% išsaugotas"
+
+# AI Translated
+#. TRN %1% is a plate's name, %2% why the slice did not succeed.
+#, boost-format
+msgid "The app did not slice %1%: %2%"
+msgstr "Programa nesusluoksniavo %1%: %2%"
+
+# AI Translated
+#. TRN %1% is a plate's name, %2% why the slice did not succeed.
+#, boost-format
+msgid "The app stopped the slice of %1%: %2%"
+msgstr "Programa sustabdė %1% sluoksniavimą: %2%"
+
+# AI Translated
+msgid "The slice of every plate finished."
+msgstr "Visų plokščių sluoksniavimas baigtas."
+
+# AI Translated
+#. TRN %1% is a plate's name.
+#, boost-format
+msgid "The slice of %1% finished."
+msgstr "%1% sluoksniavimas baigtas."
+
+# AI Translated
+msgid "Historical replies cannot be retried."
+msgstr "Ankstesnių atsakymų pakartoti negalima."
+
+# AI Translated
+msgid "Only a failed or stopped assistant message in the active conversation can be retried."
+msgstr "Pakartoti galima tik nepavykusį arba sustabdytą asistento atsakymą aktyviame pokalbyje."
+
+# AI Translated
+msgid "Only the chat's last reply can be retried."
+msgstr "Pakartoti galima tik paskutinį pokalbio atsakymą."
+
+# AI Translated
+msgid "Another reply is currently streaming."
+msgstr "Šiuo metu gaunamas kitas atsakymas."
+
+# AI Translated
+msgid "Historical tool actions cannot be changed."
+msgstr "Ankstesnių įrankių veiksmų pakeisti negalima."
+
+# AI Translated
+msgid "This proposal is no longer open. Ask AI again."
+msgstr "Šis pasiūlymas nebegalioja. Paklauskite DI dar kartą."
+
+# AI Translated
+msgid "This save can no longer be undone."
+msgstr "Šio išsaugojimo nebegalima atšaukti."
+
+# AI Translated
+msgid "The earlier values cannot be put back."
+msgstr "Ankstesnių reikšmių nebegalima grąžinti."
+
+# AI Translated
+msgid "Finish or resolve pending work before creating a chat."
+msgstr "Prieš kurdami pokalbį, užbaikite arba išspręskite laukiančius darbus."
+
+# AI Translated
+msgid "The current chat could not be saved."
+msgstr "Nepavyko išsaugoti dabartinio pokalbio."
+
+# AI Translated
+msgid "The new chat could not be saved."
+msgstr "Nepavyko išsaugoti naujo pokalbio."
+
+# AI Translated
+msgid "The selected chat could not be saved."
+msgstr "Nepavyko išsaugoti pasirinkto pokalbio."
+
+# AI Translated
+msgid "The project or selected chat changed. Review it again."
+msgstr "Projektas arba pasirinktas pokalbis pasikeitė. Peržiūrėkite dar kartą."
+
+# AI Translated
+msgid "Finish or resolve pending work before resuming a chat."
+msgstr "Prieš tęsdami pokalbį, užbaikite arba išspręskite laukiančius darbus."
+
+# AI Translated
+msgid "This chat is already active."
+msgstr "Šis pokalbis jau aktyvus."
+
+# AI Translated
+msgid "JusPrin can't find the project version this chat was working on."
+msgstr "JusPrin neranda projekto versijos, su kuria dirbo šis pokalbis."
+
+# AI Translated
+msgid "The current project could not be saved before restoration."
+msgstr "Prieš atkūrimą nepavyko išsaugoti dabartinio projekto."
+
+# AI Translated
+msgid "JusPrin couldn't put the project back."
+msgstr "JusPrin nepavyko grąžinti projekto."
+
+# AI Translated
+msgid "Restored this chat's saved project setup. Check the current printer and material before printing."
+msgstr "Atkurta šio pokalbio išsaugota projekto sąranka. Prieš spausdindami patikrinkite dabartinį spausdintuvą ir medžiagą."
+
+# AI Translated
+msgid "Use a non-empty, single-line title of at most 120 characters for an existing chat."
+msgstr "Esamam pokalbiui naudokite netuščią, vienos eilutės pavadinimą, ne ilgesnį nei 120 simbolių."
+
+# AI Translated
+msgid "This chat is still working. Stop it or let it finish, then delete it."
+msgstr "Šis pokalbis dar vykdomas. Sustabdykite jį arba palaukite, kol baigsis, tada ištrinkite."
+
+# AI Translated
+msgid "This chat no longer exists."
+msgstr "Šio pokalbio nebėra."
+
+# AI Translated
+msgid "The replacement chat could not be saved."
+msgstr "Nepavyko išsaugoti pakaitinio pokalbio."
+
+# AI Translated
+msgid "Historical chats cannot edit the current draft."
+msgstr "Ankstesniuose pokalbiuose negalima redaguoti dabartinio juodraščio."
+
+# AI Translated
+msgid "Finish or stop the current reply before configuring AI."
+msgstr "Prieš konfigūruodami DI, užbaikite arba sustabdykite dabartinį atsakymą."
+
+# AI Translated
+msgid "This build cannot configure an AI provider."
+msgstr "Ši programos versija negali konfigūruoti DI teikėjo."
+
+# AI Translated
+msgid "A credential check is already running."
+msgstr "Prisijungimo duomenų patikra jau vykdoma."
+
+# AI Translated
+msgid "This build cannot verify a key for that provider yet."
+msgstr "Ši programos versija dar negali patikrinti šio teikėjo rakto."
+
+# AI Translated
+msgid "Finish or stop the current reply before removing a key."
+msgstr "Prieš šalindami raktą, užbaikite arba sustabdykite dabartinį atsakymą."
+
+# AI Translated
+msgid "Finish or cancel the key check before removing a key."
+msgstr "Prieš šalindami raktą, užbaikite arba atšaukite rakto patikrą."
+
+# AI Translated
+msgid "That key could not be removed."
+msgstr "Nepavyko pašalinti šio rakto."
+
+# AI Translated
+msgid "This build cannot sign in to a JusPrin account."
+msgstr "Ši programos versija negali prisijungti prie JusPrin paskyros."
+
+# AI Translated
+msgid "Finish or stop the current reply before signing in."
+msgstr "Prieš prisijungdami, užbaikite arba sustabdykite dabartinį atsakymą."
+
+# AI Translated
+msgid "A sign-in or key check is already running."
+msgstr "Prisijungimas arba rakto patikra jau vykdoma."
+
+# AI Translated
+msgid "There is no JusPrin account on this computer to check."
+msgstr "Šiame kompiuteryje nėra JusPrin paskyros, kurią būtų galima patikrinti."
+
+# AI Translated
+msgid "JusPrin couldn't start signing in. Try again."
+msgstr "JusPrin nepavyko pradėti prisijungimo. Bandykite dar kartą."
+
+# AI Translated
+msgid "JusPrin couldn't sign you in. Try again."
+msgstr "JusPrin nepavyko jūsų prijungti. Bandykite dar kartą."
+
+# AI Translated
+msgid "This sign-in could not be saved, so you will have to sign in again next time JusPrin starts."
+msgstr "Nepavyko išsaugoti šio prisijungimo, todėl kitą kartą paleidę JusPrin turėsite prisijungti iš naujo."
+
+# AI Translated
+msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
+msgstr "Nepavyko išsaugoti šio rakto, todėl kitą kartą paleidus JusPrin jį reikės įvesti iš naujo."
+
+# AI Translated
+msgid "The panel is still loading. Try again in a moment."
+msgstr "Skydelis dar įkeliamas. Netrukus bandykite dar kartą."
+
+# AI Translated
+msgid "The AI service is not available."
+msgstr "DI paslauga nepasiekiama."
+
+# AI Translated
+msgid "The AI service could not start this request."
+msgstr "DI paslauga negalėjo pradėti šios užklausos."
+
+# AI Translated
+msgid "AI could not receive the native tool result."
+msgstr "DI nepavyko gauti programos įrankio rezultato."
+
+# AI Translated
+msgid "The AI request failed."
+msgstr "DI užklausa nepavyko."
+
+# AI Translated
+msgid "The automatic chat title could not be generated. You can rename the chat."
+msgstr "Nepavyko automatiškai sugeneruoti pokalbio pavadinimo. Pokalbį galite pervardyti."
+
+# AI Translated
+#. TRN %1% is an AI provider's account, such as JusPrin.
+#, boost-format
+msgid "This chat ran on your %1% account. Sign in again to continue it, or start a new chat."
+msgstr "Šis pokalbis vyko jūsų %1% paskyroje. Kad jį tęstumėte, prisijunkite iš naujo arba pradėkite naują pokalbį."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "This chat ran on %1%, and no %1% API key is set up now. Add the key in the AI settings to continue it, or start a new chat."
+msgstr "Šis pokalbis vyko per %1%, o %1% API raktas dabar nenustatytas. Kad jį tęstumėte, pridėkite raktą DI nustatymuose arba pradėkite naują pokalbį."
+
+# AI Translated
+msgid "JusPrin hasn't loaded the AI models for your account yet. Try again in a moment."
+msgstr "JusPrin dar neįkėlė jūsų paskyros DI modelių. Netrukus bandykite dar kartą."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "No %1% API key is set up. Add it in the AI settings, or choose another model."
+msgstr "%1% API raktas nenustatytas. Pridėkite jį DI nustatymuose arba pasirinkite kitą modelį."
+
+# AI Translated
+msgid "A connection is already being saved."
+msgstr "Ryšys jau išsaugomas."
+
+# AI Translated
+msgid "JusPrin's connection helper is missing. Reinstall or rebuild JusPrin."
+msgstr "Trūksta JusPrin ryšio pagalbinės programos. Iš naujo įdiekite arba sukompiliuokite JusPrin."
+
+# AI Translated
+msgid "The AppImage launcher is missing. Reopen the installed AppImage."
+msgstr "Trūksta AppImage paleidiklio. Iš naujo atverkite įdiegtą AppImage."
+
+# AI Translated
+msgid "Review the change before connecting."
+msgstr "Prieš prijungdami peržiūrėkite pakeitimą."
+
+# AI Translated
+#. TRN %1% is an AI client app, such as Claude Code.
+#, boost-format
+msgid "%1% isn't installed. Install it, or copy the command and run it later."
+msgstr "Programa %1% neįdiegta. Įdiekite ją arba nukopijuokite komandą ir paleiskite ją vėliau."
+
+# AI Translated
+msgid "This build cannot run the client CLI."
+msgstr "Ši programos versija negali paleisti kliento CLI."
+
+# AI Translated
+msgid "This build cannot open a file manager."
+msgstr "Ši programos versija negali atverti failų tvarkyklės."
+
+# AI Translated
+msgid "The provider did not answer."
+msgstr "Teikėjas neatsakė."
+
+# AI Translated
+msgid "Attach files"
+msgstr "Pridėti failus"
+
+# AI Translated
+msgid "The AI panel could not connect"
+msgstr "Nepavyko prijungti DI skydelio"
+
+# AI Translated
+msgid "Back to Prepare"
+msgstr "Atgal į paruošimą"
+
+# AI Translated
+msgid "Open filament settings"
+msgstr "Atverti gijos nustatymus"
+
+# AI Translated
+msgid "The packaged AI page is missing from this build."
+msgstr "Šioje programos versijoje trūksta supakuoto DI puslapio."
+
+# AI Translated
+msgid "The system web view could not be created."
+msgstr "Nepavyko sukurti sistemos žiniatinklio rodinio."
+
+# AI Translated
+msgid "The AI page failed to load."
+msgstr "Nepavyko įkelti DI puslapio."
+
+# AI Translated
+# Needs human review: 'Bridge handshake' is the page-to-app connection setup; check the wording is clear in the diagnostics panel.
+msgid "The AI page did not complete the bridge handshake."
+msgstr "DI puslapis neužbaigė ryšio su programa suderinimo."
+
+# AI Translated
+msgid "Restart the application to load the AI page."
+msgstr "Paleiskite programą iš naujo, kad būtų įkeltas DI puslapis."
+
+# AI Translated
+msgid "This is an internal connection between the application and its AI panel, not a network service."
+msgstr "Tai vidinis ryšys tarp programos ir jos DI skydelio, o ne tinklo paslauga."
+
+# AI Translated
+#. TRN %1% is the web view's own error text.
+#, boost-format
+msgid "Last load error: %1%"
+msgstr "Paskutinė įkėlimo klaida: %1%"
+
+# AI Translated
+#. TRN The messages the app and its AI panel exchanged. %1% and %2% are counts.
+#, boost-format
+msgid "Bridge traffic: %1% sent / %2% received"
+msgstr "Ryšio srautas: išsiųsta %1% / gauta %2%"
+
+# AI Translated
+msgid "The AI service returned an unreadable streaming response."
+msgstr "DI paslauga grąžino neįskaitomą srautinį atsakymą."
+
+# AI Translated
+msgid "The AI service streamed a delta for a block it never opened."
+msgstr "DI paslauga atsiuntė pokytį blokui, kurio niekada neatvėrė."
+
+# AI Translated
+msgid "The AI service sent a tool call whose arguments are not JSON."
+msgstr "DI paslauga atsiuntė įrankio iškvietimą, kurio argumentai nėra JSON."
+
+# AI Translated
+msgid "The AI service could not complete the response."
+msgstr "DI paslauga negalėjo užbaigti atsakymo."
+
+# AI Translated
+#. TRN %1% is the AI service's own reason, in English, such as "cyber".
+#, boost-format
+msgid "The AI service declined to answer (%1%)."
+msgstr "DI paslauga atsisakė atsakyti (%1%)."
+
+# AI Translated
+msgid "The AI service ended its response for a reason this build does not know."
+msgstr "DI paslauga baigė atsakymą dėl priežasties, kurios ši programos versija nežino."
+
+# AI Translated
+msgid "This version of JusPrin can no longer connect to JusPrin accounts. Get the new version to keep using your account."
+msgstr "Ši JusPrin versija nebegali prisijungti prie JusPrin paskyrų. Įdiekite naują versiją, kad galėtumėte toliau naudotis paskyra."
+
+# AI Translated
+msgid "Signing in didn't finish. Nothing was saved. Try again."
+msgstr "Prisijungimas nebaigtas. Niekas neišsaugota. Bandykite dar kartą."
+
+# AI Translated
+msgid "JusPrin couldn't be reached to finish signing in. Try again."
+msgstr "Nepavyko pasiekti JusPrin prisijungimui užbaigti. Bandykite dar kartą."
+
+# AI Translated
+msgid "JusPrin has no AI model for this account right now. Try again later."
+msgstr "Šiuo metu JusPrin neturi DI modelio šiai paskyrai. Bandykite vėliau."
+
+# AI Translated
+msgid "Restored an earlier project version"
+msgstr "Atkurta ankstesnė projekto versija"
+
+# AI Translated
+msgid "Restored this chat's saved project setup"
+msgstr "Atkurta šio pokalbio išsaugota projekto sąranka"
+
+# AI Translated
+#. TRN The chat list's preview of a message that has only attachments.
+msgid "Attachment"
+msgstr "Priedas"
+
+# AI Translated
+msgid "The AI service stopped before finishing its response."
+msgstr "DI paslauga sustojo nebaigusi atsakymo."
+
+# AI Translated
+msgid "The AI service kept pausing its response."
+msgstr "DI paslauga vis pristabdydavo savo atsakymą."
+
+# AI Translated
+msgid "AI could not be asked to continue its response."
+msgstr "Nepavyko paprašyti DI tęsti atsakymą."
+
+# AI Translated
+msgid "AI could not be told the results of its tool calls."
+msgstr "Nepavyko perduoti DI jo įrankių iškvietimų rezultatų."
+
+# AI Translated
+msgid "AI returned an invalid tool call."
+msgstr "DI grąžino netinkamą įrankio iškvietimą."
+
+# AI Translated
+msgid "The AI service ended before a complete response arrived."
+msgstr "DI paslaugos ryšys baigėsi dar negavus viso atsakymo."
+
+# AI Translated
+msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
+msgstr "Jūsų JusPrin prisijungimas baigėsi. Prisijunkite iš naujo skiltyje „Parinktys“, tada bandykite dar kartą."
+
+# AI Translated
+#, boost-format
+msgid "This message needs %1% credit; you have %2%."
+msgid_plural "This message needs %1% credits; you have %2%."
+msgstr[0] "Šiai žinutei reikia %1% kredito; jūs turite %2%."
+msgstr[1] "Šiai žinutei reikia %1% kreditų; jūs turite %2%."
+msgstr[2] "Šiai žinutei reikia %1% kreditų; jūs turite %2%."
+
+# AI Translated
+msgid "You're out of credits."
+msgstr "Jūsų kreditai baigėsi."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% API key was rejected. Update the AI configuration and try again."
+msgstr "%1% API raktas atmestas. Atnaujinkite DI konfigūraciją ir bandykite dar kartą."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The request was too large for the %1% service."
+msgstr "Užklausa per didelė %1% paslaugai."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% service is rate limited. Try again shortly."
+msgstr "Viršytas %1% paslaugos užklausų limitas. Netrukus bandykite dar kartą."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% service is overloaded. Try again shortly."
+msgstr "%1% paslauga perkrauta. Netrukus bandykite dar kartą."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% service is temporarily unavailable."
+msgstr "%1% paslauga laikinai nepasiekiama."
+
+# AI Translated
+msgid "The AI request timed out."
+msgstr "Baigėsi DI užklausos laukimo laikas."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The AI request could not reach the %1% service."
+msgstr "DI užklausa nepasiekė %1% paslaugos."
+
+# AI Translated
+msgid "The AI service response did not contain valid output."
+msgstr "DI paslaugos atsakyme nebuvo tinkamo turinio."
+
+# AI Translated
+#. TRN A button that asks the AI to choose another block of a calibration test.
+msgid "Pick another block"
+msgstr "Pasirinkti kitą bloką"
+
+# AI Translated
+#. TRN A button that asks the AI to choose another tile of a calibration test.
+msgid "Pick another tile"
+msgstr "Pasirinkti kitą plytelę"
+
+# AI Translated
+#. TRN A button that asks the AI to choose another line of a calibration test.
+msgid "Pick another line"
+msgstr "Pasirinkti kitą liniją"
+
+# AI Translated
+#. TRN A button that asks the AI to choose another corner of a calibration test.
+msgid "Pick another corner"
+msgstr "Pasirinkti kitą kampą"
+
+# AI Translated
+#. TRN A button that asks the AI to choose another height of a calibration tower.
+msgid "Pick another height"
+msgstr "Pasirinkti kitą aukštį"
+
+# AI Translated
+#. TRN %1% is a preset's name.
+#, boost-format
+msgid "Preset · %1%"
+msgstr "Profilis · %1%"
+
+# AI Translated
+#. TRN %1% is a preset's name.
+#, boost-format
+msgid "New preset · %1%"
+msgstr "Naujas profilis · %1%"
+
+# AI Translated
+#. TRN %1% is the preset the new one is made from.
+#, boost-format
+msgid "%1% itself is unchanged"
+msgstr "Pats %1% lieka nepakeistas"
+
+# AI Translated
+#. TRN %1% is a setting's new value, such as 215 °C.
+#, boost-format
+msgid "Save %1% as a new filament preset"
+msgstr "Išsaugoti %1% kaip naują gijos profilį"
+
+# AI Translated
+#. TRN %1% is a setting's new value, such as 215 °C.
+#, boost-format
+msgid "Save %1% as a new printer preset"
+msgstr "Išsaugoti %1% kaip naują spausdintuvo profilį"
+
+# AI Translated
+#. TRN %1% is a setting's new value, such as 215 °C.
+#, boost-format
+msgid "Save %1% as a new process preset"
+msgstr "Išsaugoti %1% kaip naują proceso profilį"
+
+# AI Translated
+#. TRN %1% is a setting's new value, such as 215 °C, %2% a preset's name.
+#, boost-format
+msgid "Save %1% to %2%"
+msgstr "Išsaugoti %1% į %2%"
+
+# AI Translated
+msgid "This proposal is already saved."
+msgstr "Šis pasiūlymas jau išsaugotas."
+
+# AI Translated
+msgid "Drop a model here or add one"
+msgstr "Numeskite modelį čia arba pridėkite jį"
+
+# AI Translated
+msgid "World coordinates"
+msgstr "Pasaulio koordinatės"
+
+# AI Translated
+msgid "Object coordinates"
+msgstr "Objekto koordinatės"
+
+# AI Translated
+msgid "Translate(Relative)"
+msgstr "Slinkti (santykinai)"
+
+# AI Translated
+msgid "Rotate (absolute)"
+msgstr "Pasukti (absoliučiai)"
+
+# AI Translated
+msgid "Part coordinates"
+msgstr "Dalies koordinatės"
+
+# AI Translated
+msgid "The packaged Home page is missing from this build."
+msgstr "Šioje programos versijoje trūksta supakuoto pradžios puslapio."
+
+# AI Translated
+msgid "The Home page failed to load."
+msgstr "Nepavyko įkelti pradžios puslapio."
+
+# AI Translated
+msgid "This window stopped updating because the app switched to another printer."
+msgstr "Šis langas nebeatnaujinamas, nes programa persijungė į kitą spausdintuvą."
+
+# AI Translated
+#. TRN A length in millimetres, such as a nozzle diameter on a printer card: "0.4 mm". %s is the number.
+#, c-format, boost-format
+msgid "%s mm"
+msgstr "%s mm"
+
+# AI Translated
+#, c-format, boost-format
+msgid "The printer reports error %s."
+msgstr "Spausdintuvas praneša klaidą %s."
+
+# AI Translated
+msgid "LAN"
+msgstr "LAN"
+
+# AI Translated
+msgid "Cloud"
+msgstr "Debesis"
+
+# AI Translated
+msgid "The printer stopped sending updates."
+msgstr "Spausdintuvas nustojo siųsti atnaujinimus."
+
+# AI Translated
+#, c-format, boost-format
+msgid "%s isn't answering."
+msgstr "%s neatsako."
+
+# AI Translated
+msgid "Klipper isn't running."
+msgstr "Klipper neveikia."
+
+# AI Translated
+#. TRN %1% is Klipper's own message, in English, saying why it stopped.
+#, boost-format
+msgid "Klipper stopped: %1%"
+msgstr "Klipper sustojo: %1%"
+
+# AI Translated
+msgid "This printer no longer exists."
+msgstr "Šio spausdintuvo nebėra."
+
+# AI Translated
+# Needs human review: Short date on a project card; %1% is the abbreviated month name as the app formats it. Check whether Lithuanian order (month then day, with or without 'd.') reads right.
+#. TRN A date in this year on a project card: %1% is the abbreviated month name, %2% the day of the month, as in "Oct 20".
+#, boost-format
+msgctxt "short date"
+msgid "%1% %2%"
+msgstr "%1% %2%"
+
+# AI Translated
+# Needs human review: Date with year on a project card: year first as Lithuanian writes dates; check it reads right with the app's month abbreviations.
+#. TRN A date outside this year on a project card: %1% is the date without the year, as in "Oct 20", %2% the year.
+#, boost-format
+msgctxt "date with year"
+msgid "%1%, %2%"
+msgstr "%2% m. %1%"
+
+# AI Translated
+msgid "G-code exported"
+msgstr "G-code eksportuotas"
+
+# AI Translated
+#. TRN A project's status: %1% is a date, as in "Nov 3".
+#, boost-format
+msgid "G-code exported %1%"
+msgstr "G-code eksportuotas %1%"
+
+# AI Translated
+#. TRN A project's status: %1% is a printer model, as in "Ender-3 V3 KE".
+#, boost-format
+msgid "G-code exported for %1%"
+msgstr "G-code eksportuotas spausdintuvui %1%"
+
+# AI Translated
+#. TRN A project's status: %1% is a date, as in "Nov 3", %2% a printer model, as in "Ender-3 V3 KE".
+#, boost-format
+msgid "G-code exported %1% for %2%"
+msgstr "G-code eksportuotas %1% spausdintuvui %2%"
+
+# AI Translated
+msgctxt "project status"
+msgid "Printed"
+msgstr "Išspausdinta"
+
+# AI Translated
+#. TRN A project's status: %1% is a date, as in "Oct 20".
+#, boost-format
+msgid "Printed %1%"
+msgstr "Išspausdinta %1%"
+
+# AI Translated
+msgctxt "project status"
+msgid "Sent"
+msgstr "Išsiųsta"
+
+# AI Translated
+#. TRN A project's status: %1% is a date, as in "Oct 20".
+#, boost-format
+msgid "Sent %1%"
+msgstr "Išsiųsta %1%"
+
+# AI Translated
+#. TRN A project's status: it has not been sliced to G-code yet.
+msgctxt "project status"
+msgid "Draft"
+msgstr "Juodraštis"
+
+# AI Translated
+msgid "That sign-in expired. Try again."
+msgstr "Šis prisijungimas nebegalioja. Bandykite dar kartą."
+
+# AI Translated
+#, c-format, boost-format
+msgid "JusPrin found no %s printers to bring. Choose your printer instead."
+msgstr "JusPrin nerado %s spausdintuvų, kuriuos būtų galima perkelti. Verčiau pasirinkite savo spausdintuvą."
+
+# AI Translated
+msgid "Generic printer"
+msgstr "Bendrasis spausdintuvas"
+
+# AI Translated
+msgid "Your projects couldn't be loaded. JusPrin will keep trying."
+msgstr "Nepavyko įkelti jūsų projektų. JusPrin bandys toliau."
+
+# AI Translated
+msgid "Untitled project"
+msgstr "Projektas be pavadinimo"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Printing on %s"
+msgstr "Spausdinama spausdintuvu %s"
+
+# AI Translated
+msgid "JusPrin no longer keeps this G-code. Slice the project again to export it."
+msgstr "JusPrin nebeturi šio G-code. Norėdami jį eksportuoti, sluoksniuokite projektą iš naujo."
+
+# AI Translated
+msgid "Couldn't export G-code"
+msgstr "Nepavyko eksportuoti G-code"
+
+# AI Translated
+#, c-format, boost-format
+msgid "The G-code couldn't be written to %s."
+msgstr "Nepavyko įrašyti G-code į %s."
+
+# AI Translated
+msgid "Choose a photo of the printed object"
+msgstr "Pasirinkite išspausdinto objekto nuotrauką"
+
+# AI Translated
+msgid "Photos"
+msgstr "Nuotraukos"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%s couldn't be opened. Try opening it with Open… instead."
+msgstr "Nepavyko atverti %s. Pabandykite jį atverti per „Atverti…“."
+
+# AI Translated
+msgid "Couldn't open file"
+msgstr "Nepavyko atverti failo"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Import from %s"
+msgstr "Importuoti iš %s"
+
+# AI Translated
+msgid "Importing these printers loads their profiles, which replaces unsaved changes to the project's settings."
+msgstr "Importuojant šiuos spausdintuvus įkeliami jų profiliai, todėl neišsaugoti projekto nustatymų pakeitimai bus prarasti."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Imported from %s"
+msgstr "Importuota iš %s"
+
+# AI Translated
+# Needs human review: Quotes a menu path; check it matches the translated Printer menu and its import item.
+#, c-format, boost-format
+msgid "JusPrin couldn't read this file. To try again, choose Printer › Import printers from %s…"
+msgstr "JusPrin nepavyko perskaityti šio failo. Norėdami bandyti dar kartą, pasirinkite Spausdintuvas › Importuoti spausdintuvus iš %s…"
+
+# AI Translated
+msgid "Not imported. The file has no version."
+msgstr "Neimportuota. Failas neturi versijos."
+
+# AI Translated
+msgid "Not imported. It isn't a printer, filament or process preset."
+msgstr "Neimportuota. Tai nėra spausdintuvo, gijos ar proceso profilis."
+
+# AI Translated
+#. TRN %1% is the filament preset the file is based on, %2% the app it was imported from.
+#, boost-format
+msgid "Not imported, because it's based on %1%, which JusPrin doesn't have. It stays in %2%. When you prepare a print, choose a similar filament instead."
+msgstr "Neimportuota, nes jis sukurtas pagal profilį %1%, kurio JusPrin neturi. Jis lieka programoje %2%. Ruošdami spausdinimą, verčiau pasirinkite panašią giją."
+
+# AI Translated
+#. TRN %1% is the print settings preset the file is based on, %2% the app it was imported from.
+#, boost-format
+msgid "Not imported, because they're based on %1%, which JusPrin doesn't have. They stay in %2%. When you prepare a print, choose similar print settings instead."
+msgstr "Neimportuota, nes jie sukurti pagal profilį %1%, kurio JusPrin neturi. Jie lieka programoje %2%. Ruošdami spausdinimą, verčiau pasirinkite panašius spausdinimo nustatymus."
+
+# AI Translated
+#. TRN %1% is the printer profile the file is based on, %2% the app it was imported from.
+#, boost-format
+msgid "Not imported, because it's based on %1%, which JusPrin doesn't have. It stays in %2%. When you add a printer, choose a similar one instead."
+msgstr "Neimportuota, nes jis sukurtas pagal profilį %1%, kurio JusPrin neturi. Jis lieka programoje %2%. Pridėdami spausdintuvą, verčiau pasirinkite panašų."
+
+# AI Translated
+#, c-format, boost-format
+msgid "JusPrin couldn't load this preset. To try again, choose Printer › Import printers from %s…"
+msgstr "JusPrin nepavyko įkelti šio profilio. Norėdami bandyti dar kartą, pasirinkite Spausdintuvas › Importuoti spausdintuvus iš %s…"
+
+# AI Translated
+#, c-format, boost-format
+msgid "It's based on %s, which JusPrin doesn't have. When you prepare a print, choose a similar filament instead."
+msgstr "Jis sukurtas pagal profilį %s, kurio JusPrin neturi. Ruošdami spausdinimą, verčiau pasirinkite panašią giją."
+
+# AI Translated
+#, c-format, boost-format
+msgid "It's based on %s, which JusPrin doesn't have. When you prepare a print, choose similar print settings instead."
+msgstr "Jis sukurtas pagal profilį %s, kurio JusPrin neturi. Ruošdami spausdinimą, verčiau pasirinkite panašius spausdinimo nustatymus."
+
+# AI Translated
+#, c-format, boost-format
+msgid "It's based on %s, which JusPrin doesn't have. When you add a printer, choose a similar one instead."
+msgstr "Jis sukurtas pagal profilį %s, kurio JusPrin neturi. Pridėdami spausdintuvą, verčiau pasirinkite panašų."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Choose your %s folder"
+msgstr "Pasirinkite savo %s aplanką"
+
+# AI Translated
+#. TRN %1% is the app the printers are imported from, such as OrcaSlicer.
+#, boost-format
+msgid "JusPrin found no %1% printers in that folder. If %1% keeps its settings somewhere else, choose that folder."
+msgstr "JusPrin tame aplanke nerado %1% spausdintuvų. Jei %1% nustatymus laiko kitur, pasirinkite tą aplanką."
+
+# AI Translated
+msgid "The printer's page didn't load"
+msgstr "Spausdintuvo puslapis neįsikėlė"
+
+# AI Translated
+msgid "Try again"
+msgstr "Bandyti dar kartą"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
+msgstr "Adresu %s niekas neatsakė. Patikrinkite, ar spausdintuvas įjungtas ir prijungtas prie to paties tinklo kaip šis kompiuteris, tada bandykite dar kartą."
+
+# AI Translated
+msgid "Client configuration is a symbolic link. Use Copy and update its target manually."
+msgstr "Kliento konfigūracija yra simbolinė nuoroda. Naudokite „Kopijuoti“ ir atnaujinkite jos tikslinį failą rankiniu būdu."
+
+# AI Translated
+msgid "Client configuration exceeds the 1 MiB setup limit."
+msgstr "Kliento konfigūracija viršija 1 MiB sąrankos ribą."
+
+# AI Translated
+msgid "Client configuration exceeds nesting depth 32."
+msgstr "Kliento konfigūracija viršija 32 lygių įdėjimo gylį."
+
+# AI Translated
+msgid "Client configuration has an unterminated comment."
+msgstr "Kliento konfigūracijoje yra neužbaigtas komentaras."
+
+# AI Translated
+msgid "Client configuration and its server map must be JSON objects. No changes made."
+msgstr "Kliento konfigūracija ir jos serverių sąrašas turi būti JSON objektai. Niekas nepakeista."
+
+# AI Translated
+msgid "Client configuration has ambiguous duplicate keys. No changes made."
+msgstr "Kliento konfigūracijoje yra dviprasmių pasikartojančių raktų. Niekas nepakeista."
+
+# AI Translated
+msgid "Client configuration changed after the preview. Review the new change and confirm again."
+msgstr "Kliento konfigūracija pasikeitė po peržiūros. Peržiūrėkite naują pakeitimą ir patvirtinkite dar kartą."
+
+# AI Translated
+msgid "Client configuration changed while preparing the write. Original file retained; review again."
+msgstr "Kliento konfigūracija pasikeitė ruošiant įrašymą. Pradinis failas paliktas; peržiūrėkite dar kartą."
+
+# AI Translated
+msgid "JusPrin couldn't close the project, so it didn't restart. Your project stays open, and JusPrin will use the new language the next time it starts."
+msgstr "JusPrin nepavyko uždaryti projekto, todėl programa nebuvo paleista iš naujo. Jūsų projektas lieka atvertas, o naują kalbą JusPrin naudos kitą kartą paleista."
+
+# AI Translated
+msgid "Restart"
+msgstr "Paleisti iš naujo"
+
+# AI Translated
+msgid "Checking..."
+msgstr "Tikrinama..."
+
+# AI Translated
+msgid "Whole plate"
+msgstr "Visa plokštė"
+
+# AI Translated
+msgid "Ignored"
+msgstr "Ignoruojama"
+
+# AI Translated
+#, boost-format
+msgid "%1% warning ignored"
+msgid_plural "%1% warnings ignored"
+msgstr[0] "%1% įspėjimas ignoruojamas"
+msgstr[1] "%1% įspėjimai ignoruojami"
+msgstr[2] "%1% įspėjimų ignoruojama"
+
+# AI Translated
+#, boost-format
+msgid "%1% print issue"
+msgid_plural "%1% print issues"
+msgstr[0] "%1% spausdinimo problema"
+msgstr[1] "%1% spausdinimo problemos"
+msgstr[2] "%1% spausdinimo problemų"
+
+# AI Translated
+# Needs human review: Lithuanian verbs do not change for number, so the noun 'problema' was added to carry the plural; check it reads right after the print-issue count.
+#, boost-format
+msgid "%1% blocks printing."
+msgid_plural "%1% block printing."
+msgstr[0] "%1% problema blokuoja spausdinimą."
+msgstr[1] "%1% problemos blokuoja spausdinimą."
+msgstr[2] "%1% problemų blokuoja spausdinimą."
+
+# AI Translated
+#. TRN The print-issue pill: %1% is "3 print issues", %2% the sentence "2 block printing."
+#, boost-format
+msgid "%1%. %2%"
+msgstr "%1%. %2%"
+
+# AI Translated
+msgid "Blocks printing"
+msgstr "Blokuoja spausdinimą"
+
+# AI Translated
+msgid "out of view"
+msgstr "už vaizdo ribų"
+
+# AI Translated
+msgid "Checking whether this is fixed..."
+msgstr "Tikrinama, ar tai ištaisyta..."
+
+# AI Translated
+#, boost-format
+msgid "%1% of %2%"
+msgstr "%1% iš %2%"
+
+# AI Translated
+msgid "AI is replying..."
+msgstr "DI atsako..."
+
+# AI Translated
+msgid "Stop ignoring"
+msgstr "Nebeignoruoti"
+
+# AI Translated
+msgid "Ignore this warning"
+msgstr "Ignoruoti šį įspėjimą"
+
+# AI Translated
+msgid "Ask AI"
+msgstr "Klausti DI"
+
+# AI Translated
+msgid "Explain this issue and my options."
+msgstr "Paaiškink šią problemą ir kokias turiu galimybes."
+
+# AI Translated
+msgid "Set up AI..."
+msgstr "Nustatyti DI..."
+
+# AI Translated
+msgid "A G-code path goes beyond the plate boundaries."
+msgstr "G-code kelias išeina už plokštės ribų."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Filaments %s cannot be printed directly on the surface of this plate."
+msgstr "Gijų %s negalima spausdinti tiesiai ant šios plokštės paviršiaus."
+
+# AI Translated
+#, boost-format
+msgid "Slicing plate %1%"
+msgstr "Sluoksniuojama plokštė %1%"
+
+# AI Translated
+msgid "The form was out of date. Choose the printer again."
+msgstr "Forma buvo pasenusi. Pasirinkite spausdintuvą dar kartą."
+
+# AI Translated
+# Needs human review: 'Plate' here is the build plate type fitted to the printer; check it is not the project plate.
+msgid "Choose the plate on this printer."
+msgstr "Pasirinkite šio spausdintuvo pagrindą."
+
+# AI Translated
+msgid "That filament is no longer on the list. Choose another."
+msgstr "Šios gijos sąraše nebėra. Pasirinkite kitą."
+
+# AI Translated
+msgid "That printer is no longer on the list. Choose it again."
+msgstr "Šio spausdintuvo sąraše nebėra. Pasirinkite jį dar kartą."
+
+# AI Translated
+msgid "Printer conversation"
+msgstr "Pokalbis apie spausdintuvą"
+
+# AI Translated
+msgid "Filament conversation"
+msgstr "Pokalbis apie giją"
+
+# AI Translated
+msgid "Browse the full printer list"
+msgstr "Naršyti visą spausdintuvų sąrašą"
+
+# AI Translated
+msgid "Open printer settings"
+msgstr "Atverti spausdintuvo nustatymus"
+
+# AI Translated
+#. TRN %1% is the profile loader's own error, in English.
+#, boost-format
+msgid "The printer profiles could not be read: %1%"
+msgstr "Nepavyko perskaityti spausdintuvų profilių: %1%"
+
+# AI Translated
+msgid "Enter a name for the printer."
+msgstr "Įveskite spausdintuvo pavadinimą."
+
+# AI Translated
+msgid "A printer name can't start or end with a space."
+msgstr "Spausdintuvo pavadinimas negali prasidėti ar baigtis tarpu."
+
+# AI Translated
+#, c-format, boost-format
+msgid "A printer name can't contain any of these characters: %s"
+msgstr "Spausdintuvo pavadinime negali būti šių simbolių: %s"
+
+# AI Translated
+msgid "That name is reserved. Choose another."
+msgstr "Šis pavadinimas rezervuotas. Pasirinkite kitą."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Another printer or profile is already named \"%s\"."
+msgstr "Kitas spausdintuvas ar profilis jau pavadintas „%s“."
+
+# AI Translated
+msgid "A new name has to differ from the old one by more than capitalization."
+msgstr "Naujas pavadinimas turi skirtis nuo senojo ne tik didžiosiomis ir mažosiomis raidėmis."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Other printer profiles are based on \"%s\". Remove those first in Printer settings."
+msgstr "Kiti spausdintuvų profiliai sukurti pagal „%s“. Pirmiausia pašalinkite juos spausdintuvo nustatymuose."
+
+# AI Translated
+msgid "The app couldn't open your browser."
+msgstr "Programai nepavyko atverti jūsų naršyklės."
+
+# AI Translated
+msgid "About JusPrin"
+msgstr "Apie JusPrin"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Version %s"
+msgstr "Versija %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Built on OrcaSlicer %s"
+msgstr "Sukurta OrcaSlicer %s pagrindu"
+
+# AI Translated
+#. TRN A noun: the label before the commit this copy of the app was built from.
+msgid "Build"
+msgstr "Kompiliacija"
+
+# AI Translated
+msgid "Copy version"
+msgstr "Kopijuoti versiją"
+
+# AI Translated
+msgid "Get help"
+msgstr "Gauti pagalbos"
+
+# AI Translated
+msgid "Email"
+msgstr "El. paštas"
+
+# AI Translated
+msgid "License…"
+msgstr "Licencija…"
+
+# AI Translated
+msgid "Free software under the GNU Affero General Public License v3."
+msgstr "Laisvoji programinė įranga pagal GNU Affero General Public License v3."
+
+# AI Translated
+msgid "Copied"
+msgstr "Nukopijuota"
+
+# AI Translated
+#. TRN The menu of print actions: Slice plate, Check print…, Print….
+msgctxt "Menu"
+msgid "Print"
+msgstr "Spausdinimas"
+
+# AI Translated
+msgid "New project"
+msgstr "Naujas projektas"
+
+# AI Translated
+msgid "Open…"
+msgstr "Atverti…"
+
+# AI Translated
+msgid "Open recent"
+msgstr "Neseniai atverti"
+
+# AI Translated
+msgid "Version history…"
+msgstr "Versijų istorija…"
+
+# AI Translated
+msgid "Project 3MF…"
+msgstr "Projekto 3MF…"
+
+# AI Translated
+msgid "Exit"
+msgstr "Išeiti"
+
+# AI Translated
+msgid "Plates and project panel"
+msgstr "Plokščių ir projekto skydelis"
+
+# AI Translated
+msgid "Show plates and project panel"
+msgstr "Rodyti plokščių ir projekto skydelį"
+
+# AI Translated
+msgid "Hide plates and project panel"
+msgstr "Slėpti plokščių ir projekto skydelį"
+
+# AI Translated
+msgid "AI panel"
+msgstr "DI skydelis"
+
+# AI Translated
+msgid "Show AI panel"
+msgstr "Rodyti DI skydelį"
+
+# AI Translated
+msgid "Hide AI panel"
+msgstr "Slėpti DI skydelį"
+
+# AI Translated
+msgid "Switch to classic view…"
+msgstr "Perjungti į klasikinį vaizdą…"
+
+# AI Translated
+msgid "JusPrin guide…"
+msgstr "JusPrin vadovas…"
+
+# AI Translated
+msgid "Ask AI…"
+msgstr "Klausti DI…"
+
+# AI Translated
+msgid "Report a problem…"
+msgstr "Pranešti apie problemą…"
+
+# AI Translated
+msgid "Report a problem"
+msgstr "Pranešti apie problemą"
+
+# AI Translated
+msgid "Slice all plates"
+msgstr "Sluoksniuoti visas plokštes"
+
+# AI Translated
+msgid "Check print…"
+msgstr "Patikrinti spausdinimą…"
+
+# AI Translated
+msgid "Print…"
+msgstr "Spausdinti…"
+
+# AI Translated
+msgid "Print all plates…"
+msgstr "Spausdinti visas plokštes…"
+
+# AI Translated
+msgid "Add a printer…"
+msgstr "Pridėti spausdintuvą…"
+
+# AI Translated
+msgid "Import printers from OrcaSlicer…"
+msgstr "Importuoti spausdintuvus iš OrcaSlicer…"
+
+# AI Translated
+msgid "Import printers from JusPrin 1…"
+msgstr "Importuoti spausdintuvus iš JusPrin 1…"
+
+# AI Translated
+msgid "Printer settings…"
+msgstr "Spausdintuvo nustatymai…"
+
+# AI Translated
+msgid "Ask AI about printer settings…"
+msgstr "Klausti DI apie spausdintuvo nustatymus…"
+
+# AI Translated
+msgid "Filament settings…"
+msgstr "Gijos nustatymai…"
+
+# AI Translated
+msgid "Ask AI about filament settings…"
+msgstr "Klausti DI apie gijos nustatymus…"
+
+# AI Translated
+msgid "Calibrate…"
+msgstr "Kalibruoti…"
+
+# AI Translated
+msgid "Check print"
+msgstr "Patikrinti spausdinimą"
+
+# AI Translated
+# Needs human review: Title-case 'Check Print' was taken as a window or panel title; check where it appears.
+msgid "Check Print"
+msgstr "Spausdinimo patikra"
+
+# AI Translated
+msgid "Legend"
+msgstr "Legenda"
+
+# AI Translated
+msgid "Close and return to Prepare"
+msgstr "Uždaryti ir grįžti į paruošimą"
+
+# AI Translated
+#, c-format, boost-format
+msgid "sliced for %s"
+msgstr "sluoksniuota spausdintuvui %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Layer %d"
+msgstr "Sluoksnis %d"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d s"
+msgstr "%d s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d min"
+msgstr "%d min"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d h %d min"
+msgstr "%d val. %d min"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%.0f g"
+msgstr "%.0f g"
+
+# AI Translated
+#. TRN A length in metres, such as the filament a print uses: "12.4 m". %s is the number.
+#, c-format, boost-format
+msgid "%s m"
+msgstr "%s m"
+
+# AI Translated
+msgid "no supports were needed"
+msgstr "atramų neprireikė"
+
+# AI Translated
+msgid "no seams are on the faces you marked"
+msgstr "jūsų pažymėtuose paviršiuose siūlių nėra"
+
+# AI Translated
+msgid "nothing prints in the air"
+msgstr "niekas nespausdinama ore"
+
+# AI Translated
+msgid "no paths cross or leave the plate"
+msgstr "jokie keliai nesikerta ir neišeina už plokštės"
+
+# AI Translated
+msgid "no paths cross each other"
+msgstr "jokie keliai nesikerta"
+
+# AI Translated
+msgid "no paths leave the plate"
+msgstr "jokie keliai neišeina už plokštės"
+
+# AI Translated
+msgid "the slicer gave no warnings"
+msgstr "pjaustyklė nepateikė įspėjimų"
+
+# AI Translated
+msgid "Print report"
+msgstr "Spausdinimo ataskaita"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Print report, %s"
+msgstr "Spausdinimo ataskaita, %s"
+
+# AI Translated
+#. TRN A section title of the print report: the support structures the slice made.
+msgid "Supports"
+msgstr "Atramos"
+
+# AI Translated
+msgid "Slicer warnings"
+msgstr "Pjaustyklės įspėjimai"
+
+# AI Translated
+msgid "Unsupported islands"
+msgstr "Neatremtos salos"
+
+# AI Translated
+msgid "Crossing paths"
+msgstr "Susikertantys keliai"
+
+# AI Translated
+msgid "Paths outside the plate"
+msgstr "Keliai už plokštės ribų"
+
+# AI Translated
+msgid "Nothing to flag."
+msgstr "Pastabų nėra."
+
+# AI Translated
+#. TRN Print report's closing line, a list of clauses such as "nothing prints in the air": joins the list so far to a clause that is not the last.
+#, c-format, boost-format
+msgid "%s, %s"
+msgstr "%s, %s"
+
+# AI Translated
+#. TRN Print report's closing line, a list of clauses such as "nothing prints in the air": joins its only two clauses.
+#, c-format, boost-format
+msgid "%s and %s"
+msgstr "%s ir %s"
+
+# AI Translated
+#. TRN Print report's closing line, a list of clauses such as "nothing prints in the air": joins the list so far to the last of three or more.
+#, c-format, boost-format
+msgid "%s, and %s"
+msgstr "%s ir %s"
+
+# AI Translated
+#. TRN Ends the print report's closing line; %s is its list of what the checks found clean, first letter capitalised.
+#, c-format, boost-format
+msgid "%s."
+msgstr "%s."
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d layer"
+msgid_plural "%d layers"
+msgstr[0] "%d sluoksnis"
+msgstr[1] "%d sluoksniai"
+msgstr[2] "%d sluoksnių"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d object"
+msgid_plural "%d objects"
+msgstr[0] "%d objektas"
+msgstr[1] "%d objektai"
+msgstr[2] "%d objektų"
+
+# AI Translated
+# Needs human review: The count is of items (such as seams) on marked faces; check the phrase reads right in the print report line it completes.
+#, c-format, boost-format
+msgid "%d on a marked face"
+msgid_plural "%d on marked faces"
+msgstr[0] "%d pažymėtame paviršiuje"
+msgstr[1] "%d pažymėtuose paviršiuose"
+msgstr[2] "%d pažymėtuose paviršiuose"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d or more"
+msgstr "%d ar daugiau"
+
+# AI Translated
+msgid "A toolpath runs outside the printable area"
+msgstr "Įrankio trajektorija išeina už spausdinimo srities"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Support touches %s, which you asked to keep clear"
+msgstr "Atramos liečia %s, nors prašėte šią vietą palikti laisvą"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Support inside the %s"
+msgstr "Atramos %s viduje"
+
+# AI Translated
+msgid "No support in a hole or a region you kept clear"
+msgstr "Skylėje ar jūsų laisva paliktoje srityje atramų nėra"
+
+# AI Translated
+msgid "No support in a hole"
+msgstr "Skylėje atramų nėra"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Printed in the air: %s"
+msgstr "Spausdinama ore: %s"
+
+# AI Translated
+# Needs human review: Check what %s is filled with (an object or a face) and that 'ant' plus that name reads right.
+#, c-format, boost-format
+msgid "%d seam on %s"
+msgid_plural "%d seams on %s"
+msgstr[0] "%d siūlė ant %s"
+msgstr[1] "%d siūlės ant %s"
+msgstr[2] "%d siūlių ant %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%s on the plate"
+msgstr "%s ant plokštės"
+
+# AI Translated
+msgid "only when recording a timelapse"
+msgstr "tik darant intervalinį fotografavimą"
+
+# AI Translated
+#, c-format, boost-format
+msgid "around %s"
+msgstr "aplink %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d layer of support"
+msgid_plural "%d layers of support"
+msgstr[0] "%d atramų sluoksnis"
+msgstr[1] "%d atramų sluoksniai"
+msgstr[2] "%d atramų sluoksnių"
+
+# AI Translated
+msgid "No brim"
+msgstr "Be krašto"
+
+# AI Translated
+msgid "This plate has no current slice."
+msgstr "Ši plokštė neturi aktualaus sluoksniavimo rezultato."
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d filament change"
+msgid_plural "%d filament changes"
+msgstr[0] "%d gijos keitimas"
+msgstr[1] "%d gijos keitimai"
+msgstr[2] "%d gijos keitimų"
+
+# AI Translated
+msgid "You're in the classic OrcaSlicer view."
+msgstr "Esate klasikiniame OrcaSlicer vaizde."
+
+# AI Translated
+msgid "Back to JusPrin"
+msgstr "Atgal į JusPrin"
+
+# AI Translated
+msgid "Switch to JusPrin view"
+msgstr "Perjungti į JusPrin vaizdą"
+
+# AI Translated
+#. TRN A menu caption in capitals: the printer's name (in capitals), then its nozzle size in millimetres.
+#, c-format, boost-format
+msgid "%s, %s MM NOZZLE"
+msgstr "%s, %s MM PURKŠTUKAS"
+
+# AI Translated
+msgid "COLOUR"
+msgstr "SPALVA"
+
+# AI Translated
+msgid "Other colour…"
+msgstr "Kita spalva…"
+
+# AI Translated
+msgid "Use what's loaded on the printer…"
+msgstr "Naudoti tai, kas įdėta į spausdintuvą…"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%s is offline. Turn it on to read what's loaded."
+msgstr "%s neprisijungęs. Įjunkite jį, kad būtų galima nuskaityti, kas įdėta."
+
+# AI Translated
+#, c-format, boost-format
+msgid "FILAMENTS FOR %s"
+msgstr "GIJOS SPAUSDINTUVUI %s"
+
+# AI Translated
+msgid "on plate"
+msgstr "ant plokštės"
+
+# AI Translated
+msgid "Add another filament to this print"
+msgstr "Pridėti dar vieną giją šiam spausdinimui"
+
+# AI Translated
+#, c-format, boost-format
+msgid "FILAMENT · SLOT %d · %s"
+msgstr "GIJA · LIZDAS %d · %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "FILAMENT FOR %s"
+msgstr "GIJA SPAUSDINTUVUI %s"
+
+# AI Translated
+msgid "FILAMENTS FOR THIS PRINTER"
+msgstr "GIJOS ŠIAM SPAUSDINTUVUI"
+
+# AI Translated
+msgid "Other filament…"
+msgstr "Kita gija…"
+
+# AI Translated
+msgid "Calibrate this filament…"
+msgstr "Kalibruoti šią giją…"
+
+# AI Translated
+msgid "JusPrin guide"
+msgstr "JusPrin vadovas"
+
+# AI Translated
+msgid "Plates and Project panel"
+msgstr "Plokščių ir projekto skydelis"
+
+# AI Translated
+msgid "Hide the Plates and Project panel"
+msgstr "Slėpti plokščių ir projekto skydelį"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Slicing %d%%"
+msgstr "Sluoksniuojama %d%%"
+
+# AI Translated
+msgid "Slicing…"
+msgstr "Sluoksniuojama…"
+
+# AI Translated
+msgid "Sliced"
+msgstr "Sluoksniuota"
+
+# AI Translated
+msgid "Not sliced yet"
+msgstr "Dar nesluoksniuota"
+
+# AI Translated
+#. TRN How many objects or copies on the plate are set not to print.
+#, c-format, boost-format
+msgid "%d won't print"
+msgid_plural "%d won't print"
+msgstr[0] "%d nebus spausdinamas"
+msgstr[1] "%d nebus spausdinami"
+msgstr[2] "%d nebus spausdinama"
+
+# AI Translated
+msgid "Couldn't do that"
+msgstr "Nepavyko to atlikti"
+
+# AI Translated
+msgid "Support painting"
+msgstr "Atramų piešimas"
+
+# AI Translated
+msgid "Color painting"
+msgstr "Spalvotas piešimas"
+
+# AI Translated
+msgid "Fuzzy skin painting"
+msgstr "Grublėto paviršiaus piešimas"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Per-object settings · %d"
+msgstr "Objekto nustatymai · %d"
+
+# AI Translated
+msgid "Auto-orient"
+msgstr "Automatiškai orientuoti"
+
+# AI Translated
+msgid "Plate settings…"
+msgstr "Plokštės nustatymai…"
+
+# AI Translated
+# Needs human review: Taken as moving a plate to the start of the plate list; check what the menu item moves.
+msgid "Move to front"
+msgstr "Perkelti į pradžią"
+
+# AI Translated
+msgid "Delete plate"
+msgstr "Ištrinti plokštę"
+
+# AI Translated
+msgid "Rename object"
+msgstr "Pervardyti objektą"
+
+# AI Translated
+msgid "Set number of instances…"
+msgstr "Nustatyti kopijų skaičių…"
+
+# AI Translated
+msgid "Fix model"
+msgstr "Taisyti modelį"
+
+# AI Translated
+msgid "Change object filament"
+msgstr "Keisti objekto giją"
+
+# AI Translated
+msgid "Delete copy"
+msgstr "Ištrinti kopiją"
+
+# AI Translated
+msgid "To objects"
+msgstr "Į objektus"
+
+# AI Translated
+msgid "To parts"
+msgstr "Į dalis"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Copy %d"
+msgstr "Kopija %d"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d per-object setting"
+msgid_plural "%d per-object settings"
+msgstr[0] "%d objekto nustatymas"
+msgstr[1] "%d objekto nustatymai"
+msgstr[2] "%d objekto nustatymų"
+
+# AI Translated
+msgid "Plates tab"
+msgstr "Plokščių kortelė"
+
+# AI Translated
+msgid "Project tab"
+msgstr "Projekto kortelė"
+
+# AI Translated
+msgid "Plates"
+msgstr "Plokštės"
+
+# AI Translated
+msgid "Add model"
+msgstr "Pridėti modelį"
+
+# AI Translated
+msgid "Not on a plate"
+msgstr "Ne ant plokštės"
+
+# AI Translated
+msgid "Mesh needs repair"
+msgstr "Tinklą reikia pataisyti"
+
+# AI Translated
+msgid "Mesh repaired"
+msgstr "Tinklas pataisytas"
+
+# AI Translated
+msgid "won't print"
+msgstr "nebus spausdinamas"
+
+# AI Translated
+#. TRN A tag beside one part of an object, saying what kind of part it is: an ordinary part.
+msgid "part"
+msgstr "dalis"
+
+# AI Translated
+#. TRN A tag beside one part of an object, saying what kind of part it is: a modifier, which changes settings where it overlaps.
+msgid "modifier"
+msgstr "modifikatorius"
+
+# AI Translated
+msgid "negative part"
+msgstr "neigiama dalis"
+
+# AI Translated
+msgid "support enforcer"
+msgstr "priverstinės atramos"
+
+# AI Translated
+msgid "support blocker"
+msgstr "atramų blokatorius"
+
+# AI Translated
+#. TRN %s is a weekday or a date, such as "Mon" or "Mar 14", when this project's last print finished.
+#, c-format, boost-format
+msgid "last finished %s"
+msgstr "paskutinį kartą baigta %s"
+
+# AI Translated
+msgid "last finished today"
+msgstr "paskutinį kartą baigta šiandien"
+
+# AI Translated
+msgid "last finished yesterday"
+msgstr "paskutinį kartą baigta vakar"
+
+# AI Translated
+msgid "Version history unavailable"
+msgstr "Versijų istorija nepasiekiama"
+
+# AI Translated
+msgid "Version history couldn't be loaded. Try again."
+msgstr "Nepavyko įkelti versijų istorijos. Bandykite dar kartą."
+
+# AI Translated
+msgid "Export project 3MF"
+msgstr "Eksportuoti projekto 3MF"
+
+# AI Translated
+msgid "Export failed"
+msgstr "Eksportuoti nepavyko"
+
+# AI Translated
+msgid "The project couldn't be exported. Try again."
+msgstr "Nepavyko eksportuoti projekto. Bandykite dar kartą."
+
+# AI Translated
+msgid "Restore this version of the model and project settings? The current model will be saved as a version first. Conversations and print records will stay current."
+msgstr "Atkurti šią modelio ir projekto nustatymų versiją? Dabartinis modelis pirmiausia bus išsaugotas kaip versija. Pokalbiai ir spausdinimo įrašai liks dabartiniai."
+
+# AI Translated
+msgid "Restore project version"
+msgstr "Atkurti projekto versiją"
+
+# AI Translated
+msgid "Restore failed"
+msgstr "Atkurti nepavyko"
+
+# AI Translated
+msgid "This version couldn't be restored. Try again."
+msgstr "Nepavyko atkurti šios versijos. Bandykite dar kartą."
+
+# AI Translated
+msgid "Back to Project"
+msgstr "Atgal į projektą"
+
+# AI Translated
+msgid "Nothing printed or exported yet"
+msgstr "Dar niekas neišspausdinta ir neeksportuota"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d G-code"
+msgid_plural "%d G-codes"
+msgstr[0] "%d G-code failas"
+msgstr[1] "%d G-code failai"
+msgstr[2] "%d G-code failų"
+
+# AI Translated
+msgid "printing now"
+msgstr "spausdinama dabar"
+
+# AI Translated
+msgid "never sent to a printer"
+msgstr "niekada nesiųsta į spausdintuvą"
+
+# AI Translated
+msgid "Print history"
+msgstr "Spausdinimo istorija"
+
+# AI Translated
+msgid "Saving…"
+msgstr "Išsaugoma…"
+
+# AI Translated
+msgid "Saved"
+msgstr "Išsaugota"
+
+# AI Translated
+msgid "Couldn't save"
+msgstr "Nepavyko išsaugoti"
+
+# AI Translated
+msgid "No title, designer or description yet."
+msgstr "Dar nėra pavadinimo, kūrėjo ar aprašymo."
+
+# AI Translated
+#. TRN Who designed the model; %s is the designer's name.
+#, c-format, boost-format
+msgid "by %s"
+msgstr "kūrėjas: %s"
+
+# AI Translated
+msgid "Version history"
+msgstr "Versijų istorija"
+
+# AI Translated
+msgid "Export project 3MF…"
+msgstr "Eksportuoti projekto 3MF…"
+
+# AI Translated
+msgid "Bill of materials"
+msgstr "Medžiagų sąrašas"
+
+# AI Translated
+msgid "Assembly guide"
+msgstr "Surinkimo instrukcija"
+
+# AI Translated
+msgid "Attachments"
+msgstr "Priedai"
+
+# AI Translated
+msgid "The file couldn't be opened."
+msgstr "Nepavyko atverti failo."
+
+# AI Translated
+msgid "More files are attached than are listed here."
+msgstr "Pridėta daugiau failų, nei čia išvardyta."
+
+# AI Translated
+# Needs human review: A section of the project panel next to Bill of materials and Attachments; check whether it is a print profile (preset) or the model's description.
+msgid "Profile"
+msgstr "Profilis"
+
+# AI Translated
+msgid "No earlier saved versions yet."
+msgstr "Ankstesnių išsaugotų versijų dar nėra."
+
+# AI Translated
+#. TRN The Restore button's name for a screen reader; %s is when the version was saved.
+#, c-format, boost-format
+msgid "Restore %s"
+msgstr "Atkurti versiją, išsaugotą %s"
+
+# AI Translated
+msgid "Connecting AI tool"
+msgstr "Jungiamas DI įrankis"
+
+# AI Translated
+msgid "Saving the MCP entry using the client's own CLI..."
+msgstr "MCP įrašas išsaugomas naudojant paties kliento CLI..."
+
+# AI Translated
+msgid "The setup command timed out. Stopping it..."
+msgstr "Sąrankos komandai baigėsi laikas. Ji stabdoma..."
+
+# AI Translated
+msgid "Select printer"
+msgstr "Pasirinkite spausdintuvą"
+
+# AI Translated
+msgid "from the file"
+msgstr "iš failo"
+
+# AI Translated
+msgid "Select filament"
+msgstr "Pasirinkite giją"
+
+# AI Translated
+msgid "Paused"
+msgstr "Pristabdyta"
+
+# AI Translated
+msgid "Needs attention"
+msgstr "Reikia dėmesio"
+
+# AI Translated
+msgid "Ready"
+msgstr "Paruoštas"
+
+# AI Translated
+msgid "Connected"
+msgstr "Prijungtas"
+
+# AI Translated
+msgid "Connecting…"
+msgstr "Jungiamasi…"
+
+# AI Translated
+msgid "Not connected"
+msgstr "Neprijungtas"
+
+# AI Translated
+msgid "No printer selected"
+msgstr "Spausdintuvas nepasirinktas"
+
+# AI Translated
+msgid "From the file · not one of your printers"
+msgstr "Iš failo · ne vienas iš jūsų spausdintuvų"
+
+# AI Translated
+msgid "Checking connection…"
+msgstr "Tikrinamas ryšys…"
+
+# AI Translated
+msgid "Export the G-code to print from a card."
+msgstr "Eksportuokite G-code, kad galėtumėte spausdinti iš atminties kortelės."
+
+# AI Translated
+msgid "OTHER PRINTERS"
+msgstr "KITI SPAUSDINTUVAI"
+
+# AI Translated
+msgid "Billing and usage"
+msgstr "Mokėjimai ir naudojimas"
+
+# AI Translated
+msgid "Credits and plans"
+msgstr "Kreditai ir planai"
+
+# AI Translated
+msgid "Check your internet connection, then try again."
+msgstr "Patikrinkite interneto ryšį, tada bandykite dar kartą."
+
+# AI Translated
+msgid "Open in browser"
+msgstr "Atverti naršyklėje"
+
+# AI Translated
+msgid "Loading Billing and usage…"
+msgstr "Įkeliamas puslapis „Mokėjimai ir naudojimas“…"
+
+# AI Translated
+msgid "Loading Credits and plans…"
+msgstr "Įkeliamas puslapis „Kreditai ir planai“…"
+
+# AI Translated
+msgid "Couldn't load Billing and usage"
+msgstr "Nepavyko įkelti puslapio „Mokėjimai ir naudojimas“"
+
+# AI Translated
+msgid "Couldn't load Credits and plans"
+msgstr "Nepavyko įkelti puslapio „Kreditai ir planai“"
+
+# AI Translated
+msgid "Resize AI panel"
+msgstr "Keisti DI skydelio dydį"
+
+# AI Translated
+msgid "Drag to resize the AI panel"
+msgstr "Vilkite, kad pakeistumėte DI skydelio dydį"
+
+# AI Translated
+msgid "The setup changed. Review the current plate and try again."
+msgstr "Sąranka pasikeitė. Peržiūrėkite dabartinę plokštę ir bandykite dar kartą."
+
+# AI Translated
+msgid "Couldn't slice"
+msgstr "Nepavyko sluoksniuoti"
+
+# AI Translated
+msgid "This saved version couldn't be restored. Try again from Version history."
+msgstr "Nepavyko atkurti šios išsaugotos versijos. Bandykite dar kartą per „Versijų istorija“."
+
+# AI Translated
+msgid "Revert failed"
+msgstr "Grąžinti nepavyko"
+
+# AI Translated
+msgid "Your saved projects couldn't be read, so JusPrin can't check whether you've opened this file before. The file wasn't opened. Try again once JusPrin can read its projects folder."
+msgstr "Nepavyko perskaityti jūsų išsaugotų projektų, todėl JusPrin negali patikrinti, ar šį failą jau atvėrėte anksčiau. Failas neatvertas. Bandykite dar kartą, kai JusPrin galės perskaityti savo projektų aplanką."
+
+# AI Translated
+msgid "This file has changed since this project was made from it. Create a new project from the updated file, or continue the current project, which keeps the earlier version."
+msgstr "Šis failas pasikeitė nuo tada, kai iš jo buvo sukurtas šis projektas. Sukurkite naują projektą iš atnaujinto failo arba tęskite dabartinį projektą, kuriame lieka ankstesnė versija."
+
+# AI Translated
+msgid "This file is already open as a project. Continue working in it, or create a new project from this file."
+msgstr "Šis failas jau atvertas kaip projektas. Tęskite darbą jame arba sukurkite naują projektą iš šio failo."
+
+# AI Translated
+msgid "This file has changed since you last opened it. Create a new project from the updated file, or open the existing project, which keeps the earlier version."
+msgstr "Šis failas pasikeitė nuo tada, kai paskutinį kartą jį atvėrėte. Sukurkite naują projektą iš atnaujinto failo arba atverkite esamą projektą, kuriame lieka ankstesnė versija."
+
+# AI Translated
+msgid "You've opened this file before. Open the most recently updated project or create another project from this file."
+msgstr "Šį failą jau atvėrėte anksčiau. Atverkite naujausiai atnaujintą projektą arba sukurkite kitą projektą iš šio failo."
+
+# AI Translated
+msgid "You've opened this file before. Open the existing project to continue where you left off, or create a new project from this file."
+msgstr "Šį failą jau atvėrėte anksčiau. Atverkite esamą projektą ir tęskite nuo ten, kur baigėte, arba sukurkite naują projektą iš šio failo."
+
+# AI Translated
+msgid "Previously opened file"
+msgstr "Anksčiau atvertas failas"
+
+# AI Translated
+msgid "Continue current project"
+msgstr "Tęsti dabartinį projektą"
+
+# AI Translated
+msgid "Open most recent project"
+msgstr "Atverti naujausią projektą"
+
+# AI Translated
+msgid "Open existing project"
+msgstr "Atverti esamą projektą"
+
+# AI Translated
+msgid "Resize Plates and Project panel"
+msgstr "Keisti plokščių ir projekto skydelio dydį"
+
+# AI Translated
+msgid "Drag to resize the Plates and Project panel"
+msgstr "Vilkite, kad pakeistumėte plokščių ir projekto skydelio dydį"
+
+# AI Translated
+msgid "The open project couldn't be saved, so the file wasn't opened. Try again."
+msgstr "Nepavyko išsaugoti atverto projekto, todėl failas neatvertas. Bandykite dar kartą."
+
+# AI Translated
+#. TRN What a calibration tests: a filament's name, then the printer's, such as "Generic PLA on Bambu Lab P1S".
+#, c-format, boost-format
+msgid "%1$s on %2$s"
+msgstr "%1$s spausdintuve %2$s"
+
+# AI Translated
+#. TRN %s is the name of the open project, which is saved and closed before a calibration project opens.
+#, c-format, boost-format
+msgid "%s will be saved and closed."
+msgstr "Projektas „%s“ bus išsaugotas ir uždarytas."
+
+# AI Translated
+#, c-format, boost-format
+msgid "A new calibration project opens for %s, and AI picks the spool and the test with you there."
+msgstr "Atsivers naujas kalibravimo projektas, skirtas %s, ir ten DI kartu su jumis parinks ritę ir bandymą."
+
+# AI Translated
+#, c-format, boost-format
+msgid "A new calibration project opens for %s, and AI picks the test with you there."
+msgstr "Atsivers naujas kalibravimo projektas, skirtas %s, ir ten DI kartu su jumis parinks bandymą."
+
+# AI Translated
+msgid "AI isn't set up yet; the test needs it to choose the range and read the result."
+msgstr "DI dar nenustatytas; bandymui jo reikia, kad būtų parinktas intervalas ir nuskaitytas rezultatas."
+
+# AI Translated
+msgid "Settings the test changes are temporary and are not saved to your filament."
+msgstr "Bandymo keičiami nustatymai yra laikini ir neišsaugomi jūsų gijai."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Calibrate %s?"
+msgstr "Kalibruoti %s?"
+
+# AI Translated
+msgid "Set up AI…"
+msgstr "Nustatyti DI…"
+
+# AI Translated
+msgid "The calibration project could not be opened, so your project stays open."
+msgstr "Nepavyko atverti kalibravimo projekto, todėl jūsų projektas lieka atvertas."
+
+# AI Translated
+#, c-format, boost-format
+msgid "The printer \"%s\" could not be selected."
+msgstr "Nepavyko pasirinkti spausdintuvo „%s“."
+
+# AI Translated
+#, c-format, boost-format
+msgid "The printer preset \"%s\" was not found."
+msgstr "Spausdintuvo profilis „%s“ nerastas."
+
+# AI Translated
+msgid "The plate to print is no longer in the project."
+msgstr "Spausdintinos plokštės projekte nebėra."
+
+# AI Translated
+msgid "Couldn't open the print dialog"
+msgstr "Nepavyko atverti spausdinimo lango"
+
+# AI Translated
+msgid "The chat this G-code went out from is no longer in the project."
+msgstr "Pokalbio, iš kurio buvo išsiųstas šis G-code, projekte nebėra."
+
+# AI Translated
+msgid "Chat not found"
+msgstr "Pokalbis nerastas"
+
+# AI Translated
+#, c-format, boost-format
+msgid "The filament preset \"%s\" was not found."
+msgstr "Gijos profilis „%s“ nerastas."
+
+# AI Translated
+msgid "Back to Preview"
+msgstr "Atgal į peržiūrą"
+
+# AI Translated
+msgid "Couldn't open project"
+msgstr "Nepavyko atverti projekto"
+
+# AI Translated
+msgid "Get the new version…"
+msgstr "Gauti naują versiją…"
+
+# AI Translated
+msgid "JusPrin's view couldn't be opened."
+msgstr "Nepavyko atverti JusPrin vaizdo."
+
+# AI Translated
+msgid "Show the Plates and Project panel"
+msgstr "Rodyti plokščių ir projekto skydelį"
+
+# AI Translated
+msgid "Back to Home"
+msgstr "Atgal į pradžią"
+
+# AI Translated
+msgid "Print actions"
+msgstr "Spausdinimo veiksmai"
+
+# AI Translated
+msgid "Project details and preferences"
+msgstr "Projekto informacija ir parinktys"
+
+# AI Translated
+msgid "Hide the AI panel"
+msgstr "Slėpti DI skydelį"
+
+# AI Translated
+msgid "Cancel slicing"
+msgstr "Atšaukti sluoksniavimą"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Print plate %d"
+msgstr "Spausdinti plokštę %d"
+
+# AI Translated
+msgid "Export G-code…"
+msgstr "Eksportuoti G-code…"
+
+# AI Translated
+#. TRN Detail beside "Print all plates…": how many of the plates are sliced.
+#, c-format, boost-format
+msgid "%d sliced"
+msgid_plural "%d sliced"
+msgstr[0] "%d sluoksniuota"
+msgstr[1] "%d sluoksniuotos"
+msgstr[2] "%d sluoksniuotų"
+
+# AI Translated
+msgid "Show the AI panel"
+msgstr "Rodyti DI skydelį"
+
+# AI Translated
+msgid "Unsaved changes"
+msgstr "Neišsaugoti pakeitimai"
+
+# AI Translated
+#. TRN %s is one nozzle size, or several joined by " / ", such as "0.4 / 0.6".
+#, c-format, boost-format
+msgid "%s mm nozzle"
+msgid_plural "%s mm nozzles"
+msgstr[0] "%s mm purkštukas"
+msgstr[1] "%s mm purkštukai"
+msgstr[2] "%s mm purkštukų"
+
+# AI Translated
+msgid "from the file, not one of the printers you set up"
+msgstr "iš failo, ne vienas iš jūsų nustatytų spausdintuvų"
+
+# AI Translated
+#. TRN %s is the project's file name, such as "Benchy.3mf".
+#, c-format, boost-format
+msgid "from %s, not one of the printers you set up"
+msgstr "iš %s, ne vienas iš jūsų nustatytų spausdintuvų"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d filament"
+msgid_plural "%d filaments"
+msgstr[0] "%d gija"
+msgstr[1] "%d gijos"
+msgstr[2] "%d gijų"
+
+# AI Translated
+# Needs human review: The form chosen assumes the plural count is the total number of slots (second %d); check which number selects the form.
+#. TRN The first %d is how many of the filament slots this plate uses; the second is how many slots there are.
+#, c-format, boost-format
+msgid "%d of %d slot on this plate"
+msgid_plural "%d of %d slots on this plate"
+msgstr[0] "Šioje plokštėje naudojama %d iš %d lizdo"
+msgstr[1] "Šioje plokštėje naudojama %d iš %d lizdų"
+msgstr[2] "Šioje plokštėje naudojama %d iš %d lizdų"
+
+# AI Translated
+#, c-format, boost-format
+msgid "%d slot"
+msgid_plural "%d slots"
+msgstr[0] "%d lizdas"
+msgstr[1] "%d lizdai"
+msgstr[2] "%d lizdų"
+
+# AI Translated
+msgid "not on this plate"
+msgstr "ne šioje plokštėje"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Filament is now %s."
+msgstr "Dabar gija: %s."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Slot %d is now %s."
+msgstr "Lizde %d dabar: %s."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Heat and cooling follow %s; walls and infill unchanged."
+msgstr "Kaitinimas ir aušinimas pagal %s; sienelės ir užpildas nepakeisti."
+
+# AI Translated
+#, c-format, boost-format
+msgid "slot %d %s"
+msgstr "lizdas %d %s"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Filaments changed: %s."
+msgstr "Pakeistos gijos: %s."
+
+# AI Translated
+msgid "Slice again when ready."
+msgstr "Kai būsite pasiruošę, sluoksniuokite iš naujo."
+
+# AI Translated
+msgid "Preferences…"
+msgstr "Parinktys…"
+
+# AI Translated
+msgid "Changes couldn't be saved. JusPrin will retry."
+msgstr "Nepavyko išsaugoti pakeitimų. JusPrin bandys dar kartą."
+
+# AI Translated
+msgid "Some older project data couldn't be removed."
+msgstr "Kai kurių senesnių projekto duomenų nepavyko pašalinti."
+
+# AI Translated
+msgid "Configure a printer connection in Printer settings before printing. You can also export the sliced file."
+msgstr "Prieš spausdindami, spausdintuvo nustatymuose sukonfigūruokite spausdintuvo ryšį. Taip pat galite eksportuoti sluoksniuotą failą."
+
+# AI Translated
+msgid "Printer connection required"
+msgstr "Reikalingas spausdintuvo ryšys"
+
+# AI Translated
+msgid "This project was saved by a newer version of JusPrin. Get the new version to open it."
+msgstr "Šis projektas išsaugotas naujesne JusPrin versija. Kad jį atvertumėte, gaukite naują versiją."
+
+# AI Translated
+msgid "The project couldn't be opened. Try again."
+msgstr "Nepavyko atverti projekto. Bandykite dar kartą."

@@ -7,6 +7,8 @@
 // that follows says so.
 
 import { ToolActivityInfo } from '../bridge/protocol';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 interface Props {
   preview: ToolActivityInfo;
@@ -42,12 +44,12 @@ export function ProposalCard({ preview, save, closed, disabled, onSave, onSend }
       {closed ? (
         <div className="proposal-row">
           <span className="jp-icon jp-icon-circle-minus" aria-hidden="true" />
-          <span>Not saved</span>
+          <span><Trans>Not saved</Trans></span>
         </div>
       ) : (
         <div className="proposal-actions">
           <button type="button" className="primary" disabled={disabled || saving} onClick={() => onSave(preview.actionId)}>
-            {saving ? 'Saving…' : proposal.save}
+            {saving ? t`Saving…` : proposal.save}
           </button>
           {proposal.other && (
             <button type="button" className="secondary" disabled={disabled || saving} onClick={() => onSend(proposal.other!)}>

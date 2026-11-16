@@ -10,10 +10,16 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@lingui/core": "5.9.5",
+    "@lingui/react": "5.9.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@lingui/babel-plugin-lingui-macro": "5.9.5",
+    "@lingui/cli": "5.9.5",
+    "@lingui/format-po": "5.9.5",
+    "@lingui/vite-plugin": "5.9.5",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "^14.5.2",

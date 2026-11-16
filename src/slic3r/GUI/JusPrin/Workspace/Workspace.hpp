@@ -1834,7 +1834,11 @@ struct CatalogSetting
 {
     std::string key;
     std::string label;
+    // The label, group, page_label and the displays are in the app's
+    // language: this table is the All settings panel's alone. `page` stays
+    // English for the page to compare.
     std::string page;    // the settings tab's page: Quality, Strength, ...; empty when the tab does not index it
+    std::string page_label; // `page` as the person reads it
     std::string group;   // the option group within that page
     std::string value;   // raw serialized value in force
     std::string display; // the value as a person reads it

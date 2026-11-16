@@ -218,10 +218,12 @@ std::string status_label(const PrintIssueSnapshot& snapshot, const Tally& t)
     std::string label = format_wxstr(_L_PLURAL("%1% print issue", "%1% print issues", count), count).ToUTF8().data();
     // Every blocker keeps Print off, though not every one stops slicing: some
     // are found in the sliced paths. The bubble names each one the same way.
-    if (t.blockers != 0)
-        label += ". " + std::string(format_wxstr(_L_PLURAL("%1% blocks printing.", "%1% block printing.", int(t.blockers)), t.blockers)
-                                        .ToUTF8()
-                                        .data());
+    if (t.blockers != 0) {
+        const std::string blocking =
+            format_wxstr(_L_PLURAL("%1% blocks printing.", "%1% block printing.", int(t.blockers)), t.blockers).ToUTF8().data();
+        // TRN The print-issue pill: %1% is "3 print issues", %2% the sentence "2 block printing."
+        label = format(_u8L("%1%. %2%"), label, blocking);
+    }
     return label;
 }
 

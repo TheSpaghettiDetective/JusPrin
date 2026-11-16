@@ -1,21 +1,26 @@
 import { defineConfig } from 'vitest/config';
 import { searchForWorkspaceRoot } from 'vite';
 import react from '@vitejs/plugin-react';
+import { lingui } from '@lingui/vite-plugin';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 import { fileURLToPath } from 'node:url';
 
 const resources = fileURLToPath(new URL('../../../../../resources', import.meta.url));
 const shared = fileURLToPath(new URL('../WebShared', import.meta.url));
+const localization = fileURLToPath(new URL('../Localization', import.meta.url));
 
 // The bundle must be a single self-contained file: WKWebView does not load
 // file: subresources reliably (POC lesson), so everything inlines into one
 // index.html packaged at resources/jusprin/agent/index.html.
 export default defineConfig({
-  plugins: [react(), viteSingleFile()],
+  // The Lingui macro turns marked text into catalog lookups; the Lingui plugin
+  // compiles the .po catalogs the page imports (../Localization/pages).
+  plugins: [react({ babel: { plugins: ['@lingui/babel-plugin-lingui-macro'] } }), lingui(), viteSingleFile()],
   resolve: {
     alias: {
       '@resources': resources,
       '@shared': shared,
+      '@jusprin/i18n': fileURLToPath(new URL('../AgentUI/src/i18n.tsx', import.meta.url)),
     },
   },
   server: {
@@ -23,7 +28,7 @@ export default defineConfig({
     strictPort: true,
     // The CSS loads icons from resources/ and fonts from WebShared/, both outside
     // this folder, which the dev server refuses (403) unless they are allowed.
-    fs: { allow: [searchForWorkspaceRoot(process.cwd()), resources, shared] },
+    fs: { allow: [searchForWorkspaceRoot(process.cwd()), resources, shared, localization] },
   },
   build: {
     outDir: fileURLToPath(new URL('../../../../../resources/jusprin/agent', import.meta.url)),

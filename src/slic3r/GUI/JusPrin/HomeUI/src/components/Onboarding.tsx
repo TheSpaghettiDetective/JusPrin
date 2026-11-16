@@ -10,6 +10,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { plural, t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 import type { Appearance, OnboardingState } from '../bridge/protocol';
 import { afterPaint } from '@shared/afterPaint';
 import { SIGNUP_AFTER, SIGNUP_OFFER, SIGNUP_SCALE, signedInCredits } from '../../../AgentUI/src/credits';
@@ -25,10 +27,9 @@ import type { PrinterPick } from '../../../AgentUI/src/components/PrinterPicker'
 // What Skip installs: OrcaSlicer's Generic Klipper Printer, its 250 × 250 mm
 // bed and Klipper G-code (OrcaHomeBackend::assume_default_printer). Home's
 // "No printer yet" card and its drop zone say the same.
-export const STAND_IN_PRINTER = 'Until you add yours, files are sliced for a 250 mm Klipper printer and may not print on other printers.';
+export const STAND_IN_PRINTER = t`Until you add yours, files are sliced for a 250 mm Klipper printer and may not print on other printers.`;
 // The same before Skip, under the step's button and Skip for now.
-const SKIP_PRINTER = 'If you skip, files are sliced for a stand-in printer with a 250 mm bed, not for yours. Add your printer before you '
-  + 'print anything. You can do that later on the home screen.';
+const SKIP_PRINTER = t`If you skip, files are sliced for a stand-in printer with a 250 mm bed, not for yours. Add your printer before you print anything. You can do that later on the home screen.`;
 
 // How long the card says who signed in before the Printers step.
 const SIGNED_IN_PAUSE_MS = 1500;
@@ -49,11 +50,12 @@ interface Props {
 // account was just given, or what an account used before has left.
 function SignedIn({ onboarding }: { onboarding: OnboardingState }) {
   const account = onboarding.account;
-  if (!account) return <p className="onboarding-door-title" role="status">Signed in as {onboarding.accountEmail}</p>;
+  const email = onboarding.accountEmail;
+  if (!account) return <p className="onboarding-door-title" role="status"><Trans>Signed in as {email}</Trans></p>;
   return (
     <div role="status">
       <p className="onboarding-door-title">{signedInCredits(account)}</p>
-      <p className="onboarding-door-detail">Signed in as {onboarding.accountEmail}</p>
+      <p className="onboarding-door-detail"><Trans>Signed in as {email}</Trans></p>
     </div>
   );
 }
@@ -84,7 +86,9 @@ export function SignInDoor({ onboarding, onAction, offer }: { onboarding: Onboar
         <p className="onboarding-door-detail">
           {SIGNUP_AFTER}{' '}
           {/* The server's Credits and plans, in the app's sheet. */}
-          <button type="button" className="sign-in-link inline" onClick={() => onAction('onboarding_see_prices')}>See prices</button>
+          <button type="button" className="sign-in-link inline" onClick={() => onAction('onboarding_see_prices')}>
+            <Trans>See prices</Trans>
+          </button>
         </p>
       )}
     </SharedSignInDoor>
@@ -99,10 +103,10 @@ export function OwnAccountDoor({ onAction, disabled }: { onAction: Action; disab
     <button type="button" className="onboarding-door" disabled={disabled}
       onClick={() => onAction('onboarding_open_preferences', { door: 'key' })}>
       <span className="onboarding-door-text">
-        <span className="onboarding-door-name">Use your own AI account</span>
-        <span className="onboarding-door-what">Your API key, or Claude Code or Claude Desktop</span>
+        <span className="onboarding-door-name"><Trans>Use your own AI account</Trans></span>
+        <span className="onboarding-door-what"><Trans>Your API key, or Claude Code or Claude Desktop</Trans></span>
       </span>
-      <span className="onboarding-door-cost">Free</span>
+      <span className="onboarding-door-cost">{t({ message: 'Free', comment: 'What a door costs: nothing' })}</span>
     </button>
   );
 }
@@ -122,6 +126,12 @@ function Welcome({ onboarding, appearance, onAction }: Props) {
     const timer = setTimeout(() => onAction('onboarding_leave_welcome'), SIGNED_IN_PAUSE_MS);
     return () => clearTimeout(timer);
   }, [signedIn, onAction]);
+  const author = '#3DBenchy';
+  const license = 'CC BY 2.0 (creativecommons.org/licenses/by/2.0)';
+  const firstTitle = 'Dual extrusion 3D printed #3DBenchy v01';
+  const firstSource = 'flickr.com/photos/3dbenchy/19273965123';
+  const secondTitle = 'Dual-print multi-part color 3D print of #3DBenchy v13';
+  const secondSource = 'flickr.com/photos/3dbenchy/19239738473';
 
   return (
     <div className="onboarding">
@@ -130,40 +140,45 @@ function Welcome({ onboarding, appearance, onAction }: Props) {
         <figure className="onboarding-clip">
           {/* WebM first: Linux's web view plays it with the codecs every distro ships, but
               H.264 only once the user installs extra ones. */}
-          <video autoPlay loop muted playsInline aria-label="AI fixing a print that came out stringy">
+          <video autoPlay loop muted playsInline aria-label={t`AI fixing a print that came out stringy`}>
             <source src={clipWebm} type="video/webm" />
             <source src={clip} type="video/mp4" />
           </video>
           <details className="onboarding-credits">
-            <summary>Photo credits</summary>
+            <summary><Trans>Photo credits</Trans></summary>
+            {/* The titles, author, links and licence are the photos' own, kept as they are. */}
             <p>
-              “Dual extrusion 3D printed #3DBenchy v01” by #3DBenchy, flickr.com/photos/3dbenchy/19273965123, CC BY 2.0
-              (creativecommons.org/licenses/by/2.0). Cropped.
+              <Trans comment="A photo's attribution: the title, author, link and licence are the photo's own">
+                “{firstTitle}” by {author}, {firstSource}, {license}. Cropped.
+              </Trans>
             </p>
             <p>
-              “Dual-print multi-part color 3D print of #3DBenchy v13” by #3DBenchy, flickr.com/photos/3dbenchy/19239738473,
-              CC BY 2.0 (creativecommons.org/licenses/by/2.0). Cropped and resized.
+              <Trans comment="A photo's attribution: the title, author, link and licence are the photo's own">
+                “{secondTitle}” by {author}, {secondSource}, {license}. Cropped and resized.
+              </Trans>
             </p>
           </details>
         </figure>
         <div className="onboarding-pitch">
           <div className="onboarding-heading">
-            <h1>The AI slicer that helps you get better prints.</h1>
+            <h1><Trans>The AI slicer that helps you get better prints.</Trans></h1>
             <p className="onboarding-lead">
-              JusPrin’s AI specializes in 3D printing. It sets up your prints, explains your settings and fixes what goes
-              wrong.
+              <Trans>
+                JusPrin’s AI specializes in 3D printing. It sets up your prints, explains your settings and fixes what goes
+                wrong.
+              </Trans>
             </p>
           </div>
           {/* Once signed in there is nothing left to choose: only the credits
               card, with Continue, stays. */}
           <div className="onboarding-doors">
-            {!signedIn && <p className="onboarding-doors-label">Sign up to use AI, or skip it and just slice.</p>}
+            {!signedIn && <p className="onboarding-doors-label"><Trans>Sign up to use AI, or skip it and just slice.</Trans></p>}
             <div className="onboarding-offer">
               <SignInDoor onboarding={onboarding} onAction={onAction} offer />
               {signedIn && !waited.current && (
                 <button type="button" className="button-primary onboarding-door-button"
                   onClick={() => onAction('onboarding_leave_welcome')}>
-                  Continue
+                  <Trans>Continue</Trans>
                 </button>
               )}
             </div>
@@ -172,7 +187,7 @@ function Welcome({ onboarding, appearance, onAction }: Props) {
                 <OwnAccountDoor onAction={onAction} disabled={checking} />
                 <button type="button" className="onboarding-link flush" disabled={checking}
                   onClick={() => onAction('onboarding_leave_welcome')}>
-                  Just slice for now
+                  <Trans>Just slice for now</Trans>
                 </button>
               </>
             )}
@@ -187,20 +202,21 @@ function Welcome({ onboarding, appearance, onAction }: Props) {
 // who signed in, or whose key the agent uses. Nothing after "Just slice for
 // now".
 function WelcomeDone({ onboarding }: { onboarding: OnboardingState }) {
-  const { account, accountEmail } = onboarding;
-  if (accountEmail && account) {
+  const { account, accountEmail: email } = onboarding;
+  if (email && account) {
     return (
       <div className="onboarding-done">
         <CheckGlyph />
         <span className="onboarding-done-text">
           <span>{signedInCredits(account)}</span>
-          <span className="onboarding-done-detail">Signed in as {accountEmail}</span>
+          <span className="onboarding-done-detail"><Trans>Signed in as {email}</Trans></span>
         </span>
       </div>
     );
   }
-  const text = accountEmail ? `Signed in as ${accountEmail}`
-    : onboarding.agentKeyProvider ? `AI uses your ${onboarding.agentKeyProvider} key` : '';
+  const provider = onboarding.agentKeyProvider;
+  const text = email ? t`Signed in as ${email}`
+    : provider ? t({ message: `AI uses your ${provider} key`, comment: '{provider} is the AI company, such as Anthropic or OpenAI' }) : '';
   if (!text) return null;
   return <p className="onboarding-done"><CheckGlyph />{text}</p>;
 }
@@ -228,13 +244,16 @@ type Way = keyof typeof IMPORT_APPS | 'printer';
 function OtherWays({ ways, disabled, onAction }: { ways: Way[]; disabled?: boolean; onAction: Action }) {
   return (
     <div className="onboarding-ways">
-      <span className="onboarding-ways-label">Other ways:</span>
-      {ways.map((way) => (
-        <button key={way} type="button" className="onboarding-link" disabled={disabled}
-          onClick={() => onAction('onboarding_way', { way })}>
-          {way === 'printer' ? 'Choose my printer' : `Import from ${IMPORT_APPS[way]}…`}
-        </button>
-      ))}
+      <span className="onboarding-ways-label"><Trans>Other ways:</Trans></span>
+      {ways.map((way) => {
+        const app = way === 'printer' ? '' : IMPORT_APPS[way];
+        return (
+          <button key={way} type="button" className="onboarding-link" disabled={disabled}
+            onClick={() => onAction('onboarding_way', { way })}>
+            {way === 'printer' ? t`Choose my printer` : t`Import from ${app}…`}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -244,7 +263,15 @@ function WayProblem({ onboarding }: { onboarding: OnboardingState }) {
   return onboarding.wayProblem ? <p className="onboarding-error" role="alert">{onboarding.wayProblem}</p> : null;
 }
 
-const countOf = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
+// "Also brings 3 filaments and 2 print settings.", or either alone.
+function alsoBrings(filaments: number, settings: number): string {
+  if (filaments > 0 && settings > 0) {
+    return t`Also brings ${plural(filaments, { one: `${filaments} filament`, other: `${filaments} filaments` })} and ${plural(settings, { one: `${settings} print setting`, other: `${settings} print settings` })}.`;
+  }
+  if (filaments > 0) return plural(filaments, { one: `Also brings ${filaments} filament.`, other: `Also brings ${filaments} filaments.` });
+  if (settings > 0) return plural(settings, { one: `Also brings ${settings} print setting.`, other: `Also brings ${settings} print settings.` });
+  return '';
+}
 
 // The step's own button with Skip for now beside it, and what skipping does
 // under them: the same on all three printer screens.
@@ -253,7 +280,7 @@ function SkipStep({ children, note, disabled, onAction }: { children: ReactNode;
     <div className="onboarding-step-group">
       <div className="onboarding-actions">
         {children}
-        <button type="button" className="onboarding-link" disabled={disabled} onClick={() => onAction('onboarding_assume_default')}>Skip for now</button>
+        <button type="button" className="onboarding-link" disabled={disabled} onClick={() => onAction('onboarding_assume_default')}><Trans>Skip for now</Trans></button>
       </div>
       {note && <p className="onboarding-note">{SKIP_PRINTER}</p>}
     </div>
@@ -272,24 +299,24 @@ function PrinterImport({ onboarding, error, onAction }: Props) {
   useEffect(() => setChosen(found.printers), [listed]);
   const choose = (name: string, ticked: boolean) =>
     setChosen((now) => (ticked ? [...now, name] : now.filter((one) => one !== name)));
-  const brings = [found.filamentCount > 0 && countOf(found.filamentCount, 'filament', 'filaments'),
-    found.settingsCount > 0 && countOf(found.settingsCount, 'print setting', 'print settings')].filter(Boolean).join(' and ');
+  const brings = alsoBrings(found.filamentCount, found.settingsCount);
+  const source = found.source;
   return (
     <div className="onboarding-step">
       <WelcomeDone onboarding={onboarding} />
       <div className="onboarding-heading">
-        <h1>Bring your printers from {app}?</h1>
+        <h1><Trans>Bring your printers from {app}?</Trans></h1>
         <p className="onboarding-lead">
-          JusPrin copies these printers with their filaments and print settings. {app} keeps its own copy.
+          <Trans>JusPrin copies these printers with their filaments and print settings. {app} keeps its own copy.</Trans>
         </p>
       </div>
       <OrcaPrinterList app={app} printers={found.printers.map((name) => ({ name, already: false }))} chosen={chosen}
         onChoose={choose} disabled={busy} />
       <div className="onboarding-source">
-        {brings && <p>Also brings {brings}.</p>}
+        {brings && <p>{brings}</p>}
         <p className="onboarding-source-folder">
           <FolderGlyph />
-          <span className="onboarding-source-path">{app} keeps these in {found.source}</span>
+          <span className="onboarding-source-path"><Trans>{app} keeps these in {source}</Trans></span>
         </p>
       </div>
       {error && <p className="onboarding-error" role="alert">{error}</p>}
@@ -298,12 +325,14 @@ function PrinterImport({ onboarding, error, onAction }: Props) {
       <SkipStep note disabled={busy} onAction={onAction}>
         <button type="button" className="button-primary" disabled={busy || chosen.length === 0}
           onClick={() => run('onboarding_import', { app: id, printers: chosen })}>
-          {busy ? 'Importing…' : 'Import'}
+          {busy ? t`Importing…` : t`Import`}
         </button>
       </SkipStep>
       <WayProblem onboarding={onboarding} />
       <OtherWays ways={[id === 'jusprin1' ? 'orcaslicer' : 'jusprin1', 'printer']} disabled={busy} onAction={onAction} />
-      <button type="button" className="onboarding-link flush" disabled={busy} onClick={() => onAction('onboarding_back')}>Back</button>
+      <button type="button" className="onboarding-link flush" disabled={busy} onClick={() => onAction('onboarding_back')}>
+        {t({ message: 'Back', context: 'navigation' })}
+      </button>
     </div>
   );
 }
@@ -315,13 +344,13 @@ function ImportResult({ onboarding, error, onAction }: Props) {
   return (
     <div className="onboarding-step">
       <div className="onboarding-heading">
-        <h1>Imported from {app}</h1>
+        <h1><Trans>Imported from {app}</Trans></h1>
       </div>
       <OrcaImportResultLines app={app} lines={items} />
       {error && <p className="onboarding-error" role="alert">{error}</p>}
       <div className="onboarding-actions">
         <button type="button" className="button-primary" onClick={() => onAction('onboarding_import_continue')}>
-          Continue
+          <Trans>Continue</Trans>
         </button>
       </div>
     </div>
@@ -360,9 +389,9 @@ function ChoosePrinter({ onboarding, error, onAction }: Props) {
     <div className="onboarding-step">
       <WelcomeDone onboarding={onboarding} />
       <div className="onboarding-heading">
-        <h1>Which printer do you have?</h1>
+        <h1><Trans>Which printer do you have?</Trans></h1>
         <p className="onboarding-lead">
-          JusPrin prepares every print to fit your printer’s bed and nozzle. You can add more printers later.
+          <Trans>JusPrin prepares every print to fit your printer’s bed and nozzle. You can add more printers later.</Trans>
         </p>
       </div>
       {form ? (
@@ -370,17 +399,19 @@ function ChoosePrinter({ onboarding, error, onAction }: Props) {
           reading={Boolean(form.loading && catalogId && nozzle !== undefined)}
           onAskAgent={agentReady ? () => onAction('onboarding_ask_agent') : undefined} />
       ) : (
-        <p className="onboarding-lead" role="status">Reading the printer list…</p>
+        <p className="onboarding-lead" role="status"><Trans>Reading the printer list…</Trans></p>
       )}
       {options?.error && <p className="onboarding-error" role="alert">{options.error}</p>}
       {form?.error && <p className="onboarding-error" role="alert">{form.error}</p>}
       {error && <p className="onboarding-error" role="alert">{error}</p>}
       <SkipStep note={!catalogId} onAction={onAction}>
-        <button type="button" className="button-primary" disabled={!ready || finishing} onClick={finish}>Continue</button>
+        <button type="button" className="button-primary" disabled={!ready || finishing} onClick={finish}><Trans>Continue</Trans></button>
       </SkipStep>
       <WayProblem onboarding={onboarding} />
       <OtherWays ways={['jusprin1', 'orcaslicer']} onAction={onAction} />
-      <button type="button" className="onboarding-link flush" onClick={() => onAction('onboarding_back')}>Back</button>
+      <button type="button" className="onboarding-link flush" onClick={() => onAction('onboarding_back')}>
+        {t({ message: 'Back', context: 'navigation' })}
+      </button>
     </div>
   );
 }

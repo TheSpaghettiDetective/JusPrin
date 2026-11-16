@@ -17,6 +17,10 @@
 #include <stdexcept>
 #include <utility>
 
+#include "libslic3r/format.hpp"
+// Last: it defines the L marker.
+#include "slic3r/GUI/JusPrin/Support/Translate.hpp"
+
 namespace Slic3r::GUI::JusPrin::Agent {
 
 namespace {
@@ -441,6 +445,21 @@ std::string calibration_title(const Workspace::CalibrationRequest& request)
 // a setting (board 5b's {step}), by the setting a result writes: a block of
 // the temperature tower, a flow tile, or a pressure-advance height, line or
 // corner by the active plate's method. None for a setting no test measures.
+// The proposal's second button, for each part calibration_pick names.
+const char* pick_another(const std::string& pick)
+{
+    // TRN A button that asks the AI to choose another block of a calibration test.
+    if (pick == "block") return L("Pick another block");
+    // TRN A button that asks the AI to choose another tile of a calibration test.
+    if (pick == "tile") return L("Pick another tile");
+    // TRN A button that asks the AI to choose another line of a calibration test.
+    if (pick == "line") return L("Pick another line");
+    // TRN A button that asks the AI to choose another corner of a calibration test.
+    if (pick == "corner") return L("Pick another corner");
+    // TRN A button that asks the AI to choose another height of a calibration tower.
+    return L("Pick another height");
+}
+
 std::string calibration_pick(const std::string& key, const Workspace::WorkspaceSnapshot& snapshot)
 {
     if (key == "nozzle_temperature")
@@ -468,7 +487,14 @@ json settings_proposal(const Workspace::SettingsPreview& preview, const Workspac
                               target.scope == Workspace::SettingsScope::Printer  ? "printer" :
                                                                                    "process";
     const bool in_place = persist_as == preview.preset;
-    json rows = json::array({json{{"icon", "save"}, {"text", (in_place ? "Preset · " : "New preset · ") + persist_as}}});
+    // The card is drawn and never read by the model, so its words are the
+    // person's language; the receipt below stays English, for the note the
+    // model reads once the preset is saved.
+    // TRN %1% is a preset's name.
+    const char* saved_as = in_place ? L("Preset · %1%") :
+                                      // TRN %1% is a preset's name.
+                                      L("New preset · %1%");
+    json rows = json::array({json{{"icon", "save"}, {"text", Slic3r::format(translated(saved_as), persist_as)}}});
     std::string value, saved_settings, pick;
     json        restore = json::object();
     for (const Workspace::SettingChange& change : preview.changes) {
@@ -481,8 +507,9 @@ json settings_proposal(const Workspace::SettingsPreview& preview, const Workspac
         if (definition.label.empty())
             definition.label = change.key;
         const std::string after = Workspace::display_value(definition, change.after);
+        // The label is OrcaSlicer's, which its own catalog translates.
         rows.push_back({{"icon", change.key.find("temperature") != std::string::npos ? "thermometer" : "sliders"},
-                        {"text", definition.label + " " +
+                        {"text", translated(definition.label.c_str()) + " " +
                                      Workspace::display_change(definition, change.saved.value_or(change.before), change.after)}});
         std::string named = definition.label;
         named.front() = char(std::tolower(static_cast<unsigned char>(named.front())));
@@ -496,17 +523,27 @@ json settings_proposal(const Workspace::SettingsPreview& preview, const Workspac
     if (value.empty())
         return nullptr;
     if (!in_place)
-        rows.push_back({{"icon", "info"}, {"text", base + " itself is unchanged"}});
+        // TRN %1% is the preset the new one is made from.
+        rows.push_back({{"icon", "info"}, {"text", Slic3r::format(translated(L("%1% itself is unchanged")), base)}});
     std::string kind = scope;
     kind.front() = char(std::toupper(static_cast<unsigned char>(kind.front())));
-    json proposal{{"title", in_place ? "Save " + value + " to " + persist_as : "Save " + value + " as a new " + scope + " preset"},
+    // TRN %1% is a setting's new value, such as 215 °C.
+    const char* as_new = target.scope == Workspace::SettingsScope::Filament ? L("Save %1% as a new filament preset") :
+                         // TRN %1% is a setting's new value, such as 215 °C.
+                         target.scope == Workspace::SettingsScope::Printer  ? L("Save %1% as a new printer preset") :
+                                                                              // TRN %1% is a setting's new value, such as 215 °C.
+                                                                              L("Save %1% as a new process preset");
+    // TRN %1% is a setting's new value, such as 215 °C, %2% a preset's name.
+    json proposal{{"title", in_place ? Slic3r::format(translated(L("Save %1% to %2%")), value, persist_as)
+                                     : Slic3r::format(translated(as_new), value)},
                   {"rows", std::move(rows)},
-                  {"save", "Save preset"},
+                  {"save", translated(L("Save preset"))},
                   {"value", value},
                   // Board 6's receipt, once it is saved.
                   {"receipt", kind + " preset · " + saved_settings}};
+    // The button's words are also the message it sends, as the person's own.
     if (!pick.empty())
-        proposal["other"] = "Pick another " + pick;
+        proposal["other"] = translated(pick_another(pick));
     // Board 6's Undo, for a filament: a copy is deleted and the preset it was
     // made from used again; a preset saved in place gets its values back.
     if (target.scope == Workspace::SettingsScope::Filament)
@@ -998,12 +1035,12 @@ std::string ToolExecutionCoordinator::approve_proposal(const std::string& previe
 {
     const ToolActivity* preview = find(preview_action_id);
     if (preview == nullptr || preview->proposal_json.empty() || preview->state != ToolState::Succeeded)
-        return "This proposal is no longer open. Ask AI again.";
+        return translated(L("This proposal is no longer open. Ask AI again."));
     const bool saving = std::any_of(m_activities.begin(), m_activities.end(), [&preview_action_id](const ToolActivity& item) {
         return item.approves == preview_action_id && item.state != ToolState::Failed && item.state != ToolState::Cancelled;
     });
     if (saving)
-        return "This proposal is already saved.";
+        return translated(L("This proposal is already saved."));
     // The preview's own stamp: a settings change since it makes the save
     // stale instead of saving something the card did not show.
     json arguments = json::parse(preview->arguments_json);

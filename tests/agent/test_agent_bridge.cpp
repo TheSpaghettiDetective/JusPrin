@@ -1626,6 +1626,9 @@ TEST_CASE("conversations are created and switched over the bridge", "[agent][con
     const json* initial = harness.last_of_type("state");
     REQUIRE(initial != nullptr);
     REQUIRE((*initial)["payload"]["conversations"].size() == 1);
+    // A chat nobody has named yet goes to the page untitled, so the page
+    // names it in the person's language.
+    CHECK((*initial)["payload"]["conversations"][0]["title"] == "");
     const std::string first = (*initial)["payload"]["activeConversationId"].get<std::string>();
 
     harness.send_user_message("hello in the first conversation", "c-c1");
@@ -1635,6 +1638,8 @@ TEST_CASE("conversations are created and switched over the bridge", "[agent][con
     const json* created = harness.last_of_type("state");
     REQUIRE((*created)["payload"]["conversations"].size() == 2);
     const std::string second = (*created)["payload"]["activeConversationId"].get<std::string>();
+    for (const json& chat : (*created)["payload"]["conversations"])
+        CHECK(chat["title"] == (chat["id"] == second ? "Second" : ""));
     CHECK(second != first);
     CHECK((*created)["payload"]["conversation"].empty());
 

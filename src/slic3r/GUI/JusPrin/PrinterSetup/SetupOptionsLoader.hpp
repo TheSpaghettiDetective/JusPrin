@@ -18,7 +18,8 @@ namespace Slic3r::GUI::JusPrin::PrinterSetup {
 // changed, and it is safe off the GUI thread.
 //
 // A profiles folder that cannot be read is reported in `error`; a machine
-// profile the folder does not hold is a caller's bug and throws.
+// profile the folder does not hold is a caller's bug and throws. `error` is
+// in the app's language (Support/Translate.hpp).
 SetupOptions load_setup_options(const std::string& profiles_directory, const std::string& vendor_id,
                                 const std::string& printer_preset, const std::vector<Preset>& own_presets = {});
 

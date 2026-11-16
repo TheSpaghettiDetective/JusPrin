@@ -4,6 +4,8 @@
 // printer's receipt. Everything else the person does in this panel is a
 // message.
 
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 import { memo, useState } from 'react';
 import type {
   NetworkPrinterInfo,
@@ -11,7 +13,7 @@ import type {
   PrinterCardInfo,
   PrinterCredentialRequest,
 } from '../bridge/protocol';
-import { numberText } from '../printerWords';
+import { decimalText } from '../i18n';
 
 function PrinterGlyph({ className }: { className: string }) {
   return <span className={`${className} jp-icon jp-icon-printer`} aria-hidden="true" />;
@@ -33,8 +35,10 @@ export const PrinterBlockView = memo(function PrinterBlockView({
     return (
       <div className="printer-tip">
         <span>
-          <b>Tip:</b> a photo is the fastest way. Use <b>+</b> below, or drop a picture of the printer, its nameplate or the box
-          into this panel.
+          <Trans>
+            <b>Tip:</b> a photo is the fastest way. Use <b>+</b> below, or drop a picture of the printer, its nameplate or the box
+            into this panel.
+          </Trans>
         </span>
       </div>
     );
@@ -44,22 +48,26 @@ export const PrinterBlockView = memo(function PrinterBlockView({
   // printer away again, and the receipt stays to say so.
   if (block.kind === 'added') {
     const printer = block.printer!;
+    const name = printer.name;
+    const size = decimalText(printer.nozzle, 1, 2);
     return (
       <div className={block.removed ? 'printer-added printer-added-removed' : 'printer-added'} role="status">
         <span className="printer-notice-heading">
           <span className={`jp-icon jp-icon-${block.removed ? 'rotate-ccw' : 'check'}`} aria-hidden="true" />
-          <span className="printer-added-caption">{block.removed ? 'Removed:' : 'Added:'} <span className="printer-added-name">{printer.name}</span></span>
+          <span className="printer-added-caption">{block.removed
+            ? <Trans>Removed: <span className="printer-added-name">{name}</span></Trans>
+            : <Trans>Added: <span className="printer-added-name">{name}</span></Trans>}</span>
         </span>
         {block.removed
-          ? <span className="printer-notice-body">Removed from your printers.</span>
+          ? <span className="printer-notice-body"><Trans>Removed from your printers.</Trans></span>
           : (printer.model || printer.nozzle > 0 || onUndoAdd) && (
             <span className="printer-added-detail">
               {(printer.model || printer.nozzle > 0) && <small>
-                {[printer.model, printer.nozzle > 0 && `${numberText(printer.nozzle)} mm nozzle`].filter(Boolean).join(' · ')}
+                {[printer.model, printer.nozzle > 0 && t`${size} mm nozzle`].filter(Boolean).join(' · ')}
               </small>}
               {onUndoAdd && (
                 <button type="button" className="panel-link-button printer-added-undo" onClick={() => onUndoAdd(block.id)}>
-                  Undo
+                  <Trans>Undo</Trans>
                 </button>
               )}
             </span>
@@ -71,31 +79,33 @@ export const PrinterBlockView = memo(function PrinterBlockView({
   // The app's own question once connecting has failed twice. What it would
   // send is there to read, and nothing goes unless the person says so. There
   // is no server yet, so a yes keeps the report on this computer and says so.
-  if (block.kind === 'report')
+  if (block.kind === 'report') {
+    const path = block.path ?? '';
     return (
       <div className="printer-plugin" role="status">
         <span className="printer-notice-heading">
           <span className="jp-icon jp-icon-circle-alert" aria-hidden="true" />
-          <span className="printer-plugin-caption">Send a report to the JusPrin developers?</span>
+          <span className="printer-plugin-caption"><Trans>Send a report to the JusPrin developers?</Trans></span>
         </span>
         <span className="printer-notice-body">
-          {!block.answer && 'Connecting this printer has failed twice, and a report helps us fix why. It holds what the app saw and this chat, with anything that looks like an access code or API key hidden. Nothing is sent unless you choose to.'}
-          {block.answer === 'declined' && 'No report was sent.'}
-          {block.answer === 'failed' && 'The report could not be saved.'}
-          {block.answer === 'kept' && `Sending isn’t built yet, so nothing has left this computer. The report is saved at ${block.path}.`}
+          {!block.answer && t`Connecting this printer has failed twice, and a report helps us fix why. It holds what the app saw and this chat, with anything that looks like an access code or API key hidden. Nothing is sent unless you choose to.`}
+          {block.answer === 'declined' && t`No report was sent.`}
+          {block.answer === 'failed' && t`The report could not be saved.`}
+          {block.answer === 'kept' && t`Sending isn’t built yet, so nothing has left this computer. The report is saved at ${path}.`}
         </span>
         <details className="printer-report-details">
-          <summary>What the report holds</summary>
+          <summary><Trans>What the report holds</Trans></summary>
           <pre className="printer-report-text">{block.report}</pre>
         </details>
         {!block.answer && onAnswerReport && (
           <span className="printer-report-actions">
-            <button type="button" className="primary printer-plugin-install" onClick={() => onAnswerReport(block.id, true)}>Send report</button>
-            <button type="button" className="panel-link-button" onClick={() => onAnswerReport(block.id, false)}>Not now</button>
+            <button type="button" className="primary printer-plugin-install" onClick={() => onAnswerReport(block.id, true)}>{t`Send report`}</button>
+            <button type="button" className="panel-link-button" onClick={() => onAnswerReport(block.id, false)}>{t`Not now`}</button>
           </span>
         )}
       </div>
     );
+  }
 
   // The app's own notice that nothing can reach a Bambu Lab printer without
   // Bambu's network plug-in: the same words every time, whatever the model
@@ -106,14 +116,14 @@ export const PrinterBlockView = memo(function PrinterBlockView({
       <div className={block.installed ? 'printer-plugin printer-plugin-installed' : 'printer-plugin'} role="status">
         <span className="printer-notice-heading">
           <span className={`jp-icon jp-icon-${block.installed ? 'check' : 'settings'}`} aria-hidden="true" />
-          <span className="printer-plugin-caption">{block.installed ? 'Bambu plug-in installed' : 'Bambu plug-in needed'}</span>
+          <span className="printer-plugin-caption">{block.installed ? t`Bambu plug-in installed` : t`Bambu plug-in needed`}</span>
         </span>
         {!block.installed && (
-          <span className="printer-notice-body">You can prepare prints with this printer before installing the Bambu plug-in.</span>
+          <span className="printer-notice-body"><Trans>You can prepare prints with this printer before installing the Bambu plug-in.</Trans></span>
         )}
         {!block.installed && onInstallPlugin && (
           <button type="button" className="primary printer-plugin-install" onClick={() => onInstallPlugin()}>
-            Install plug-in
+            <Trans>Install plug-in</Trans>
           </button>
         )}
       </div>
@@ -122,14 +132,14 @@ export const PrinterBlockView = memo(function PrinterBlockView({
   if (block.kind === 'network')
     return (
       <div className="printer-found">
-        <p className="printer-found-caption">Found on your network</p>
+        <p className="printer-found-caption"><Trans>Found on your network</Trans></p>
         <div className="printer-found-rows">
           {((block.printers ?? []) as NetworkPrinterInfo[]).map((printer) => (
             <div className={printer.online ? 'printer-row' : 'printer-row printer-row-offline'} key={printer.serial}>
               <PrinterGlyph className="printer-row-icon" />
               <span className="printer-row-name">
                 {printer.name}
-                <small>{[printer.online ? 'Online' : 'Offline', ...(printer.online ? [printer.model, printer.serial] : [])].filter(Boolean).join(' · ')}</small>
+                <small>{[printer.online ? t`Online` : t`Offline`, ...(printer.online ? [printer.model, printer.serial] : [])].filter(Boolean).join(' · ')}</small>
               </span>
             </div>
           ))}
@@ -193,7 +203,7 @@ export function PrinterCredentialForm({
         <span className="tool-title">{title}</span>
       </div>
       <label className="printer-credential-field">
-        <span>{bambu ? 'Access code' : 'API key'}</span>
+        <span>{bambu ? t`Access code` : t`API key`}</span>
         <input
           type="password"
           className="printer-credential-input"
@@ -202,14 +212,14 @@ export function PrinterCredentialForm({
           onChange={(event) => setCredential(event.target.value)}
         />
       </label>
-      <p className="printer-credential-note">Stays on this computer.</p>
+      <p className="printer-credential-note"><Trans>Stays on this computer.</Trans></p>
       <span className="printer-credential-actions">
         {/* Enabled while empty: a printer that already has its code needs none. */}
-        <button type="submit" className="primary">Connect</button>
+        <button type="submit" className="primary"><Trans>Connect</Trans></button>
         <button type="button" className="link" onClick={() => onClose(request.actionId, true)}>
-          {bambu ? 'Help me find the code' : 'Help me find the key'}
+          {bambu ? t`Help me find the code` : t`Help me find the key`}
         </button>
-        <button type="button" className="link" onClick={() => onClose(request.actionId, false)}>Cancel</button>
+        <button type="button" className="link" onClick={() => onClose(request.actionId, false)}>{t`Cancel`}</button>
       </span>
     </form>
   );

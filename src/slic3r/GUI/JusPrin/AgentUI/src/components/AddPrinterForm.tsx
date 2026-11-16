@@ -14,6 +14,8 @@
 // would offer. Nothing is saved until the last step; closing it changes
 // nothing.
 
+import { plural, t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { PrinterFormFilament, PrinterFormInfo, PrinterFormOptions } from '../bridge/protocol';
@@ -36,9 +38,34 @@ type Step = 'printer' | 'plate' | 'filament';
 // Search results drawn at once; the rest wait for a narrower search.
 const RESULT_LIMIT = 50;
 
+// The caution on a filament made for other printers, as one sentence per
+// case so each language can inflect it: `printers` are the models its
+// profile names (none it can say, one, two, or more), `modelName` the
+// printer being added.
+function madeForSentence(printers: string[], yours: boolean, modelName: string): string {
+  const [first, second] = printers;
+  const more = printers.length - 2;
+  if (yours) {
+    if (printers.length === 0) return t`Your preset, made for other printers. Picking it saves a copy for the ${modelName}.`;
+    if (printers.length === 1) return t`Your preset, made for the ${first}. Picking it saves a copy for the ${modelName}.`;
+    if (printers.length === 2) return t`Your preset, made for the ${first} and ${second}. Picking it saves a copy for the ${modelName}.`;
+    return plural(more, {
+      one: `Your preset, made for the ${first}, ${second} and # other printer. Picking it saves a copy for the ${modelName}.`,
+      other: `Your preset, made for the ${first}, ${second} and # other printers. Picking it saves a copy for the ${modelName}.`,
+    });
+  }
+  if (printers.length === 0) return t`Made for other printers. Picking it saves a copy for the ${modelName}.`;
+  if (printers.length === 1) return t`Made for the ${first}. Picking it saves a copy for the ${modelName}.`;
+  if (printers.length === 2) return t`Made for the ${first} and ${second}. Picking it saves a copy for the ${modelName}.`;
+  return plural(more, {
+    one: `Made for the ${first}, ${second} and # other printer. Picking it saves a copy for the ${modelName}.`,
+    other: `Made for the ${first}, ${second} and # other printers. Picking it saves a copy for the ${modelName}.`,
+  });
+}
+
 function StepMarker({ step, steps }: { step: number; steps: number }) {
   return <div className="printer-form-step">
-    <span>Step {step} of {steps}</span>
+    <span><Trans>Step {step} of {steps}</Trans></span>
     <span className="printer-form-dots" aria-hidden="true">
       {Array.from({ length: steps }, (_, index) =>
         <span key={index} className={index < step ? 'printer-form-dot done' : 'printer-form-dot'} />)}
@@ -65,6 +92,8 @@ export function AddPrinterForm({ form, onAsk, onFinish, onClose }: {
   useEffect(() => { setFinishing(false); }, [form.error]);
 
   const model = form.catalog.find((entry) => entry.id === catalogId);
+  const modelName = model?.model ?? '';
+  const back = t({ message: 'Back', context: 'navigation' });
 
   useEffect(() => { if (catalogId && nozzle !== undefined) onAsk(catalogId, nozzle); }, [catalogId, nozzle]);
 
@@ -93,40 +122,40 @@ export function AddPrinterForm({ form, onAsk, onFinish, onClose }: {
   };
 
   const loadingNote = !options || form.loading
-    ? <p className="printer-form-note">Reading this printer’s profiles…</p>
+    ? <p className="printer-form-note"><Trans>Reading this printer’s profiles…</Trans></p>
     : options.error ? <p className="printer-form-error" role="alert">{options.error}</p> : null;
   const errorNote = form.error ? <p className="printer-form-error" role="alert">{form.error}</p> : null;
 
   if (step === 'printer') {
-    return <Dialog key="printer" title="Which printer?" onClose={onClose} className="printer-form"
+    return <Dialog key="printer" title={t`Which printer?`} onClose={onClose} className="printer-form"
       eyebrow={<StepMarker step={1} steps={steps} />}>
       <PrinterPicker form={form} pick={pick} onPick={setPick} />
       {errorNote}
       <div className="chat-dialog-buttons">
-        <button type="button" onClick={onClose}>Cancel</button>
-        <button type="button" className="primary" disabled={!model || nozzle === undefined} onClick={() => setStep('plate')}>Next</button>
+        <button type="button" onClick={onClose}>{t`Cancel`}</button>
+        <button type="button" className="primary" disabled={!model || nozzle === undefined} onClick={() => setStep('plate')}>{t`Next`}</button>
       </div>
     </Dialog>;
   }
 
   if (step === 'plate') {
-    return <Dialog key="plate" title="Which plate is on it?" onClose={onClose} className="printer-form"
+    // The printer's build plate; All settings' "Plate" is a project plate.
+    return <Dialog key="plate" title={t`Which plate is on it?`} onClose={onClose} className="printer-form"
       eyebrow={<StepMarker step={2} steps={steps} />}>
-      {loadingNote ?? <div className="printer-form-choices" role="radiogroup" aria-label="Plate">
+      {loadingNote ?? <div className="printer-form-choices" role="radiogroup" aria-label={t({ message: 'Plate', context: 'build plate' })}>
         {options!.plates.map((entry) => <button type="button" key={entry.type} role="radio" aria-checked={entry.type === plate}
           className="printer-form-choice" onClick={() => { setPlate(entry.type); setStep('filament'); }}>
           <span className="printer-form-choice-name">{entry.label}</span>
-          {entry.type === options!.defaultPlate && <span className="printer-form-choice-detail">Default for the {model?.model}</span>}
+          {entry.type === options!.defaultPlate && <span className="printer-form-choice-detail"><Trans>Default for the {modelName}</Trans></span>}
         </button>)}
       </div>}
       <div className="chat-dialog-buttons">
-        <button type="button" onClick={() => setStep('printer')}>Back</button>
-        <button type="button" onClick={onClose}>Cancel</button>
+        <button type="button" onClick={() => setStep('printer')}>{back}</button>
+        <button type="button" onClick={onClose}>{t`Cancel`}</button>
       </div>
     </Dialog>;
   }
 
-  const modelName = model?.model ?? '';
   const filaments = options?.filaments ?? [];
   const others = options?.others ?? [];
   const own = options?.own ?? [];
@@ -142,15 +171,15 @@ export function AddPrinterForm({ form, onAsk, onFinish, onClose }: {
   const defaultLabel = filaments.find((entry) => entry.name === options?.defaultFilament)?.label;
 
   const detail = (entry: PrinterFormFilament, isDefault = false) => {
-    if (entry.madeFor)
+    const { madeFor, base } = entry;
+    if (madeFor)
       return <span className="printer-form-option-detail cautious">
         <span className="jp-icon jp-icon-triangle-alert" aria-hidden="true" />
-        <span>{own.includes(entry) ? 'Your preset, made' : 'Made'} for {entry.madeFor}. Picking it saves a
-          copy for the {modelName}.</span>
+        <span>{madeForSentence(madeFor, own.includes(entry), modelName)}</span>
       </span>;
     if (own.includes(entry))
-      return <span className="printer-form-option-detail">{entry.base ? `Your preset, based on ${entry.base}` : 'Your preset'}</span>;
-    if (isDefault) return <span className="printer-form-option-detail">The {modelName} profile’s default</span>;
+      return <span className="printer-form-option-detail">{base ? t`Your preset, based on ${base}` : t`Your preset`}</span>;
+    if (isDefault) return <span className="printer-form-option-detail"><Trans>The {modelName} profile’s default</Trans></span>;
     return null;
   };
   const row = (entry: PrinterFormFilament, key: string, isDefault = false) =>
@@ -166,13 +195,22 @@ export function AddPrinterForm({ form, onAsk, onFinish, onClose }: {
   const createRow = <button type="button" className="printer-form-option printer-form-create" disabled={finishing}
     onClick={() => setCreating(true)}>
     <span className="jp-icon jp-icon-plus" aria-hidden="true" />
-    <span className="printer-form-option-name">Create a filament preset…</span>
+    <span className="printer-form-option-name"><Trans>Create a filament preset…</Trans></span>
   </button>;
   // Its second line says what ticking it would add for what is typed.
-  const toggleDetail = showOthers ? `Picking one saves a copy for the ${modelName}.`
-    : !wanted ? `${others.length} more. Picking one saves a copy for the ${modelName}.`
-      : otherShown.length > 0 ? `${otherShown.length} of them match your search. Picking one saves a copy for the ${modelName}.`
-        : `None of the ${others.length} match your search either.`;
+  const toggleDetail = showOthers ? t`Picking one saves a copy for the ${modelName}.`
+    : !wanted ? plural(others.length, {
+      one: `# more. Picking one saves a copy for the ${modelName}.`,
+      other: `# more. Picking one saves a copy for the ${modelName}.`,
+    })
+      : otherShown.length > 0 ? plural(otherShown.length, {
+        one: `# of them match your search. Picking one saves a copy for the ${modelName}.`,
+        other: `# of them match your search. Picking one saves a copy for the ${modelName}.`,
+      })
+        : plural(others.length, {
+          one: 'None of the # match your search either.',
+          other: 'None of the # match your search either.',
+        });
   const othersToggle =
     <button type="button" role="checkbox" aria-checked={showOthers} className="printer-form-check"
       onClick={() => setShowOthers(!showOthers)}>
@@ -180,26 +218,30 @@ export function AddPrinterForm({ form, onAsk, onFinish, onClose }: {
         {showOthers && <span className="jp-icon jp-icon-check" />}
       </span>
       <span className="printer-form-check-copy">
-        Show filaments made for other printers
+        <Trans>Show filaments made for other printers</Trans>
         <span className="printer-form-check-detail">{toggleDetail}</span>
       </span>
     </button>;
 
   if (creating) {
-    return <Dialog key="create" title="Create a filament preset" onClose={onClose} className="printer-form"
+    const printer = model ? `${model.brand} ${model.model}` : '';
+    const size = nozzle === undefined ? '' : String(nozzle);
+    return <Dialog key="create" title={t`Create a filament preset`} onClose={onClose} className="printer-form"
       eyebrow={<StepMarker step={steps} steps={steps} />}>
-      <p>JusPrin makes filament presets for printers that are already set up, so the {modelName} is added first. Then the
-        Create filament window opens. Tick the {modelName} there, and JusPrin puts your new preset in slot 1.</p>
+      <p><Trans>JusPrin makes filament presets for printers that are already set up, so the {modelName} is added first. Then the
+        Create filament window opens. Tick the {modelName} there, and JusPrin puts your new preset in slot 1.</Trans></p>
       <dl className="printer-form-facts">
-        <div><dt>Printer</dt><dd>{model ? `${model.brand} ${model.model}` : ''}, {nozzle} mm nozzle</dd></div>
-        <div><dt>Slot 1</dt><dd>{defaultLabel ?? 'the printer profile’s default'}, until your preset is saved</dd></div>
-        <div><dt>Then</dt><dd>The Create filament window opens</dd></div>
+        <div><dt><Trans>Printer</Trans></dt><dd>{t`${printer}, ${size} mm nozzle`}</dd></div>
+        <div><dt><Trans>Slot 1</Trans></dt><dd>{defaultLabel !== undefined
+          ? t`${defaultLabel}, until your preset is saved`
+          : t`the printer profile’s default, until your preset is saved`}</dd></div>
+        <div><dt><Trans>Then</Trans></dt><dd><Trans>The Create filament window opens</Trans></dd></div>
       </dl>
       {errorNote}
       <div className="chat-dialog-buttons">
-        <button type="button" onClick={() => setCreating(false)}>Back</button>
+        <button type="button" onClick={() => setCreating(false)}>{back}</button>
         <button type="button" className="primary" disabled={finishing} onClick={() => finish(undefined, true)}>
-          Add the {modelName} and continue</button>
+          <Trans>Add the {modelName} and continue</Trans></button>
       </div>
     </Dialog>;
   }
@@ -207,65 +249,71 @@ export function AddPrinterForm({ form, onAsk, onFinish, onClose }: {
   let body: ReactNode;
   if (!wanted) {
     body = <>
-      {ownShown.length > 0 && <>{section('Your filaments')}{ownShown.map((entry) => row(entry, `own:${entry.name}`))}</>}
-      {section(`Suggested for the ${modelName}`)}
+      {ownShown.length > 0 && <>{section(t`Your filaments`)}{ownShown.map((entry) => row(entry, `own:${entry.name}`))}</>}
+      {section(t`Suggested for the ${modelName}`)}
       {suggested.map((entry, index) => row(entry, `suggested:${entry.name}`, index === 0 && entry.name === options?.defaultFilament))}
-      {section(`Every filament for the ${modelName}`, filaments.length)}
+      {section(t`Every filament for the ${modelName}`, filaments.length)}
       {filaments.map((entry) => row(entry, `fits:${entry.name}`))}
-      {showOthers && <>{section('Made for other printers', others.length)}{others.map((entry) => row(entry, `other:${entry.name}`))}</>}
+      {showOthers && <>{section(t`Made for other printers`, others.length)}{others.map((entry) => row(entry, `other:${entry.name}`))}</>}
     </>;
   } else {
     const found = ownShown.length + fitting.length;
+    const search = query.trim();
     body = <>
-      {ownShown.length > 0 && <>{section('Your filaments')}{ownShown.map((entry) => row(entry, `own:${entry.name}`))}</>}
-      {fitting.length > 0 && <>{section(`For the ${modelName}`, fitting.length)}
+      {ownShown.length > 0 && <>{section(t`Your filaments`)}{ownShown.map((entry) => row(entry, `own:${entry.name}`))}</>}
+      {fitting.length > 0 && <>{section(t`For the ${modelName}`, fitting.length)}
         {fitting.slice(0, RESULT_LIMIT).map((entry) => row(entry, `fits:${entry.name}`))}</>}
       {fitting.length > RESULT_LIMIT && <p className="printer-form-note">
-        {fitting.length - RESULT_LIMIT} more match. Type more to narrow the list.</p>}
-      {showOthers && otherShown.length > 0 && <>{section('Made for other printers', otherShown.length)}
+        {plural(fitting.length - RESULT_LIMIT, {
+          one: '# more match. Type more to narrow the list.',
+          other: '# more match. Type more to narrow the list.',
+        })}</p>}
+      {showOthers && otherShown.length > 0 && <>{section(t`Made for other printers`, otherShown.length)}
         {otherShown.slice(0, RESULT_LIMIT).map((entry) => row(entry, `other:${entry.name}`))}</>}
       {found === 0 && !(showOthers && otherShown.length > 0) && (otherShown.length > 0
         ? <div className="printer-form-message">
-            <p className="printer-form-lead"><b>No filament for the {modelName} matches “{query.trim()}”.</b>{' '}
-              {otherShown.length === 1 ? 'One filament made for other printers does.' :
-                `${otherShown.length} filaments made for other printers do.`}</p>
+            <p className="printer-form-lead"><b><Trans>No filament for the {modelName} matches “{search}”.</Trans></b>{' '}
+              {plural(otherShown.length, {
+                1: 'One filament made for other printers does.',
+                other: '# filaments made for other printers do.',
+              })}</p>
             <button type="button" className="panel-link-button" onClick={() => setShowOthers(true)}>
-              Show {otherShown.length === 1 ? 'it' : 'them'}</button>
+              {plural(otherShown.length, { 1: 'Show it', other: 'Show them' })}</button>
           </div>
         : <div className="printer-form-message">
-            <p className="printer-form-lead"><b>No filament matches “{query.trim()}”,</b> for the {modelName} or any other printer
-              JusPrin has profiles for.</p>
+            <p className="printer-form-lead"><Trans><b>No filament matches “{search}”,</b> for the {modelName} or any other printer
+              JusPrin has profiles for.</Trans></p>
             {defaultLabel && <button type="button" className="panel-link-button" disabled={finishing} onClick={() => finish()}>
-              Start with {defaultLabel} instead</button>}
+              <Trans>Start with {defaultLabel} instead</Trans></button>}
           </div>)}
     </>;
   }
 
-  return <Dialog key="filament" title="Which filament do you want to start with?" onClose={onClose} className="printer-form"
+  return <Dialog key="filament" title={t`Which filament do you want to start with?`} onClose={onClose} className="printer-form"
     eyebrow={<StepMarker step={steps} steps={steps} />}>
     {loadingNote ?? <>
       <label className="field-search">
         <span className="jp-icon jp-icon-search" aria-hidden="true" />
-        <input type="search" placeholder="Search brand or material" aria-label="Search brand or material" value={query}
+        <input type="search" placeholder={t`Search brand or material`} aria-label={t`Search brand or material`} value={query}
           onChange={(event) => setQuery(event.target.value)} />
-        {query && <button type="button" className="printer-form-clear" aria-label="Clear search" onClick={() => setQuery('')}>
+        {query && <button type="button" className="printer-form-clear" aria-label={t`Clear search`} onClick={() => setQuery('')}>
           <span className="jp-icon jp-icon-close" aria-hidden="true" /></button>}
       </label>
-      <div className="printer-form-filaments" role="group" aria-label="Filaments">{body}</div>
+      <div className="printer-form-filaments" role="group" aria-label={t`Filaments`}>{body}</div>
       {/* Outside the list, which is long: the ways out stay in view. */}
       <div className="printer-form-end">
-        <p className="printer-form-lead"><b>Not in the list?</b></p>
+        <p className="printer-form-lead"><b><Trans>Not in the list?</Trans></b></p>
         {others.length > 0 && othersToggle}
         {createRow}
       </div>
       <button type="button" className="panel-link-button printer-form-skip" disabled={finishing} onClick={() => finish()}>
-        {defaultLabel ? `Skip — start with ${defaultLabel}` : 'Skip — choose a filament later'}
+        {defaultLabel ? t`Skip — start with ${defaultLabel}` : t`Skip — choose a filament later`}
       </button>
     </>}
     {errorNote}
     <div className="chat-dialog-buttons">
-      <button type="button" onClick={() => setStep(offersPlates ? 'plate' : 'printer')}>Back</button>
-      <button type="button" onClick={onClose}>Cancel</button>
+      <button type="button" onClick={() => setStep(offersPlates ? 'plate' : 'printer')}>{back}</button>
+      <button type="button" onClick={onClose}>{t`Cancel`}</button>
     </div>
   </Dialog>;
 }

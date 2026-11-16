@@ -1351,8 +1351,10 @@ void ShellController::start_calibration(const std::string& printer, const std::s
     const bool        home    = m_tabpanel->GetSelectedPageName() == TAB_ID_HOME;
     const std::string project = home ? std::string() : m_workspace->snapshot().setup.project_name;
     const wxString    target  = filament.empty() ? from_u8(printer) :
+                                                   // TRN What a calibration tests: a filament's name, then the printer's, such as "Generic PLA on Bambu Lab P1S".
                                                    wxString::Format(_L("%1$s on %2$s"), from_u8(filament), from_u8(printer));
-    const wxString closes = project.empty() ? wxString() : wxString::Format(_L("%s will be saved and closed. "), from_u8(project));
+    // TRN %s is the name of the open project, which is saved and closed before a calibration project opens.
+    const wxString closes = project.empty() ? wxString() : wxString::Format(_L("%s will be saved and closed."), from_u8(project)) + " ";
     const wxString opens  = filament.empty() ?
         wxString::Format(_L("A new calibration project opens for %s, and AI picks the spool and the test with you there."), target) :
         wxString::Format(_L("A new calibration project opens for %s, and AI picks the test with you there."), target);
