@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7KC28PMRJJ777EY78MQHRZQ",
+  "strategy": "manual-commit",
+  "branch": "claude/bold-mestorf-858777",
+  "checkpoints_count": 1,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 110,
+    "cache_creation_tokens": 74461,
+    "cache_read_tokens": 16634624,
+    "output_tokens": 17634,
+    "api_call_count": 55
+  }
+}
