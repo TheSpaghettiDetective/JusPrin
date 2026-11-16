@@ -1,0 +1,85 @@
+did you also previously have the hypothesis that using SendGrid may hurt us. Do you think we should try using SES in a split testing?
+
+---
+
+Not now
+
+---
+
+Plan batch 3 with the subject and sender test. I believe you need to do at least 4 splits right because you don't want the 2 factors to compound each other if you align them  in two splits. Is this the common practice for split testing or did I miss something?
+
+---
+
+Re-check JusPrin 2 batch 1 (SendGrid Marketing Campaigns LEGACY campaign 22621835) opens about 24 hours after send, plus Google Postmaster Tools for obico.io (spam rate, delivery errors, compliance) for Nov 13. Append both to the shared note jusprin2-batch1-low-opens.md, then update the report to Kenneth: has the Gmail open rate caught up toward the 26-34% that earlier campaigns had after day one, or stayed far below? Do not send anything.
+
+---
+
+Batch 2 check for JusPrin 2. Read the status of SendGrid Marketing Campaigns LEGACY campaign 22624323, "JusPrin 2 launch - batch 2", from the signed-in SendGrid page in Chrome with the v3 API (fetch with credentials:'include'). Read only. Never send or edit it: Kenneth sends it himself. If it is still a draft, write one line saying so and stop. If it has been sent, read its opens overall and for Gmail recipients (stats.csv export or /v3/mailbox_providers/stats), and how many hours it has been since sending. Compare those with batch 1, campaign 22621835, at the same number of hours after sending (batch 1's Gmail opens were 7.5%). Append the numbers to /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_3e38de32-e8df-4f8c-b26d-1a20db4c0aca/jusprin2-batch1-low-opens.md.
+
+---
+
+But that accounts for two factors. Did you plan to test other factors originally?
+
+---
+
+If we believe that a printer history is the most important factor, shouldn't we make sure that they are evenly distributed across the four splits so that we don't have a biased unbalanced data set coming back?
+
+Yes, and the plan already does that. Before people are dealt into the four groups, they’re sorted by whether they own an Obico printer, whether they’re an early JusPrin user, and whether they use Gmail. Then each kind is dealt out evenly, so every group gets the same share of printer owners. A gap between groups can’t come from one group simply having more printer owners.
+
+This is in the side chat. If this is what you plan to do, go ahead.
+
+---
+
+Keep it
+
+---
+
+send all 4 now
+
+---
+
+check opens in 24 hours
+
+---
+
+I think you have missed your schedule. Check out why. Have you been sleeping?
+
+---
+
+Do we have any hypotheses why the JustPrint2 is here Short title works a lot better? Do you remember that you came up with that as a placeholder? So I'm hoping that we didn't land at this just by luck, because if we know why worked the better, we may be able to figure out even a better version.
+
+---
+
+What were all the hypotheses that we were targeting batch 3 for? and come up with a clear conclusion on all of them. The conclusion can be validated, invalidated, or need further investigation.
+
+---
+
+No sync rate in Chrome. Do it again. Please don't be lazy. I know it's Monday morning, so you're lazy, but you're supposed to pull your act together now.
+
+---
+
+signed in. when you are generating the reports. Think about how you can represent it, present this in a way that's easier for me to understand. Again, don't be lazy. It's time to get to work.
+
+---
+
+What are the other hypotheses that we can use to test with the remaining emails?
+
+---
+
+<!-- reply 3 -->
+> There’s no single clear thing to do. The email has two plain links: the blog post, and the GitHub “latest release” page. That GitHub page is a list of files, and it’s a hard place to land if you only want to install the app. My guess is that one clear “Download JusPrin 2” button would get more people to click.
+
+Let's test the hypothesis of having a clear download CTA at the end in the check the announcement as the secondary CTA.
+
+<!-- reply -->
+> The pitch is abstract. It opens with “AI works inside the project you have open”, which doesn’t say what problem it solves. The value you decided on for first run is that it fixes failed prints. My guess is that opening with a concrete case gets more clicks: a failed print, a photo, and the setting it changed. The first line also shows as preview text in the inbox, so this could move opens as well.
+
+I agree. It's probably difficult to test the pitch, but I think here we can use a common sense to see if we can optimize the pitch.
+
+<!-- reply -->
+> Your name only helps with the right subject. This is last week’s hint (33.3% against 28.8%, p = 0.11). Re-testing it would add little, because opens aren’t the problem any more.
+
+So great. I think we should use the winning combination of the from address as well as the title.
+
+
+Let's figure out based on what I commented above how we should handle the remaining users
