@@ -7,7 +7,6 @@
 #include <chrono>
 #include <cctype>
 #include <cmath>
-#include <cstdio>
 
 namespace Slic3r::GUI::JusPrin::Agent {
 namespace {
@@ -314,10 +313,9 @@ json printer_section_result(const Workspace::ConfiguredPrinter& configured,
             mismatch("model", configured.model, device->model, "device");
         if (device->nozzle_diameter && !configured.nozzle_diameters.empty() &&
             std::abs(*device->nozzle_diameter - configured.nozzle_diameters.front()) > 1e-3) {
-            char configured_text[32], observed_text[32];
-            std::snprintf(configured_text, sizeof configured_text, "%g", configured.nozzle_diameters.front());
-            std::snprintf(observed_text, sizeof observed_text, "%g", *device->nozzle_diameter);
-            mismatch("nozzle", configured_text, observed_text, "device");
+            // JSON's own number text: "0.4" in every language, where
+            // snprintf would write the person's "0,4".
+            mismatch("nozzle", json(configured.nozzle_diameters.front()).dump(), json(*device->nozzle_diameter).dump(), "device");
         }
         // A loaded material is enough: which slot feeds which filament is the
         // slicer's mapping, decided at print time.

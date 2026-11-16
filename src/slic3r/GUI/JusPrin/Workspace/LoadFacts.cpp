@@ -1,5 +1,7 @@
 #include "LoadFacts.hpp"
 
+#include "libslic3r/LocalesUtils.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -127,13 +129,11 @@ std::vector<std::string> split(const std::string& text, char separator)
     return parts;
 }
 
+// Settings write "0.4" in every language: std::stod would read it in the
+// person's language, where it is 0.
 double leading_number(const std::string& text)
 {
-    try {
-        return std::stod(text);
-    } catch (const std::exception&) {
-        return 0;
-    }
+    return atof_decimal_point(text);
 }
 
 void set_filaments(const std::vector<std::string>& types, const std::vector<std::string>& colours, LoadedFileFacts& facts)

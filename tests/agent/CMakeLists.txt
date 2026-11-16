@@ -43,6 +43,8 @@ add_executable(agent_bridge_tests
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Home/PrintHistory.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/PrinterSetup/PrinterCatalog.cpp
+    # Orca's locale-independent number parsing, which PrinterCatalog uses.
+    ${CMAKE_SOURCE_DIR}/src/libslic3r/LocalesUtils.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/AnthropicCodec.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/ProviderAgent.cpp

@@ -9,6 +9,7 @@
 #include "slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolErrors.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpProtocol.hpp"
+#include "../jusprin_support/CommaLocale.hpp"
 #include "../jusprin_support/FakeProductState.hpp"
 #include "../jusprin_support/FakeWorkspace.hpp"
 
@@ -1035,6 +1036,13 @@ TEST_CASE("the printer section sets what is configured beside what the machine s
     CHECK(mismatches[0] == json{{"what", "plate"}, {"configured", "Textured PEI Plate"}, {"observed", "Smooth PEI Plate"}, {"source", "user_confirmed"}});
     CHECK(mismatches[1] == json{{"what", "nozzle"}, {"configured", "0.2"}, {"observed", "0.4"}, {"source", "device"}});
     CHECK(mismatches[2] == json{{"what", "filament"}, {"configured", "PETG"}, {"observed", "PLA"}, {"source", "device"}});
+
+    // The sizes the model reads say "0.2", not "0,2", in a language that writes 0,2.
+    {
+        CommaLocale comma;
+        if (comma.active())
+            CHECK(inspect()["mismatches"][1] == mismatches[1]);
+    }
 
     // What agrees is not a mismatch, whatever the case.
     configured.nozzle_diameters = {0.4};

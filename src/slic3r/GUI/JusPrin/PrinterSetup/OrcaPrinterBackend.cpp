@@ -7,6 +7,7 @@
 #include "PrinterDiscovery.hpp"
 #include "SetupOptionsLoader.hpp"
 #include "libslic3r/AppConfig.hpp"
+#include "libslic3r/LocalesUtils.hpp"
 #include "libslic3r/Preset.hpp"
 #include "libslic3r/PresetBundle.hpp"
 #include "libslic3r/Utils.hpp"
@@ -185,13 +186,11 @@ public:
 
 namespace {
 
+// "0.4" in every language: std::stod would read it in the person's
+// language, where it is 0.
 double nozzle_of(const std::string& variant)
 {
-    try {
-        return std::stod(variant);
-    } catch (const std::exception&) {
-        return 0.;
-    }
+    return string_to_double_decimal_point(variant);
 }
 
 } // namespace

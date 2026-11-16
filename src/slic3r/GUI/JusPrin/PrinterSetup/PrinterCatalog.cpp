@@ -1,9 +1,12 @@
 #include "PrinterCatalog.hpp"
 
+#include "libslic3r/LocalesUtils.hpp"
+
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <cctype>
+#include <cstddef>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -72,13 +75,15 @@ std::string build_volume(const json& machine)
         if (!point.is_string()) continue;
         const auto values = split(point.get<std::string>(), 'x');
         if (values.size() != 2) continue;
-        try {
-            const double x = std::stod(values[0]);
-            const double y = std::stod(values[1]);
-            if (first) { min_x = max_x = x; min_y = max_y = y; first = false; }
-            else { min_x = std::min(min_x, x); max_x = std::max(max_x, x);
-                   min_y = std::min(min_y, y); max_y = std::max(max_y, y); }
-        } catch (const std::exception&) {}
+        // Profiles write "233.5" in every language; std::stod would read
+        // the person's language, where that is "233,5".
+        std::size_t x_end = 0, y_end = 0;
+        const double x = string_to_double_decimal_point(values[0], &x_end);
+        const double y = string_to_double_decimal_point(values[1], &y_end);
+        if (x_end == 0 || y_end == 0) continue;
+        if (first) { min_x = max_x = x; min_y = max_y = y; first = false; }
+        else { min_x = std::min(min_x, x); max_x = std::max(max_x, x);
+               min_y = std::min(min_y, y); max_y = std::max(max_y, y); }
     }
     if (first) return {};
     const std::string height = first_string(machine.value("printable_height", json()));
@@ -206,13 +211,11 @@ std::string letters_and_digits(const std::string& text)
     return kept;
 }
 
+// "0.4" in every language: std::stod would read it in the person's
+// language, where it is 0.
 double nozzle_of(const std::string& variant)
 {
-    try {
-        return std::stod(variant);
-    } catch (const std::exception&) {
-        return 0.;
-    }
+    return string_to_double_decimal_point(variant);
 }
 
 void name_printer(CatalogPrinter& printer, const std::string& vendor_name, const std::string& profile_name)

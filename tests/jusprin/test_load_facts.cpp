@@ -1,7 +1,9 @@
 #include <catch2/catch_all.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 #include <cmath>
 
+#include "../jusprin_support/CommaLocale.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/LoadFacts.hpp"
 
 using namespace Slic3r::GUI::JusPrin::Workspace;
@@ -101,4 +103,19 @@ TEST_CASE("a 3MF's own facts come from its metadata and settings", "[load-facts]
     REQUIRE(prusa.filaments.size() == 2);
     CHECK(prusa.filaments[0].colour == "#FF8000");
     CHECK(prusa.filaments[1].type == "PETG");
+}
+
+TEST_CASE("a file's nozzle size reads the same in a language that writes 0,4", "[load-facts]")
+{
+    CommaLocale comma;
+    if (!comma.active())
+        SKIP("No comma-decimal locale is installed on this machine.");
+
+    LoadedFileFacts bambu;
+    read_project_settings(R"({"nozzle_diameter": ["0.4"]})", bambu);
+    CHECK_THAT(bambu.nozzle_mm, Catch::Matchers::WithinAbs(0.4, 1e-9));
+
+    LoadedFileFacts prusa;
+    read_prusa_config("; nozzle_diameter = 0.6,0.6\n", prusa);
+    CHECK_THAT(prusa.nozzle_mm, Catch::Matchers::WithinAbs(0.6, 1e-9));
 }

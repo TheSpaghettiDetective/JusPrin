@@ -21,6 +21,7 @@ add_executable(jusprin_tests
     test_project_pane_model.cpp
     test_print_issues.cpp
     test_load_facts.cpp
+    test_printer_catalog.cpp
     test_check_print_report.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Shell/FilamentChipModel.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Shell/LeftPaneModel.cpp
@@ -34,6 +35,8 @@ add_executable(jusprin_tests
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Home/OnboardingModel.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Home/OrcaImport.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/PrinterSetup/PrinterCatalog.cpp
+    # Orca's locale-independent number parsing, which PrinterCatalog and LoadFacts use.
+    ${CMAKE_SOURCE_DIR}/src/libslic3r/LocalesUtils.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Printers/PrinterNames.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Printers/HostLanes.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Printers/InstalledModels.cpp
