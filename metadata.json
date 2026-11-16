@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7K52V8D0Y0Z572DKWFP0EZY",
+  "strategy": "manual-commit",
+  "branch": "claude/bold-mestorf-858777",
+  "checkpoints_count": 9,
+  "files_touched": [
+    "tests/jusprin/test_home_host.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 22,
+    "cache_creation_tokens": 5029,
+    "cache_read_tokens": 1397078,
+    "output_tokens": 1471,
+    "api_call_count": 11
+  }
+}
