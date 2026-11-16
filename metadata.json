@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7KB4J1S1752WY12WMYD4WH4",
   "strategy": "manual-commit",
   "branch": "claude/bold-mestorf-858777",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     "tests/shell/shell_harness.cpp"
   ],
@@ -21,13 +21,20 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 1464,
-    "cache_creation_tokens": 2701312,
-    "cache_read_tokens": 172706523,
-    "output_tokens": 444824,
-    "api_call_count": 732
+    "input_tokens": 1918,
+    "cache_creation_tokens": 2780473,
+    "cache_read_tokens": 178285798,
+    "output_tokens": 488693,
+    "api_call_count": 749
   }
 }
