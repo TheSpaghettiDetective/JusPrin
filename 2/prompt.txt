@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bh0if1zg5</task-id>
+<tool-use-id>toolu_01X7QoFXtSrzuZZ6Cpb7nuzL</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/dd7b654f-b59a-4190-89ad-3d760bfcdbd4/tasks/bh0if1zg5.output</output-file>
+<status>completed</status>
+<summary>Background command "Build the JusPrin unit tests before the fix" completed (exit code 0)</summary>
+</task-notification>
