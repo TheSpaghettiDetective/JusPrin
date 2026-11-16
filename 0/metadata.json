@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7JSSDVDXK71QA1D6ZEJBD53",
+  "session_id": "8301dc30-2a1f-4651-a315-b94dc605b6fe",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-16T18:26:58.282967Z",
+  "branch": "claude/bold-mestorf-858777",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/agent/test_cloud_account.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-2",
+  "turn_id": "c7ee1b2e5181",
+  "checkpoint_transcript_start": 6260,
+  "transcript_lines_at_start": 6260,
+  "compact_transcript_start": 751,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "session_metrics": {
+    "turn_count": 10
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-16T18:26:56.96354Z",
+    "agent_lines": 60,
+    "agent_removed": 18,
+    "human_added": 79,
+    "human_modified": 6,
+    "human_removed": 0,
+    "total_committed": 145,
+    "total_lines_changed": 166,
+    "agent_percentage": 46.98795180722892,
+    "metric_version": 2
+  }
+}
