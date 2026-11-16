@@ -1,0 +1,14 @@
+Task (from the session that started this one):
+Background (from the session that started this one):
+Today (2026-11-16) Kenneth closed the old issues that were about JusPrin v1. He chose to leave issue 12 open because Homebrew support still applies to JusPrin 2. The latest release is at https://github.com/TheSpaghettiDetective/JusPrin/releases/latest. Local jusprin-dev has unpushed commits and Kenneth asked to hold the push, so do not push it.
+
+Task:
+Look into GitHub issue 12 on TheSpaghettiDetective/JusPrin, which asks for JusPrin to be installable with Homebrew on macOS. Read the issue and its comments first. Then find out what homebrew-cask needs today to accept a new app: its notability rules for GitHub repositories, signing and notarization, auto-update handling (JusPrin has its own updater, under src/slic3r/GUI/JusPrin/Updates/), and how the release assets are named. Check whether a cask for JusPrin or OrcaSlicer already exists, and copy how the OrcaSlicer cask is written if there is one. The release build is .github/workflows/jusprin_release.yml.
+
+Done means two things. First, a drafted cask file in the scratch directory, tested locally with `brew install --cask ./jusprin.rb`, `brew audit --cask --new` and `brew style`. Second, a short report: whether JusPrin meets the cask rules today, what is missing if it doesn't, and whether submitting to homebrew-cask or running our own tap is the better route. Do not open a pull request on Homebrew, create a tap repository, or post on the issue without Kenneth's yes.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_688668bd-ca33-4fc3-b5a3-8d27dd0301c3
+
+---
+
+Yes, make signing the default
