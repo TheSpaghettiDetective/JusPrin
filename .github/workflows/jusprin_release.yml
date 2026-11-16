@@ -24,8 +24,10 @@ name: JusPrin release
 # - Only the release publisher can run it: the repo variable
 #   JUSPRIN_RELEASE_PUBLISHER, or kennethjiang when it is unset.
 # - Signing: macOS when "sign_macos" is ticked, with the Apple secrets JusPrin
-#   1.x used. Windows builds are unsigned. An unsigned draft says so in its
-#   title.
+#   1.x used. The box starts ticked: Homebrew's cask rules reject a Mac app
+#   that is not signed and notarised. A release started by pushing a branch
+#   is never signed. Windows builds are unsigned. An unsigned draft says so
+#   in its title.
 #
 # Start it from Actions > JusPrin release > Run workflow (the file must also
 # be on the default branch for that button), or by pushing a branch named
@@ -37,7 +39,7 @@ on:
       sign_macos:
         description: 'Sign and notarise the macOS app with the Apple secrets'
         type: boolean
-        default: false
+        default: true
       skip_guide_check:
         description: 'Release without the guide check'
         type: boolean
