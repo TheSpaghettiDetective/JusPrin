@@ -1,0 +1,1 @@
+Summarize what has happened about this slicer bug, where we got started, what we have found out, and what the current situation is.
