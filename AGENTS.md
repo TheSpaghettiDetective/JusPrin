@@ -28,15 +28,46 @@ This checkout holds two codebases: upstream OrcaSlicer (the `upstream` remote, S
 - The release notes, in `src/slic3r/GUI/JusPrin/Packaging/release-notes/<version>.md`.
 - The guide, `docs/guide/`, checked for that version. Run `scripts/check_guide.py --ask-ai` on a built copy of the commit, fix every page it reports, and commit the pages with their pictures, skills and `docs/guide/checked-version.txt`, as `docs/guide/README.md` describes under "Before a release". That file names the version the check last passed for, not the commit. Ticking "Release without the guide check" on the workflow's Run workflow form skips this, and the draft's title then says so. A release started by pushing a `jusprin-release/` branch has no form, so it always needs the file.
 
-## Error handling discipline
+## Error handling
 
-- Do not catch an error merely because it can be caught. Catch only when the code can recover, translate the error at an abstraction boundary, or add context that is essential for diagnosis. Logging alone is not recovery.
-- Represent expected states with normal control flow, not exceptions.
-- Never turn an invariant violation or an "impossible" state into success or a silent no-op. Fix the invalid transition at the layer that owns the decision and let unexpected failures propagate to Sentry.
-- Avoid duplicating defensive checks across layers. Keep lower-level operations strict, with their preconditions enforced by the caller that owns the workflow.
-- If concurrency makes an invalid state reachable, fix the ordering or synchronization instead of suppressing the resulting error.
-- Suppress an error only when it is genuinely expected and safely recoverable; document the reason and cover it with a test. Never broadly swallow unexpected errors.
-- Prefer removing the root cause over reducing the visibility of its symptoms. Tests should encode valid transitions and assert that invalid ones remain visible.
+Less is more. An error is **expected** only when the person can do something about it, such as sign in again, get more credits, update a key or check the network, and Kenneth decided what the product tells them. Every other error is **unexpected**: the person sees one generic sentence and a way to report the problem, and the report carries everything known, so that we can find the cause.
+
+Kenneth, 2026-11-16: "if the error is something that user can do nothing about, just show the user a generic error message and give user a way to report a problem. On the back end though, we need to make sure we send as much info as possible to the Sentry server so that we can do root cause analysis. And that's it, nothing else." And: "When it comes to error handling, less is more."
+
+The reporting function is `report_unexpected_error` (`src/slic3r/GUI/JusPrin/Support/ErrorReport.hpp`). This repository has no expected-errors table yet.
+
+### Expected errors
+
+- Each has an entry in the expected-errors table: the cause, what the person sees, and what they can do next. A new entry needs Kenneth's yes; quote his words in the commit message.
+- The test is what the person can do next. If the answer is "nothing" or only "try again later", the error is unexpected. An AI provider or our own server being slow, overloaded, down or limiting us is unexpected: the person can do nothing about any of them.
+- Two causes that leave the person doing the same thing do not get separate sentences, codes or branches.
+- A cause is "out of credits" or "no network". A status code, an exception type, or "the request was not valid" is not a cause.
+- Each entry has a test, and each occurrence is counted.
+- Handle them with normal control flow, not exceptions.
+
+### Unexpected errors
+
+- Write no code for them. Do not catch one, give it a default value, retry it, or give it a sentence of its own. Each of those is a guess about a failure nobody understands. It hides the failure and loses where it came from.
+- Let the failure stop the work and travel up unchanged.
+- A failure that arrives as a value, such as a status code, stops nothing by itself. Turn it into a thrown error on the spot and stop. Keep the other side's status, request id and error text. Do not interpret it.
+- One handler at the top of each entry point reports the failure through the one reporting function and tells the person "Something went wrong on our side", with nothing more specific. No other code reports.
+- A tool call that fails is shown as failed in the turn's activity line, its error goes to the AI model, and the turn goes on; no dialog opens. When the failure is the app's own and not the model's mistake, it is also reported, and only if the person has turned automatic reports on.
+- When our own code is on both ends, a message that is refused or cannot be read is unexpected.
+- The report carries as much as is known: the other side's status, request id and error text, and the request's own facts, such as the user, the chat, the turn and the model. The person is told none of it.
+- Never record a failure as a success.
+- A log line is not a report: it reaches nobody.
+
+### Catching
+
+- Catch an error only when it is an expected one and the code can recover from it, or at a boundary to translate it or add context, and then rethrow.
+- Keep lower-level operations strict; the caller that owns the workflow enforces their preconditions.
+- If concurrency makes an invalid state reachable, fix the ordering.
+
+### Checks
+
+- An agent reads the changed code against these rules and asks one question wherever the code decides what happened: can the person do something about it, and did Kenneth decide what they are told?
+- Do not sort unexpected failures into kinds for the person, and do not bring Kenneth a question about the wording of a failure the person can do nothing about. On 2026-11-16 the code that kept five "try again" sentences apart was deleted for this reason.
+- To audit a commit range or check production for a period, use the `error-handling` skill (`.claude/skills/error-handling/`).
 
 ## Build Commands
 
