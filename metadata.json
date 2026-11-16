@@ -3,10 +3,18 @@
   "checkpoint_id": "01M7HDB5CCDAT4CF79K3CGNJW9",
   "strategy": "manual-commit",
   "branch": "jusprin-dev",
-  "checkpoints_count": 2,
+  "checkpoints_count": 4,
   "files_touched": [
+    "src/slic3r/GUI/JusPrin/Agent/AgentConfiguration.cpp",
     "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
     "src/slic3r/GUI/JusPrin/Agent/AgentHost.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentWebView.cpp",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/protocol.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/ModelPickers.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/ModelPickers.tsx",
+    "src/slic3r/GUI/JusPrin/Preferences/PreferencesWindow.cpp",
+    "src/slic3r/GUI/JusPrin/Support/ErrorReport.cpp",
+    "src/slic3r/GUI/JusPrin/Support/ErrorReport.hpp",
     "tests/agent/test_agent_bridge.cpp"
   ],
   "sessions": [
@@ -23,13 +31,20 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 1156,
-    "cache_creation_tokens": 1715735,
-    "cache_read_tokens": 121011603,
-    "output_tokens": 347632,
-    "api_call_count": 579
+    "input_tokens": 1174,
+    "cache_creation_tokens": 1727266,
+    "cache_read_tokens": 124799812,
+    "output_tokens": 356229,
+    "api_call_count": 588
   }
 }
