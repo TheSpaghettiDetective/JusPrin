@@ -57,6 +57,7 @@ describe('protocol constants come from the shared file', () => {
       'onboarding_printer_form',
       'agent_card_dismiss',
       'agent_setup_dismiss',
+      'report_error',
     ];
     const host: HostMessageType[] = [
       'hello_ack',

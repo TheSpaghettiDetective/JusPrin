@@ -99,6 +99,8 @@ public:
     void printer_form_message(const json& payload) override { form_messages.push_back(payload); }
     void dismiss_account_card() override { onboarding_calls.push_back("dismiss_account_card"); }
     void dismiss_setup_card() override { onboarding_calls.push_back("dismiss_setup_card"); }
+    void report_page_error(const std::string& error, const std::string& where) override { page_errors.push_back({error, where}); }
+    std::vector<std::pair<std::string, std::string>> page_errors;
 
     std::vector<std::string>                         settings_opened;
     std::vector<std::string>                         settings_asked;
@@ -246,6 +248,20 @@ TEST_CASE("a gallery that could not be read fills in once it can", "[home]")
 
 // A page speaking a version this build does not must be told so, not left
 // waiting for a state that never comes.
+TEST_CASE("an error the Home page did not catch goes to the backend's reporter", "[home]")
+{
+    FakeBackend backend;
+    Wire        wire;
+    HomeHost    host(backend, wire.sink());
+    host.on_page_message(hello());
+
+    host.on_page_message(page_message("report_error", json{{"error", "TypeError: x is undefined"}, {"where", "at Gallery"}}));
+    REQUIRE(backend.page_errors.size() == 1);
+    CHECK(backend.page_errors[0] == std::make_pair(std::string("TypeError: x is undefined"), std::string("at Gallery")));
+    // Our own page sends both fields; one without them is a broken page.
+    CHECK_THROWS(host.on_page_message(page_message("report_error", json{{"error", "TypeError"}})));
+}
+
 TEST_CASE("a page speaking another version is rejected", "[home]")
 {
     FakeBackend backend;

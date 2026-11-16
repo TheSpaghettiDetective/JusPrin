@@ -58,7 +58,8 @@ export type PageMessageType =
   | 'onboarding_assume_default'
   | 'onboarding_printer_form'
   | 'agent_card_dismiss'
-  | 'agent_setup_dismiss';
+  | 'agent_setup_dismiss'
+  | 'report_error';
 
 export type HostMessageType =
   | 'hello_ack'

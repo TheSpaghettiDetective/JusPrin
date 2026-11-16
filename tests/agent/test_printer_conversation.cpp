@@ -3106,13 +3106,9 @@ TEST_CASE("a printer session never answers with the project assistant's instruct
     // As if the page had not written its instructions yet.
     harness.conversation.start(ConversationMode::Add);
     harness.host.set_session_profile(harness.conversation.profile());
-    harness.say("the small bambu one");
+    CHECK_THROWS_AS(harness.say("the small bambu one"), std::logic_error);
     harness.pump();
-
     CHECK(harness.agent->requests.empty());
-    const auto failed = harness.of_type("assistant_failed");
-    REQUIRE(failed.size() == 1);
-    CHECK(failed.front()["payload"]["error"]["code"] == "instructions_missing");
 
     // Once the page has written them, the next turn goes.
     harness.conversation.handle_page_message("printer_instructions", json{{"text", "You add printers."}});

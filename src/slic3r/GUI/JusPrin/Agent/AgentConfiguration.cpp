@@ -175,9 +175,10 @@ AgentSetupServicePtr make_agent_setup(AppConfig* config)
         if (!credentials.model.empty())
             config->set(kSection, "model", credentials.model);
         // Written now, not at the next routine save, so a crash after setup
-        // does not lose a key the user was just told is stored.
+        // does not lose a key the user was just told is stored. A write that
+        // failed leaves the settings unsaved, which is the answer here.
         config->save();
-        return true;
+        return !config->dirty();
     };
     ProviderKeySetup::KeyStore keys;
     keys.load   = [config](const std::string& provider) { return load_provider_api_key(config, provider); };
@@ -207,6 +208,11 @@ bool is_cloud_web_done(const AppConfig* config, const std::string& url)
 std::string cloud_print_reports_url(const AppConfig* config)
 {
     return cloud_server_from_gateway(endpoint_for(config, account_provider())) + "/ent/jusprin/v2/print_reports";
+}
+
+std::string cloud_error_reports_url(const AppConfig* config)
+{
+    return cloud_server_from_gateway(endpoint_for(config, account_provider())) + "/ent/jusprin/v2/error_reports";
 }
 
 std::string cloud_account_token(const AppConfig* config)
@@ -240,8 +246,10 @@ CloudSignInPtr make_cloud_sign_in(AppConfig* config)
         config->set(kSection, "provider", id);
         config->set(kSection, "enabled", "true");
         config->set(kSection, "cloud_consent", "true");
+        // A write that failed leaves the settings unsaved; the person is then
+        // told the sign-in will not be there next time.
         config->save();
-        return true;
+        return !config->dirty();
     };
     store.erase = [config, id = row.id]() { return remove_provider_key(config, id); };
     auto agents = [row, gateway](const std::string& token, const std::string& model, const std::string& format) -> AgentServicePtr {

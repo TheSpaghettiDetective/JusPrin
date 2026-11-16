@@ -56,10 +56,11 @@ export function findModel(catalog: ModelCatalogPayload, choice: ChatModelChoice)
 // What the chosen model is called when its list has none of it. JusPrin's
 // model ids are aliases ("slicer-1") that mean nothing to anyone, so until
 // its list names the model the chat's model reads as JusPrin. Every other
-// provider's id is the model's own name.
+// provider's id is the model's own name. A chat whose account was signed out
+// of has no list at all, and the host sends the name with its choice.
 function unlistedLabel(catalog: ModelCatalogPayload, choice: ChatModelChoice): string {
-  const provider = catalog.providers.find((option) => option.id === choice.provider);
-  return provider && provider.id === 'jusprin' ? provider.label : choice.model;
+  if (choice.provider !== 'jusprin') return choice.model;
+  return catalog.providers.find((option) => option.id === choice.provider)?.label ?? choice.providerLabel ?? choice.model;
 }
 
 // What follows a provider's name above its models: what JusPrin's own AI is

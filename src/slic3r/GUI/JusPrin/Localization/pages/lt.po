@@ -1787,6 +1787,11 @@ msgid "Error"
 msgstr "Klaida"
 
 # AI Translated
+#: src/components/Preferences.tsx
+msgid "Error reports"
+msgstr "Klaidų ataskaitos"
+
+# AI Translated
 #: src/components/SetupCard.tsx
 #: src/components/SetupCard.tsx
 msgid "Estimate unavailable"
@@ -3483,6 +3488,11 @@ msgid "Report credits"
 msgstr "Ataskaitų kreditai"
 
 # AI Translated
+#: src/components/Preferences.tsx
+msgid "Report errors to the JusPrin team automatically"
+msgstr "Automatiškai pranešti JusPrin komandai apie klaidas"
+
+# AI Translated
 #: ../HomeUI/src/components/PrintHistory.tsx
 msgid "Report sent"
 msgstr "Ataskaita išsiųsta"
@@ -4573,6 +4583,11 @@ msgstr "Ką daryti toliau"
 #: src/components/SetupLocalTool.tsx
 msgid "What to expect"
 msgstr "Ko tikėtis"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "When something goes wrong on our side, JusPrin sends an anonymous report so the team can fix it. It has no chat messages, no files and nothing that says who you are. JusPrin’s server sees your IP address, as with any web page."
+msgstr "Kai mūsų pusėje įvyksta klaida, JusPrin siunčia anoniminę ataskaitą, kad komanda galėtų ją ištaisyti. Joje nėra pokalbių žinučių, failų ir nieko, kas parodytų, kas esate. JusPrin serveris mato jūsų IP adresą, kaip ir bet kuris tinklalapis."
 
 # AI Translated
 #: src/components/OrcaImport.tsx

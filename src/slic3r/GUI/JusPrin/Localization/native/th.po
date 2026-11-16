@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15 09:46-0800\n"
+"POT-Creation-Date: 2026-11-15 18:58-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -37,10 +37,6 @@ msgstr "ข้อความนี้เป็นของแชทอื่น
 # AI Translated
 msgid "A message needs text or an attachment."
 msgstr "ข้อความต้องมีตัวอักษรหรือไฟล์แนบ"
-
-# AI Translated
-msgid "The file could not be read."
-msgstr "อ่านไฟล์ไม่ได้"
 
 # AI Translated
 msgid "This file is too large to attach."
@@ -155,10 +151,6 @@ msgid "This save can no longer be undone."
 msgstr "เลิกทำการบันทึกนี้ไม่ได้อีกแล้ว"
 
 # AI Translated
-msgid "The earlier values cannot be put back."
-msgstr "คืนค่าเดิมไม่ได้"
-
-# AI Translated
 msgid "Finish or resolve pending work before creating a chat."
 msgstr "ทำงานที่ค้างอยู่ให้เสร็จหรือแก้ไขให้เรียบร้อยก่อนสร้างแชท"
 
@@ -267,10 +259,6 @@ msgid "There is no JusPrin account on this computer to check."
 msgstr "ไม่มีบัญชี JusPrin บนคอมพิวเตอร์เครื่องนี้ให้ตรวจสอบ"
 
 # AI Translated
-msgid "JusPrin couldn't start signing in. Try again."
-msgstr "JusPrin เริ่มการเข้าสู่ระบบไม่ได้ โปรดลองอีกครั้ง"
-
-# AI Translated
 msgid "JusPrin couldn't sign you in. Try again."
 msgstr "JusPrin เข้าสู่ระบบให้คุณไม่สำเร็จ โปรดลองอีกครั้ง"
 
@@ -281,10 +269,6 @@ msgstr "บันทึกการเข้าสู่ระบบนี้ไ
 # AI Translated
 msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
 msgstr "บันทึกคีย์นี้ไม่ได้ จึงต้องป้อนคีย์อีกครั้งเมื่อเปิด JusPrin ครั้งถัดไป"
-
-# AI Translated
-msgid "The panel is still loading. Try again in a moment."
-msgstr "แผงยังโหลดอยู่ โปรดลองอีกครั้งในอีกสักครู่"
 
 # AI Translated
 msgid "The AI service is not available."
@@ -801,11 +785,6 @@ msgstr "JusPrin ไม่ได้เก็บ G-code นี้ไว้แล�
 # AI Translated
 msgid "Couldn't export G-code"
 msgstr "ส่งออก G-code ไม่ได้"
-
-# AI Translated
-#, c-format, boost-format
-msgid "The G-code couldn't be written to %s."
-msgstr "เขียน G-code ลงใน %s ไม่ได้"
 
 # AI Translated
 msgid "Choose a photo of the printed object"
@@ -1526,6 +1505,64 @@ msgstr "กลับไปที่ JusPrin"
 # AI Translated
 msgid "Switch to JusPrin view"
 msgstr "สลับไปมุมมอง JusPrin"
+
+# AI Translated
+msgid "Something went wrong on our side"
+msgstr "เกิดข้อผิดพลาดจากฝั่งเรา"
+
+# AI Translated
+msgid "You can report this to the JusPrin team so they can fix it. The report is anonymous: it has no chat messages, no files and nothing that says who you are."
+msgstr "คุณสามารถรายงานเรื่องนี้ให้ทีม JusPrin ทราบเพื่อให้ทีมแก้ไขได้ รายงานนี้ไม่ระบุตัวตน: ไม่มีข้อความแชท ไม่มีไฟล์ และไม่มีสิ่งใดที่บอกว่าคุณเป็นใคร"
+
+# AI Translated
+msgid "See what the report contains"
+msgstr "ดูสิ่งที่อยู่ในรายงาน"
+
+# AI Translated
+msgid "From now on, report errors like this automatically"
+msgstr "ต่อจากนี้ รายงานข้อผิดพลาดลักษณะนี้โดยอัตโนมัติ"
+
+# AI Translated
+msgid "Each report holds only the lines under ‘See what the report contains’. You can turn this off in Preferences › Updates."
+msgstr "รายงานแต่ละฉบับมีเฉพาะบรรทัดที่อยู่ใต้ “ดูสิ่งที่อยู่ในรายงาน” เท่านั้น คุณสามารถปิดได้ที่ การตั้งค่า › อัปเดต"
+
+# AI Translated
+msgid "App"
+msgstr "แอป"
+
+# AI Translated
+msgid "Was doing"
+msgstr "สิ่งที่กำลังทำ"
+
+# AI Translated
+msgid "Where"
+msgstr "ตำแหน่ง"
+
+# AI Translated
+#. TRN %d is how many lines of the stack the report sends, such as 9.
+#, c-format, boost-format
+msgid "%d line naming the parts of JusPrin that were running"
+msgid_plural "%d lines naming the parts of JusPrin that were running"
+msgstr[0] "%d บรรทัดที่ระบุส่วนต่างๆ ของ JusPrin ที่กำลังทำงาน"
+
+# AI Translated
+msgid "That is the whole report. It has no chat messages, no files, no project names and no account or email address."
+msgstr "นี่คือรายงานทั้งหมด ไม่มีข้อความแชท ไม่มีไฟล์ ไม่มีชื่อโปรเจกต์ และไม่มีบัญชีหรือที่อยู่อีเมล"
+
+# AI Translated
+#. TRN %d is how many lines of the stack the report sends, such as 9.
+#, c-format, boost-format
+msgid "That line is not shown in full here. The report has no chat messages, no files, no project names and no account or email address."
+msgid_plural "Those %d lines are not shown in full here. The report has no chat messages, no files, no project names and no account or email address."
+msgstr[0] "%d บรรทัดนี้ไม่ได้แสดงแบบเต็มที่นี่ รายงานไม่มีข้อความแชท ไม่มีไฟล์ ไม่มีชื่อโปรเจกต์ และไม่มีบัญชีหรือที่อยู่อีเมล"
+
+# AI Translated
+msgid "Report this and future errors"
+msgstr "รายงานข้อผิดพลาดนี้และครั้งต่อไป"
+
+# AI Translated
+msgid "Report to JusPrin team"
+msgstr "รายงานไปยังทีม JusPrin"
 
 # AI Translated
 #. TRN A menu caption in capitals: the printer's name (in capitals), then its nozzle size in millimetres.
@@ -2304,3 +2341,24 @@ msgstr "โปรเจกต์นี้บันทึกด้วย JusPrin 
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "เปิดโปรเจกต์ไม่ได้ โปรดลองอีกครั้ง"
+
+# AI Translated
+#~ msgid "The file could not be read."
+#~ msgstr "อ่านไฟล์ไม่ได้"
+
+# AI Translated
+#~ msgid "The earlier values cannot be put back."
+#~ msgstr "คืนค่าเดิมไม่ได้"
+
+# AI Translated
+#~ msgid "JusPrin couldn't start signing in. Try again."
+#~ msgstr "JusPrin เริ่มการเข้าสู่ระบบไม่ได้ โปรดลองอีกครั้ง"
+
+# AI Translated
+#~ msgid "The panel is still loading. Try again in a moment."
+#~ msgstr "แผงยังโหลดอยู่ โปรดลองอีกครั้งในอีกสักครู่"
+
+# AI Translated
+#, c-format, boost-format
+#~ msgid "The G-code couldn't be written to %s."
+#~ msgstr "เขียน G-code ลงใน %s ไม่ได้"

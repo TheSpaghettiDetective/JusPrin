@@ -17,12 +17,15 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cerrno>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <set>
 #include <sstream>
+#include <stdexcept>
 #include <string_view>
+#include <system_error>
 #include <utility>
 
 // Last: it defines the L marker.
@@ -1061,6 +1064,12 @@ void AgentHost::dispatch_page_message(const std::string& envelope_json, std::str
         handle_set_chat_model(envelope_id, payload);
     else if (type == Protocol::kSkills)
         handle_skills(envelope_id, payload);
+    else if (type == Protocol::kReportError) {
+        if (!m_page_error_handler)
+            throw std::logic_error("A page sent report_error to a host no web view shows");
+        const json report = json::parse(payload);
+        m_page_error_handler(report.at("error").get<std::string>(), report.at("where").get<std::string>());
+    }
     else if (type == Protocol::kProjectInstructions) {
         // The project assistant's whole prompt, written by the page
         // (projectInstructions.ts) and kept in the project session's profile;
@@ -1456,18 +1465,13 @@ void AgentHost::handle_attach_file(const std::string& envelope_id, const std::st
     const AttachmentClassification classification = classify_attachment(name, payload.value("mime", ""));
     record.kind        = classification.kind;
     record.mime        = classification.mime;
-    record.stored_name = sanitize_filename(name);
 
+    // The page encodes the file it read; bytes that do not decode are a
+    // broken page.
     std::string bytes;
-    if (!base64_decode(strip_data_url_prefix(payload.value("dataBase64", "")), bytes)) {
-        record.state = "error";
-        record.error = AgentError{"unreadable", translated(L("The file could not be read."))};
-        document.add_attachment(record, m_persistence.timestamp());
-        m_persistence.commit();
-        m_persistence.flush();
-        send_attachment_updated(record, envelope_id);
-        return;
-    }
+    if (!base64_decode(strip_data_url_prefix(payload.value("dataBase64", "")), bytes))
+        throw std::invalid_argument("The page sent an attachment whose data is not base64");
+    record.stored_name = sanitize_filename(name);
     store_file_attachment(std::move(record), bytes, envelope_id);
 }
 
@@ -1499,6 +1503,10 @@ void AgentHost::store_file_attachment(AttachmentRecord record, const std::string
         // Images and PDFs are stored as-is; images get an inline preview built
         // on demand from the blob, so nothing large is kept in state.json.
     }
+    // An attachment that kept no file names none: saving the project checks
+    // that every file an attachment names is in the project's folder.
+    if (record.state == "error")
+        record.stored_name.clear();
 
     m_persistence.document().add_attachment(record, m_persistence.timestamp());
     m_persistence.commit();
@@ -1547,23 +1555,22 @@ void AgentHost::attach_file_from_disk(const std::string& path, const std::string
     const AttachmentClassification classification = classify_attachment(record.original_name, "");
     record.kind        = classification.kind;
     record.mime        = classification.mime;
-    record.stored_name = sanitize_filename(record.original_name);
 
-    std::error_code size_error;
-    const std::uintmax_t size = std::filesystem::file_size(file, size_error);
+    // A file the person chose that cannot be read throws, with the system's
+    // reason.
+    const std::uintmax_t size = std::filesystem::file_size(file);
     std::string bytes;
-    if (!size_error && size > kMaxAttachmentBytes) {
+    if (size > kMaxAttachmentBytes) {
         // Refused by its size alone, without reading it.
         record.state = "error";
         record.error = AgentError{"too_large", translated(L("This file is too large to attach."))};
     } else {
         std::ifstream in(file, std::ios::binary);
-        if (in)
-            bytes.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
-        if (size_error || !in || in.bad()) {
-            record.state = "error";
-            record.error = AgentError{"unreadable", translated(L("The file could not be read."))};
-        }
+        if (!in)
+            throw std::filesystem::filesystem_error("cannot open the attachment", file, std::error_code(errno, std::generic_category()));
+        bytes.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+        if (in.bad())
+            throw std::filesystem::filesystem_error("cannot read the attachment", file, std::error_code(errno, std::generic_category()));
     }
     if (record.state == "error") {
         m_persistence.document().add_attachment(record, m_persistence.timestamp());
@@ -1572,6 +1579,7 @@ void AgentHost::attach_file_from_disk(const std::string& path, const std::string
         send_attachment_updated(record, correlation_id);
         return;
     }
+    record.stored_name = sanitize_filename(record.original_name);
     store_file_attachment(std::move(record), bytes, correlation_id);
 }
 
@@ -2186,22 +2194,24 @@ void AgentHost::handle_undo_receipt(const std::string& envelope_id, const std::s
     const std::string base = undo["base"];
     // The switch back is the person's, said by the receipt: its changes
     // follow the receipt, which the thread draws in their place.
-    document.set_change_anchor(receipt_note.id);
     Workspace::CommandResult result;
-    if (undo["newCopy"].get<bool>())
+    if (undo["newCopy"].get<bool>()) {
+        document.set_change_anchor(receipt_note.id);
         result = m_workspace.remove_filament_preset({name, base});
-    else {
+    } else {
         Workspace::SettingsPatch patch;
         patch.target     = {Workspace::SettingsScope::Filament, std::nullopt, name};
         patch.persist_as = name;
         for (const auto& [key, value] : undo["restore"].items())
             patch.changes[key] = value.get<std::string>();
         const Workspace::SettingsPreview preview = m_workspace.preview_settings(patch);
-        Workspace::SettingsPreview       applied;
+        // A preview that refuses names its reason.
+        if (!preview.valid && preview.issues.empty())
+            throw std::logic_error("A settings preview refused the undo without an issue");
+        document.set_change_anchor(receipt_note.id);
+        Workspace::SettingsPreview applied;
         result = preview.valid ? m_workspace.apply_settings(patch, Workspace::previewed_changes(preview), applied)
-                               : Workspace::CommandResult::failure(Workspace::WorkspaceError::InvalidSettings,
-                                                                   preview.issues.empty() ? translated(L("The earlier values cannot be put back."))
-                                                                                          : preview.issues.front().message);
+                               : Workspace::CommandResult::failure(Workspace::WorkspaceError::InvalidSettings, preview.issues.front().message);
     }
     document.set_change_anchor({});
     if (!result.succeeded()) {
@@ -2578,7 +2588,10 @@ void AgentHost::handle_delete_account(const std::string& envelope_id)
     };
     // Its key goes once the server has deleted the account, and a reply that
     // is still running would be left holding it, so one waits for the other.
-    if (!m_model_source || !m_setup || agent_busy() || m_setup->busy()) {
+    // The Preferences window asks this of a host with no chat of its own; the
+    // reply runs in another host's.
+    const bool reply_running = agent_busy() || (m_reply_running_elsewhere && m_reply_running_elsewhere());
+    if (!m_model_source || !m_setup || reply_running || m_setup->busy()) {
         answer(false);
         return;
     }
@@ -2681,11 +2694,10 @@ void AgentHost::handle_account_sign_in(const std::string& envelope_id, bool stor
         send_account_status("checking", envelope_id);
         return;
     }
-    if (!cloud->start(CloudBrowserStart::Google)) {
-        send_account_status("idle", envelope_id,
-                            AgentError{"sign_in_failed", translated(L("JusPrin couldn't start signing in. Try again.")), true});
-        return;
-    }
+    // Idle was checked above, so start() cannot refuse; a sign-in that fails
+    // to start throws.
+    if (!cloud->start(CloudBrowserStart::Google))
+        throw std::logic_error("An idle sign-in refused to start");
     send_account_status("browser", envelope_id);
 }
 
@@ -2943,18 +2955,18 @@ void AgentHost::begin_reply(const std::string& user_message_id)
         m_queued_user_message_ids.push_back(user_message_id);
         return;
     }
-    // A session with tools of its own sends its instructions when its panel
-    // opens; a turn without them fails where the person can retry it.
-    const bool instructions_missing = m_session_profile.instructions.empty();
-    if (m_availability != AgentAvailability::Ready || instructions_missing) {
+    // A session with tools of its own has its instructions from its page
+    // before anyone can type in it; a turn without them never borrows the
+    // project assistant's, and is a fault in that ordering.
+    if (m_availability == AgentAvailability::Ready && m_session_profile.instructions.empty())
+        throw std::logic_error("A session with tools of its own has no instructions from its page");
+    if (m_availability != AgentAvailability::Ready) {
         ConversationMessage failed;
         failed.id          = document.allocate_message_id();
         failed.role        = MessageRole::Assistant;
         failed.state       = MessageState::Failed;
         failed.in_reply_to = user_message_id;
-        failed.error       = instructions_missing ?
-                                 AgentError{"instructions_missing", translated(L("The panel is still loading. Try again in a moment.")), true} :
-                                 AgentError{"agent_unavailable", translated(L("The AI service is not available.")), true};
+        failed.error       = AgentError{"agent_unavailable", translated(L("The AI service is not available.")), true};
         failed.created_at = m_persistence.timestamp();
         document.append_message(conversation_id, failed, failed.created_at);
         m_persistence.flush();
@@ -3667,6 +3679,19 @@ void AgentHost::send_active_chat_model()
 
 json AgentHost::chat_model_json(const std::string& conversation_id) const
 {
+    // A chat the person has talked in stays on its provider (use_chat_model),
+    // so its greyed picker still names the model it ran on once that
+    // provider's key is gone or its account signed out of. The page's model
+    // list no longer has the provider, so its name goes with the choice.
+    if (const std::optional<ChatModelChoice> kept = m_persistence.document().chat_model(conversation_id); kept) {
+        const std::vector<std::string> configured = m_model_source->configured_providers();
+        if (std::find(configured.begin(), configured.end(), kept->provider) == configured.end() &&
+            person_talked_before(conversation_id, {})) {
+            const ProviderProfile* profile = profile_for(kept->provider);
+            return json{{"provider", kept->provider}, {"model", kept->model}, {"effort", kept->effort},
+                        {"providerLabel", profile ? profile->display_name : kept->provider}};
+        }
+    }
     const ChatModelChoice choice = chat_model_choice(conversation_id);
     return json{{"provider", choice.provider}, {"model", choice.model}, {"effort", choice.effort}};
 }

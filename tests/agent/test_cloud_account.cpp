@@ -44,7 +44,7 @@ struct FakeMachine
 {
     std::vector<CloudAuthorization>                     authorizations;
     std::function<void(CloudAuthorizationResult)>       browser;
-    bool                                                port_free{true};
+    bool                                                job_queued{true};
     int                                                 cancels{0};
     int                                                 pumps{0};
     std::map<std::string, std::function<void(CloudHttpResult)>> asked; // url -> answer
@@ -58,7 +58,7 @@ struct FakeMachine
     {
         CloudAccountDeps deps;
         deps.authorize = [this](const CloudAuthorization& authorization, std::function<void(CloudAuthorizationResult)> done) {
-            if (!port_free)
+            if (!job_queued)
                 return false;
             authorizations.push_back(authorization);
             browser = std::move(done);
@@ -208,11 +208,11 @@ TEST_CASE("signing in with Google sends the browser to Google, then on to the au
     CHECK(f.sign_in->browser_url() == sent.authorize_url);
 }
 
-TEST_CASE("a sign-in that cannot listen for the browser does not start", "[agent][account]")
+TEST_CASE("a sign-in whose browser step cannot start fails and stays idle", "[agent][account]")
 {
     Fixture f;
-    f.machine.port_free = false;
-    CHECK_FALSE(f.sign_in->start(CloudBrowserStart::Google));
+    f.machine.job_queued = false;
+    CHECK_THROWS_AS(f.sign_in->start(CloudBrowserStart::Google), std::runtime_error);
     CHECK(f.sign_in->phase() == CloudSignInPhase::Idle);
 }
 

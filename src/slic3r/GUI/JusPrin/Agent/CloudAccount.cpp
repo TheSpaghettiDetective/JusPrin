@@ -6,6 +6,7 @@
 #include <cctype>
 #include <cstdio>
 #include <deque>
+#include <stdexcept>
 
 // Last: it defines the L marker.
 #include "slic3r/GUI/JusPrin/Support/Translate.hpp"
@@ -143,7 +144,7 @@ bool CloudSignIn::start(CloudBrowserStart where)
             if (const auto target = inbox.lock())
                 target->push({generation, Inbox::Kind::Authorized, std::move(result), {}});
         }))
-        return false;
+        throw std::runtime_error("The browser sign-in could not start: its job was not queued");
     m_authorization = std::move(authorization);
     m_phase         = CloudSignInPhase::Browser;
     return true;

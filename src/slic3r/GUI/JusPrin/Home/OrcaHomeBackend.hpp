@@ -115,6 +115,7 @@ public:
     void printer_form_message(const nlohmann::json& payload) override;
     void dismiss_account_card() override;
     void dismiss_setup_card() override;
+    void report_page_error(const std::string& error, const std::string& where) override;
 
     std::string open_printer_settings(const std::string& printer_id) override;
     std::string ask_about_printer_settings(const std::string& printer_id) override;

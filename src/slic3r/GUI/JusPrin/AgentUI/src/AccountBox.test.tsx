@@ -39,7 +39,7 @@ function open(keys: { provider: string }[] = []) {
       appearance: { language: 'en', languages: [{ code: 'en', name: 'English' }], theme: 'light', units: 'mm', restartFor: null },
       view3d: { navigation: 'mouse', zoomToPointer: true, reverseZoom: false, freeCamera: false, leftDrag: 'rotate', middleDrag: 'pan', rightDrag: 'pan' },
       projects: { versionsFolder: '', downloadPath: '', associations: true, open3mf: true, openModels: false, openLinks: false },
-      updates: { version: '2.0.0', status: 'notChecked', checked: null, available: null, checkUpdates: true },
+      updates: { version: '2.0.0', status: 'notChecked', checked: null, available: null, checkUpdates: true, reportErrors: false },
       agent: { newChatProvider: 'openai', newChatChoices: [] },
     },
   });

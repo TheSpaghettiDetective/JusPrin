@@ -57,6 +57,7 @@ describe('protocol constants', () => {
       'shell_action',
       'project_instructions',
       'skills',
+      'report_error',
       'settings_catalog_request',
       'settings_action',
       'save_proposal',

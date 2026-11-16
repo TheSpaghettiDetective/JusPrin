@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15 09:46-0800\n"
+"POT-Creation-Date: 2026-11-15 18:58-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -36,10 +36,6 @@ msgstr "此消息属于另一个对话。"
 # AI Translated
 msgid "A message needs text or an attachment."
 msgstr "消息需要包含文字或附件。"
-
-# AI Translated
-msgid "The file could not be read."
-msgstr "无法读取该文件。"
 
 # AI Translated
 msgid "This file is too large to attach."
@@ -154,10 +150,6 @@ msgid "This save can no longer be undone."
 msgstr "此次保存已无法撤销。"
 
 # AI Translated
-msgid "The earlier values cannot be put back."
-msgstr "无法恢复之前的值。"
-
-# AI Translated
 msgid "Finish or resolve pending work before creating a chat."
 msgstr "请先完成或处理待办工作，然后再新建对话。"
 
@@ -266,10 +258,6 @@ msgid "There is no JusPrin account on this computer to check."
 msgstr "此计算机上没有可检查的 JusPrin 账户。"
 
 # AI Translated
-msgid "JusPrin couldn't start signing in. Try again."
-msgstr "JusPrin 无法开始登录。请重试。"
-
-# AI Translated
 msgid "JusPrin couldn't sign you in. Try again."
 msgstr "JusPrin 无法为您登录。请重试。"
 
@@ -280,10 +268,6 @@ msgstr "无法保存此次登录，下次启动 JusPrin 时您需要重新登录
 # AI Translated
 msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
 msgstr "无法保存此密钥，下次启动 JusPrin 时需要重新输入。"
-
-# AI Translated
-msgid "The panel is still loading. Try again in a moment."
-msgstr "面板仍在加载中。请稍后重试。"
 
 # AI Translated
 msgid "The AI service is not available."
@@ -800,11 +784,6 @@ msgstr "JusPrin 已不再保留此 G-code。请重新切片项目后再导出。
 # AI Translated
 msgid "Couldn't export G-code"
 msgstr "无法导出 G-code"
-
-# AI Translated
-#, c-format, boost-format
-msgid "The G-code couldn't be written to %s."
-msgstr "无法将 G-code 写入 %s。"
 
 # AI Translated
 msgid "Choose a photo of the printed object"
@@ -1520,6 +1499,64 @@ msgstr "返回 JusPrin"
 # AI Translated
 msgid "Switch to JusPrin view"
 msgstr "切换到 JusPrin 视图"
+
+# AI Translated
+msgid "Something went wrong on our side"
+msgstr "我们这边出了问题"
+
+# AI Translated
+msgid "You can report this to the JusPrin team so they can fix it. The report is anonymous: it has no chat messages, no files and nothing that says who you are."
+msgstr "您可以将此问题报告给 JusPrin 团队，以便他们修复。报告是匿名的：不包含对话消息、文件，也不包含任何能识别您身份的信息。"
+
+# AI Translated
+msgid "See what the report contains"
+msgstr "查看报告包含的内容"
+
+# AI Translated
+msgid "From now on, report errors like this automatically"
+msgstr "今后自动报告此类错误"
+
+# AI Translated
+msgid "Each report holds only the lines under ‘See what the report contains’. You can turn this off in Preferences › Updates."
+msgstr "每份报告只包含“查看报告包含的内容”下的各行。您可以在“偏好设置 › 更新”中关闭此功能。"
+
+# AI Translated
+msgid "App"
+msgstr "应用"
+
+# AI Translated
+msgid "Was doing"
+msgstr "正在执行"
+
+# AI Translated
+msgid "Where"
+msgstr "位置"
+
+# AI Translated
+#. TRN %d is how many lines of the stack the report sends, such as 9.
+#, c-format, boost-format
+msgid "%d line naming the parts of JusPrin that were running"
+msgid_plural "%d lines naming the parts of JusPrin that were running"
+msgstr[0] "%d 行，列出正在运行的 JusPrin 组件"
+
+# AI Translated
+msgid "That is the whole report. It has no chat messages, no files, no project names and no account or email address."
+msgstr "以上就是完整的报告。其中不包含对话消息、文件、项目名称，也不包含账户或电子邮件地址。"
+
+# AI Translated
+#. TRN %d is how many lines of the stack the report sends, such as 9.
+#, c-format, boost-format
+msgid "That line is not shown in full here. The report has no chat messages, no files, no project names and no account or email address."
+msgid_plural "Those %d lines are not shown in full here. The report has no chat messages, no files, no project names and no account or email address."
+msgstr[0] "这 %d 行未在此处完整显示。报告不包含对话消息、文件、项目名称，也不包含账户或电子邮件地址。"
+
+# AI Translated
+msgid "Report this and future errors"
+msgstr "报告此错误及以后的错误"
+
+# AI Translated
+msgid "Report to JusPrin team"
+msgstr "报告给 JusPrin 团队"
 
 # AI Translated
 #. TRN A menu caption in capitals: the printer's name (in capitals), then its nozzle size in millimetres.
@@ -2295,3 +2332,24 @@ msgstr "此项目由更新版本的 JusPrin 保存。请获取新版本以打开
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "无法打开项目。请重试。"
+
+# AI Translated
+#~ msgid "The file could not be read."
+#~ msgstr "无法读取该文件。"
+
+# AI Translated
+#~ msgid "The earlier values cannot be put back."
+#~ msgstr "无法恢复之前的值。"
+
+# AI Translated
+#~ msgid "JusPrin couldn't start signing in. Try again."
+#~ msgstr "JusPrin 无法开始登录。请重试。"
+
+# AI Translated
+#~ msgid "The panel is still loading. Try again in a moment."
+#~ msgstr "面板仍在加载中。请稍后重试。"
+
+# AI Translated
+#, c-format, boost-format
+#~ msgid "The G-code couldn't be written to %s."
+#~ msgstr "无法将 G-code 写入 %s。"

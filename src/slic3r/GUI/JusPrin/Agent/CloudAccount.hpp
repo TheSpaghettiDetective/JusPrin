@@ -177,8 +177,8 @@ public:
     // person whose browser did not open.
     virtual std::string browser_url() const = 0;
 
-    // Opens the browser at `where`. False while a sign-in or check is running,
-    // or when the loopback port could not be opened.
+    // Opens the browser at `where`. False while a sign-in or check is running;
+    // throws when the browser step cannot start.
     virtual bool start(CloudBrowserStart where) = 0;
     // Checks the token already stored: the account's email and model formats
     // are refreshed, or the token turns out to have expired. False when no

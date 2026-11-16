@@ -142,4 +142,22 @@ describe('BridgeClient', () => {
     client.deliver('garbage');
     expect(received).toHaveLength(0);
   });
+
+  it('sends an error the page did not catch to the app, holding one from before the handshake', () => {
+    const { envelopes, transport } = recordingTransport();
+    const client = makeClient(transport);
+    client.start();
+    window.dispatchEvent(new ErrorEvent('error', { error: new TypeError('x is undefined') }));
+    expect(envelopes.map((envelope) => envelope.type)).toEqual(['hello']);
+
+    client.deliver(hostEnvelope('hello_ack'));
+    const sent = envelopes.filter((envelope) => envelope.type === 'report_error');
+    expect(sent).toHaveLength(1);
+    const report = sent[0].payload as { error: string; where: string };
+    expect(report.error).toBe('TypeError: x is undefined');
+    expect(report.where).toContain('client.test.ts');
+
+    client.reportError('a rejection that is not an Error');
+    expect(envelopes[envelopes.length - 1].payload).toEqual({ error: 'a rejection that is not an Error', where: '' });
+  });
 });

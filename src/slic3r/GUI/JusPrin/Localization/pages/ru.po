@@ -1785,6 +1785,11 @@ msgid "Error"
 msgstr "Ошибка"
 
 # AI Translated
+#: src/components/Preferences.tsx
+msgid "Error reports"
+msgstr "Отчёты об ошибках"
+
+# AI Translated
 #: src/components/SetupCard.tsx
 #: src/components/SetupCard.tsx
 msgid "Estimate unavailable"
@@ -3484,6 +3489,11 @@ msgid "Report credits"
 msgstr "Кредиты за отчёты"
 
 # AI Translated
+#: src/components/Preferences.tsx
+msgid "Report errors to the JusPrin team automatically"
+msgstr "Автоматически сообщать об ошибках команде JusPrin"
+
+# AI Translated
 #: ../HomeUI/src/components/PrintHistory.tsx
 msgid "Report sent"
 msgstr "Отчёт отправлен"
@@ -4574,6 +4584,11 @@ msgstr "Что делать дальше"
 #: src/components/SetupLocalTool.tsx
 msgid "What to expect"
 msgstr "Чего ожидать"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "When something goes wrong on our side, JusPrin sends an anonymous report so the team can fix it. It has no chat messages, no files and nothing that says who you are. JusPrin’s server sees your IP address, as with any web page."
+msgstr "Если на нашей стороне что-то пойдёт не так, JusPrin отправит анонимный отчёт, чтобы команда могла это исправить. В нём нет сообщений из чата, файлов и ничего, что говорит о том, кто вы. Сервер JusPrin видит ваш IP-адрес, как и любой веб-сайт."
 
 # AI Translated
 #: src/components/OrcaImport.tsx

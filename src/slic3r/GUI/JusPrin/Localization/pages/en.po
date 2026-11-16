@@ -1449,6 +1449,10 @@ msgstr "Enter a title of 1–120 characters."
 msgid "Error"
 msgstr "Error"
 
+#: src/components/Preferences.tsx
+msgid "Error reports"
+msgstr "Error reports"
+
 #: src/components/SetupCard.tsx
 #: src/components/SetupCard.tsx
 msgid "Estimate unavailable"
@@ -2822,6 +2826,10 @@ msgstr "Reply…"
 msgid "Report credits"
 msgstr "Report credits"
 
+#: src/components/Preferences.tsx
+msgid "Report errors to the JusPrin team automatically"
+msgstr "Report errors to the JusPrin team automatically"
+
 #: ../HomeUI/src/components/PrintHistory.tsx
 msgid "Report sent"
 msgstr "Report sent"
@@ -3704,6 +3712,10 @@ msgstr "What to do next"
 #: src/components/SetupLocalTool.tsx
 msgid "What to expect"
 msgstr "What to expect"
+
+#: src/components/Preferences.tsx
+msgid "When something goes wrong on our side, JusPrin sends an anonymous report so the team can fix it. It has no chat messages, no files and nothing that says who you are. JusPrin’s server sees your IP address, as with any web page."
+msgstr "When something goes wrong on our side, JusPrin sends an anonymous report so the team can fix it. It has no chat messages, no files and nothing that says who you are. JusPrin’s server sees your IP address, as with any web page."
 
 #: src/components/OrcaImport.tsx
 msgid "When you import, JusPrin copies it with its filaments and print settings."

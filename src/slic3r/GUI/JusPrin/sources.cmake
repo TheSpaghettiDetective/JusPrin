@@ -62,6 +62,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Support/Base64.hpp
     GUI/JusPrin/Support/DecimalText.cpp
     GUI/JusPrin/Support/DecimalText.hpp
+    GUI/JusPrin/Support/ErrorReport.cpp
+    GUI/JusPrin/Support/ErrorReport.hpp
     GUI/JusPrin/Support/PageLanguage.cpp
     GUI/JusPrin/Support/PageLanguage.hpp
     GUI/JusPrin/Support/Translate.hpp
@@ -217,6 +219,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Shell/ProjectPaneModel.hpp
     GUI/JusPrin/Shell/CheckPrintDialog.cpp
     GUI/JusPrin/Shell/CheckPrintDialog.hpp
+    GUI/JusPrin/Shell/ErrorReportDialog.cpp
+    GUI/JusPrin/Shell/ErrorReportDialog.hpp
     GUI/JusPrin/Shell/CheckPrintReportModel.cpp
     GUI/JusPrin/Shell/CheckPrintReportModel.hpp
     GUI/JusPrin/Shell/CheckPrintReportPanel.cpp

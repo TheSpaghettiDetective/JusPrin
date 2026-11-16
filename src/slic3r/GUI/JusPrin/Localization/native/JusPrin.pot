@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15 09:46-0800\n"
+"POT-Creation-Date: 2026-11-15 18:58-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -31,9 +31,6 @@ msgid "This message belongs to a different chat."
 msgstr ""
 
 msgid "A message needs text or an attachment."
-msgstr ""
-
-msgid "The file could not be read."
 msgstr ""
 
 msgid "This file is too large to attach."
@@ -124,9 +121,6 @@ msgstr ""
 msgid "This save can no longer be undone."
 msgstr ""
 
-msgid "The earlier values cannot be put back."
-msgstr ""
-
 msgid "Finish or resolve pending work before creating a chat."
 msgstr ""
 
@@ -208,9 +202,6 @@ msgstr ""
 msgid "There is no JusPrin account on this computer to check."
 msgstr ""
 
-msgid "JusPrin couldn't start signing in. Try again."
-msgstr ""
-
 msgid "JusPrin couldn't sign you in. Try again."
 msgstr ""
 
@@ -218,9 +209,6 @@ msgid "This sign-in could not be saved, so you will have to sign in again next t
 msgstr ""
 
 msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
-msgstr ""
-
-msgid "The panel is still loading. Try again in a moment."
 msgstr ""
 
 msgid "The AI service is not available."
@@ -625,10 +613,6 @@ msgid "JusPrin no longer keeps this G-code. Slice the project again to export it
 msgstr ""
 
 msgid "Couldn't export G-code"
-msgstr ""
-
-#, c-format, boost-format
-msgid "The G-code couldn't be written to %s."
 msgstr ""
 
 msgid "Choose a photo of the printed object"
@@ -1193,6 +1177,53 @@ msgid "Back to JusPrin"
 msgstr ""
 
 msgid "Switch to JusPrin view"
+msgstr ""
+
+msgid "Something went wrong on our side"
+msgstr ""
+
+msgid "You can report this to the JusPrin team so they can fix it. The report is anonymous: it has no chat messages, no files and nothing that says who you are."
+msgstr ""
+
+msgid "See what the report contains"
+msgstr ""
+
+msgid "From now on, report errors like this automatically"
+msgstr ""
+
+msgid "Each report holds only the lines under ‘See what the report contains’. You can turn this off in Preferences › Updates."
+msgstr ""
+
+msgid "App"
+msgstr ""
+
+msgid "Was doing"
+msgstr ""
+
+msgid "Where"
+msgstr ""
+
+#. TRN %d is how many lines of the stack the report sends, such as 9.
+#, c-format, boost-format
+msgid "%d line naming the parts of JusPrin that were running"
+msgid_plural "%d lines naming the parts of JusPrin that were running"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "That is the whole report. It has no chat messages, no files, no project names and no account or email address."
+msgstr ""
+
+#. TRN %d is how many lines of the stack the report sends, such as 9.
+#, c-format, boost-format
+msgid "That line is not shown in full here. The report has no chat messages, no files, no project names and no account or email address."
+msgid_plural "Those %d lines are not shown in full here. The report has no chat messages, no files, no project names and no account or email address."
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Report this and future errors"
+msgstr ""
+
+msgid "Report to JusPrin team"
 msgstr ""
 
 #. TRN A menu caption in capitals: the printer's name (in capitals), then its nozzle size in millimetres.

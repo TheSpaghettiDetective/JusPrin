@@ -33,6 +33,7 @@
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/JusPrin/Updates/Version.hpp"
 #include "slic3r/GUI/JusPrin/Support/DecimalText.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/UtcTime.hpp"
@@ -62,6 +63,7 @@
 #include <map>
 #include <optional>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -712,8 +714,10 @@ void OrcaHomeBackend::start_sign_in()
     Agent::ICloudSignIn& cloud = sign_in();
     if (cloud.phase() != Agent::CloudSignInPhase::Idle)
         return; // A second click while the browser has the first.
+    // Idle was checked above, so start() cannot refuse; a sign-in that fails
+    // to start throws.
     if (!cloud.start(Agent::CloudBrowserStart::Google))
-        m_sign_in_error = utf8(_L("JusPrin couldn't start signing in. Try again."));
+        throw std::logic_error("An idle sign-in refused to start");
 }
 
 void OrcaHomeBackend::sign_in_with_email(const std::string& email)
@@ -898,6 +902,11 @@ void OrcaHomeBackend::dismiss_account_card()
         config->set(kOnboardingSection, kAccountCardDismissed, true);
         config->save();
     }
+}
+
+void OrcaHomeBackend::report_page_error(const std::string& error, const std::string& where)
+{
+    report_unexpected_error("running the Home page's code", error, where);
 }
 
 void OrcaHomeBackend::dismiss_setup_card()
@@ -1315,15 +1324,7 @@ void OrcaHomeBackend::export_gcode(const std::string& project_id, const std::str
             return;
         target = std::filesystem::u8path(chosen);
     }
-    try {
-        recorder->export_kept_copy(project_id, hash, target);
-    } catch (const std::filesystem::filesystem_error& error) {
-        // The folder went away or cannot be written: the person picks again.
-        BOOST_LOG_TRIVIAL(warning) << "Exporting G-code " << hash << " failed: " << error.what();
-        MessageDialog(&m_frame, wxString::Format(_L("The G-code couldn't be written to %s."), wxString::FromUTF8(target.u8string())),
-                      _L("Couldn't export G-code"), wxOK | wxICON_ERROR)
-            .ShowModal();
-    }
+    recorder->export_kept_copy(project_id, hash, target);
 }
 
 bool OrcaHomeBackend::reports_offered() const

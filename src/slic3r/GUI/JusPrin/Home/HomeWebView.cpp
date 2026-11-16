@@ -11,14 +11,17 @@
 #include "slic3r/GUI/JusPrin/Shell/DroppedFileUrl.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellRecipes.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellTheme.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 #include "slic3r/GUI/JusPrin/Support/PageLanguage.hpp"
 #include "slic3r/GUI/Widgets/WebView.hpp"
 
 #include <boost/filesystem.hpp>
 #include <boost/log/trivial.hpp>
+#include <nlohmann/json.hpp>
 
 #include <cstdlib>
 #include <optional>
+#include <string>
 
 #include <wx/filename.h>
 #include <wx/filesys.h>
@@ -154,7 +157,18 @@ void HomeWebView::on_live_tick(wxTimerEvent&)
 
 void HomeWebView::on_script_message(wxWebViewEvent& event)
 {
-    m_host->on_page_message(event.GetString().ToUTF8().data());
+    const std::string text = event.GetString().ToUTF8().data();
+    // The top of this entry point (AGENTS.md, Error handling): a failure in
+    // handling the message ends here, where it is reported. The message's
+    // type says what the app was doing.
+    try {
+        m_host->on_page_message(text);
+    } catch (...) {
+        const nlohmann::json envelope = nlohmann::json::parse(text, nullptr, false);
+        const std::string    type     = envelope.is_object() ? envelope.value("type", std::string()) : std::string();
+        report_unexpected_error("handling the Home page's " + (type.empty() ? std::string("unreadable") : type) + " message",
+                                describe_current_exception());
+    }
 }
 
 void HomeWebView::on_load_error(wxWebViewEvent& event)

@@ -345,7 +345,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kPickAttachment, Protocol::kAttachDroppedFile, Protocol::kSetChatModel, Protocol::kRefreshAccount, Protocol::kRefreshAccountBox, Protocol::kPrinterAction, Protocol::kPrinterInstructions,
                                               Protocol::kPrinterOpening, Protocol::kFilamentInstructions,
                                               Protocol::kShellAction, Protocol::kProjectInstructions,
-                                              Protocol::kSkills, Protocol::kSettingsCatalogRequest,
+                                              Protocol::kSkills, Protocol::kReportError, Protocol::kSettingsCatalogRequest,
                                               Protocol::kSettingsAction, Protocol::kSaveProposal,
                                               Protocol::kUndoReceipt, Protocol::kSetupRemoveKey,
                                               Protocol::kPreferencesAction, Protocol::kAccountSignIn,
@@ -605,6 +605,19 @@ TEST_CASE("an unsupported page version is rejected and other traffic requires th
         harness.handshake();
         harness.deliver("launch_missiles");
         CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "unknown_type");
+    }
+
+    SECTION("an error the page did not catch reaches the web view's reporter") {
+        harness.handshake();
+        std::vector<std::pair<std::string, std::string>> reported;
+        harness.host.set_page_error_handler(
+            [&reported](const std::string& error, const std::string& where) { reported.push_back({error, where}); });
+        harness.deliver(Protocol::kReportError, json{{"error", "TypeError: x is undefined"}, {"where", "at render (index.js:1:2)"}});
+        REQUIRE(reported.size() == 1);
+        CHECK(reported[0].first == "TypeError: x is undefined");
+        CHECK(reported[0].second == "at render (index.js:1:2)");
+        // Our own page sends both fields; one without them is a broken page.
+        CHECK_THROWS(harness.deliver(Protocol::kReportError, json{{"error", "TypeError"}}));
     }
 
     SECTION("another protocol's envelope is filtered, not treated as a fault") {
@@ -1424,14 +1437,14 @@ TEST_CASE("a session with tools of its own keeps its instructions over the proje
     REQUIRE_FALSE(agent->requests.empty());
     CHECK(agent->requests.front().session.instructions == "You are the printer panel.");
 
-    // Without its own, such a session's turn fails where the person can retry
-    // it; it never borrows the project assistant's.
+    // Without its own, such a session's turn is a fault in the page's
+    // ordering: it never borrows the project assistant's.
     harness.pump_all();
     panel.instructions.clear();
     harness.host.set_session_profile(panel);
-    harness.send_user_message("Again", "c-panel-empty");
-    REQUIRE(harness.last_of_type("assistant_failed") != nullptr);
-    CHECK((*harness.last_of_type("assistant_failed"))["payload"]["error"]["code"] == "instructions_missing");
+    const std::size_t requests = agent->requests.size();
+    CHECK_THROWS_AS(harness.send_user_message("Again", "c-panel-empty"), std::logic_error);
+    CHECK(agent->requests.size() == requests);
 }
 
 TEST_CASE("without the Agent, what Orca said becomes a card", "[agent][file-report]")
@@ -2054,22 +2067,27 @@ TEST_CASE("pick_attachment opens the dialog for one kind and stages the chosen f
 
     // Every chosen file is judged by the attach_file rules, one update each.
     const auto before = h.sent.size();
-    answer = {notes.u8string(), other.u8string(), (directory.root / "gone.png").u8string()};
+    answer = {notes.u8string(), other.u8string()};
     h.deliver("pick_attachment", json{{"kind", "gcode"}});
     const std::vector<std::string> gcode_extensions = requests.back().extensions;
     std::vector<json> attachments;
     for (std::size_t i = before; i < h.sent.size(); ++i)
         if (h.sent[i]["type"] == "attachment_updated")
             attachments.push_back(h.sent[i]["payload"]["attachment"]);
-    REQUIRE(attachments.size() == 3);
+    REQUIRE(attachments.size() == 2);
     CHECK(attachments[0]["kind"] == "gcode");
     CHECK(attachments[0]["state"] == "staged");
     CHECK(attachments[0]["previewText"] == "G1 X0\n");
     CHECK(attachments[1]["state"] == "error");
     CHECK(attachments[1]["error"]["code"] == "unsupported_type");
-    CHECK(attachments[2]["state"] == "error");
-    CHECK(attachments[2]["error"]["code"] == "unreadable");
     files_as(gcode_extensions, "gcode");
+
+    // A chosen file that cannot be read is an unexpected error, with the
+    // system's reason, and no attachment.
+    const auto before_gone = h.sent.size();
+    answer = {(directory.root / "gone.png").u8string()};
+    CHECK_THROWS_AS(h.deliver("pick_attachment", json{{"kind", "image"}}), std::filesystem::filesystem_error);
+    CHECK(h.sent.size() == before_gone);
 
     // The model filter is the classifier's own list, so nothing it offers is
     // a file the Agent cannot read.
@@ -2375,10 +2393,20 @@ TEST_CASE("a chat's model choice decides the agent each turn runs on", "[agent][
     // The pickers list configured providers only.
     CHECK_THROWS_AS(h.deliver("set_chat_model", json{{"provider", "openrouter"}, {"model", "x"}}), Slic3r::RuntimeError);
 
-    // A provider whose key is gone leaves its chats on the default.
+    // A chat the person has talked in still shows the model it ran on once
+    // that provider's key is gone, with the provider's name for the page,
+    // whose model list no longer has it.
     source->providers = {"openai"};
     h.deliver("state_request", json::object());
-    CHECK((*h.last_of_type("state"))["payload"]["chatModel"]["provider"] == "openai");
+    CHECK((*h.last_of_type("state"))["payload"]["chatModel"] ==
+          json{{"provider", "anthropic"}, {"model", "claude-sonnet-5-5"}, {"effort", "high"},
+               {"providerLabel", profile_for("anthropic")->display_name}});
+
+    // A chat nobody has talked in yet takes the default instead.
+    h.deliver("create_conversation", json::object());
+    h.deliver("state_request", json::object());
+    CHECK((*h.last_of_type("state"))["payload"]["chatModel"] ==
+          json{{"provider", "openai"}, {"model", openai_profile().model}, {"effort", ""}});
 }
 
 namespace {
@@ -2590,6 +2618,13 @@ TEST_CASE("a chat on the account fails its turn once the account is signed out o
     CHECK((*failed)["payload"]["error"]["code"] == "chat_provider_removed");
     CHECK((*failed)["payload"]["error"]["message"] ==
           "This chat ran on your JusPrin account. Sign in again to continue it, or start a new chat.");
+
+    // Its greyed picker still names the account's model, not the default of the key that is left.
+    h.deliver("state_request", json::object());
+    const json shown = (*h.last_of_type("state"))["payload"]["chatModel"];
+    CHECK(shown["provider"] == "jusprin");
+    CHECK(shown["model"] == "slicer-1");
+    CHECK(shown["providerLabel"] == "JusPrin");
 }
 
 TEST_CASE("a new chat on the account is on Expert in the first month and on Standard after it", "[agent][models][account]")
@@ -2879,6 +2914,37 @@ TEST_CASE("an unsupported binary attachment is rejected visibly", "[agent][attac
     CHECK(a["kind"] == "unsupported");
     CHECK(a["state"] == "error");
     CHECK(a["error"]["code"] == "unsupported_type");
+}
+
+// Saving the project checks that every file an attachment names is in the
+// project's folder, so an attachment that kept no file must name none.
+TEST_CASE("an attachment that was refused or not stored names no stored file", "[agent][attachments]")
+{
+    Harness h;
+    h.handshake();
+    const auto only_record = [&h] {
+        const std::vector<AttachmentRecord> records = h.persistence.document().attachments();
+        REQUIRE(records.size() == 1);
+        return records.front();
+    };
+
+    SECTION("a file type the chat does not take")
+    {
+        attach(h, "ca-bin", "firmware.bin", std::string("\x00\x01\x02\x03", 4));
+        CHECK(only_record().error->code == "unsupported_type");
+        CHECK(only_record().stored_name == "");
+    }
+    SECTION("a file the project's folder would not take")
+    {
+        // A plain file where the attachments folder goes, so nothing can be written under it.
+        const std::filesystem::path folder = std::filesystem::u8path(h.persistence.jusprin_data_dir());
+        std::filesystem::create_directories(folder);
+        std::ofstream(folder / "attachments") << "in the way";
+        attach(h, "ca-png", "photo.png", "pixels");
+        CHECK(only_record().error->code == "store_failed");
+        CHECK(only_record().stored_name == "");
+        std::filesystem::remove(folder / "attachments");
+    }
 }
 
 TEST_CASE("resending the same client attachment id is idempotent", "[agent][attachments]")
@@ -3835,6 +3901,16 @@ TEST_CASE("deleting the account signs out of it once the server has deleted it",
         return names;
     };
     REQUIRE(providers() == std::vector<std::string>{"jusprin", "openai"});
+
+    // A reply running in another window's chat would be left holding the
+    // sign-in: the server is not asked.
+    bool reply_running = true;
+    harness.host.set_reply_running_elsewhere([&reply_running] { return reply_running; });
+    harness.deliver("delete_account", json::object());
+    CHECK(source->deletes_asked == 0);
+    CHECK(harness.last_of_type("account_deleted")->at("payload") == json{{"deleted", false}});
+    CHECK(providers() == std::vector<std::string>{"jusprin", "openai"});
+    reply_running = false;
 
     // The server could not delete it: nothing changes.
     harness.deliver("delete_account", json::object());
@@ -6382,6 +6458,41 @@ TEST_CASE("undo on a preset saved in place puts its earlier values back", "[agen
     CHECK(fixture.filaments.at(copy).saved.at("nozzle_temperature") == "225");
     CHECK(fixture.selected_filament == copy);
     CHECK((*harness.last_of_type("message_added"))["payload"]["message"]["receipt"]["undone"] == true);
+}
+
+// A settings preview that refuses names its reason; one that does not is a
+// fault in the preview, which reaches the top of the page message unchanged
+// instead of becoming a sentence of its own.
+TEST_CASE("an undo whose preview refuses without a reason is an unexpected error", "[agent][tools][settings]")
+{
+    auto agent_owner = std::make_unique<OneCallAgent>();
+    OneCallAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    auto save = [&](const json& patch, const std::string& text) {
+        run_call(harness, *agent, ToolRequest{"settings_preview_patch", patch.dump()}, text);
+        const auto& activities = harness.host.tools().activities();
+        const auto  preview    = std::find_if(activities.rbegin(), activities.rend(),
+                                              [](const ToolActivity& item) { return item.tool == "settings_preview_patch"; });
+        REQUIRE(preview != activities.rend());
+        harness.deliver("save_proposal", json{{"actionId", preview->action_id}});
+        pump_tools_to_completion(harness);
+        harness.host.pump_tools();
+        harness.pump_all();
+        return (*harness.last_of_type("message_added"))["payload"]["message"];
+    };
+    const std::string copy = "Fixture PLA · MK4 calibrated";
+    save(json{{"scope", "filament"}, {"target", {{"preset", "Fixture PLA"}}}, {"changes", {{"nozzle_temperature", "225"}}},
+              {"persistAs", copy}}, "Here it is.");
+    const json receipt = save(json{{"scope", "filament"}, {"target", {{"preset", copy}}}, {"changes", {{"nozzle_temperature", "220"}}},
+                                   {"persistAs", copy}}, "And the second one.");
+    REQUIRE(receipt["receipt"]["undo"]["newCopy"] == false);
+
+    harness.workspace.set_preview_refuses_without_issue_for_testing(true);
+    const std::size_t sent = harness.sent.size();
+    CHECK_THROWS_AS(harness.deliver("undo_receipt", json{{"messageId", receipt["id"]}}), std::logic_error);
+    CHECK(harness.sent.size() == sent);
+    CHECK(harness.workspace.settings_for_testing().filaments.at(copy).saved.at("nozzle_temperature") == "220");
 }
 
 // The history guard. A provider bills the part of a request it has seen

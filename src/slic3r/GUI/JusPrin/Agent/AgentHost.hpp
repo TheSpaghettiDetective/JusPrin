@@ -30,6 +30,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace Slic3r::GUI::JusPrin::Mcp { class McpRuntime; struct CatalogItem; }
@@ -135,6 +136,10 @@ public:
     // it to the host, which reports it as a type outside the protocol.
     using PageMessageHandler = std::function<bool(const std::string& type, const nlohmann::json& payload)>;
     void set_page_message_handler(PageMessageHandler handler) { m_page_message_handler = std::move(handler); }
+    // Reports an error the page's own code did not catch (report_error):
+    // the web view that shows the page sets it.
+    using PageErrorHandler = std::function<void(const std::string& error, const std::string& where)>;
+    void set_page_error_handler(PageErrorHandler handler) { m_page_error_handler = std::move(handler); }
     // Carried in every `state` snapshot as `session`, so a page that reloads
     // is told what its surface shows without asking the subject itself.
     void set_session_state_provider(std::function<nlohmann::json()> provider)
@@ -299,6 +304,10 @@ public:
         m_mcp_discovery_path = other.m_mcp_discovery_path;
     }
     void set_mcp_cli_runner(McpCliRunner runner);
+    // Whether a reply is running in another host's chat, for a host that has
+    // no chat of its own (the Preferences window's): deleting the account
+    // waits for that reply as it waits for this host's own.
+    void set_reply_running_elsewhere(std::function<bool()> running) { m_reply_running_elsewhere = std::move(running); }
     // Reveals one file in the desktop's file manager. The host stays GUI-free,
     // so the wx side supplies the implementation the way it does the CLI
     // runner above.
@@ -712,6 +721,7 @@ private:
     // False while the turn that started the run goes on: ask again later.
     bool slice_ended(const std::string& action_id);
     PageMessageHandler              m_page_message_handler;
+    PageErrorHandler                m_page_error_handler;
     std::function<nlohmann::json()> m_restore_points_provider;
     ToolExecutionCoordinator::ExtensionExecutor m_session_tool_executor;
     ToolOutputFormatter             m_session_tool_output;
@@ -737,6 +747,7 @@ private:
     std::map<std::string, std::string> m_rejected_keys;
     McpConnectSettings              m_mcp_connect;
     McpCliRunner                    m_mcp_cli;
+    std::function<bool()>           m_reply_running_elsewhere;
     RevealPathFn                    m_reveal_path;
     OpenUrlFn                       m_open_url;
     // Per-chat models: the source, the choice the current m_agent was built

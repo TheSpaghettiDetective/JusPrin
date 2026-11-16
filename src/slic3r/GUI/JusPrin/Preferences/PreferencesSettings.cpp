@@ -2,6 +2,7 @@
 
 #include "libslic3r/AppConfig.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 #include "slic3r/GUI/JusPrin/Updates/UpdateRecord.hpp"
 
 #include <array>
@@ -59,11 +60,12 @@ struct Switch
 };
 
 // Written with set_bool, as OrcaSlicer's checkboxes write them.
-constexpr std::array<Switch, 4> kBoolSwitches{{
+constexpr std::array<Switch, 5> kBoolSwitches{{
     {"zoomToPointer", "zoom_to_mouse"},
     {"reverseZoom", "reverse_mouse_wheel_zoom"},
     {"freeCamera", "use_free_camera"},
     {"checkUpdates", Updates::kAutoCheckKey},
+    {"reportErrors", kReportErrorsKey},
 }};
 
 constexpr std::array<Switch, 3> kDragSettings{{
@@ -231,7 +233,9 @@ json snapshot(const AppConfig& config, const Facts& facts)
           {"checked", facts.update_checked == 0 ? json(nullptr) : json(facts.update_checked)},
           {"available", std::move(update)},
           // On until turned off, unlike OrcaSlicer's switches.
-          {"checkUpdates", Updates::auto_check_enabled(config)}}},
+          {"checkUpdates", Updates::auto_check_enabled(config)},
+          // Off until the person turns it on, here or in the report dialog.
+          {"reportErrors", config.get_bool(kReportErrorsKey)}}},
     };
 }
 

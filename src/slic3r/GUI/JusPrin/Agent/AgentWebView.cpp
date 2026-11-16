@@ -10,6 +10,7 @@
 #include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/format.hpp"
 #include "slic3r/GUI/JusPrin/Shell/DroppedFileUrl.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 #include "slic3r/GUI/JusPrin/Support/PageLanguage.hpp"
 #include "slic3r/GUI/JusPrin/Support/Translate.hpp"
 #include "slic3r/GUI/JusPrin/Shell/McpSetupCommand.hpp"
@@ -20,10 +21,12 @@
 
 #include <boost/filesystem.hpp>
 #include <boost/log/trivial.hpp>
+#include <nlohmann/json.hpp>
 
 #include <cstdlib>
 #include <memory>
 #include <optional>
+#include <string>
 #include <utility>
 
 #include <wx/filedlg.h>
@@ -128,6 +131,9 @@ AgentWebView::AgentWebView(wxWindow*                                  parent,
                                                 std::move(agent), std::move(setup)))
     , m_handshake_timer(this, kHandshakeTimerId)
 {
+    m_host->set_page_error_handler([](const std::string& error, const std::string& where) {
+        report_unexpected_error("running the app page's code", error, where);
+    });
     m_host->set_chat_titles_file((boost::filesystem::path(data_dir()) / "jusprin" / "chat-titles.json").string());
     m_host->set_mcp_cli_runner([this](const std::vector<std::string>& arguments, Agent::AgentHost::McpCliDone done) {
         start_mcp_setup_command(this, arguments, [complete = std::move(done)](McpSetupResult result) {
@@ -169,7 +175,14 @@ AgentWebView::AgentWebView(wxWindow*                                  parent,
                 for (const wxString& path : paths)
                     chosen.push_back(path.ToUTF8().data());
             }
-            done(std::move(chosen));
+            // The top of this entry point (AGENTS.md, Error handling): the
+            // chosen files are read here, after the page's message was
+            // handled, so a failure in reading one ends here.
+            try {
+                done(std::move(chosen));
+            } catch (...) {
+                report_unexpected_error("attaching the chosen files", describe_current_exception());
+            }
         });
     });
     m_host->set_image_thumbnail_maker(
@@ -287,7 +300,18 @@ AgentWebView::~AgentWebView()
 
 void AgentWebView::on_script_message(wxWebViewEvent& event)
 {
-    m_host->on_page_message(event.GetString().ToUTF8().data());
+    const std::string text = event.GetString().ToUTF8().data();
+    // The top of this entry point (AGENTS.md, Error handling): a failure in
+    // handling the message ends here, where it is reported. The message's
+    // type says what the app was doing.
+    try {
+        m_host->on_page_message(text);
+    } catch (...) {
+        const nlohmann::json envelope = nlohmann::json::parse(text, nullptr, false);
+        const std::string    type     = envelope.is_object() ? envelope.value("type", std::string()) : std::string();
+        report_unexpected_error("handling the app page's " + (type.empty() ? std::string("unreadable") : type) + " message",
+                                describe_current_exception());
+    }
 }
 
 void AgentWebView::on_load_error(wxWebViewEvent& event)

@@ -168,6 +168,9 @@ PreferencesWindow::PreferencesWindow(wxWindow*               parent,
 
     Agent::AgentHost& host = m_view->host();
     host.share_mcp_connect(docked);
+    // This window's host has no chat of its own; the reply that would be left
+    // holding a deleted account's sign-in runs in the docked panel.
+    host.set_reply_running_elsewhere([&docked] { return docked.busy(); });
     host.set_session_state_provider([this] { return state(); });
     host.set_page_message_handler([this](const std::string& type, const json& payload) { return on_page_message(type, payload); });
 

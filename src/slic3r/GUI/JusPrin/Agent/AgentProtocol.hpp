@@ -216,6 +216,9 @@ inline constexpr const char* kProjectInstructions    = "project_instructions";
 // in one message: text the app adds to one request when the event its trigger
 // names happens.
 inline constexpr const char* kSkills                 = "skills";
+// An error the page's own code did not catch, {error, where}: the app reports
+// it as an unexpected error (Support/ErrorReport.hpp). Both pages send it.
+inline constexpr const char* kReportError            = "report_error";
 // The Preferences window's own: one change or command from the page,
 // {action: "set", name, value} or {action: <command>}, and the settings it
 // shows, {kind: "preferences", ...}, sent again after every change. The same

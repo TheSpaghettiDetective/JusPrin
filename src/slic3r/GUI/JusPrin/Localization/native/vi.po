@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15 09:46-0800\n"
+"POT-Creation-Date: 2026-11-15 18:58-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -36,10 +36,6 @@ msgstr "Tin nhắn này thuộc về một cuộc trò chuyện khác."
 # AI Translated
 msgid "A message needs text or an attachment."
 msgstr "Tin nhắn cần có nội dung hoặc tệp đính kèm."
-
-# AI Translated
-msgid "The file could not be read."
-msgstr "Không thể đọc file."
 
 # AI Translated
 msgid "This file is too large to attach."
@@ -154,10 +150,6 @@ msgid "This save can no longer be undone."
 msgstr "Không thể hoàn tác lần lưu này nữa."
 
 # AI Translated
-msgid "The earlier values cannot be put back."
-msgstr "Không thể khôi phục các giá trị trước đó."
-
-# AI Translated
 msgid "Finish or resolve pending work before creating a chat."
 msgstr "Hãy hoàn tất hoặc giải quyết công việc đang chờ trước khi tạo cuộc trò chuyện."
 
@@ -266,10 +258,6 @@ msgid "There is no JusPrin account on this computer to check."
 msgstr "Máy tính này không có tài khoản JusPrin nào để kiểm tra."
 
 # AI Translated
-msgid "JusPrin couldn't start signing in. Try again."
-msgstr "JusPrin không thể bắt đầu đăng nhập. Hãy thử lại."
-
-# AI Translated
 msgid "JusPrin couldn't sign you in. Try again."
 msgstr "JusPrin không thể đăng nhập cho bạn. Hãy thử lại."
 
@@ -280,10 +268,6 @@ msgstr "Không thể lưu lần đăng nhập này, nên bạn sẽ phải đăn
 # AI Translated
 msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
 msgstr "Không thể lưu khóa này, nên sẽ phải nhập lại vào lần khởi động JusPrin tiếp theo."
-
-# AI Translated
-msgid "The panel is still loading. Try again in a moment."
-msgstr "Bảng vẫn đang tải. Hãy thử lại sau giây lát."
 
 # AI Translated
 msgid "The AI service is not available."
@@ -800,11 +784,6 @@ msgstr "JusPrin không còn giữ G-code này. Hãy slice lại dự án để x
 # AI Translated
 msgid "Couldn't export G-code"
 msgstr "Không thể xuất G-code"
-
-# AI Translated
-#, c-format, boost-format
-msgid "The G-code couldn't be written to %s."
-msgstr "Không thể ghi G-code vào %s."
 
 # AI Translated
 msgid "Choose a photo of the printed object"
@@ -1521,6 +1500,64 @@ msgstr "Quay lại JusPrin"
 # AI Translated
 msgid "Switch to JusPrin view"
 msgstr "Chuyển sang giao diện JusPrin"
+
+# AI Translated
+msgid "Something went wrong on our side"
+msgstr "Đã xảy ra lỗi từ phía chúng tôi"
+
+# AI Translated
+msgid "You can report this to the JusPrin team so they can fix it. The report is anonymous: it has no chat messages, no files and nothing that says who you are."
+msgstr "Bạn có thể báo cáo lỗi này cho nhóm JusPrin để họ khắc phục. Báo cáo là ẩn danh: không có tin nhắn trò chuyện, không có file và không có gì cho biết bạn là ai."
+
+# AI Translated
+msgid "See what the report contains"
+msgstr "Xem báo cáo chứa những gì"
+
+# AI Translated
+msgid "From now on, report errors like this automatically"
+msgstr "Từ giờ, tự động báo cáo các lỗi như thế này"
+
+# AI Translated
+msgid "Each report holds only the lines under ‘See what the report contains’. You can turn this off in Preferences › Updates."
+msgstr "Mỗi báo cáo chỉ gồm các dòng trong mục “Xem báo cáo chứa những gì”. Bạn có thể tắt tính năng này trong Tùy chọn › Cập nhật."
+
+# AI Translated
+msgid "App"
+msgstr "Ứng dụng"
+
+# AI Translated
+msgid "Was doing"
+msgstr "Đang làm"
+
+# AI Translated
+msgid "Where"
+msgstr "Vị trí"
+
+# AI Translated
+#. TRN %d is how many lines of the stack the report sends, such as 9.
+#, c-format, boost-format
+msgid "%d line naming the parts of JusPrin that were running"
+msgid_plural "%d lines naming the parts of JusPrin that were running"
+msgstr[0] "%d dòng nêu tên các phần của JusPrin đang chạy"
+
+# AI Translated
+msgid "That is the whole report. It has no chat messages, no files, no project names and no account or email address."
+msgstr "Đó là toàn bộ báo cáo. Báo cáo không có tin nhắn trò chuyện, không có file, không có tên dự án và không có tài khoản hay địa chỉ email."
+
+# AI Translated
+#. TRN %d is how many lines of the stack the report sends, such as 9.
+#, c-format, boost-format
+msgid "That line is not shown in full here. The report has no chat messages, no files, no project names and no account or email address."
+msgid_plural "Those %d lines are not shown in full here. The report has no chat messages, no files, no project names and no account or email address."
+msgstr[0] "%d dòng này không được hiển thị đầy đủ ở đây. Báo cáo không có tin nhắn trò chuyện, không có file, không có tên dự án và không có tài khoản hay địa chỉ email."
+
+# AI Translated
+msgid "Report this and future errors"
+msgstr "Báo cáo lỗi này và các lỗi sau"
+
+# AI Translated
+msgid "Report to JusPrin team"
+msgstr "Báo cáo cho nhóm JusPrin"
 
 # AI Translated
 #. TRN A menu caption in capitals: the printer's name (in capitals), then its nozzle size in millimetres.
@@ -2297,3 +2334,24 @@ msgstr "Dự án này được lưu bằng phiên bản JusPrin mới hơn. Hãy
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "Không thể mở dự án. Hãy thử lại."
+
+# AI Translated
+#~ msgid "The file could not be read."
+#~ msgstr "Không thể đọc file."
+
+# AI Translated
+#~ msgid "The earlier values cannot be put back."
+#~ msgstr "Không thể khôi phục các giá trị trước đó."
+
+# AI Translated
+#~ msgid "JusPrin couldn't start signing in. Try again."
+#~ msgstr "JusPrin không thể bắt đầu đăng nhập. Hãy thử lại."
+
+# AI Translated
+#~ msgid "The panel is still loading. Try again in a moment."
+#~ msgstr "Bảng vẫn đang tải. Hãy thử lại sau giây lát."
+
+# AI Translated
+#, c-format, boost-format
+#~ msgid "The G-code couldn't be written to %s."
+#~ msgstr "Không thể ghi G-code vào %s."

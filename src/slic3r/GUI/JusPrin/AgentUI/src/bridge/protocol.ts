@@ -45,6 +45,7 @@ export type PageMessageType =
   | 'shell_action'
   | 'project_instructions'
   | 'skills'
+  | 'report_error'
   | 'settings_catalog_request'
   | 'settings_action'
   | 'save_proposal'
@@ -254,6 +255,9 @@ export interface ChatModelChoice {
   provider: string;
   model: string;
   effort: string;
+  // The provider's name, sent only for a chat whose provider is no longer set
+  // up: the model list, which names every other provider, has none of it.
+  providerLabel?: string;
 }
 
 export interface ModelOptionInfo {
@@ -980,6 +984,9 @@ export interface PreferencesPayload {
     available: { version: string; url: string; published: string; notes: string } | null;
     // "New JusPrin versions": the daily check.
     checkUpdates: boolean;
+    // "Report errors to the JusPrin team automatically": unexpected errors
+    // go without the report dialog asking.
+    reportErrors: boolean;
   };
 }
 

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15 09:46-0800\n"
+"POT-Creation-Date: 2026-11-15 18:58-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -37,10 +37,6 @@ msgstr "Ez az üzenet egy másik csevegéshez tartozik."
 # AI Translated
 msgid "A message needs text or an attachment."
 msgstr "Az üzenethez szöveg vagy melléklet szükséges."
-
-# AI Translated
-msgid "The file could not be read."
-msgstr "A fájlt nem sikerült beolvasni."
 
 # AI Translated
 msgid "This file is too large to attach."
@@ -155,10 +151,6 @@ msgid "This save can no longer be undone."
 msgstr "Ez a mentés már nem vonható vissza."
 
 # AI Translated
-msgid "The earlier values cannot be put back."
-msgstr "A korábbi értékek nem állíthatók vissza."
-
-# AI Translated
 msgid "Finish or resolve pending work before creating a chat."
 msgstr "Új csevegés létrehozása előtt fejezd be vagy rendezd a függőben lévő műveleteket."
 
@@ -267,10 +259,6 @@ msgid "There is no JusPrin account on this computer to check."
 msgstr "Ezen a számítógépen nincs ellenőrizhető JusPrin-fiók."
 
 # AI Translated
-msgid "JusPrin couldn't start signing in. Try again."
-msgstr "A JusPrin nem tudta elindítani a bejelentkezést. Próbáld újra."
-
-# AI Translated
 msgid "JusPrin couldn't sign you in. Try again."
 msgstr "A JusPrin nem tudott bejelentkeztetni. Próbáld újra."
 
@@ -281,10 +269,6 @@ msgstr "Ezt a bejelentkezést nem sikerült menteni, ezért a JusPrin következ�
 # AI Translated
 msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
 msgstr "Ezt a kulcsot nem sikerült menteni, ezért a JusPrin következő indításakor újra meg kell adni."
-
-# AI Translated
-msgid "The panel is still loading. Try again in a moment."
-msgstr "A panel még töltődik. Próbáld újra egy pillanat múlva."
 
 # AI Translated
 msgid "The AI service is not available."
@@ -800,11 +784,6 @@ msgstr "A JusPrin már nem őrzi ezt a G-code-ot. Az exportáláshoz szeleteld �
 # AI Translated
 msgid "Couldn't export G-code"
 msgstr "A G-code exportálása nem sikerült"
-
-# AI Translated
-#, c-format, boost-format
-msgid "The G-code couldn't be written to %s."
-msgstr "A G-code-ot nem sikerült ide írni: %s."
 
 # AI Translated
 msgid "Choose a photo of the printed object"
@@ -1531,6 +1510,66 @@ msgstr "Vissza a JusPrinhez"
 # AI Translated
 msgid "Switch to JusPrin view"
 msgstr "Váltás JusPrin nézetre"
+
+# AI Translated
+msgid "Something went wrong on our side"
+msgstr "Valami hiba történt nálunk"
+
+# AI Translated
+msgid "You can report this to the JusPrin team so they can fix it. The report is anonymous: it has no chat messages, no files and nothing that says who you are."
+msgstr "Jelentheted ezt a JusPrin csapatának, hogy kijavíthassák. A jelentés névtelen: nincsenek benne csevegőüzenetek, fájlok, és semmi, ami elárulná, ki vagy."
+
+# AI Translated
+msgid "See what the report contains"
+msgstr "A jelentés tartalmának megtekintése"
+
+# AI Translated
+msgid "From now on, report errors like this automatically"
+msgstr "Mostantól az ilyen hibák automatikus jelentése"
+
+# AI Translated
+msgid "Each report holds only the lines under ‘See what the report contains’. You can turn this off in Preferences › Updates."
+msgstr "Minden jelentés csak „A jelentés tartalmának megtekintése” alatti sorokat tartalmazza. Ezt a Beállítások › Frissítések részben kapcsolhatod ki."
+
+# AI Translated
+msgid "App"
+msgstr "App"
+
+# AI Translated
+msgid "Was doing"
+msgstr "Művelet"
+
+# AI Translated
+msgid "Where"
+msgstr "Hely"
+
+# AI Translated
+#. TRN %d is how many lines of the stack the report sends, such as 9.
+#, c-format, boost-format
+msgid "%d line naming the parts of JusPrin that were running"
+msgid_plural "%d lines naming the parts of JusPrin that were running"
+msgstr[0] "%d sor, amely a JusPrin futó részeit nevezi meg"
+msgstr[1] "%d sor, amely a JusPrin futó részeit nevezi meg"
+
+# AI Translated
+msgid "That is the whole report. It has no chat messages, no files, no project names and no account or email address."
+msgstr "Ez a teljes jelentés. Nincsenek benne csevegőüzenetek, fájlok, projektnevek, sem fiók vagy e-mail-cím."
+
+# AI Translated
+#. TRN %d is how many lines of the stack the report sends, such as 9.
+#, c-format, boost-format
+msgid "That line is not shown in full here. The report has no chat messages, no files, no project names and no account or email address."
+msgid_plural "Those %d lines are not shown in full here. The report has no chat messages, no files, no project names and no account or email address."
+msgstr[0] "Ez a sor itt nem látható teljes egészében. A jelentésben nincsenek csevegőüzenetek, fájlok, projektnevek, sem fiók vagy e-mail-cím."
+msgstr[1] "Ez a %d sor itt nem látható teljes egészében. A jelentésben nincsenek csevegőüzenetek, fájlok, projektnevek, sem fiók vagy e-mail-cím."
+
+# AI Translated
+msgid "Report this and future errors"
+msgstr "Ennek és a későbbi hibáknak a jelentése"
+
+# AI Translated
+msgid "Report to JusPrin team"
+msgstr "Jelentés a JusPrin csapatának"
 
 # AI Translated
 #. TRN A menu caption in capitals: the printer's name (in capitals), then its nozzle size in millimetres.
@@ -2315,3 +2354,24 @@ msgstr "Ezt a projektet a JusPrin egy újabb verziója mentette. A megnyitásáh
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "A projektet nem sikerült megnyitni. Próbáld újra."
+
+# AI Translated
+#~ msgid "The file could not be read."
+#~ msgstr "A fájlt nem sikerült beolvasni."
+
+# AI Translated
+#~ msgid "The earlier values cannot be put back."
+#~ msgstr "A korábbi értékek nem állíthatók vissza."
+
+# AI Translated
+#~ msgid "JusPrin couldn't start signing in. Try again."
+#~ msgstr "A JusPrin nem tudta elindítani a bejelentkezést. Próbáld újra."
+
+# AI Translated
+#~ msgid "The panel is still loading. Try again in a moment."
+#~ msgstr "A panel még töltődik. Próbáld újra egy pillanat múlva."
+
+# AI Translated
+#, c-format, boost-format
+#~ msgid "The G-code couldn't be written to %s."
+#~ msgstr "A G-code-ot nem sikerült ide írni: %s."

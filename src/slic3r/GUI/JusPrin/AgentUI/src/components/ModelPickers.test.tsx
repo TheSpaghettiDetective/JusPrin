@@ -110,6 +110,18 @@ describe('the model menu', () => {
     expect(rows.map((row) => !('section' in row) && row.label)).toEqual(['Get the new version…']);
   });
 
+  it('still names the model of a chat whose account or key is gone, from the name the host sends', () => {
+    const openaiOnly = { ...two, defaultProvider: 'openai', providers: [two.providers[1]] };
+    // Signed out of the account: its alias means nothing, so the chat reads as JusPrin.
+    const { rerender } = render(<ModelPickers catalog={openaiOnly} locked disabled={false} onChoose={vi.fn()}
+      choice={{ provider: 'jusprin', model: 'slicer-1', effort: 'thorough', providerLabel: 'JusPrin' }} />);
+    expect(screen.getByRole('button', { name: 'Model: JusPrin' })).toBeDisabled();
+    // A removed key: the id is the model's own name.
+    rerender(<ModelPickers catalog={openaiOnly} locked disabled={false} onChoose={vi.fn()}
+      choice={{ provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'high', providerLabel: 'Anthropic' }} />);
+    expect(screen.getByRole('button', { name: 'Model: claude-sonnet-5-5' })).toBeDisabled();
+  });
+
   it('switches model and provider together, from the next turn', async () => {
     const { onChoose } = renderPickers(two, onOpus);
     await userEvent.click(screen.getByRole('button', { name: 'Model: Claude Opus 5.5' }));

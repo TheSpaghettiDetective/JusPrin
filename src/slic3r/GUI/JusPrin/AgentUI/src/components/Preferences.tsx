@@ -652,6 +652,11 @@ function UpdatesSection({ updates, actions }: { updates: PreferencesPayload['upd
         <Row title={t`Built-in printer and filament profiles`}
           detail={t`Update with each JusPrin release. Your own presets never change.`} />
       </Group>
+      <Group title={t`Error reports`}>
+        <Check title={t`Report errors to the JusPrin team automatically`}
+          detail={t`When something goes wrong on our side, JusPrin sends an anonymous report so the team can fix it. It has no chat messages, no files and nothing that says who you are. JusPrin’s server sees your IP address, as with any web page.`}
+          checked={updates.reportErrors} onChange={(on) => actions.set('reportErrors', on)} />
+      </Group>
     </section>
   );
 }

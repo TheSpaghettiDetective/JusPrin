@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15 09:46-0800\n"
+"POT-Creation-Date: 2026-11-15 18:58-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -36,10 +36,6 @@ msgstr "Bu mesaj başka bir sohbete ait."
 # AI Translated
 msgid "A message needs text or an attachment."
 msgstr "Bir mesajın metin veya ek içermesi gerekir."
-
-# AI Translated
-msgid "The file could not be read."
-msgstr "Dosya okunamadı."
 
 # AI Translated
 msgid "This file is too large to attach."
@@ -156,10 +152,6 @@ msgid "This save can no longer be undone."
 msgstr "Bu kayıt artık geri alınamaz."
 
 # AI Translated
-msgid "The earlier values cannot be put back."
-msgstr "Önceki değerler geri getirilemiyor."
-
-# AI Translated
 msgid "Finish or resolve pending work before creating a chat."
 msgstr "Sohbet oluşturmadan önce bekleyen işleri bitirin veya çözün."
 
@@ -268,10 +260,6 @@ msgid "There is no JusPrin account on this computer to check."
 msgstr "Bu bilgisayarda denetlenecek bir JusPrin hesabı yok."
 
 # AI Translated
-msgid "JusPrin couldn't start signing in. Try again."
-msgstr "JusPrin oturum açmayı başlatamadı. Yeniden deneyin."
-
-# AI Translated
 msgid "JusPrin couldn't sign you in. Try again."
 msgstr "JusPrin oturumunuzu açamadı. Yeniden deneyin."
 
@@ -282,10 +270,6 @@ msgstr "Bu oturum kaydedilemedi; JusPrin bir sonraki başlatıldığında yenide
 # AI Translated
 msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
 msgstr "Bu anahtar kaydedilemedi; JusPrin bir sonraki başlatıldığında anahtarı yeniden girmeniz gerekecek."
-
-# AI Translated
-msgid "The panel is still loading. Try again in a moment."
-msgstr "Panel hâlâ yükleniyor. Birazdan yeniden deneyin."
 
 # AI Translated
 msgid "The AI service is not available."
@@ -801,11 +785,6 @@ msgstr "JusPrin artık bu G-code'u saklamıyor. Dışa aktarmak için projeyi ye
 # AI Translated
 msgid "Couldn't export G-code"
 msgstr "G-code dışa aktarılamadı"
-
-# AI Translated
-#, c-format, boost-format
-msgid "The G-code couldn't be written to %s."
-msgstr "G-code şu konuma yazılamadı: %s."
 
 # AI Translated
 msgid "Choose a photo of the printed object"
@@ -1531,6 +1510,66 @@ msgstr "JusPrin'e dön"
 # AI Translated
 msgid "Switch to JusPrin view"
 msgstr "JusPrin görünümüne geç"
+
+# AI Translated
+msgid "Something went wrong on our side"
+msgstr "Bizim tarafımızda bir sorun oluştu"
+
+# AI Translated
+msgid "You can report this to the JusPrin team so they can fix it. The report is anonymous: it has no chat messages, no files and nothing that says who you are."
+msgstr "JusPrin ekibinin düzeltebilmesi için bunu onlara bildirebilirsiniz. Rapor anonimdir: sohbet mesajı, dosya veya kim olduğunuzu gösteren hiçbir şey içermez."
+
+# AI Translated
+msgid "See what the report contains"
+msgstr "Raporun içeriğini gör"
+
+# AI Translated
+msgid "From now on, report errors like this automatically"
+msgstr "Bundan sonra bu tür hataları otomatik olarak bildir"
+
+# AI Translated
+msgid "Each report holds only the lines under ‘See what the report contains’. You can turn this off in Preferences › Updates."
+msgstr "Her rapor yalnızca “Raporun içeriğini gör” altındaki satırları içerir. Bunu Tercihler › Güncellemeler bölümünden kapatabilirsiniz."
+
+# AI Translated
+msgid "App"
+msgstr "Uygulama"
+
+# AI Translated
+msgid "Was doing"
+msgstr "Yapılan işlem"
+
+# AI Translated
+msgid "Where"
+msgstr "Konum"
+
+# AI Translated
+#. TRN %d is how many lines of the stack the report sends, such as 9.
+#, c-format, boost-format
+msgid "%d line naming the parts of JusPrin that were running"
+msgid_plural "%d lines naming the parts of JusPrin that were running"
+msgstr[0] "JusPrin'in çalışan bölümlerini adlandıran %d satır"
+msgstr[1] "JusPrin'in çalışan bölümlerini adlandıran %d satır"
+
+# AI Translated
+msgid "That is the whole report. It has no chat messages, no files, no project names and no account or email address."
+msgstr "Raporun tamamı bu. Sohbet mesajı, dosya, proje adı, hesap veya e-posta adresi içermez."
+
+# AI Translated
+#. TRN %d is how many lines of the stack the report sends, such as 9.
+#, c-format, boost-format
+msgid "That line is not shown in full here. The report has no chat messages, no files, no project names and no account or email address."
+msgid_plural "Those %d lines are not shown in full here. The report has no chat messages, no files, no project names and no account or email address."
+msgstr[0] "Bu satır burada tam olarak gösterilmiyor. Rapor sohbet mesajı, dosya, proje adı, hesap veya e-posta adresi içermez."
+msgstr[1] "Bu %d satır burada tam olarak gösterilmiyor. Rapor sohbet mesajı, dosya, proje adı, hesap veya e-posta adresi içermez."
+
+# AI Translated
+msgid "Report this and future errors"
+msgstr "Bunu ve sonraki hataları bildir"
+
+# AI Translated
+msgid "Report to JusPrin team"
+msgstr "JusPrin ekibine bildir"
 
 # AI Translated
 #. TRN A menu caption in capitals: the printer's name (in capitals), then its nozzle size in millimetres.
@@ -2315,3 +2354,24 @@ msgstr "Bu proje JusPrin'in daha yeni bir sürümüyle kaydedildi. Açmak için 
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "Proje açılamadı. Yeniden deneyin."
+
+# AI Translated
+#~ msgid "The file could not be read."
+#~ msgstr "Dosya okunamadı."
+
+# AI Translated
+#~ msgid "The earlier values cannot be put back."
+#~ msgstr "Önceki değerler geri getirilemiyor."
+
+# AI Translated
+#~ msgid "JusPrin couldn't start signing in. Try again."
+#~ msgstr "JusPrin oturum açmayı başlatamadı. Yeniden deneyin."
+
+# AI Translated
+#~ msgid "The panel is still loading. Try again in a moment."
+#~ msgstr "Panel hâlâ yükleniyor. Birazdan yeniden deneyin."
+
+# AI Translated
+#, c-format, boost-format
+#~ msgid "The G-code couldn't be written to %s."
+#~ msgstr "G-code şu konuma yazılamadı: %s."

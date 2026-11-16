@@ -46,7 +46,7 @@ function preferences(overrides: Partial<PreferencesPayload> = {}): PreferencesPa
       versionsFolder: 'C:/data/jusprin/projects', downloadPath: 'C:/Users/alex/Downloads',
       associations: true, open3mf: true, openModels: false, openLinks: false,
     },
-    updates: { version: '2.0.0', status: 'notChecked', checked: null, available: null, checkUpdates: true },
+    updates: { version: '2.0.0', status: 'notChecked', checked: null, available: null, checkUpdates: true, reportErrors: false },
     agent: {
       newChatProvider: 'openai',
       newChatChoices: [
@@ -524,6 +524,7 @@ describe('Preferences', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Updates' }));
     await userEvent.click(screen.getByRole('checkbox', { name: /New JusPrin versions/ }));
+    await userEvent.click(screen.getByRole('checkbox', { name: /Report errors to the JusPrin team automatically/ }));
 
     expect(actionsSent(host)).toEqual([
       { action: 'set', name: 'theme', value: 'dark' },
@@ -532,6 +533,7 @@ describe('Preferences', () => {
       { action: 'set', name: 'zoomToPointer', value: false },
       { action: 'set', name: 'leftDrag', value: 'pan' },
       { action: 'set', name: 'checkUpdates', value: false },
+      { action: 'set', name: 'reportErrors', value: true },
     ]);
   });
 

@@ -199,6 +199,8 @@ void HomeHost::on_page_message(const std::string& text)
 
     if (type == "state_request")
         push_state();
+    else if (type == "report_error")
+        m_backend.report_page_error(payload.at("error").get<std::string>(), payload.at("where").get<std::string>());
     else if (type == "confirm_answer") {
         if (m_confirmation_listener)
             m_confirmation_listener(payload.value("requestId", std::string()), payload.value("confirmed", false));

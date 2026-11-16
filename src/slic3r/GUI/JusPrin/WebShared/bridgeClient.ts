@@ -81,6 +81,9 @@ export class SharedBridgeClient {
   private state: ConnectionState = 'connecting';
   private transport: Transport | null = null;
   private transportAttempts = 0;
+  // Uncaught page errors waiting for the connection: an error before the
+  // handshake is reported once the app can receive it.
+  private unsentErrors: { error: string; where: string }[] = [];
 
   constructor(protocol: ProtocolIdentity, options: BridgeClientOptions) {
     this.protocol = protocol;
@@ -94,6 +97,10 @@ export class SharedBridgeClient {
   start(): void {
     if (typeof window !== 'undefined') {
       window.__jusprinBridge = { deliver: (envelope: unknown) => this.deliver(envelope) };
+      // The top of the page's own code (AGENTS.md, Error handling): an error
+      // nothing caught goes to the app, which opens its report dialog.
+      window.addEventListener('error', (event) => this.reportError(event.error ?? event.message));
+      window.addEventListener('unhandledrejection', (event) => this.reportError(event.reason));
     }
     this.beginHandshake();
   }
@@ -142,6 +149,15 @@ export class SharedBridgeClient {
     }, timeoutMs);
   }
 
+  reportError(error: unknown): void {
+    const report =
+      error instanceof Error
+        ? { error: `${error.name}: ${error.message}`, where: error.stack ?? '' }
+        : { error: String(error), where: '' };
+    if (this.state === 'connected') this.post('report_error', report);
+    else this.unsentErrors.push(report);
+  }
+
   send(type: string, payload: unknown): void {
     this.post(type, payload);
   }
@@ -164,6 +180,7 @@ export class SharedBridgeClient {
     if (envelope.type === 'hello_ack') {
       this.cancelHandshakeTimer();
       this.setState('connected');
+      for (const report of this.unsentErrors.splice(0)) this.post('report_error', report);
     } else if (envelope.type === 'hello_reject') {
       this.cancelHandshakeTimer();
       const payload = envelope.payload as { message?: string } | undefined;

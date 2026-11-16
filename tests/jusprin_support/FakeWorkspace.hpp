@@ -87,6 +87,8 @@ public:
 
     SettingsPreview preview_settings(const SettingsPatch& patch) const override
     {
+        if (m_preview_refuses_without_issue)
+            return SettingsPreview{}; // not valid, and no issue says why
         if (!m_settings_available) {
             SettingsPreview result;
             result.issues.push_back({"", "workspace_unavailable", "No FFF process preset is selected. Ask the person to select one."});
@@ -169,6 +171,8 @@ public:
         }
     }
     void set_settings_available_for_testing(bool available) { m_settings_available = available; }
+    // A preview that breaks its contract: it refuses without naming an issue.
+    void set_preview_refuses_without_issue_for_testing(bool refuses) { m_preview_refuses_without_issue = refuses; }
     // The fixture's filament and printer presets, to arrange what a test needs.
     FakeSettings& settings_for_testing() { return m_settings; }
     // Switching presets moves the baseline the deltas are measured from, which
@@ -1695,6 +1699,7 @@ private:
     WorkspaceChangeHub             m_changes;
     FakeSettings                   m_settings;
     bool                           m_settings_available{true};
+    bool                           m_preview_refuses_without_issue{false};
     std::string                    m_process_preset{"Fixture process"};
     std::string                    m_currency{"USD"};
     std::map<std::uint64_t, std::vector<OrcaMessage>> m_dialog_listeners;

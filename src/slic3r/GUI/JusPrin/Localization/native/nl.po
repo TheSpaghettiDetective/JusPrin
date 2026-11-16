@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15 09:46-0800\n"
+"POT-Creation-Date: 2026-11-15 18:58-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -36,10 +36,6 @@ msgstr "Dit bericht hoort bij een andere chat."
 # AI Translated
 msgid "A message needs text or an attachment."
 msgstr "Een bericht heeft tekst of een bijlage nodig."
-
-# AI Translated
-msgid "The file could not be read."
-msgstr "Het bestand kon niet worden gelezen."
 
 # AI Translated
 msgid "This file is too large to attach."
@@ -154,10 +150,6 @@ msgid "This save can no longer be undone."
 msgstr "Deze opslag kan niet meer ongedaan worden gemaakt."
 
 # AI Translated
-msgid "The earlier values cannot be put back."
-msgstr "De eerdere waarden kunnen niet worden teruggezet."
-
-# AI Translated
 msgid "Finish or resolve pending work before creating a chat."
 msgstr "Rond openstaand werk af voordat u een chat aanmaakt."
 
@@ -266,10 +258,6 @@ msgid "There is no JusPrin account on this computer to check."
 msgstr "Er is geen JusPrin-account op deze computer om te controleren."
 
 # AI Translated
-msgid "JusPrin couldn't start signing in. Try again."
-msgstr "JusPrin kon het inloggen niet starten. Probeer het opnieuw."
-
-# AI Translated
 msgid "JusPrin couldn't sign you in. Try again."
 msgstr "JusPrin kon u niet inloggen. Probeer het opnieuw."
 
@@ -280,10 +268,6 @@ msgstr "Deze inlogsessie kon niet worden opgeslagen, dus u moet opnieuw inloggen
 # AI Translated
 msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
 msgstr "Deze sleutel kon niet worden opgeslagen, dus u moet hem opnieuw invoeren wanneer JusPrin de volgende keer start."
-
-# AI Translated
-msgid "The panel is still loading. Try again in a moment."
-msgstr "Het paneel wordt nog geladen. Probeer het zo meteen opnieuw."
 
 # AI Translated
 msgid "The AI service is not available."
@@ -801,11 +785,6 @@ msgstr "JusPrin bewaart deze G-code niet meer. Slice het project opnieuw om het 
 # AI Translated
 msgid "Couldn't export G-code"
 msgstr "G-code kon niet worden geëxporteerd"
-
-# AI Translated
-#, c-format, boost-format
-msgid "The G-code couldn't be written to %s."
-msgstr "De G-code kon niet naar %s worden geschreven."
 
 # AI Translated
 msgid "Choose a photo of the printed object"
@@ -1534,6 +1513,66 @@ msgstr "Terug naar JusPrin"
 # AI Translated
 msgid "Switch to JusPrin view"
 msgstr "Overschakelen naar JusPrin-weergave"
+
+# AI Translated
+msgid "Something went wrong on our side"
+msgstr "Er ging iets mis aan onze kant"
+
+# AI Translated
+msgid "You can report this to the JusPrin team so they can fix it. The report is anonymous: it has no chat messages, no files and nothing that says who you are."
+msgstr "U kunt dit melden bij het JusPrin-team, zodat zij het kunnen oplossen. Het rapport is anoniem: het bevat geen chatberichten, geen bestanden en niets wat zegt wie u bent."
+
+# AI Translated
+msgid "See what the report contains"
+msgstr "Bekijken wat het rapport bevat"
+
+# AI Translated
+msgid "From now on, report errors like this automatically"
+msgstr "Fouten zoals deze voortaan automatisch melden"
+
+# AI Translated
+msgid "Each report holds only the lines under ‘See what the report contains’. You can turn this off in Preferences › Updates."
+msgstr "Elk rapport bevat alleen de regels onder ‘Bekijken wat het rapport bevat’. U kunt dit uitschakelen in Voorkeuren › Updates."
+
+# AI Translated
+msgid "App"
+msgstr "App"
+
+# AI Translated
+msgid "Was doing"
+msgstr "Bezig met"
+
+# AI Translated
+msgid "Where"
+msgstr "Locatie"
+
+# AI Translated
+#. TRN %d is how many lines of the stack the report sends, such as 9.
+#, c-format, boost-format
+msgid "%d line naming the parts of JusPrin that were running"
+msgid_plural "%d lines naming the parts of JusPrin that were running"
+msgstr[0] "%d regel met de onderdelen van JusPrin die actief waren"
+msgstr[1] "%d regels met de onderdelen van JusPrin die actief waren"
+
+# AI Translated
+msgid "That is the whole report. It has no chat messages, no files, no project names and no account or email address."
+msgstr "Dat is het hele rapport. Het bevat geen chatberichten, geen bestanden, geen projectnamen en geen account of e-mailadres."
+
+# AI Translated
+#. TRN %d is how many lines of the stack the report sends, such as 9.
+#, c-format, boost-format
+msgid "That line is not shown in full here. The report has no chat messages, no files, no project names and no account or email address."
+msgid_plural "Those %d lines are not shown in full here. The report has no chat messages, no files, no project names and no account or email address."
+msgstr[0] "Die regel wordt hier niet volledig getoond. Het rapport bevat geen chatberichten, geen bestanden, geen projectnamen en geen account of e-mailadres."
+msgstr[1] "Die %d regels worden hier niet volledig getoond. Het rapport bevat geen chatberichten, geen bestanden, geen projectnamen en geen account of e-mailadres."
+
+# AI Translated
+msgid "Report this and future errors"
+msgstr "Deze en toekomstige fouten melden"
+
+# AI Translated
+msgid "Report to JusPrin team"
+msgstr "Melden bij JusPrin-team"
 
 # AI Translated
 #. TRN A menu caption in capitals: the printer's name (in capitals), then its nozzle size in millimetres.
@@ -2322,3 +2361,24 @@ msgstr "Dit project is opgeslagen met een nieuwere versie van JusPrin. Download 
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "Het project kon niet worden geopend. Probeer het opnieuw."
+
+# AI Translated
+#~ msgid "The file could not be read."
+#~ msgstr "Het bestand kon niet worden gelezen."
+
+# AI Translated
+#~ msgid "The earlier values cannot be put back."
+#~ msgstr "De eerdere waarden kunnen niet worden teruggezet."
+
+# AI Translated
+#~ msgid "JusPrin couldn't start signing in. Try again."
+#~ msgstr "JusPrin kon het inloggen niet starten. Probeer het opnieuw."
+
+# AI Translated
+#~ msgid "The panel is still loading. Try again in a moment."
+#~ msgstr "Het paneel wordt nog geladen. Probeer het zo meteen opnieuw."
+
+# AI Translated
+#, c-format, boost-format
+#~ msgid "The G-code couldn't be written to %s."
+#~ msgstr "De G-code kon niet naar %s worden geschreven."

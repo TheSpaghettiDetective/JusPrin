@@ -1786,6 +1786,11 @@ msgid "Error"
 msgstr "Hiba"
 
 # AI Translated
+#: src/components/Preferences.tsx
+msgid "Error reports"
+msgstr "Hibajelentések"
+
+# AI Translated
 #: src/components/SetupCard.tsx
 #: src/components/SetupCard.tsx
 msgid "Estimate unavailable"
@@ -3482,6 +3487,11 @@ msgid "Report credits"
 msgstr "Jelentésért kapott kreditek"
 
 # AI Translated
+#: src/components/Preferences.tsx
+msgid "Report errors to the JusPrin team automatically"
+msgstr "Hibák automatikus jelentése a JusPrin csapatának"
+
+# AI Translated
 #: ../HomeUI/src/components/PrintHistory.tsx
 msgid "Report sent"
 msgstr "Jelentés elküldve"
@@ -4572,6 +4582,11 @@ msgstr "Mi a következő lépés"
 #: src/components/SetupLocalTool.tsx
 msgid "What to expect"
 msgstr "Mire számíthatsz"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "When something goes wrong on our side, JusPrin sends an anonymous report so the team can fix it. It has no chat messages, no files and nothing that says who you are. JusPrin’s server sees your IP address, as with any web page."
+msgstr "Ha nálunk valami hiba történik, a JusPrin névtelen jelentést küld, hogy a csapat kijavíthassa. Nincsenek benne csevegőüzenetek, fájlok, és semmi, ami elárulná, ki vagy. A JusPrin szervere látja az IP-címedet, mint bármely weboldal."
 
 # AI Translated
 #: src/components/OrcaImport.tsx

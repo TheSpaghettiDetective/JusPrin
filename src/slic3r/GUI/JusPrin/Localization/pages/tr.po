@@ -1788,6 +1788,11 @@ msgid "Error"
 msgstr "Hata"
 
 # AI Translated
+#: src/components/Preferences.tsx
+msgid "Error reports"
+msgstr "Hata raporları"
+
+# AI Translated
 #: src/components/SetupCard.tsx
 #: src/components/SetupCard.tsx
 msgid "Estimate unavailable"
@@ -3486,6 +3491,11 @@ msgid "Report credits"
 msgstr "Rapor kredileri"
 
 # AI Translated
+#: src/components/Preferences.tsx
+msgid "Report errors to the JusPrin team automatically"
+msgstr "Hataları JusPrin ekibine otomatik olarak bildir"
+
+# AI Translated
 #: ../HomeUI/src/components/PrintHistory.tsx
 msgid "Report sent"
 msgstr "Rapor gönderildi"
@@ -4576,6 +4586,11 @@ msgstr "Sonra ne yapmalı"
 #: src/components/SetupLocalTool.tsx
 msgid "What to expect"
 msgstr "Neler beklenmeli"
+
+# AI Translated
+#: src/components/Preferences.tsx
+msgid "When something goes wrong on our side, JusPrin sends an anonymous report so the team can fix it. It has no chat messages, no files and nothing that says who you are. JusPrin’s server sees your IP address, as with any web page."
+msgstr "Bizim tarafımızda bir sorun oluştuğunda JusPrin, ekibin düzeltebilmesi için anonim bir rapor gönderir. Rapor sohbet mesajı, dosya veya kim olduğunuzu gösteren hiçbir şey içermez. JusPrin’in sunucusu, her web sayfasında olduğu gibi IP adresinizi görür."
 
 # AI Translated
 #: src/components/OrcaImport.tsx

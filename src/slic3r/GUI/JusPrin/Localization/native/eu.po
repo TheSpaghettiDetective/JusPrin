@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15 09:46-0800\n"
+"POT-Creation-Date: 2026-11-15 18:58-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -36,10 +36,6 @@ msgstr "Mezu hau beste txat batekoa da."
 # AI Translated
 msgid "A message needs text or an attachment."
 msgstr "Mezu batek testua edo eranskin bat behar du."
-
-# AI Translated
-msgid "The file could not be read."
-msgstr "Ezin izan da fitxategia irakurri."
 
 # AI Translated
 msgid "This file is too large to attach."
@@ -154,10 +150,6 @@ msgid "This save can no longer be undone."
 msgstr "Gordetze hau ezin da desegin jada."
 
 # AI Translated
-msgid "The earlier values cannot be put back."
-msgstr "Ezin dira aurreko balioak berrezarri."
-
-# AI Translated
 msgid "Finish or resolve pending work before creating a chat."
 msgstr "Amaitu edo ebatzi zain dauden lanak txat bat sortu aurretik."
 
@@ -266,10 +258,6 @@ msgid "There is no JusPrin account on this computer to check."
 msgstr "Ez dago JusPrin konturik ordenagailu honetan egiaztatzeko."
 
 # AI Translated
-msgid "JusPrin couldn't start signing in. Try again."
-msgstr "JusPrin-ek ezin izan du saio-hasiera abiarazi. Saiatu berriro."
-
-# AI Translated
 msgid "JusPrin couldn't sign you in. Try again."
 msgstr "JusPrin-ek ezin izan dizu saioa hasi. Saiatu berriro."
 
@@ -280,10 +268,6 @@ msgstr "Ezin izan da saio hau gorde; beraz, JusPrin abiarazten den hurrengo aldi
 # AI Translated
 msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
 msgstr "Ezin izan da gako hau gorde; beraz, JusPrin abiarazten den hurrengo aldian berriro sartu beharko da."
-
-# AI Translated
-msgid "The panel is still loading. Try again in a moment."
-msgstr "Panela kargatzen ari da oraindik. Saiatu berriro une batean."
 
 # AI Translated
 msgid "The AI service is not available."
@@ -798,11 +782,6 @@ msgstr "JusPrin-ek ez du G-code hau gordetzen jada. Xerratu proiektua berriro es
 # AI Translated
 msgid "Couldn't export G-code"
 msgstr "Ezin izan da G-codea esportatu"
-
-# AI Translated
-#, c-format, boost-format
-msgid "The G-code couldn't be written to %s."
-msgstr "Ezin izan da G-codea hemen idatzi: %s."
 
 # AI Translated
 msgid "Choose a photo of the printed object"
@@ -1528,6 +1507,67 @@ msgstr "Itzuli JusPrin-era"
 # AI Translated
 msgid "Switch to JusPrin view"
 msgstr "Aldatu JusPrin ikuspegira"
+
+# AI Translated
+msgid "Something went wrong on our side"
+msgstr "Zerbait gaizki atera da gure aldetik"
+
+# AI Translated
+msgid "You can report this to the JusPrin team so they can fix it. The report is anonymous: it has no chat messages, no files and nothing that says who you are."
+msgstr "JusPrin taldeari jakinarazi diezaiokezu, konpon dezan. Txostena anonimoa da: ez du txat-mezurik, ez fitxategirik, ez zu nor zaren adierazten duen ezer."
+
+# AI Translated
+msgid "See what the report contains"
+msgstr "Ikusi zer dauka txostenak"
+
+# AI Translated
+msgid "From now on, report errors like this automatically"
+msgstr "Hemendik aurrera, jakinarazi automatikoki honelako erroreak"
+
+# AI Translated
+msgid "Each report holds only the lines under ‘See what the report contains’. You can turn this off in Preferences › Updates."
+msgstr "Txosten bakoitzak «Ikusi zer dauka txostenak» ataleko lerroak bakarrik ditu. Hobespenak › Eguneraketak atalean desaktiba dezakezu."
+
+# AI Translated
+msgid "App"
+msgstr "Aplikazioa"
+
+# AI Translated
+msgid "Was doing"
+msgstr "Egiten ari zena"
+
+# AI Translated
+msgid "Where"
+msgstr "Kokapena"
+
+# AI Translated
+# Needs human review: Check the plural agreement of the relative clause (dituena / dituztenak) after a number.
+#. TRN %d is how many lines of the stack the report sends, such as 9.
+#, c-format, boost-format
+msgid "%d line naming the parts of JusPrin that were running"
+msgid_plural "%d lines naming the parts of JusPrin that were running"
+msgstr[0] "%d lerro, JusPrin-en exekutatzen ari ziren atalak izendatzen dituena"
+msgstr[1] "%d lerro, JusPrin-en exekutatzen ari ziren atalak izendatzen dituztenak"
+
+# AI Translated
+msgid "That is the whole report. It has no chat messages, no files, no project names and no account or email address."
+msgstr "Hori da txosten osoa. Ez du txat-mezurik, ez fitxategirik, ez proiektu-izenik, ez konturik ez helbide elektronikorik."
+
+# AI Translated
+#. TRN %d is how many lines of the stack the report sends, such as 9.
+#, c-format, boost-format
+msgid "That line is not shown in full here. The report has no chat messages, no files, no project names and no account or email address."
+msgid_plural "Those %d lines are not shown in full here. The report has no chat messages, no files, no project names and no account or email address."
+msgstr[0] "Lerro hori ez da hemen osorik erakusten. Txostenak ez du txat-mezurik, ez fitxategirik, ez proiektu-izenik, ez konturik ez helbide elektronikorik."
+msgstr[1] "%d lerro horiek ez dira hemen osorik erakusten. Txostenak ez du txat-mezurik, ez fitxategirik, ez proiektu-izenik, ez konturik ez helbide elektronikorik."
+
+# AI Translated
+msgid "Report this and future errors"
+msgstr "Jakinarazi hau eta hurrengo erroreak"
+
+# AI Translated
+msgid "Report to JusPrin team"
+msgstr "Jakinarazi JusPrin taldeari"
 
 # AI Translated
 #. TRN A menu caption in capitals: the printer's name (in capitals), then its nozzle size in millimetres.
@@ -2312,3 +2352,24 @@ msgstr "Proiektu hau JusPrin-en bertsio berriago batek gorde zuen. Lortu bertsio
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "Ezin izan da proiektua ireki. Saiatu berriro."
+
+# AI Translated
+#~ msgid "The file could not be read."
+#~ msgstr "Ezin izan da fitxategia irakurri."
+
+# AI Translated
+#~ msgid "The earlier values cannot be put back."
+#~ msgstr "Ezin dira aurreko balioak berrezarri."
+
+# AI Translated
+#~ msgid "JusPrin couldn't start signing in. Try again."
+#~ msgstr "JusPrin-ek ezin izan du saio-hasiera abiarazi. Saiatu berriro."
+
+# AI Translated
+#~ msgid "The panel is still loading. Try again in a moment."
+#~ msgstr "Panela kargatzen ari da oraindik. Saiatu berriro une batean."
+
+# AI Translated
+#, c-format, boost-format
+#~ msgid "The G-code couldn't be written to %s."
+#~ msgstr "Ezin izan da G-codea hemen idatzi: %s."

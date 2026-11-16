@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15 09:46-0800\n"
+"POT-Creation-Date: 2026-11-15 18:58-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -36,10 +36,6 @@ msgstr "이 메시지는 다른 채팅에 속해 있습니다."
 # AI Translated
 msgid "A message needs text or an attachment."
 msgstr "메시지에는 텍스트나 첨부 파일이 있어야 합니다."
-
-# AI Translated
-msgid "The file could not be read."
-msgstr "파일을 읽을 수 없습니다."
 
 # AI Translated
 msgid "This file is too large to attach."
@@ -154,10 +150,6 @@ msgid "This save can no longer be undone."
 msgstr "이 저장은 더 이상 실행 취소할 수 없습니다."
 
 # AI Translated
-msgid "The earlier values cannot be put back."
-msgstr "이전 값을 되돌릴 수 없습니다."
-
-# AI Translated
 msgid "Finish or resolve pending work before creating a chat."
 msgstr "채팅을 만들기 전에 대기 중인 작업을 완료하거나 해결하세요."
 
@@ -266,10 +258,6 @@ msgid "There is no JusPrin account on this computer to check."
 msgstr "이 컴퓨터에는 확인할 JusPrin 계정이 없습니다."
 
 # AI Translated
-msgid "JusPrin couldn't start signing in. Try again."
-msgstr "JusPrin에서 로그인을 시작하지 못했습니다. 다시 시도하세요."
-
-# AI Translated
 msgid "JusPrin couldn't sign you in. Try again."
 msgstr "JusPrin에서 로그인하지 못했습니다. 다시 시도하세요."
 
@@ -280,10 +268,6 @@ msgstr "이 로그인 정보를 저장할 수 없어 다음에 JusPrin을 시작
 # AI Translated
 msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
 msgstr "이 키를 저장할 수 없어 다음에 JusPrin을 시작할 때 다시 입력해야 합니다."
-
-# AI Translated
-msgid "The panel is still loading. Try again in a moment."
-msgstr "패널을 아직 불러오는 중입니다. 잠시 후 다시 시도하세요."
 
 # AI Translated
 msgid "The AI service is not available."
@@ -798,11 +782,6 @@ msgstr "JusPrin에 이 G-code가 더 이상 보관되어 있지 않습니다. �
 # AI Translated
 msgid "Couldn't export G-code"
 msgstr "G-code를 내보낼 수 없음"
-
-# AI Translated
-#, c-format, boost-format
-msgid "The G-code couldn't be written to %s."
-msgstr "G-code를 %s에 쓸 수 없습니다."
 
 # AI Translated
 msgid "Choose a photo of the printed object"
@@ -1521,6 +1500,64 @@ msgstr "JusPrin으로 돌아가기"
 # AI Translated
 msgid "Switch to JusPrin view"
 msgstr "JusPrin 보기로 전환"
+
+# AI Translated
+msgid "Something went wrong on our side"
+msgstr "저희 쪽에서 문제가 발생했습니다"
+
+# AI Translated
+msgid "You can report this to the JusPrin team so they can fix it. The report is anonymous: it has no chat messages, no files and nothing that says who you are."
+msgstr "JusPrin 팀에 보고하면 팀에서 문제를 고칠 수 있습니다. 보고서는 익명이며 채팅 메시지, 파일, 사용자를 식별할 수 있는 정보는 포함되지 않습니다."
+
+# AI Translated
+msgid "See what the report contains"
+msgstr "보고서 내용 보기"
+
+# AI Translated
+msgid "From now on, report errors like this automatically"
+msgstr "앞으로 이런 오류는 자동으로 보고"
+
+# AI Translated
+msgid "Each report holds only the lines under ‘See what the report contains’. You can turn this off in Preferences › Updates."
+msgstr "각 보고서에는 ‘보고서 내용 보기’ 아래의 줄만 포함됩니다. 기본 설정 › 업데이트에서 끌 수 있습니다."
+
+# AI Translated
+msgid "App"
+msgstr "앱"
+
+# AI Translated
+msgid "Was doing"
+msgstr "진행 중이던 작업"
+
+# AI Translated
+msgid "Where"
+msgstr "위치"
+
+# AI Translated
+#. TRN %d is how many lines of the stack the report sends, such as 9.
+#, c-format, boost-format
+msgid "%d line naming the parts of JusPrin that were running"
+msgid_plural "%d lines naming the parts of JusPrin that were running"
+msgstr[0] "실행 중이던 JusPrin 구성 요소를 나타내는 %d줄"
+
+# AI Translated
+msgid "That is the whole report. It has no chat messages, no files, no project names and no account or email address."
+msgstr "이것이 보고서의 전부입니다. 채팅 메시지, 파일, 프로젝트 이름, 계정 또는 이메일 주소는 포함되지 않습니다."
+
+# AI Translated
+#. TRN %d is how many lines of the stack the report sends, such as 9.
+#, c-format, boost-format
+msgid "That line is not shown in full here. The report has no chat messages, no files, no project names and no account or email address."
+msgid_plural "Those %d lines are not shown in full here. The report has no chat messages, no files, no project names and no account or email address."
+msgstr[0] "이 %d줄은 여기에 전체가 표시되지 않습니다. 보고서에는 채팅 메시지, 파일, 프로젝트 이름, 계정 또는 이메일 주소가 포함되지 않습니다."
+
+# AI Translated
+msgid "Report this and future errors"
+msgstr "이 오류와 이후 오류 보고"
+
+# AI Translated
+msgid "Report to JusPrin team"
+msgstr "JusPrin 팀에 보고"
 
 # AI Translated
 #. TRN A menu caption in capitals: the printer's name (in capitals), then its nozzle size in millimetres.
@@ -2296,3 +2333,24 @@ msgstr "이 프로젝트는 최신 버전의 JusPrin에서 저장되었습니다
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "프로젝트를 열 수 없습니다. 다시 시도하세요."
+
+# AI Translated
+#~ msgid "The file could not be read."
+#~ msgstr "파일을 읽을 수 없습니다."
+
+# AI Translated
+#~ msgid "The earlier values cannot be put back."
+#~ msgstr "이전 값을 되돌릴 수 없습니다."
+
+# AI Translated
+#~ msgid "JusPrin couldn't start signing in. Try again."
+#~ msgstr "JusPrin에서 로그인을 시작하지 못했습니다. 다시 시도하세요."
+
+# AI Translated
+#~ msgid "The panel is still loading. Try again in a moment."
+#~ msgstr "패널을 아직 불러오는 중입니다. 잠시 후 다시 시도하세요."
+
+# AI Translated
+#, c-format, boost-format
+#~ msgid "The G-code couldn't be written to %s."
+#~ msgstr "G-code를 %s에 쓸 수 없습니다."

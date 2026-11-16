@@ -5,6 +5,7 @@
 #include <catch2/catch_all.hpp>
 
 #include "slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 #include "slic3r/GUI/JusPrin/Preferences/PreferencesSettings.hpp"
 
 #include "libslic3r/AppConfig.hpp"
@@ -214,6 +215,11 @@ TEST_CASE_METHOD(ConfigFixture, "JusPrin's own update check runs from the Update
     CHECK(set("checkUpdates", false)["updates"]["checkUpdates"] == false);
     CHECK(config.get("jusprin_update_check") == "false");
     CHECK(set("checkUpdates", true)["updates"]["checkUpdates"] == true);
+
+    // Error reports go automatically only once the person says so.
+    CHECK(snapshot(config, facts)["updates"]["reportErrors"] == false);
+    CHECK(set("reportErrors", true)["updates"]["reportErrors"] == true);
+    CHECK(config.get_bool(Slic3r::GUI::JusPrin::kReportErrorsKey));
 
     CHECK(apply_action(config, {{"action", "check_updates"}}).effect == Effect::CheckUpdates);
     const Outcome skip = apply_action(config, {{"action", "skip_update"}, {"version", "2.1.0"}});

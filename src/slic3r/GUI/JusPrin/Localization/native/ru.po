@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15 09:46-0800\n"
+"POT-Creation-Date: 2026-11-15 18:58-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -37,10 +37,6 @@ msgstr "Это сообщение относится к другому чату.
 # AI Translated
 msgid "A message needs text or an attachment."
 msgstr "Сообщение должно содержать текст или вложение."
-
-# AI Translated
-msgid "The file could not be read."
-msgstr "Не удалось прочитать файл."
 
 # AI Translated
 msgid "This file is too large to attach."
@@ -157,10 +153,6 @@ msgid "This save can no longer be undone."
 msgstr "Это сохранение больше нельзя отменить."
 
 # AI Translated
-msgid "The earlier values cannot be put back."
-msgstr "Прежние значения невозможно вернуть."
-
-# AI Translated
 msgid "Finish or resolve pending work before creating a chat."
 msgstr "Завершите или разрешите ожидающие действия, прежде чем создавать чат."
 
@@ -269,10 +261,6 @@ msgid "There is no JusPrin account on this computer to check."
 msgstr "На этом компьютере нет учётной записи JusPrin для проверки."
 
 # AI Translated
-msgid "JusPrin couldn't start signing in. Try again."
-msgstr "JusPrin не удалось начать вход. Попробуйте ещё раз."
-
-# AI Translated
 msgid "JusPrin couldn't sign you in. Try again."
 msgstr "JusPrin не удалось выполнить вход. Попробуйте ещё раз."
 
@@ -283,10 +271,6 @@ msgstr "Не удалось сохранить данные входа, поэт
 # AI Translated
 msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
 msgstr "Не удалось сохранить этот ключ, поэтому при следующем запуске JusPrin его придётся ввести снова."
-
-# AI Translated
-msgid "The panel is still loading. Try again in a moment."
-msgstr "Панель ещё загружается. Повторите попытку чуть позже."
 
 # AI Translated
 msgid "The AI service is not available."
@@ -802,11 +786,6 @@ msgstr "JusPrin больше не хранит этот G-code. Нарежьте
 # AI Translated
 msgid "Couldn't export G-code"
 msgstr "Не удалось экспортировать G-code"
-
-# AI Translated
-#, c-format, boost-format
-msgid "The G-code couldn't be written to %s."
-msgstr "Не удалось записать G-code в %s."
 
 # AI Translated
 msgid "Choose a photo of the printed object"
@@ -1540,6 +1519,68 @@ msgstr "Вернуться в JusPrin"
 # AI Translated
 msgid "Switch to JusPrin view"
 msgstr "Перейти к виду JusPrin"
+
+# AI Translated
+msgid "Something went wrong on our side"
+msgstr "Что-то пошло не так на нашей стороне"
+
+# AI Translated
+msgid "You can report this to the JusPrin team so they can fix it. The report is anonymous: it has no chat messages, no files and nothing that says who you are."
+msgstr "Вы можете сообщить об этом команде JusPrin, чтобы она это исправила. Отчёт анонимный: в нём нет сообщений из чата, файлов и ничего, что говорит о том, кто вы."
+
+# AI Translated
+msgid "See what the report contains"
+msgstr "Посмотреть, что содержит отчёт"
+
+# AI Translated
+msgid "From now on, report errors like this automatically"
+msgstr "Впредь автоматически сообщать о таких ошибках"
+
+# AI Translated
+msgid "Each report holds only the lines under ‘See what the report contains’. You can turn this off in Preferences › Updates."
+msgstr "Каждый отчёт содержит только строки из раздела «Посмотреть, что содержит отчёт». Это можно отключить в разделе «Настройки › Обновления»."
+
+# AI Translated
+msgid "App"
+msgstr "Приложение"
+
+# AI Translated
+msgid "Was doing"
+msgstr "Действие"
+
+# AI Translated
+msgid "Where"
+msgstr "Место"
+
+# AI Translated
+#. TRN %d is how many lines of the stack the report sends, such as 9.
+#, c-format, boost-format
+msgid "%d line naming the parts of JusPrin that were running"
+msgid_plural "%d lines naming the parts of JusPrin that were running"
+msgstr[0] "%d строка с названиями работавших частей JusPrin"
+msgstr[1] "%d строки с названиями работавших частей JusPrin"
+msgstr[2] "%d строк с названиями работавших частей JusPrin"
+
+# AI Translated
+msgid "That is the whole report. It has no chat messages, no files, no project names and no account or email address."
+msgstr "Это весь отчёт. В нём нет сообщений из чата, файлов, названий проектов, а также учётной записи или адреса электронной почты."
+
+# AI Translated
+#. TRN %d is how many lines of the stack the report sends, such as 9.
+#, c-format, boost-format
+msgid "That line is not shown in full here. The report has no chat messages, no files, no project names and no account or email address."
+msgid_plural "Those %d lines are not shown in full here. The report has no chat messages, no files, no project names and no account or email address."
+msgstr[0] "%d строка здесь показана не полностью. В отчёте нет сообщений из чата, файлов, названий проектов, а также учётной записи или адреса электронной почты."
+msgstr[1] "%d строки здесь показаны не полностью. В отчёте нет сообщений из чата, файлов, названий проектов, а также учётной записи или адреса электронной почты."
+msgstr[2] "%d строк здесь показано не полностью. В отчёте нет сообщений из чата, файлов, названий проектов, а также учётной записи или адреса электронной почты."
+
+# AI Translated
+msgid "Report this and future errors"
+msgstr "Сообщить об этой и будущих ошибках"
+
+# AI Translated
+msgid "Report to JusPrin team"
+msgstr "Сообщить команде JusPrin"
 
 # AI Translated
 #. TRN A menu caption in capitals: the printer's name (in capitals), then its nozzle size in millimetres.
@@ -2334,3 +2375,24 @@ msgstr "Этот проект сохранён более новой верси�
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "Не удалось открыть проект. Попробуйте ещё раз."
+
+# AI Translated
+#~ msgid "The file could not be read."
+#~ msgstr "Не удалось прочитать файл."
+
+# AI Translated
+#~ msgid "The earlier values cannot be put back."
+#~ msgstr "Прежние значения невозможно вернуть."
+
+# AI Translated
+#~ msgid "JusPrin couldn't start signing in. Try again."
+#~ msgstr "JusPrin не удалось начать вход. Попробуйте ещё раз."
+
+# AI Translated
+#~ msgid "The panel is still loading. Try again in a moment."
+#~ msgstr "Панель ещё загружается. Повторите попытку чуть позже."
+
+# AI Translated
+#, c-format, boost-format
+#~ msgid "The G-code couldn't be written to %s."
+#~ msgstr "Не удалось записать G-code в %s."
