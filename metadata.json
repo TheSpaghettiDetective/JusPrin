@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7HAP3MTW97BFCY39EQ2JKHQ",
   "strategy": "manual-commit",
   "branch": "fix-four-reproduced-refusal-bugs",
-  "checkpoints_count": 3,
+  "checkpoints_count": 6,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/Agent/AgentConfiguration.cpp"
   ],
@@ -14,13 +14,27 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 734,
-    "cache_creation_tokens": 1011507,
-    "cache_read_tokens": 85506646,
-    "output_tokens": 230852,
-    "api_call_count": 367
+    "input_tokens": 1444,
+    "cache_creation_tokens": 2775465,
+    "cache_read_tokens": 178720581,
+    "output_tokens": 645597,
+    "api_call_count": 723,
+    "subagent_tokens": {
+      "input_tokens": 114,
+      "cache_creation_tokens": 1215058,
+      "cache_read_tokens": 12272345,
+      "output_tokens": 88959,
+      "api_call_count": 57
+    }
   }
 }
