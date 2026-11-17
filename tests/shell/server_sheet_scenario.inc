@@ -214,8 +214,7 @@
             }
             return true;
         };
-        PrinterSetup::PrinterPanel* panel = installed_shell()->printer_panel();
-        panel->open(PrinterSetup::ConversationMode::Add);
+        PrinterSetup::PrinterPanel* panel = open_printer_chat(PrinterSetup::ConversationMode::Add, {}, "printer_chat_sheet");
         const bool loaded = wait_for([panel] {
             return panel->host() != nullptr && panel->host()->handshake_complete() && panel->instructions_ready();
         }, 60s);

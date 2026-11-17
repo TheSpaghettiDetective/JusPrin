@@ -6362,7 +6362,7 @@ private:
             words >> key_variable;
             const char*       key  = key_variable.empty() ? nullptr : std::getenv(key_variable.c_str());
             const std::string name = kind + ' ' + address + (key_variable.empty() ? "" : " form " + key_variable);
-            panel->open(PrinterSetup::ConversationMode::Connect, added.name);
+            open_printer_chat(PrinterSetup::ConversationMode::Connect, added.name, "host_check");
             const bool loaded = wait_for([panel] {
                 return panel->host() != nullptr && panel->host()->handshake_complete() && panel->instructions_ready();
             }, 60s);
@@ -6453,7 +6453,7 @@ private:
             return finish();
 
         PrinterSetup::PrinterPanel* panel = installed_shell()->printer_panel();
-        panel->open(PrinterSetup::ConversationMode::Connect, added.name);
+        open_printer_chat(PrinterSetup::ConversationMode::Connect, added.name, "network_check");
         const bool loaded = wait_for([panel] {
             return panel->host() != nullptr && panel->host()->handshake_complete() && panel->instructions_ready();
         }, 60s);
@@ -6647,7 +6647,7 @@ private:
             return finish();
         PrinterSetup::PrinterPanel* panel = installed_shell()->printer_panel();
         const auto open = [&](PrinterSetup::ConversationMode mode, const std::string& name) {
-            panel->open(mode, name);
+            open_printer_chat(mode, name, "connect_skill");
             const bool loaded = wait_for([panel] {
                 return panel->host() != nullptr && panel->host()->handshake_complete() && panel->instructions_ready();
             }, 60s);
@@ -6758,6 +6758,28 @@ private:
         finish();
     }
 
+    // Opens a fresh printer chat the way Home and the header do: through the
+    // shell, which gives the panel the whole window. PrinterPanel::open alone
+    // shows the panel beside whatever is on screen, a window no person sees.
+    // The shell opens no chat while one is open, so an open one is closed
+    // first, as the person would close it, and any close still finishing
+    // (PrinterPanel::close ends on a later event turn) is waited out.
+    PrinterSetup::PrinterPanel* open_printer_chat(PrinterSetup::ConversationMode mode, const std::string& printer,
+                                                  const std::string& name)
+    {
+        using namespace std::chrono_literals;
+        ShellController*            shell = installed_shell();
+        PrinterSetup::PrinterPanel* panel = shell->printer_panel();
+        if (panel->IsShown())
+            panel->close();
+        check(wait_for([panel] { return panel->host() == nullptr; }, 5s), name + "_previous_chat_closed");
+        shell->open_printer_conversation(mode == PrinterSetup::ConversationMode::Add ? std::string() : printer,
+                                         mode == PrinterSetup::ConversationMode::Connect);
+        check(panel->IsShown(), name + "_chat_opens");
+        check(!shell->home_view()->IsShownOnScreen(), name + "_chat_covers_home");
+        return panel;
+    }
+
     // Opens the panel on `printer` with a model that answers the first
     // message by calling `tool`, sends that message, and returns the call once
     // it has ended, or with `started` once it has begun.
@@ -6765,8 +6787,7 @@ private:
                                              const std::string& name, bool started = false)
     {
         using namespace std::chrono_literals;
-        PrinterSetup::PrinterPanel* panel = installed_shell()->printer_panel();
-        panel->open(PrinterSetup::ConversationMode::Connect, printer);
+        PrinterSetup::PrinterPanel* panel = open_printer_chat(PrinterSetup::ConversationMode::Connect, printer, name);
         const bool loaded = wait_for([panel] {
             return panel->host() != nullptr && panel->host()->handshake_complete() && panel->instructions_ready();
         }, 60s);
