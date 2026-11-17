@@ -1,0 +1,57 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7MYF3V7NEGN2PHJ367PJ9AJ",
+  "strategy": "manual-commit",
+  "branch": "claude/harness-five-failures-landing",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/AgentUI/src/skills.test.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/skills/print-issues/SKILL.md",
+    "src/slic3r/GUI/JusPrin/Localization/native/JusPrin.pot",
+    "src/slic3r/GUI/JusPrin/Localization/native/ca.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/cs.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/de.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/es.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/eu.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/fr.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/hu.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/it.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/ja.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/ko.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/lt.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/nl.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/pl.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/pt_BR.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/ru.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/sv.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/th.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/tr.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/uk.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/vi.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/zh_CN.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/zh_TW.po",
+    "src/slic3r/GUI/JusPrin/PrintIssues/PrintIssueMonitor.cpp",
+    "tests/jusprin/test_print_issues.cpp",
+    "tests/project_prompt/README.md",
+    "tests/project_prompt/requests.json",
+    "tests/shell/print_issue_readers_scenario.inc",
+    "tests/shell/project_prompt_scenario.inc",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 38,
+    "cache_creation_tokens": 86147,
+    "cache_read_tokens": 4428601,
+    "output_tokens": 11752,
+    "api_call_count": 19
+  }
+}
