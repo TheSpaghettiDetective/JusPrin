@@ -1,0 +1,99 @@
+Background (from the session that started this one):
+JusPrin is a fork of OrcaSlicer at `/Users/kenneth/Projects/JusPrin`; read `AGENTS.md` first. The shell harness (`tests/shell/shell_harness.cpp`, built as target `shell_integration_harness`, run as `build/arm64/tests/shell/Release/JusPrinShellHarness.app/Contents/MacOS/JusPrinShellHarness --<mode>`) drives the real app through about forty automated modes. On 2026-11-16 another session ran every automated mode on commit `b3eed3bf4b` (an ancestor of `jusprin-dev`) and found five modes whose checks fail there. These failures predate that session's work and nobody has looked for their causes. `jusprin-dev` has moved seven commits since, including `f88b40865c` (printer chat connects every print host type), so the list may have changed. Constraints: build with `-- -j4`, check `uptime` and `pgrep -fl ninja` before building, one build per build directory; see the memory note on building in a worktree (reuse `/Users/kenneth/Projects/JusPrin/deps/build/arm64`, `BUILD_TESTS=ON`). Never apply a fix for a failure you have not reproduced. Do not drive Kenneth's own running JusPrin; the harness uses its own data directory. Commit on your own branch only; do not push and do not touch `jusprin-dev`. Another branch, `claude/bold-mestorf-858777`, changes error handling and the harness and is not landed; do not build on it and expect to rebase if it lands first.
+
+Task:
+Find out why these shell-harness modes fail on `jusprin-dev`, and fix each one.
+
+Failures seen on `b3eed3bf4b` (re-run each on the current `jusprin-dev` head first and record what fails now):
+- `--print-issues`: 6 checks about a reply that is still running, for example `buttons_are_disabled_while_a_reply_is_running`.
+- `--print-issue-readers`: 8 checks, for example `a4_toolpath_outside_in_orcas_words` (wording or profile differences from OrcaSlicer).
+- `--printer-network-check`: `first_read_tool_called`.
+- `--printer-connect-skill`: 3 checks, for example `connect_skill_printer_added`.
+- `--project-prompt-requests`: `print-hook-plan-slice_answer_printer_list_has_its_result`; one to three more checks vary with machine load.
+- `--printer-chat-sheet` crashed on exit (exit 139) twice while the machine was heavily loaded and never again in 13 quiet runs; note it only if you see it.
+
+For each failing check decide which is wrong, the app or the check. Use `git log -S` / `git blame` to find the commit that changed the behaviour or the check, and say which. If the app is wrong, fix the app and show the check failing before and passing after. If the check is stale, update it to what the app is meant to do and name the commit that made it stale. If a failure depends on timing or load, say so with the evidence (how many runs, how many failures) and fix the wait rather than raising a timeout blindly.
+
+Done looks like: each of the five modes exits 0 on your branch, one commit per cause with the reason in the message, the agent tests (`build/arm64/tests/agent/Release/agent_bridge_tests.app/Contents/MacOS/agent_bridge_tests`) still pass, and a final report with one line per check: what was wrong, the commit that caused it, and what you changed. List anything you could not reproduce and left alone.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_cd3120f7-030a-4af8-a6d1-28ecae789f1a
+
+---
+
+<task-notification>
+<task-id>bkq2esicl</task-id>
+<tool-use-id>toolu_01QNZg8CpfdbeuG11hjHZQXq</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-competent-solomon-c1e95a/f11a9513-6b26-494e-b52f-10a8b7bd66d4/tasks/bkq2esicl.output</output-file>
+<status>failed</status>
+<summary>Background command "export PATH=/Applications/CMake.app/Contents/bin:/Users/kenneth/.nvm/versions/node/v24.13.0/bin:$PATH &amp;&amp; SCR=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-competent-solomon-c1e95a/f11a9513-6b26-494e-b52f-10a8b7bd66d4/scratchpad &amp;&amp; nohup perl -e 'setpgrp(0,0); exec @ARGV' cmake --build /Users/kenneth/Projects/JusPrin/.claude/worktrees/competent-solomon-c1e95a/build/arm64 --config Release --target jusprin_web jusprin_catalogs shell_integration_harness agent_bridge_tests -- -j4 &gt; $SCR/build1.log 2&gt;&amp;1; echo "exit $?" &gt;&gt; $SCR/build1.log" failed with exit code 144</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b9xbmumva</task-id>
+<tool-use-id>toolu_01MJCRV3GgD7tHbDfCpgZgJ5</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-competent-solomon-c1e95a/f11a9513-6b26-494e-b52f-10a8b7bd66d4/tasks/b9xbmumva.output</output-file>
+<status>completed</status>
+<summary>Background command "export PATH=/Applications/CMake.app/Contents/bin:/Users/kenneth/.nvm/versions/node/v24.13.0/bin:$PATH &amp;&amp; SCR=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-competent-solomon-c1e95a/f11a9513-6b26-494e-b52f-10a8b7bd66d4/scratchpad &amp;&amp; nohup perl -e 'setpgrp(0,0); exec @ARGV' cmake --build /Users/kenneth/Projects/JusPrin/.claude/worktrees/competent-solomon-c1e95a/build/arm64 --config Release --target jusprin_web jusprin_catalogs shell_integration_harness agent_bridge_tests -- -j4 &gt; $SCR/build2.log 2&gt;&amp;1; echo "exit $?" &gt;&gt; $SCR/build2.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>by7q97sx6</task-id>
+<tool-use-id>toolu_01RiD3WUJo2B6Mm4zM6zXCME</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-competent-solomon-c1e95a/f11a9513-6b26-494e-b52f-10a8b7bd66d4/tasks/by7q97sx6.output</output-file>
+<status>completed</status>
+<summary>Background command "until grep -q "^exit" /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-competent-solomon-c1e95a/f11a9513-6b26-494e-b52f-10a8b7bd66d4/scratchpad/build2.log; do sleep 30; done; tail -3 /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-competent-solomon-c1e95a/f11a9513-6b26-494e-b52f-10a8b7bd66d4/scratchpad/build2.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bc0bi4010</task-id>
+<tool-use-id>toolu_018kzcj5DCdJfZyCkVeNkHdD</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-competent-solomon-c1e95a/f11a9513-6b26-494e-b52f-10a8b7bd66d4/tasks/bc0bi4010.output</output-file>
+<status>completed</status>
+<summary>Background command "until grep -q "^exit" /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-competent-solomon-c1e95a/f11a9513-6b26-494e-b52f-10a8b7bd66d4/scratchpad/build2.log; do sleep 20; done; tail -3 /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-competent-solomon-c1e95a/f11a9513-6b26-494e-b52f-10a8b7bd66d4/scratchpad/build2.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bakzwhnad</task-id>
+<tool-use-id>toolu_01G5u6oeF22ZDoko16K8UKrP</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-competent-solomon-c1e95a/f11a9513-6b26-494e-b52f-10a8b7bd66d4/tasks/bakzwhnad.output</output-file>
+<status>completed</status>
+<summary>Background command "ls /Users/kenneth/Projects/JusPrin/.claude/worktrees/competent-solomon-c1e95a/resources/jusprin/agent/index.html /Users/kenneth/Projects/JusPrin/.claude/worktrees/competent-solomon-c1e95a/resources/jusprin/home/index.html &amp;&amp; S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-competent-solomon-c1e95a/f11a9513-6b26-494e-b52f-10a8b7bd66d4/scratchpad &amp;&amp; $S/run-all.sh $S/r-before $S/modes.txt" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bnrka6i11</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-competent-solomon-c1e95a/f11a9513-6b26-494e-b52f-10a8b7bd66d4/tasks/bnrka6i11.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-competent-solomon-c1e95a/f11a9513-6b26-494e-b52f-10a8b7bd66d4/scratchpad; for i in $(seq 1 58); do grep -q ALLDONE $S/r-before/summary.txt &amp;&amp; break; sleep 10; done; cat $S/r-before/summary.txt" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bfrk79p8d</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-competent-solomon-c1e95a/f11a9513-6b26-494e-b52f-10a8b7bd66d4/tasks/bfrk79p8d.output</output-file>
+<status>completed</status>
+<summary>Background command "export PATH=/Applications/CMake.app/Contents/bin:/Users/kenneth/.nvm/versions/node/v24.13.0/bin:$PATH &amp;&amp; SCR=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-competent-solomon-c1e95a/f11a9513-6b26-494e-b52f-10a8b7bd66d4/scratchpad &amp;&amp; pgrep -fl "ninja" | grep -c competent; nohup perl -e 'setpgrp(0,0); exec @ARGV' cmake --build /Users/kenneth/Projects/JusPrin/.claude/worktrees/competent-solomon-c1e95a/build/arm64 --config Release --target jusprin_web jusprin_catalogs shell_integration_harness agent_bridge_tests jusprin_tests -- -j4 &gt; $SCR/build3.log 2&gt;&amp;1; echo "exit $?" &gt;&gt; $SCR/build3.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>buia9exze</task-id>
+<tool-use-id>toolu_013SgZtXS62URR6wTFSwXqRn</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-competent-solomon-c1e95a/f11a9513-6b26-494e-b52f-10a8b7bd66d4/tasks/buia9exze.output</output-file>
+<status>completed</status>
+<summary>Background command "cd /Users/kenneth/Projects/JusPrin/.claude/worktrees/competent-solomon-c1e95a; S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-competent-solomon-c1e95a/f11a9513-6b26-494e-b52f-10a8b7bd66d4/scratchpad; perl -e 'setpgrp(0,0); exec @ARGV' cmake --build build/arm64 --config Release --target JusPrinShellHarness -- -j4 &gt; $S/build-h2.txt 2&gt;&amp;1; echo exit $?; tail -3 $S/build-h2.txt" completed (exit code 0)</summary>
+</task-notification>
