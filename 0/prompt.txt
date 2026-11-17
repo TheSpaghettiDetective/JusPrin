@@ -1,0 +1,1 @@
+what's the pros and cons of using a Separate project? a major con I can see is that we can't build a funnel from the market site obico.io to the billing page
