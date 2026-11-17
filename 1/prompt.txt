@@ -1,0 +1,12 @@
+what's the pros and cons of using a Separate project? a major con I can see is that we can't build a funnel from the market site obico.io to the billing page
+
+---
+
+<!-- reply 1 -->
+> obico.io sends nothing to PostHog. Its pages load only Google Tag Manager, and that container has no tags in it. The JusPrin page at obico.io/jusprin.html loads nothing at all.
+
+I'm pretty sure you're wrong. Double check.
+
+---
+
+Yes, Obico's project
