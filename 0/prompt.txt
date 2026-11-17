@@ -1,0 +1,1 @@
+I think we should add to this code the local main checkout should be clear, no uncommitted edits or unpushed commits,  before anything can start, right?
