@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7KVE01ZDQ2ZNDQF99BY7XQE",
   "strategy": "manual-commit",
   "branch": "claude/competent-solomon-c1e95a",
-  "checkpoints_count": 10,
+  "checkpoints_count": 11,
   "files_touched": [
     "tests/shell/shell_harness.cpp"
   ],
@@ -14,13 +14,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": "/0/prompt.txt"
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 84,
-    "cache_creation_tokens": 358969,
-    "cache_read_tokens": 13907128,
-    "output_tokens": 17857,
-    "api_call_count": 42
+    "input_tokens": 512,
+    "cache_creation_tokens": 763753,
+    "cache_read_tokens": 61296176,
+    "output_tokens": 113110,
+    "api_call_count": 256
   }
 }
