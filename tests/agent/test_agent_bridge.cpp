@@ -2032,7 +2032,8 @@ TEST_CASE("pick_attachment opens the dialog for one kind and stages the chosen f
     const auto notes = directory.root / "notes.gcode";
     const auto other = directory.root / "readme.docx";
     { std::ofstream(photo, std::ios::binary) << std::string("\x89PNG\r\n", 6); }
-    { std::ofstream(notes) << "G1 X0\n"; }
+    // Binary, so Windows keeps the "\n" the preview check below expects.
+    { std::ofstream(notes, std::ios::binary) << "G1 X0\n"; }
     { std::ofstream(other) << "not readable"; }
 
     std::vector<AgentHost::FilePickerRequest> requests;
@@ -2249,8 +2250,8 @@ TEST_CASE("the account comes with the titles of the chats it charged", "[agent][
     const std::string empty = h.persistence.document().active_conversation_id();
 
     const std::string charged = gateway_chat_id(h.persistence.document().project_id() + "/" + chat);
-    std::ifstream in(file);
-    const json kept = json::parse(in);
+    // Closed before remove_all below: Windows cannot delete an open file.
+    const json kept = json::parse(std::ifstream(file));
     CHECK(kept == json{{charged, "Resizing a print"}});
     CHECK_FALSE(kept.contains(gateway_chat_id(h.persistence.document().project_id() + "/" + empty)));
 
