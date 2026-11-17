@@ -1,0 +1,26 @@
+How many different languages and regions does the upstream support?
+
+---
+
+Localize the fork to the same languages
+
+---
+
+<!-- reply 3 -->
+> Decision needed: may the 22 languages ship as machine translations with no native-speaker review? The project has no translators lined up. Shipping them means people will sometimes see awkward wording until someone reports it. Holding each language until a native speaker checks it could take months. A middle path is to ship a few languages now and the rest later. I’d ship all 22, marked as AI-translated. Is that acceptable?
+
+yes
+
+<!-- reply -->
+> Decision needed: should the in-app guide be translated too? The guide is the pages in docs/guide/: 7 pages with screenshots. The app shows it in a window, and the same pages also build the AI’s guide skill. Translating it roughly doubles the work. The screenshots would still show English, and every release’s guide check would have to cover 23 versions. I’d keep the guide English for now and translate it separately later. Do you agree?
+
+ok
+
+<!-- reply -->
+> Decision needed: should this start now, or wait for the uncommitted work in the main checkout? The main checkout has about 60 changed files from the error-handling work. Marking text touches many of the same files, such as App.tsx, Preferences.tsx, SetupCard.tsx and about 40 native files. If I start now in my own worktree, whoever lands second resolves the conflicts. If I wait, nothing conflicts, but nothing starts until that work is committed. I’d wait for that work to land, and meanwhile build only the plumbing, which touches different files. Should I do that?
+
+do you work in a worktree off of the jusprin-dev branch
+
+---
+
+Yes, add contexts
