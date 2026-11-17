@@ -1,0 +1,5 @@
+I think we should add to this code the local main checkout should be clear, no uncommitted edits or unpushed commits,  before anything can start, right?
+
+---
+
+Your job here is just to create the skill and make sure it's the right skill for releasing the code. Don't try to execute the skill.
