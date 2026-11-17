@@ -1,0 +1,89 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7KJKV9CB10TE8M5NHYXP8GZ",
+  "session_id": "15577d83-462a-4e4f-93d6-8183dc5b4780",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-17T01:40:49.094984Z",
+  "branch": "claude/bold-mestorf-858777",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/shell/shell_harness.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "27e6ea40f4c0",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 46,
+    "cache_creation_tokens": 138774,
+    "cache_read_tokens": 3410900,
+    "output_tokens": 13370,
+    "api_call_count": 23
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-17T01:40:48.956677Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 248,
+    "human_modified": 28,
+    "human_removed": 0,
+    "total_committed": 248,
+    "total_lines_changed": 276,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 1582,
+      "user_lines_removed": 14,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40,
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".claude/skills/figma-agent-design/SKILL.md": 132,
+        ".claude/skills/figma-agent-design/agents/openai.yaml": 4,
+        ".claude/skills/figma-agent-design/references/design-system-governance.md": 103,
+        ".claude/skills/figma-agent-design/references/prompt-and-review.md": 124,
+        ".claude/vm-harness/linux/README.md": 77,
+        ".claude/vm-harness/linux/connect-rdp.sh": 8,
+        ".claude/vm-harness/linux/env.sh": 9,
+        ".claude/vm-harness/linux/vm-run-app.sh": 10,
+        ".claude/vm-harness/linux/vm-screenshot.sh": 3,
+        ".claude/vm-harness/linux/vmscp.sh": 5,
+        ".claude/vm-harness/linux/vmssh.sh": 4,
+        ".claude/vm-harness/windows/BUILDING.md": 79,
+        ".claude/vm-harness/windows/README.md": 107,
+        ".claude/vm-harness/windows/autologon.ps1": 50,
+        ".claude/vm-harness/windows/build-deps-full.ps1": 22,
+        ".claude/vm-harness/windows/build-slicer.ps1": 25,
+        ".claude/vm-harness/windows/clean-deps.ps1": 22,
+        ".claude/vm-harness/windows/click.ps1": 18,
+        ".claude/vm-harness/windows/focus-app.ps1": 44,
+        ".claude/vm-harness/windows/get-rdp-password.sh": 64,
+        ".claude/vm-harness/windows/harness.ps1": 33,
+        ".claude/vm-harness/windows/install-app.ps1": 32,
+        ".claude/vm-harness/windows/install-buildtools.ps1": 72,
+        ".claude/vm-harness/windows/keys.ps1": 5,
+        ".claude/vm-harness/windows/msvc-nested-lambda-this.patch": 24,
+        ".claude/vm-harness/windows/probe.ps1": 36,
+        ".claude/vm-harness/windows/run-app.cmd": 8,
+        ".claude/vm-harness/windows/run-jusprin.cmd": 8,
+        ".claude/vm-harness/windows/screenshot.ps1": 9,
+        ".claude/vm-harness/windows/set-res.ps1": 22,
+        ".claude/vm-harness/windows/startup.ps1": 62,
+        ".claude/vm-harness/windows/winlist.ps1": 16,
+        ".claude/vm-harness/windows/winscp.sh": 3,
+        ".claude/vm-harness/windows/winssh.sh": 4,
+        "tests/shell/shell_harness.cpp": 276
+      },
+      "user_removed_per_file": {
+        "tests/shell/shell_harness.cpp": 14
+      }
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+<!-- reply 1 -->
+> o what it shows is how the app really looks in that state.
+
+But I don't think this is how the real app is supposed to look like, because it's ugly. Check how the homepage is supposed to look like based on a canvas.
