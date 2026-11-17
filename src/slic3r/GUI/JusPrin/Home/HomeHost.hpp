@@ -18,6 +18,7 @@
 
 #include <functional>
 #include <string>
+#include <utility>
 
 namespace Slic3r { namespace GUI { namespace JusPrin { namespace Home {
 
@@ -67,6 +68,10 @@ public:
     using ConfirmationListener = std::function<void(const std::string& request_id, bool confirmed)>;
     void ask_confirmation(const Confirmation& question);
     void set_confirmation_listener(ConfirmationListener listener) { m_confirmation_listener = std::move(listener); }
+    // Told each page message's type as it comes in, a step the next error
+    // report should list (SentryClient's breadcrumbs). Never a payload.
+    using StepListener = std::function<void(const std::string& type)>;
+    void set_step_listener(StepListener listener) { m_step_listener = std::move(listener); }
 
     bool               connected() const { return m_connected; }
     unsigned long long messages_sent() const { return m_sent; }
@@ -94,6 +99,7 @@ private:
     std::string        m_held_confirmation; // a confirm payload asked before the handshake
     std::string        m_held_screen;       // a screen payload asked before the handshake
     ConfirmationListener m_confirmation_listener;
+    StepListener       m_step_listener;
     // Why the last state sent had no projects, when they could not be read.
     std::string        m_sent_projects_problem;
     // A print report is answered after the host may be gone.

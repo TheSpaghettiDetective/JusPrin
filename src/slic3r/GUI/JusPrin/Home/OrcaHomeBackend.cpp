@@ -908,9 +908,9 @@ void OrcaHomeBackend::dismiss_account_card()
     }
 }
 
-void OrcaHomeBackend::report_page_error(const std::string& error, const std::string& where)
+void OrcaHomeBackend::report_page_error(const std::string& error, const std::string& where, const std::string& event)
 {
-    report_unexpected_error("running the Home page's code", error, where);
+    report_unexpected_error("running the Home page's code", error, where, event);
 }
 
 void OrcaHomeBackend::dismiss_setup_card()

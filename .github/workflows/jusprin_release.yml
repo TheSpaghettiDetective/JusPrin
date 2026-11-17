@@ -14,6 +14,12 @@ name: JusPrin release
 #   (Packaging/release.mjs), and if
 #   Packaging/release-notes/<version>.md, the notes the draft starts with and
 #   that the app shows under "What's new", is missing.
+# - It stops if a Sentry secret is missing (JUSPRIN_SENTRY_DSN, the project
+#   the app reports to; SENTRY_AUTH_TOKEN, SENTRY_URL, SENTRY_ORG and
+#   SENTRY_PROJECT, which upload the debug files and source maps), and each
+#   platform's build fails unless Sentry then holds the app's own code's
+#   debug information, with file and line (Packaging/sentry_debug_files.sh),
+#   and each page's source map (Packaging/sentry_page_maps.sh).
 # - It also stops if the guide was not checked for this version
 #   (docs/guide/checked-version.txt, written by scripts/check_guide.py
 #   --ask-ai; see docs/guide/README.md), unless "Release without the guide
@@ -108,6 +114,23 @@ jobs:
           fi
           if grep -q '^PLACEHOLDER' "$notes"; then
             echo "::warning::$notes is still the placeholder. Replace it before publishing the draft."
+          fi
+
+      - name: Require the Sentry secrets
+        env:
+          JUSPRIN_SENTRY_DSN: ${{ secrets.JUSPRIN_SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_URL: ${{ secrets.SENTRY_URL }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        run: |
+          missing=""
+          for name in JUSPRIN_SENTRY_DSN SENTRY_AUTH_TOKEN SENTRY_URL SENTRY_ORG SENTRY_PROJECT; do
+            [ -n "${!name}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Add the repository secret(s)$missing first: without them the release sends no error reports, or Sentry cannot name the functions in them."
+            exit 1
           fi
 
       - name: Require the guide check

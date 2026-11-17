@@ -16,7 +16,11 @@
     "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"],
     "paths": {
       "@resources/*": ["../../../../../resources/*"],
-      "@shared/*": ["../WebShared/*"]
+      "@shared/*": ["../WebShared/*"],
+      "@sentry/browser": ["./node_modules/@sentry/browser"],
+      "@jridgewell/remapping": ["./node_modules/@jridgewell/remapping/types/remapping.d.mts"],
+      "magic-string": ["./node_modules/magic-string"],
+      "vite": ["./node_modules/vite"]
     }
   },
   "include": ["src", "vite.config.ts"]

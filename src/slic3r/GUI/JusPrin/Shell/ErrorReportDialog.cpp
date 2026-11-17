@@ -204,7 +204,7 @@ wxPanel* ErrorReportDialog::build_contents(const ErrorReport& report)
         rows->Add(name_label, 0);
         rows->Add(value_label, 1, wxEXPAND);
     };
-    // The report's lines as the server receives them, in their own words:
+    // The report's lines as Sentry receives them, in their own words:
     // a report is read by the team, in English.
     add_row(_L("App"), wxString::FromUTF8(report.app + " on " + report.os));
     add_row(_L("Was doing"), wxString::FromUTF8(report.doing));

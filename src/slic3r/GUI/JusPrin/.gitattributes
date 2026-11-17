@@ -1,0 +1,9 @@
+# Every platform builds the Agent and Home pages, and Sentry keeps one copy of
+# each page and its source map for a build (Packaging/sentry_page_maps.sh), so
+# the files the pages are built from must read the same everywhere. A Windows
+# checkout (core.autocrlf=true) would give them CRLF line endings, which the
+# pages keep in their text. resources/jusprin and docs/guide have the same rule.
+AgentUI/** text=auto eol=lf
+HomeUI/** text=auto eol=lf
+WebShared/** text=auto eol=lf
+Localization/** text=auto eol=lf

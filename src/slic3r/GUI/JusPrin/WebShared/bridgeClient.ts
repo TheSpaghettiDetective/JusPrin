@@ -4,6 +4,8 @@
 // envelopes. Reload safety comes from the protocol design -- every hello is
 // answered with complete native state.
 
+import { startErrorReports, type PageErrorReport } from './errorReports';
+
 export type ConnectionState =
   | 'connecting'
   | 'connected'
@@ -83,7 +85,7 @@ export class SharedBridgeClient {
   private transportAttempts = 0;
   // Uncaught page errors waiting for the connection: an error before the
   // handshake is reported once the app can receive it.
-  private unsentErrors: { error: string; where: string }[] = [];
+  private unsentErrors: PageErrorReport[] = [];
 
   constructor(protocol: ProtocolIdentity, options: BridgeClientOptions) {
     this.protocol = protocol;
@@ -99,8 +101,7 @@ export class SharedBridgeClient {
       window.__jusprinBridge = { deliver: (envelope: unknown) => this.deliver(envelope) };
       // The top of the page's own code (AGENTS.md, Error handling): an error
       // nothing caught goes to the app, which opens its report dialog.
-      window.addEventListener('error', (event) => this.reportError(event.error ?? event.message));
-      window.addEventListener('unhandledrejection', (event) => this.reportError(event.reason));
+      startErrorReports((report) => this.reportError(report));
     }
     this.beginHandshake();
   }
@@ -149,11 +150,7 @@ export class SharedBridgeClient {
     }, timeoutMs);
   }
 
-  reportError(error: unknown): void {
-    const report =
-      error instanceof Error
-        ? { error: `${error.name}: ${error.message}`, where: error.stack ?? '' }
-        : { error: String(error), where: '' };
+  reportError(report: PageErrorReport): void {
     if (this.state === 'connected') this.post('report_error', report);
     else this.unsentErrors.push(report);
   }

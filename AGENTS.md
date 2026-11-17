@@ -26,6 +26,7 @@ This checkout holds two codebases: upstream OrcaSlicer (the `upstream` remote, S
 
 - The version, in `src/slic3r/GUI/JusPrin/Updates/Version.hpp`, above every released JusPrin version.
 - The release notes, in `src/slic3r/GUI/JusPrin/Packaging/release-notes/<version>.md`.
+- The Sentry secrets: `JUSPRIN_SENTRY_DSN`, the project the app sends error reports and crashes to, and `SENTRY_AUTH_TOKEN`, `SENTRY_URL`, `SENTRY_ORG` and `SENTRY_PROJECT`, which upload each build's debug files and the pages' source maps. A platform's build fails unless Sentry then holds debug information with file and line for the app's own code (`src/slic3r/GUI/JusPrin/Packaging/sentry_debug_files.sh`) and a source map for each page as built (`sentry_page_maps.sh` beside it); the nightly build checks the same.
 - The guide, `docs/guide/`, checked for that version. Run `scripts/check_guide.py --ask-ai` on a built copy of the commit, fix every page it reports, and commit the pages with their pictures, skills and `docs/guide/checked-version.txt`, as `docs/guide/README.md` describes under "Before a release". That file names the version the check last passed for, not the commit. Ticking "Release without the guide check" on the workflow's Run workflow form skips this, and the draft's title then says so. A release started by pushing a `jusprin-release/` branch has no form, so it always needs the file.
 
 ## Error handling

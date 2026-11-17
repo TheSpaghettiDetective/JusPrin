@@ -4,6 +4,7 @@
 #include "ProviderAgent.hpp"
 #include "ProviderCodec.hpp"
 #include "ToolResults.hpp"
+#include "ToolExecution.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp"
 #include "slic3r/GUI/JusPrin/Support/Base64.hpp"
 #include "libslic3r/Exception.hpp"
@@ -674,6 +675,8 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
         // A client that calls the app's tools is connected, however it was set up.
         if (activity.source == ToolSource::Mcp && m_mcp_connect.connected)
             m_mcp_connect.connected();
+        if (m_step_listener && tool_state_terminal(activity.state))
+            m_step_listener("tool", activity.tool + " " + tool_state_name(activity.state));
         // A failed call, the in-app Agent's or an MCP client's, leaves a line
         // in the app log; the chat shows it only to the person who opens it.
         if (activity.state == ToolState::Failed && activity.error)
@@ -983,6 +986,8 @@ void AgentHost::dispatch_page_message(const std::string& envelope_json, std::str
     }
     type        = envelope.at("type").get<std::string>();
     envelope_id = envelope.at("id").get<std::string>();
+    if (m_step_listener)
+        m_step_listener("page", type);
     const std::string payload = envelope.contains("payload") ? envelope["payload"].dump() : std::string("{}");
 
     if (type == Protocol::kHello) {
@@ -1081,7 +1086,10 @@ void AgentHost::dispatch_page_message(const std::string& envelope_json, std::str
         if (!m_page_error_handler)
             throw std::logic_error("A page sent report_error to a host no web view shows");
         const json report = json::parse(payload);
-        m_page_error_handler(report.at("error").get<std::string>(), report.at("where").get<std::string>());
+        const json& event = report.at("event");
+        if (!event.is_object())
+            throw std::invalid_argument("A page's report_error carries no Sentry event");
+        m_page_error_handler(report.at("error").get<std::string>(), report.at("where").get<std::string>(), event.dump());
     }
     else if (type == Protocol::kProjectInstructions) {
         // The project assistant's whole prompt, written by the page

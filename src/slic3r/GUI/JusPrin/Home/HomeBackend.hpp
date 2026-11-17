@@ -134,8 +134,8 @@ public:
     // Set up AI's "Don't show again": Home never shows the card again.
     virtual void dismiss_setup_card()             = 0;
     // An error the page's own code did not catch (report_error), reported as
-    // an unexpected error.
-    virtual void report_page_error(const std::string& error, const std::string& where) = 0;
+    // an unexpected error with the page's own Sentry event (JSON).
+    virtual void report_page_error(const std::string& error, const std::string& where, const std::string& event) = 0;
 
     // The printer card's menu. Each returns an empty string when the action
     // ran or the person cancelled it, and otherwise a message for the person,

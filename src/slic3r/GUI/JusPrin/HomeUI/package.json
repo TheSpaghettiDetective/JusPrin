@@ -12,10 +12,13 @@
   "dependencies": {
     "@lingui/core": "5.9.5",
     "@lingui/react": "5.9.5",
+    "@sentry/browser": "11.10.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@jridgewell/remapping": "2.3.5",
+    "@jridgewell/trace-mapping": "0.3.31",
     "@lingui/babel-plugin-lingui-macro": "5.9.5",
     "@lingui/cli": "5.9.5",
     "@lingui/format-po": "5.9.5",
@@ -28,6 +31,7 @@
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
     "jsdom": "^25.0.1",
+    "magic-string": "0.30.21",
     "typescript": "~5.6.3",
     "vite": "^5.4.11",
     "vite-plugin-singlefile": "^2.0.3",

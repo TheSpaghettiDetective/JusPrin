@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BridgeClient, ConnectionState, Transport } from './client';
+import type { PageErrorReport } from '@shared/errorReports';
 import { Envelope, PROTOCOL_NAME, PROTOCOL_VERSION } from './protocol';
 
 interface Recorded {
@@ -143,21 +144,61 @@ describe('BridgeClient', () => {
     expect(received).toHaveLength(0);
   });
 
-  it('sends an error the page did not catch to the app, holding one from before the handshake', () => {
+  // What the browser calls for an error or a rejection nothing caught; the
+  // page's Sentry SDK installs both handlers. (jsdom calls neither for an
+  // event dispatched by hand.)
+  function uncaught(error: Error): void {
+    window.onerror?.(error.message, 'app:///index.html', 1, 1, error);
+  }
+  function unhandled(reason: Error): void {
+    window.onunhandledrejection?.(Object.assign(new Event('unhandledrejection'), { reason }) as PromiseRejectionEvent);
+  }
+
+  it('sends an error the page did not catch to the app with its Sentry event, holding one from before the handshake', async () => {
     const { envelopes, transport } = recordingTransport();
     const client = makeClient(transport);
     client.start();
-    window.dispatchEvent(new ErrorEvent('error', { error: new TypeError('x is undefined') }));
+    // What the browser does when nothing caught an error.
+    uncaught(new TypeError('x is undefined'));
+    await vi.waitFor(() => expect(client['unsentErrors']).toHaveLength(1));
     expect(envelopes.map((envelope) => envelope.type)).toEqual(['hello']);
 
     client.deliver(hostEnvelope('hello_ack'));
     const sent = envelopes.filter((envelope) => envelope.type === 'report_error');
     expect(sent).toHaveLength(1);
-    const report = sent[0].payload as { error: string; where: string };
+    const report = sent[0].payload as PageErrorReport;
     expect(report.error).toBe('TypeError: x is undefined');
     expect(report.where).toContain('client.test.ts');
+    const exception = report.event.exception?.values?.at(-1);
+    expect(exception?.type).toBe('TypeError');
+    expect(exception?.stacktrace?.frames?.length).toBeGreaterThan(0);
+    expect(report.event.sdk?.name).toBe('sentry.javascript.browser');
+    expect(report.event).not.toHaveProperty('sdkProcessingMetadata');
+    // The build its source map is filed under in Sentry: none outside the release workflow.
+    expect(report.event.dist).toBe('local');
 
-    client.reportError('a rejection that is not an Error');
-    expect(envelopes[envelopes.length - 1].payload).toEqual({ error: 'a rejection that is not an Error', where: '' });
+    // A rejected promise nothing handled goes the same way.
+    unhandled(new RangeError('out of range'));
+    await vi.waitFor(() => expect(envelopes.filter((envelope) => envelope.type === 'report_error')).toHaveLength(2));
+    expect((envelopes.at(-1)?.payload as PageErrorReport).error).toBe('RangeError: out of range');
+  });
+
+  it('sends the steps the SDK recorded before an error with its report', async () => {
+    const { envelopes, transport } = recordingTransport();
+    const client = makeClient(transport);
+    client.start();
+    client.deliver(hostEnvelope('hello_ack'));
+    const button = document.createElement('button');
+    button.className = 'project-card';
+    document.body.append(button);
+    button.click();
+    console.log('opened the project list');
+    uncaught(new Error('after a click'));
+    await vi.waitFor(() => expect(envelopes.filter((envelope) => envelope.type === 'report_error')).not.toHaveLength(0));
+    const report = envelopes.filter((envelope) => envelope.type === 'report_error').at(-1)?.payload as PageErrorReport;
+    const steps = JSON.stringify(report.event.breadcrumbs);
+    expect(steps).toContain('button.project-card');
+    expect(steps).toContain('opened the project list');
+    button.remove();
   });
 });

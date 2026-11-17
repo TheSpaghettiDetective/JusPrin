@@ -13,6 +13,8 @@
 #include "slic3r/GUI/JusPrin/Shell/ShellTheme.hpp"
 #include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 #include "slic3r/GUI/JusPrin/Support/PageLanguage.hpp"
+#include "slic3r/GUI/JusPrin/Support/PageScheme.hpp"
+#include "slic3r/GUI/JusPrin/Support/SentryClient.hpp"
 #include "slic3r/GUI/Widgets/WebView.hpp"
 
 #include <boost/filesystem.hpp>
@@ -23,8 +25,6 @@
 #include <optional>
 #include <string>
 
-#include <wx/filename.h>
-#include <wx/filesys.h>
 #include <wx/sizer.h>
 #include <wx/stattext.h>
 #include <wx/timer.h>
@@ -44,10 +44,8 @@ wxString home_page_url()
 {
     if (const char* dev = std::getenv("JUSPRIN_HOME_DEV_URL"); dev != nullptr && *dev != '\0')
         return with_page_language(wxString::FromUTF8(dev));
-    const boost::filesystem::path page = home_page_path();
-    if (!boost::filesystem::exists(page))
-        return {};
-    return with_page_language(wxFileSystem::FileNameToURL(wxFileName(wxString::FromUTF8(page.string()))));
+    const wxString page = page_url("home");
+    return page.empty() ? page : with_page_language(page);
 }
 
 } // namespace
@@ -66,6 +64,7 @@ HomeWebView::HomeWebView(wxWindow* parent, const ShellTheme& theme, MainFrame& f
         script += ")";
         WebView::RunScript(m_webview, script);
     });
+    m_host->set_step_listener([](const std::string& type) { sentry_breadcrumb("page", "Home " + type); });
 
     auto* sizer = new wxBoxSizer(wxVERTICAL);
     SetSizer(sizer);
@@ -81,7 +80,7 @@ HomeWebView::HomeWebView(wxWindow* parent, const ShellTheme& theme, MainFrame& f
         show_page_error(_L("The packaged Home page is missing from this build."));
         return;
     }
-    m_webview = WebView::CreateWebView(this, url);
+    m_webview = WebView::CreateWebView(this, url, page_handlers());
     if (m_webview == nullptr) {
         show_page_error(_L("The system web view could not be created."));
         return;

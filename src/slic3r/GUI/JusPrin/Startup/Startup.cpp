@@ -2,10 +2,14 @@
 
 #include "SplashWindow.hpp"
 
+#include "libslic3r/AppConfig.hpp"
+#include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/GUI_Utils.hpp"
 #include "slic3r/GUI/JusPrin/Brand/BrandPalette.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
+#include "slic3r/GUI/JusPrin/Support/SentryClient.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
 
 #include <boost/log/trivial.hpp>
@@ -28,6 +32,9 @@ wxWeakRef<SplashWindow>& splash()
 
 bool startup_begin(GUI_App& app)
 {
+    // Crashes are caught from here on; reports go once the person agrees.
+    start_sentry(data_dir(), app.app_config != nullptr && app.app_config->get_bool(kReportErrorsKey));
+
     // OrcaSlicer's own preference to show no splash holds for JusPrin's too.
     if (!app.is_editor() || classic_view_chosen() || app.app_config == nullptr ||
         app.app_config->get("show_splash_screen") != "true")

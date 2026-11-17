@@ -5,6 +5,9 @@
 #include <wx/setup.h>
 #include <wx/webview.h>
 #include <wx/event.h>
+#include <wx/sharedptr.h>
+
+#include <vector>
 
 class wxWebView;
 class wxWindow;
@@ -15,6 +18,9 @@ class WebView
 {
 public:
     static wxWebView *CreateWebView(wxWindow *parent, wxString const &url);
+    // As above, with handlers for custom schemes the view's own pages use,
+    // registered on this view where each backend needs them.
+    static wxWebView *CreateWebView(wxWindow *parent, wxString const &url, std::vector<wxSharedPtr<wxWebViewHandler>> const &handlers);
 #if wxUSE_WEBVIEW_EDGE
     static bool CheckWebViewRuntime();
     static bool DownloadAndInstallWebViewRuntime();

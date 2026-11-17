@@ -2,14 +2,13 @@
 
 #include "libslic3r/AppConfig.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
-#include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ErrorReportDialog.hpp"
+#include "slic3r/GUI/JusPrin/Support/SentryClient.hpp"
+#include "slic3r/GUI/JusPrin/Support/ThrowStack.hpp"
 #include "slic3r/GUI/JusPrin/Updates/Version.hpp"
-#include "slic3r/Utils/Http.hpp"
 
 #include <boost/core/demangle.hpp>
 #include <boost/log/trivial.hpp>
-#include <nlohmann/json.hpp>
 
 #include <wx/thread.h>
 #include <wx/utils.h>
@@ -69,13 +68,14 @@ void show_next()
     if (answer.automatically) {
         wxGetApp().app_config->set_bool(kReportErrorsKey, true);
         wxGetApp().app_config->save();
+        sentry_follow_setting(true);
     }
     if (answer.report)
-        send_error_report(report);
+        sentry_send(report, answer.automatically);
     // Once reports go automatically, the ones still waiting go too.
     if (answer.automatically) {
         for (const ErrorReport& waiting : g_waiting)
-            send_error_report(waiting);
+            sentry_send(waiting, true);
         g_waiting.clear();
     }
     if (!g_waiting.empty())
@@ -84,72 +84,29 @@ void show_next()
 
 } // namespace
 
-ErrorReport make_error_report(std::string doing, std::string error, std::string where)
+ErrorReport make_error_report(std::string doing, std::string error, std::string where, std::string page_event)
 {
-    // A path in the error names the person's home folder, which names them;
-    // the report says "~" instead.
-    const std::string home = wxGetHomeDir().ToUTF8().data();
-    const auto without_home = [&home](std::string text) {
-        if (home.size() > 1)
-            for (std::size_t at = text.find(home); at != std::string::npos; at = text.find(home, at + 1))
-                text.replace(at, home.size(), "~");
-        return text;
-    };
-    // The server refuses a field over its limit (web_ent/jusprin/v2/app_errors.py
-    // FIELDS), counted in characters; cutting at as many bytes, on a
-    // character boundary, keeps every field within it.
-    const auto within = [](std::string text, std::size_t limit) {
-        if (text.size() > limit) {
-            std::size_t end = limit;
-            while (end > 0 && (static_cast<unsigned char>(text[end]) & 0xC0) == 0x80)
-                --end;
-            text.resize(end);
-        }
-        return text;
-    };
-    return ErrorReport{Updates::version_label(), os_label(), within(std::move(doing), 500), within(without_home(std::move(error)), 8000),
-                       within(without_home(std::move(where)), 32000)};
+    return ErrorReport{Updates::version_label(), os_label(), std::move(doing), std::move(error), std::move(where), std::move(page_event)};
 }
 
-std::string error_report_json(const ErrorReport& report)
-{
-    return nlohmann::json{{"app", report.app}, {"os", report.os}, {"doing", report.doing}, {"error", report.error}, {"where", report.where}}
-        .dump();
-}
+namespace {
 
-void send_error_report(const ErrorReport& report)
-{
-    const std::string url = Agent::cloud_error_reports_url(wxGetApp().app_config);
-    // Anonymous: no token or cookie goes with it.
-    Slic3r::Http::post(url)
-        .header("User-Agent", Updates::user_agent())
-        .header("Content-Type", "application/json")
-        .header("Accept", "application/json")
-        .set_post_body(error_report_json(report))
-        .tls_verify(true)
-        .timeout_connect(10)
-        .timeout_max(30)
-        // A report that cannot be sent has nowhere to be reported to.
-        .on_error([url](std::string body, std::string error, unsigned status) {
-            BOOST_LOG_TRIVIAL(error) << "JusPrin could not send an error report to " << url << " (" << status << "): " << error << " " << body;
-        })
-        .perform();
-}
-
-void report_unexpected_error(std::string doing, std::string error, std::string where)
+void report_unexpected(std::string doing, std::string error, std::string where, std::string page_event, std::vector<void*> stack)
 {
     // An entry point on another thread (an HTTP callback, a worker) reports
     // on the main thread, where the waiting reports and the dialog live.
     if (!wxThread::IsMain()) {
-        wxGetApp().CallAfter([doing = std::move(doing), error = std::move(error), where = std::move(where)]() mutable {
-            report_unexpected_error(std::move(doing), std::move(error), std::move(where));
+        wxGetApp().CallAfter([doing = std::move(doing), error = std::move(error), where = std::move(where), page_event = std::move(page_event),
+                              stack = std::move(stack)]() mutable {
+            report_unexpected(std::move(doing), std::move(error), std::move(where), std::move(page_event), std::move(stack));
         });
         return;
     }
-    ErrorReport report = make_error_report(std::move(doing), std::move(error), std::move(where));
+    ErrorReport report = make_error_report(std::move(doing), std::move(error), std::move(where), std::move(page_event));
+    report.stack = std::move(stack);
     BOOST_LOG_TRIVIAL(error) << "Unexpected error while " << report.doing << ": " << report.error;
     if (reports_automatically()) {
-        send_error_report(report);
+        sentry_send(report, true);
         return;
     }
     const auto same = [&report](const ErrorReport& asked) { return same_failure(asked, report); };
@@ -161,18 +118,34 @@ void report_unexpected_error(std::string doing, std::string error, std::string w
     wxGetApp().CallAfter([] { show_next(); });
 }
 
-void report_if_automatic(std::string doing, std::string error)
+void report_if_automatic(std::string doing, std::string error, std::vector<void*> stack)
 {
     // From another thread (an HTTP callback), on the main thread, where the
     // settings it reads are written.
     if (!wxThread::IsMain()) {
-        wxGetApp().CallAfter([doing = std::move(doing), error = std::move(error)]() mutable {
-            report_if_automatic(std::move(doing), std::move(error));
+        wxGetApp().CallAfter([doing = std::move(doing), error = std::move(error), stack = std::move(stack)]() mutable {
+            report_if_automatic(std::move(doing), std::move(error), std::move(stack));
         });
         return;
     }
-    if (reports_automatically())
-        send_error_report(make_error_report(std::move(doing), std::move(error), {}));
+    if (reports_automatically()) {
+        ErrorReport report = make_error_report(std::move(doing), std::move(error), {});
+        report.stack = std::move(stack);
+        sentry_send(report, true);
+    }
+}
+
+} // namespace
+
+// Both take the failure's stack here, in the code that reports it.
+void report_unexpected_error(std::string doing, std::string error, std::string where, std::string page_event)
+{
+    report_unexpected(std::move(doing), std::move(error), std::move(where), std::move(page_event), failure_stack());
+}
+
+void report_if_automatic(std::string doing, std::string error)
+{
+    report_if_automatic(std::move(doing), std::move(error), failure_stack());
 }
 
 std::string describe_current_exception()

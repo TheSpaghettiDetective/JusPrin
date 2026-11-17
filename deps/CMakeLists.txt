@@ -458,6 +458,7 @@ include(OCCT/OCCT.cmake)
 include(OpenCV/OpenCV.cmake)
 include(python3/python3.cmake)
 include(wxInspector/wxInspector.cmake)
+include(Sentry/Sentry.cmake) # JusPrin: error reports and crashes
 
 set(_dep_list
     dep_Boost
@@ -484,6 +485,7 @@ set(_dep_list
     dep_FFMPEG
     dep_Assimp
     ${DATACHANNEL_PKG}
+    dep_Sentry # JusPrin
     )
 
 if (MSVC)

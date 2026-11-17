@@ -11,6 +11,9 @@ name: JusPrin nightly
 # - The build is the release's (jusprin_build_all.yml), so a nightly is what a
 #   release from the same commit would be. Its version is the one in
 #   src/slic3r/GUI/JusPrin/Updates/Version.hpp.
+# - Like a release, each platform's build fails without the Sentry secrets
+#   and unless its debug files and the pages' source maps reach Sentry
+#   (jusprin_release_build.yml).
 # - The files keep JusPrin 1's nightly names, so download links stay the
 #   same: JusPrin_Windows_Installer_nightly.exe,
 #   JusPrin_Windows_nightly_portable.zip, JusPrin_Mac_universal_nightly.dmg,

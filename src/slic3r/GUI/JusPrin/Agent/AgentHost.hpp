@@ -148,8 +148,13 @@ public:
     void set_page_message_handler(PageMessageHandler handler) { m_page_message_handler = std::move(handler); }
     // Reports an error the page's own code did not catch (report_error):
     // the web view that shows the page sets it.
-    using PageErrorHandler = std::function<void(const std::string& error, const std::string& where)>;
+    using PageErrorHandler = std::function<void(const std::string& error, const std::string& where, const std::string& event)>;
     void set_page_error_handler(PageErrorHandler handler) { m_page_error_handler = std::move(handler); }
+    // Told each step the next error report should list (SentryClient's
+    // breadcrumbs): "page" and each message's type as it comes in, "tool"
+    // and a call's tool and outcome as it ends. Never a payload.
+    using StepListener = std::function<void(const char* category, const std::string& step)>;
+    void set_step_listener(StepListener listener) { m_step_listener = std::move(listener); }
     // Reports an unexpected failure that stopped a request this host runs
     // from its pumps (an AI reply or title, a key check), or a
     // ToolCallFailure: what the app was doing and the failure as it reached
@@ -753,6 +758,7 @@ private:
     bool slice_ended(const std::string& action_id);
     PageMessageHandler              m_page_message_handler;
     PageErrorHandler                m_page_error_handler;
+    StepListener                    m_step_listener;
     UnexpectedErrorHandler          m_unexpected_error_handler;
     std::function<nlohmann::json()> m_restore_points_provider;
     ToolExecutionCoordinator::ExtensionExecutor m_session_tool_executor;

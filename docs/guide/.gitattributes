@@ -1,0 +1,3 @@
+# The Agent and Home pages are built from these files on every platform and
+# must come out the same (src/slic3r/GUI/JusPrin/.gitattributes).
+* text=auto eol=lf

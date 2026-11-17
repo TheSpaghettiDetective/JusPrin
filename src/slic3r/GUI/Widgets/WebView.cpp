@@ -312,6 +312,11 @@ static wxString linux_user_agent()
 
 wxWebView* WebView::CreateWebView(wxWindow * parent, wxString const & url)
 {
+    return CreateWebView(parent, url, {});
+}
+
+wxWebView* WebView::CreateWebView(wxWindow * parent, wxString const & url, std::vector<wxSharedPtr<wxWebViewHandler>> const & handlers)
+{
 #if wxUSE_WEBVIEW_EDGE
     // Check if a fixed version of edge is present in
     // $executable_path/edge_fixed and use it
@@ -347,6 +352,8 @@ wxWebView* WebView::CreateWebView(wxWindow * parent, wxString const & url)
                                                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36 Edg/107.0.1418.52 BBL-Slicer/v%s (%s) BBL-Language/%s",
                                                Slic3r::GUI::wxGetApp().get_bbl_client_version(), Slic3r::GUI::wxGetApp().dark_mode() ? "dark" : "light", language_code.mb_str()));
         webView->Create(parent, wxID_ANY, url2, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE);
+        for (const auto& handler : handlers)
+            webView->RegisterHandler(handler);
         // We register the wxfs:// protocol for testing purposes
         webView->RegisterHandler(wxSharedPtr<wxWebViewHandler>(new wxWebViewArchiveHandler("bbl")));
         // And the memory: file system
@@ -361,6 +368,8 @@ wxWebView* WebView::CreateWebView(wxWindow * parent, wxString const & url)
             webView->RegisterHandler(wxSharedPtr<wxWebViewHandler>(new wxWebViewFSHandler("memory")));
             s_schemes_registered = true;
         }
+        for (const auto& handler : handlers)
+            webView->RegisterHandler(handler);
         webView->Create(parent, wxID_ANY, url2, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE);
 #ifdef __linux__
         webView->SetUserAgent(linux_user_agent());

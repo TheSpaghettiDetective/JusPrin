@@ -23,6 +23,9 @@ add_executable(jusprin_tests
     test_load_facts.cpp
     test_printer_catalog.cpp
     test_check_print_report.cpp
+    test_sentry_event.cpp
+    test_throw_stack.cpp
+    test_page_files.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Shell/FilamentChipModel.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Shell/LeftPaneModel.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Shell/ProjectPaneModel.cpp
@@ -44,6 +47,9 @@ add_executable(jusprin_tests
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/PrintIssues/IssueContext.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/PrintIssues/IssueOverlayLayout.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/PrintIssues/PrintIssue.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Support/SentryEvent.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Support/ThrowStack.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Support/PageFiles.cpp
 )
 
 target_compile_definitions(jusprin_tests PRIVATE
@@ -57,6 +63,15 @@ target_include_directories(jusprin_tests SYSTEM PRIVATE ${CMAKE_SOURCE_DIR}/deps
 # HostLocale.hpp needs there; on Windows and Linux it adds nothing but the
 # shared test defines.
 target_link_libraries(jusprin_tests PRIVATE test_common Catch2WithMain nlohmann_json)
+# SentryEvent.cpp builds Sentry's own event values (deps/Sentry).
+find_package(sentry 0.17 REQUIRED CONFIG)
+target_link_libraries(jusprin_tests PRIVATE sentry::sentry)
+# test_throw_stack.cpp knows a function's frames by its address range. GCC
+# otherwise moves the throw into a separate ".cold" part of the function,
+# outside that range.
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set_source_files_properties(test_throw_stack.cpp PROPERTIES COMPILE_OPTIONS -fno-reorder-blocks-and-partition)
+endif ()
 
 orcaslicer_discover_tests(jusprin_tests)
 

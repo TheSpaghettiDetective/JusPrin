@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <optional>
+#include <stdexcept>
 #include <utility>
 
 namespace Slic3r { namespace GUI { namespace JusPrin { namespace Home {
@@ -183,6 +184,8 @@ void HomeHost::on_page_message(const std::string& text)
     const std::string type        = envelope.value("type", std::string());
     const std::string correlation = envelope.value("id", std::string());
     const json        payload     = envelope.value("payload", json::object());
+    if (m_step_listener)
+        m_step_listener(type);
 
     if (type == "hello") {
         const json versions    = payload.value("protocolVersions", json::array());
@@ -207,8 +210,12 @@ void HomeHost::on_page_message(const std::string& text)
 
     if (type == "state_request")
         push_state();
-    else if (type == "report_error")
-        m_backend.report_page_error(payload.at("error").get<std::string>(), payload.at("where").get<std::string>());
+    else if (type == "report_error") {
+        const json& event = payload.at("event");
+        if (!event.is_object())
+            throw std::invalid_argument("The Home page's report_error carries no Sentry event");
+        m_backend.report_page_error(payload.at("error").get<std::string>(), payload.at("where").get<std::string>(), event.dump());
+    }
     else if (type == "confirm_answer") {
         if (m_confirmation_listener)
             m_confirmation_listener(payload.value("requestId", std::string()), payload.value("confirmed", false));

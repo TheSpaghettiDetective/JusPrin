@@ -4,9 +4,11 @@
 // with no wx, no Orca, and no web view.
 
 #include <catch2/catch_all.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 #include <nlohmann/json.hpp>
 
+#include <array>
 #include <cstddef>
 #include <string>
 #include <utility>
@@ -100,8 +102,11 @@ public:
     void printer_form_message(const json& payload) override { form_messages.push_back(payload); }
     void dismiss_account_card() override { onboarding_calls.push_back("dismiss_account_card"); }
     void dismiss_setup_card() override { onboarding_calls.push_back("dismiss_setup_card"); }
-    void report_page_error(const std::string& error, const std::string& where) override { page_errors.push_back({error, where}); }
-    std::vector<std::pair<std::string, std::string>> page_errors;
+    void report_page_error(const std::string& error, const std::string& where, const std::string& event) override
+    {
+        page_errors.push_back({error, where, event});
+    }
+    std::vector<std::array<std::string, 3>> page_errors;
 
     std::vector<std::string>                         settings_opened;
     std::vector<std::string>                         settings_asked;
@@ -285,11 +290,15 @@ TEST_CASE("an error the Home page did not catch goes to the backend's reporter",
     HomeHost    host(backend, wire.sink());
     host.on_page_message(hello());
 
-    host.on_page_message(page_message("report_error", json{{"error", "TypeError: x is undefined"}, {"where", "at Gallery"}}));
+    const json event{{"platform", "javascript"}, {"exception", {{"values", json::array({{{"type", "TypeError"}}})}}}};
+    host.on_page_message(page_message("report_error", json{{"error", "TypeError: x is undefined"}, {"where", "at Gallery"}, {"event", event}}));
     REQUIRE(backend.page_errors.size() == 1);
-    CHECK(backend.page_errors[0] == std::make_pair(std::string("TypeError: x is undefined"), std::string("at Gallery")));
-    // Our own page sends both fields; one without them is a broken page.
-    CHECK_THROWS(host.on_page_message(page_message("report_error", json{{"error", "TypeError"}})));
+    CHECK(backend.page_errors[0][0] == "TypeError: x is undefined");
+    CHECK(backend.page_errors[0][1] == "at Gallery");
+    CHECK(json::parse(backend.page_errors[0][2]) == event);
+    // Our own page sends all three; one without them is a broken page.
+    CHECK_THROWS(host.on_page_message(page_message("report_error", json{{"error", "TypeError"}, {"where", ""}})));
+    CHECK_THROWS(host.on_page_message(page_message("report_error", json{{"error", "TypeError"}, {"where", ""}, {"event", "TypeError"}})));
 }
 
 TEST_CASE("a page speaking another version is rejected", "[home]")

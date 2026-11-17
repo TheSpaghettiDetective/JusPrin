@@ -12,6 +12,8 @@
 #include "slic3r/GUI/JusPrin/Shell/DroppedFileUrl.hpp"
 #include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 #include "slic3r/GUI/JusPrin/Support/PageLanguage.hpp"
+#include "slic3r/GUI/JusPrin/Support/PageScheme.hpp"
+#include "slic3r/GUI/JusPrin/Support/SentryClient.hpp"
 #include "slic3r/GUI/JusPrin/Support/Translate.hpp"
 #include "slic3r/GUI/JusPrin/Shell/McpSetupCommand.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellRecipes.hpp"
@@ -31,7 +33,6 @@
 #include <utility>
 
 #include <wx/filedlg.h>
-#include <wx/filesys.h>
 #include <wx/gdicmn.h>
 #include <wx/timer.h>
 #include <wx/utils.h>
@@ -70,10 +71,9 @@ wxString agent_page_url(AgentPageMode mode)
     if (const char* dev = std::getenv("JUSPRIN_AGENT_DEV_URL"); dev != nullptr && *dev != '\0') {
         url = wxString::FromUTF8(dev);
     } else {
-        const boost::filesystem::path page = agent_page_path();
-        if (!boost::filesystem::exists(page))
+        url = page_url("agent");
+        if (url.empty())
             return {};
-        url = wxFileSystem::FileNameToURL(wxFileName(wxString::FromUTF8(page.string())));
     }
     if (mode == AgentPageMode::PrinterPanel)
         url += "?panel=printer";
@@ -133,9 +133,10 @@ AgentWebView::AgentWebView(wxWindow*                                  parent,
                                                 std::move(agent), std::move(setup)))
     , m_handshake_timer(this, kHandshakeTimerId)
 {
-    m_host->set_page_error_handler([](const std::string& error, const std::string& where) {
-        report_unexpected_error("running the app page's code", error, where);
+    m_host->set_page_error_handler([](const std::string& error, const std::string& where, const std::string& event) {
+        report_unexpected_error("running the app page's code", error, where, event);
     });
+    m_host->set_step_listener([](const char* category, const std::string& step) { sentry_breadcrumb(category, step); });
     m_host->set_unexpected_error_handler([](const std::string& doing, std::exception_ptr error) {
         try {
             std::rethrow_exception(error);
@@ -235,7 +236,7 @@ AgentWebView::AgentWebView(wxWindow*                                  parent,
     if (m_page_url.empty()) {
         show_bridge_error(_L("The packaged AI page is missing from this build."));
     } else {
-        m_webview  = WebView::CreateWebView(this, m_page_url);
+        m_webview  = WebView::CreateWebView(this, m_page_url, page_handlers());
         if (m_webview == nullptr) {
             show_bridge_error(_L("The system web view could not be created."));
         } else {

@@ -23,6 +23,7 @@
 #include "slic3r/GUI/JusPrin/Shell/AgentPane.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ServerSheet.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
+#include "slic3r/GUI/JusPrin/Support/SentryClient.hpp"
 #include "slic3r/GUI/JusPrin/Updates/UpdateCheck.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp"
 
@@ -253,6 +254,8 @@ bool PreferencesWindow::on_page_message(const std::string& type, const json& pay
     if (type != Agent::Protocol::kPreferencesAction)
         return false;
     const Outcome outcome = apply_action(*wxGetApp().app_config, payload);
+    // Crashes go only while automatic reports are on.
+    sentry_follow_setting(wxGetApp().app_config->get_bool(kReportErrorsKey));
     if (!outcome.error.empty())
         BOOST_LOG_TRIVIAL(warning) << "JusPrin Preferences refused an action: " << outcome.error;
     // The page draws what is stored, so a refused change springs back.

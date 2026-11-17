@@ -64,10 +64,20 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Support/DecimalText.hpp
     GUI/JusPrin/Support/ErrorReport.cpp
     GUI/JusPrin/Support/ErrorReport.hpp
+    GUI/JusPrin/Support/SentryClient.cpp
+    GUI/JusPrin/Support/SentryClient.hpp
+    GUI/JusPrin/Support/SentryEvent.cpp
+    GUI/JusPrin/Support/SentryEvent.hpp
     GUI/JusPrin/Support/Files.cpp
     GUI/JusPrin/Support/Files.hpp
+    GUI/JusPrin/Support/PageFiles.cpp
+    GUI/JusPrin/Support/PageFiles.hpp
     GUI/JusPrin/Support/PageLanguage.cpp
     GUI/JusPrin/Support/PageLanguage.hpp
+    GUI/JusPrin/Support/PageScheme.cpp
+    GUI/JusPrin/Support/PageScheme.hpp
+    GUI/JusPrin/Support/ThrowStack.cpp
+    GUI/JusPrin/Support/ThrowStack.hpp
     GUI/JusPrin/Support/Translate.hpp
     GUI/JusPrin/PrinterSetup/PrinterSetupTypes.hpp
     GUI/JusPrin/PrinterSetup/PrinterCatalog.cpp
@@ -284,6 +294,13 @@ if (APPLE)
 elseif (WIN32)
     list(APPEND SLIC3R_GUI_SOURCES GUI/JusPrin/Startup/SplashAnimationWin.cpp)
 endif ()
+
+# The Sentry project the app's error reports go to (Support/SentryClient.cpp),
+# as its DSN. The release workflow sets JUSPRIN_SENTRY_DSN from a repository
+# secret, so this public repository names no production host; a build without
+# it sends no report.
+set(JUSPRIN_SENTRY_DSN "$ENV{JUSPRIN_SENTRY_DSN}" CACHE STRING "Sentry DSN the app's error reports go to; empty sends none")
+set_source_files_properties(GUI/JusPrin/Support/SentryClient.cpp PROPERTIES COMPILE_DEFINITIONS "JUSPRIN_SENTRY_DSN=\"${JUSPRIN_SENTRY_DSN}\"")
 
 # Translation catalogs carrying the product name, built from upstream .po files.
 include(${CMAKE_CURRENT_LIST_DIR}/Brand/catalogs.cmake)

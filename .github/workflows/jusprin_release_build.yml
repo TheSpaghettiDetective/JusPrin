@@ -92,7 +92,23 @@ jobs:
     runs-on: ${{ inputs.os }}
     env:
       VERSION: ${{ inputs.version }}
+      # The Sentry project the app's error reports go to, read by
+      # JusPrin/sources.cmake; kept out of the public repository.
+      JUSPRIN_SENTRY_DSN: ${{ secrets.JUSPRIN_SENTRY_DSN }}
+      # The pages' build, which their error reports carry and their source
+      # maps are filed under in Sentry (WebShared/errorReports.ts).
+      JUSPRIN_PAGE_BUILD: ${{ github.sha }}
     steps:
+      # A build without it sends no error report or crash, which nobody would
+      # notice until reports were needed.
+      - name: Require the Sentry key
+        shell: bash
+        run: |
+          if [ -z "$JUSPRIN_SENTRY_DSN" ]; then
+            echo "::error::The secret JUSPRIN_SENTRY_DSN is missing, so this build would send no error report or crash."
+            exit 1
+          fi
+
       - uses: actions/checkout@v6
         with:
           lfs: 'false'
@@ -156,7 +172,21 @@ jobs:
 
       - name: Build
         if: runner.os == 'macOS'
-        run: ./build_release_macos.sh -s -n -x -j 3 -a ${{ inputs.arch }} -t 10.15
+        # Line tables (-gline-tables-only) let Sentry give the file and line
+        # of each frame; they go into the dSYM below, not into the app.
+        run: >-
+          ./build_release_macos.sh -s -n -x -j 3 -a ${{ inputs.arch }} -t 10.15 --
+          -DCMAKE_C_FLAGS=-gline-tables-only -DCMAKE_CXX_FLAGS=-gline-tables-only
+
+      # The line tables stay in the build's object files; dsymutil gathers
+      # them into a dSYM for Sentry, and strip -S then drops the executable's
+      # pointers to those files. The executable keeps its function names.
+      - name: Split the debug information
+        if: runner.os == 'macOS'
+        run: |
+          bin="build/${{ inputs.arch }}/OrcaSlicer/OrcaSlicer.app/Contents/MacOS/OrcaSlicer"
+          dsymutil "$bin" -o "build/${{ inputs.arch }}/OrcaSlicer.dSYM"
+          strip -S "$bin"
 
       - name: Package
         if: runner.os == 'macOS'
@@ -173,15 +203,65 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           # -s builds the slicer and lays out build/package; JusPrin's AppImage
-          # replaces OrcaSlicer's (-i).
-          ./build_linux.sh -srlL
+          # replaces OrcaSlicer's (-i). Line tables (-gline-tables-only) let
+          # Sentry give the file and line of each frame; they are split off
+          # below, not shipped.
+          ./build_linux.sh -srlL -- -DCMAKE_C_FLAGS=-gline-tables-only -DCMAKE_CXX_FLAGS=-gline-tables-only
           ./scripts/check_appimage_libs.sh ./build/package ./build/package/bin/orca-slicer
+
+      # Sentry files a debug file by the executable's GNU build id, which the
+      # split file keeps; without one the two would not match.
+      - name: Split the debug information
+        if: runner.os == 'Linux'
+        run: |
+          bin=build/package/bin/orca-slicer
+          readelf -n "$bin" | grep -q 'Build ID' || {
+            echo "::error::$bin has no GNU build id, so Sentry could not match its debug file to it."
+            exit 1
+          }
+          objcopy --only-keep-debug "$bin" build/orca-slicer.debug
+          objcopy --strip-debug --add-gnu-debuglink=build/orca-slicer.debug "$bin"
 
       - name: Package
         if: runner.os == 'Linux'
         run: |
           ./src/slic3r/GUI/JusPrin/Packaging/appimage.sh build/package "$VERSION" \
             "dist/JusPrin_Linux_AppImage_Ubuntu2404_V${VERSION}${{ inputs.arch && format('_{0}', inputs.arch) || '' }}.AppImage"
+
+      # What lets Sentry name the functions in a crash or a report's stack: each
+      # executable and library the app ships, with its PDB on Windows, filed by
+      # its build id, and the debug information split off above. The build
+      # fails unless Sentry then holds the app's own code's debug information,
+      # with file and line (Packaging/sentry_debug_files.sh). Sentry's address and
+      # the token that may upload stay in the repository's secrets.
+      - name: Upload debug files to Sentry
+        shell: bash
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_URL: ${{ secrets.SENTRY_URL }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        run: |
+          case "$RUNNER_OS" in
+            Windows) main=build/src/Release/OrcaSlicer.dll; paths=(build/OrcaSlicer build/src/Release) ;;
+            macOS)
+              app="build/${{ inputs.arch }}/OrcaSlicer/OrcaSlicer.app"
+              main="$app/Contents/MacOS/OrcaSlicer"; paths=("$app/Contents" "build/${{ inputs.arch }}/OrcaSlicer.dSYM") ;;
+            *) main=build/package/bin/orca-slicer; paths=(build/package/bin build/package/lib build/orca-slicer.debug) ;;
+          esac
+          ./src/slic3r/GUI/JusPrin/Packaging/sentry_debug_files.sh upload "$main" "${paths[@]}"
+
+      # What lets Sentry name the Agent and Home pages' code in a page error's
+      # stack: each page and its source map, filed under this commit. Every
+      # platform builds the same pages; the step fails if one differs.
+      - name: Upload page source maps to Sentry
+        shell: bash
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_URL: ${{ secrets.SENTRY_URL }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        run: ./src/slic3r/GUI/JusPrin/Packaging/sentry_page_maps.sh upload
 
       - uses: actions/upload-artifact@v7
         with:

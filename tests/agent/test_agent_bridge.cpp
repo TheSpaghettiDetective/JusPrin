@@ -32,6 +32,7 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <array>
 #include <deque>
 #include <exception>
 #include <functional>
@@ -616,15 +617,20 @@ TEST_CASE("an unsupported page version is rejected and other traffic requires th
 
     SECTION("an error the page did not catch reaches the web view's reporter") {
         harness.handshake();
-        std::vector<std::pair<std::string, std::string>> reported;
-        harness.host.set_page_error_handler(
-            [&reported](const std::string& error, const std::string& where) { reported.push_back({error, where}); });
-        harness.deliver(Protocol::kReportError, json{{"error", "TypeError: x is undefined"}, {"where", "at render (index.js:1:2)"}});
+        std::vector<std::array<std::string, 3>> reported;
+        harness.host.set_page_error_handler([&reported](const std::string& error, const std::string& where, const std::string& event) {
+            reported.push_back({error, where, event});
+        });
+        const json event{{"platform", "javascript"}, {"exception", {{"values", json::array({{{"type", "TypeError"}}})}}}};
+        harness.deliver(Protocol::kReportError,
+                        json{{"error", "TypeError: x is undefined"}, {"where", "at render (index.js:1:2)"}, {"event", event}});
         REQUIRE(reported.size() == 1);
-        CHECK(reported[0].first == "TypeError: x is undefined");
-        CHECK(reported[0].second == "at render (index.js:1:2)");
-        // Our own page sends both fields; one without them is a broken page.
-        CHECK_THROWS(harness.deliver(Protocol::kReportError, json{{"error", "TypeError"}}));
+        CHECK(reported[0][0] == "TypeError: x is undefined");
+        CHECK(reported[0][1] == "at render (index.js:1:2)");
+        CHECK(json::parse(reported[0][2]) == event);
+        // Our own page sends all three; one without them is a broken page.
+        CHECK_THROWS(harness.deliver(Protocol::kReportError, json{{"error", "TypeError"}, {"where", ""}}));
+        CHECK_THROWS(harness.deliver(Protocol::kReportError, json{{"error", "TypeError"}, {"where", ""}, {"event", "TypeError"}}));
     }
 
     SECTION("another protocol's envelope is filtered, not treated as a fault") {

@@ -17,6 +17,10 @@
     "paths": {
       "@resources/*": ["../../../../../resources/*"],
       "@shared/*": ["../WebShared/*"],
+      "@sentry/browser": ["./node_modules/@sentry/browser"],
+      "@jridgewell/remapping": ["./node_modules/@jridgewell/remapping/types/remapping.d.mts"],
+      "magic-string": ["./node_modules/magic-string"],
+      "vite": ["./node_modules/vite"],
       "react": ["./node_modules/@types/react"],
       "react/*": ["./node_modules/@types/react/*"],
       "@lingui/react/server": ["./node_modules/@lingui/react/dist/server.d.ts"],

@@ -10,9 +10,11 @@ namespace Slic3r::GUI::JusPrin {
 // JusPrin's part of OrcaSlicer's startup, GUI_App::on_init_inner. Each stage
 // is one call from upstream, so a later stage costs one more upstream line.
 
-// Where OrcaSlicer would show its splash: shows JusPrin's instead, unless this
-// is not the editor, the person chose classic view, or the design tokens did
-// not load, or OrcaSlicer's show_splash_screen preference is off.
+// Where OrcaSlicer would show its splash: starts Sentry's SDK, which catches
+// crashes from then on (SentryClient.hpp), and shows JusPrin's splash instead
+// of OrcaSlicer's, unless this is not the editor, the person chose classic
+// view, or the design tokens did not load, or OrcaSlicer's show_splash_screen
+// preference is off.
 // Returns whether it did, and then OrcaSlicer shows none.
 bool startup_begin(GUI_App& app);
 
