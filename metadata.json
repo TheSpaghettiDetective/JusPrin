@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7KK6HFT4CCS8ZM3PP5YQT8N",
+  "strategy": "manual-commit",
+  "branch": "claude/bambu-skill-dev-build-facts",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/AgentUI/src/skills/connect-bambu/SKILL.md",
+    "tests/agent/test_printer_conversation.cpp",
+    "tests/printer_prompt/render_prompt.mjs",
+    "tests/printer_prompt/run_prompt_tests.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 38,
+    "cache_creation_tokens": 142850,
+    "cache_read_tokens": 3543120,
+    "output_tokens": 10494,
+    "api_call_count": 19
+  }
+}
