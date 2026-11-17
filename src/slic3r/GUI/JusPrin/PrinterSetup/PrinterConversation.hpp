@@ -49,8 +49,6 @@ class IConversationHost
 public:
     virtual ~IConversationHost() = default;
 
-    // The chat so far, for a report; see connection_chat_record.
-    virtual nlohmann::json chat_record() const = 0;
     // A line in the thread stating what happened, which the model reads as
     // the app's own words. Returns its message id.
     virtual std::string post_note(const std::string& text) = 0;
@@ -80,12 +78,6 @@ public:
     // session just added, which Home leads with; empty for any other change.
     virtual void printers_changed(const std::string& added = {}) = 0;
 };
-
-// What a connection report says of a chat: its messages as {role, text} under
-// "turns", and its connection tools' calls under "tools". The access code or
-// API key goes into a form of its own and is in neither.
-nlohmann::json connection_chat_record(const std::vector<Agent::ConversationMessage>& messages,
-                                      const std::vector<Agent::ToolActivity>&        activities);
 
 // The GitHub page for a new JusPrin issue, filled in with `title` and `body`
 // and ending in the app's own `footer`. A body that would take the link past
@@ -184,7 +176,7 @@ private:
     void   close_credential(bool help);
     void   open_connect_call(const Agent::ToolActivity& activity);
     void   ask_credential(const nlohmann::json& arguments);
-    void   end_connect_call(const std::string& state, std::string message);
+    void   end_connect_call(const std::string& state, const std::string& message);
     static Result pending();
     // Why a connection tool refused `asked`, from what the app has observed,
     // after `lead`. When it lists printers to pick from, its details carry
@@ -204,14 +196,6 @@ private:
     // Its Install button: runs the installer, and tells the model if the
     // plug-in is there afterwards.
     void install_network_plugin();
-    // A connection attempt failed with `failure`; `message_id` is the message
-    // that made the call. The second failure in a session puts the report card
-    // under it, and returns the sentence that tells the model so. The report
-    // holds the failure itself: the call it ends is still open, so the chat it
-    // records has no outcome for it yet.
-    std::string connection_failed(const std::string& message_id, const std::string& failure);
-    // The person's answer on that card.
-    void answer_report(const std::string& block_id, bool send);
     // Drops a connection attempt still waiting, so what the printer answers
     // later is never read, and its form. The connection call still open
     // ends cancelled, saying `why`.
@@ -281,9 +265,8 @@ private:
     };
     std::optional<StatusCall> m_status_call;
     // A print host's type, as "moonraker" or "elegoolink", once the saved
-    // connection or a connection attempt names one; a report names it.
+    // connection or a connection attempt names one.
     std::string m_host_type;
-    int  m_failed_connections{0};
     // The local credential form and the call it will complete. The secret is
     // passed directly to connect and is never stored here.
     std::string    m_credential_action;

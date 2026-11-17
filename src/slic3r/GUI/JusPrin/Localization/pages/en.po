@@ -1223,10 +1223,6 @@ msgstr "Connect…"
 msgid "Connected"
 msgstr "Connected"
 
-#: src/components/PrinterPanel.tsx
-msgid "Connecting this printer has failed twice, and a report helps us fix why. It holds what the app saw and this chat, with anything that looks like an access code or API key hidden. Nothing is sent unless you choose to."
-msgstr "Connecting this printer has failed twice, and a report helps us fix why. It holds what the app saw and this chat, with anything that looks like an access code or API key hidden. Nothing is sent unless you choose to."
-
 #: ../HomeUI/src/App.tsx
 #: ../HomeUI/src/components/PrinterCard.tsx
 #: src/components/Panels.tsx
@@ -2266,10 +2262,6 @@ msgstr "No printer yet"
 msgid "No projects match “{typed}”."
 msgstr "No projects match “{typed}”."
 
-#: src/components/PrinterPanel.tsx
-msgid "No report was sent."
-msgstr "No report was sent."
-
 #: src/components/SetupCard.tsx
 msgid "No settings read from the project"
 msgstr "No settings read from the project"
@@ -2324,7 +2316,6 @@ msgid "Not listening yet"
 msgstr "Not listening yet"
 
 #: ../HomeUI/src/components/PrintReportForm.tsx
-#: src/components/PrinterPanel.tsx
 msgid "Not now"
 msgstr "Not now"
 
@@ -3020,26 +3011,17 @@ msgstr "Send"
 msgid "Send a new code"
 msgstr "Send a new code"
 
-#: src/components/PrinterPanel.tsx
-msgid "Send a report to the JusPrin developers?"
-msgstr "Send a report to the JusPrin developers?"
-
 #: src/components/Composer.tsx
 msgid "Send message"
 msgstr "Send message"
 
 #: ../HomeUI/src/components/PrintReportForm.tsx
-#: src/components/PrinterPanel.tsx
 msgid "Send report"
 msgstr "Send report"
 
 #: src/components/SignInDoor.tsx
 msgid "Sending a code to {address}…"
 msgstr "Sending a code to {address}…"
-
-#: src/components/PrinterPanel.tsx
-msgid "Sending isn’t built yet, so nothing has left this computer. The report is saved at {path}."
-msgstr "Sending isn’t built yet, so nothing has left this computer. The report is saved at {path}."
 
 #: ../HomeUI/src/components/PrintReportForm.tsx
 msgid "Sending…"
@@ -3466,10 +3448,6 @@ msgstr "The provider a chat uses receives your messages, the open project’s se
 msgid "The provider rejected this key"
 msgstr "The provider rejected this key"
 
-#: src/components/PrinterPanel.tsx
-msgid "The report could not be saved."
-msgstr "The report could not be saved."
-
 #: ../HomeUI/src/components/PrintReportForm.tsx
 msgid "The report couldn’t be sent. Check your connection and try again."
 msgstr "The report couldn’t be sent. Check your connection and try again."
@@ -3700,10 +3678,6 @@ msgstr "What happened"
 #: src/App.tsx
 msgid "What should we do with this in the current project?"
 msgstr "What should we do with this in the current project?"
-
-#: src/components/PrinterPanel.tsx
-msgid "What the report holds"
-msgstr "What the report holds"
 
 #: src/components/Preferences.tsx
 msgid "What to check for"

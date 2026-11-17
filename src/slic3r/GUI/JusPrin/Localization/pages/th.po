@@ -1511,11 +1511,6 @@ msgid "Connected"
 msgstr "เชื่อมต่อแล้ว"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Connecting this printer has failed twice, and a report helps us fix why. It holds what the app saw and this chat, with anything that looks like an access code or API key hidden. Nothing is sent unless you choose to."
-msgstr "การเชื่อมต่อเครื่องพิมพ์นี้ล้มเหลวสองครั้งแล้ว และรายงานจะช่วยให้เราแก้ไขสาเหตุได้ รายงานประกอบด้วยสิ่งที่แอปเห็นและแชทนี้ โดยซ่อนสิ่งที่ดูเหมือนรหัสการเข้าถึงหรือคีย์ API ไว้ จะไม่มีการส่งสิ่งใดเว้นแต่คุณเลือกส่ง"
-
-# AI Translated
 #: ../HomeUI/src/App.tsx
 #: ../HomeUI/src/components/PrinterCard.tsx
 #: src/components/Panels.tsx
@@ -2803,11 +2798,6 @@ msgid "No projects match “{typed}”."
 msgstr "ไม่มีโปรเจกต์ที่ตรงกับ “{typed}”"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "No report was sent."
-msgstr "ไม่ได้ส่งรายงาน"
-
-# AI Translated
 #: src/components/SetupCard.tsx
 msgid "No settings read from the project"
 msgstr "ไม่มีการตั้งค่าที่อ่านจากโปรเจกต์"
@@ -2876,7 +2866,6 @@ msgstr "ยังไม่ได้รอรับการเชื่อมต
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
-#: src/components/PrinterPanel.tsx
 msgid "Not now"
 msgstr "ไม่ใช่ตอนนี้"
 
@@ -3738,18 +3727,12 @@ msgid "Send a new code"
 msgstr "ส่งรหัสใหม่"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Send a report to the JusPrin developers?"
-msgstr "ส่งรายงานถึงนักพัฒนา JusPrin หรือไม่?"
-
-# AI Translated
 #: src/components/Composer.tsx
 msgid "Send message"
 msgstr "ส่งข้อความ"
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
-#: src/components/PrinterPanel.tsx
 msgid "Send report"
 msgstr "ส่งรายงาน"
 
@@ -3757,11 +3740,6 @@ msgstr "ส่งรายงาน"
 #: src/components/SignInDoor.tsx
 msgid "Sending a code to {address}…"
 msgstr "กำลังส่งรหัสไปที่ {address}…"
-
-# AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Sending isn’t built yet, so nothing has left this computer. The report is saved at {path}."
-msgstr "ฟีเจอร์การส่งยังไม่พร้อมใช้งาน จึงยังไม่มีสิ่งใดออกจากคอมพิวเตอร์เครื่องนี้ รายงานถูกบันทึกไว้ที่ {path}"
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
@@ -4293,11 +4271,6 @@ msgid "The provider rejected this key"
 msgstr "ผู้ให้บริการปฏิเสธคีย์นี้"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "The report could not be saved."
-msgstr "บันทึกรายงานไม่ได้"
-
-# AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
 msgid "The report couldn’t be sent. Check your connection and try again."
 msgstr "ส่งรายงานไม่ได้ โปรดตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง"
@@ -4585,11 +4558,6 @@ msgstr "สิ่งที่เกิดขึ้น"
 #: src/App.tsx
 msgid "What should we do with this in the current project?"
 msgstr "เราควรทำอย่างไรกับเรื่องนี้ในโปรเจกต์ปัจจุบัน?"
-
-# AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "What the report holds"
-msgstr "สิ่งที่อยู่ในรายงาน"
 
 # AI Translated
 #: src/components/Preferences.tsx

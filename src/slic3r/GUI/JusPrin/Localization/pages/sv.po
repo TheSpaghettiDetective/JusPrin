@@ -1512,11 +1512,6 @@ msgid "Connected"
 msgstr "Ansluten"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Connecting this printer has failed twice, and a report helps us fix why. It holds what the app saw and this chat, with anything that looks like an access code or API key hidden. Nothing is sent unless you choose to."
-msgstr "Anslutningen av den här skrivaren har misslyckats två gånger, och en rapport hjälper oss att ta reda på varför. Den innehåller det appen såg och den här chatten, med allt som ser ut som en behörighetskod eller API-nyckel dolt. Inget skickas om du inte väljer det."
-
-# AI Translated
 #: ../HomeUI/src/App.tsx
 #: ../HomeUI/src/components/PrinterCard.tsx
 #: src/components/Panels.tsx
@@ -2805,11 +2800,6 @@ msgid "No projects match “{typed}”."
 msgstr "Inga projekt matchar ”{typed}”."
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "No report was sent."
-msgstr "Ingen rapport skickades."
-
-# AI Translated
 #: src/components/SetupCard.tsx
 msgid "No settings read from the project"
 msgstr "Inga inställningar lästes från projektet"
@@ -2877,7 +2867,6 @@ msgstr "Lyssnar inte än"
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
-#: src/components/PrinterPanel.tsx
 msgid "Not now"
 msgstr "Inte nu"
 
@@ -3737,18 +3726,12 @@ msgid "Send a new code"
 msgstr "Skicka en ny kod"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Send a report to the JusPrin developers?"
-msgstr "Vill du skicka en rapport till JusPrins utvecklare?"
-
-# AI Translated
 #: src/components/Composer.tsx
 msgid "Send message"
 msgstr "Skicka meddelande"
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
-#: src/components/PrinterPanel.tsx
 msgid "Send report"
 msgstr "Skicka rapport"
 
@@ -3756,11 +3739,6 @@ msgstr "Skicka rapport"
 #: src/components/SignInDoor.tsx
 msgid "Sending a code to {address}…"
 msgstr "Skickar en kod till {address}…"
-
-# AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Sending isn’t built yet, so nothing has left this computer. The report is saved at {path}."
-msgstr "Sändningen är inte byggd än, så inget har lämnat den här datorn. Rapporten är sparad i {path}."
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
@@ -4294,11 +4272,6 @@ msgid "The provider rejected this key"
 msgstr "Leverantören avvisade nyckeln"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "The report could not be saved."
-msgstr "Rapporten kunde inte sparas."
-
-# AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
 msgid "The report couldn’t be sent. Check your connection and try again."
 msgstr "Rapporten kunde inte skickas. Kontrollera din anslutning och försök igen."
@@ -4584,11 +4557,6 @@ msgstr "Vad hände"
 #: src/App.tsx
 msgid "What should we do with this in the current project?"
 msgstr "Vad ska vi göra med det här i det aktuella projektet?"
-
-# AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "What the report holds"
-msgstr "Vad rapporten innehåller"
 
 # AI Translated
 #: src/components/Preferences.tsx

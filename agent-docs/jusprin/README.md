@@ -14,6 +14,7 @@ Read these documents in order:
 8. [POC reference](poc-reference.md) — exact pointers to the spike-only documents, code, commits, logs, screenshots, and generated brand artifacts left on `jusprin-v2-poc`.
 9. [Tool extension guide](mcp-tool-extension-guide.md) — shared Agent/MCP contracts, process-settings workflow, execution and verification requirements.
 10. [Local autosave and version history](autosave-version-history.md) — managed project storage, migration, restore, export, retention, and failure behavior.
+11. [Writing a connection skill](connection-skill-guide.md) — what a printer-connection skill is for, the three audits before writing one, how to label what it states, and how to test it with a stuck person.
 
 Printer UI without hardware (Bambu in-process fake; control file; isolated app): [Fake Bambu README](../../src/slic3r/GUI/JusPrin/Testing/README.md). Moonraker and OctoPrint without hardware (Docker, real host software, simulated boards): [print hosts README](../../tests/printer_hosts/README.md).
 

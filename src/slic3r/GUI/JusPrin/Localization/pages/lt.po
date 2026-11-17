@@ -1508,11 +1508,6 @@ msgid "Connected"
 msgstr "Prijungta"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Connecting this printer has failed twice, and a report helps us fix why. It holds what the app saw and this chat, with anything that looks like an access code or API key hidden. Nothing is sent unless you choose to."
-msgstr "Šio spausdintuvo prijungti nepavyko du kartus, o ataskaita padeda mums išsiaiškinti kodėl. Joje yra tai, ką matė programa, ir šis pokalbis; viskas, kas panašu į prieigos kodą ar API raktą, paslėpta. Niekas nesiunčiama, nebent nuspręsite tai padaryti."
-
-# AI Translated
 #: ../HomeUI/src/App.tsx
 #: ../HomeUI/src/components/PrinterCard.tsx
 #: src/components/Panels.tsx
@@ -2795,11 +2790,6 @@ msgid "No projects match “{typed}”."
 msgstr "Nė vienas projektas neatitinka „{typed}“."
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "No report was sent."
-msgstr "Ataskaita nebuvo išsiųsta."
-
-# AI Translated
 #: src/components/SetupCard.tsx
 msgid "No settings read from the project"
 msgstr "Iš projekto nenuskaityta jokių nustatymų"
@@ -2867,7 +2857,6 @@ msgstr "Dar nelaukia prisijungimų"
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
-#: src/components/PrinterPanel.tsx
 msgid "Not now"
 msgstr "Ne dabar"
 
@@ -3726,18 +3715,12 @@ msgid "Send a new code"
 msgstr "Siųsti naują kodą"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Send a report to the JusPrin developers?"
-msgstr "Siųsti ataskaitą JusPrin kūrėjams?"
-
-# AI Translated
 #: src/components/Composer.tsx
 msgid "Send message"
 msgstr "Siųsti žinutę"
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
-#: src/components/PrinterPanel.tsx
 msgid "Send report"
 msgstr "Siųsti ataskaitą"
 
@@ -3745,11 +3728,6 @@ msgstr "Siųsti ataskaitą"
 #: src/components/SignInDoor.tsx
 msgid "Sending a code to {address}…"
 msgstr "Siunčiamas kodas adresu {address}…"
-
-# AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Sending isn’t built yet, so nothing has left this computer. The report is saved at {path}."
-msgstr "Siuntimas dar neįdiegtas, todėl niekas neišėjo iš šio kompiuterio. Ataskaita išsaugota: {path}."
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
@@ -4279,11 +4257,6 @@ msgid "The provider rejected this key"
 msgstr "Teikėjas atmetė šį raktą"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "The report could not be saved."
-msgstr "Nepavyko išsaugoti ataskaitos."
-
-# AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
 msgid "The report couldn’t be sent. Check your connection and try again."
 msgstr "Nepavyko išsiųsti ataskaitos. Patikrinkite ryšį ir bandykite dar kartą."
@@ -4568,11 +4541,6 @@ msgstr "Kas nutiko"
 #: src/App.tsx
 msgid "What should we do with this in the current project?"
 msgstr "Ką su tuo daryti dabartiniame projekte?"
-
-# AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "What the report holds"
-msgstr "Kas yra ataskaitoje"
 
 # AI Translated
 #: src/components/Preferences.tsx

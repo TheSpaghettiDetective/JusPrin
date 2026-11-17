@@ -1507,11 +1507,6 @@ msgid "Connected"
 msgstr "연결됨"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Connecting this printer has failed twice, and a report helps us fix why. It holds what the app saw and this chat, with anything that looks like an access code or API key hidden. Nothing is sent unless you choose to."
-msgstr "이 프린터 연결이 두 번 실패했습니다. 보고서를 보내 주시면 원인을 고치는 데 도움이 됩니다. 보고서에는 앱이 확인한 내용과 이 채팅이 포함되며, 액세스 코드나 API 키로 보이는 내용은 가려집니다. 직접 선택하지 않으면 아무것도 전송되지 않습니다."
-
-# AI Translated
 #: ../HomeUI/src/App.tsx
 #: ../HomeUI/src/components/PrinterCard.tsx
 #: src/components/Panels.tsx
@@ -2793,11 +2788,6 @@ msgid "No projects match “{typed}”."
 msgstr "“{typed}”와(과) 일치하는 프로젝트가 없습니다."
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "No report was sent."
-msgstr "보고서를 보내지 않았습니다."
-
-# AI Translated
 #: src/components/SetupCard.tsx
 msgid "No settings read from the project"
 msgstr "프로젝트에서 읽은 설정 없음"
@@ -2865,7 +2855,6 @@ msgstr "아직 수신 대기하지 않음"
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
-#: src/components/PrinterPanel.tsx
 msgid "Not now"
 msgstr "나중에"
 
@@ -3724,18 +3713,12 @@ msgid "Send a new code"
 msgstr "새 코드 보내기"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Send a report to the JusPrin developers?"
-msgstr "JusPrin 개발자에게 보고서를 보내시겠습니까?"
-
-# AI Translated
 #: src/components/Composer.tsx
 msgid "Send message"
 msgstr "메시지 보내기"
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
-#: src/components/PrinterPanel.tsx
 msgid "Send report"
 msgstr "보고서 보내기"
 
@@ -3743,11 +3726,6 @@ msgstr "보고서 보내기"
 #: src/components/SignInDoor.tsx
 msgid "Sending a code to {address}…"
 msgstr "{address}(으)로 코드를 보내는 중…"
-
-# AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Sending isn’t built yet, so nothing has left this computer. The report is saved at {path}."
-msgstr "전송 기능이 아직 만들어지지 않아 이 컴퓨터 밖으로 나간 것은 없습니다. 보고서는 {path}에 저장되어 있습니다."
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
@@ -4277,11 +4255,6 @@ msgid "The provider rejected this key"
 msgstr "제공자가 이 키를 거부했습니다"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "The report could not be saved."
-msgstr "보고서를 저장할 수 없습니다."
-
-# AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
 msgid "The report couldn’t be sent. Check your connection and try again."
 msgstr "보고서를 보낼 수 없습니다. 연결을 확인하고 다시 시도하세요."
@@ -4566,11 +4539,6 @@ msgstr "어떤 일이 있었나요"
 #: src/App.tsx
 msgid "What should we do with this in the current project?"
 msgstr "현재 프로젝트에서 이것을 어떻게 할까요?"
-
-# AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "What the report holds"
-msgstr "보고서에 포함되는 내용"
 
 # AI Translated
 #: src/components/Preferences.tsx

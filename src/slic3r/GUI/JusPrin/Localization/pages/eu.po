@@ -1508,11 +1508,6 @@ msgid "Connected"
 msgstr "Konektatuta"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Connecting this printer has failed twice, and a report helps us fix why. It holds what the app saw and this chat, with anything that looks like an access code or API key hidden. Nothing is sent unless you choose to."
-msgstr "Inprimagailu hau konektatzeak bi aldiz huts egin du, eta txosten batek zergatik den konpontzen laguntzen digu. Aplikazioak ikusi duena eta txat hau ditu, sarbide-kode edo API gako baten itxura duen guztia ezkutatuta. Ez da ezer bidaltzen zuk hala aukeratzen ez baduzu."
-
-# AI Translated
 #: ../HomeUI/src/App.tsx
 #: ../HomeUI/src/components/PrinterCard.tsx
 #: src/components/Panels.tsx
@@ -2794,11 +2789,6 @@ msgid "No projects match “{typed}”."
 msgstr "Ez dago “{typed}” bilaketarekin bat datorren proiekturik."
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "No report was sent."
-msgstr "Ez da txostenik bidali."
-
-# AI Translated
 #: src/components/SetupCard.tsx
 msgid "No settings read from the project"
 msgstr "Ez da ezarpenik irakurri proiektutik"
@@ -2866,7 +2856,6 @@ msgstr "Oraindik ez dago entzuten"
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
-#: src/components/PrinterPanel.tsx
 msgid "Not now"
 msgstr "Orain ez"
 
@@ -3725,18 +3714,12 @@ msgid "Send a new code"
 msgstr "Bidali kode berri bat"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Send a report to the JusPrin developers?"
-msgstr "Bidali txosten bat JusPrin-en garatzaileei?"
-
-# AI Translated
 #: src/components/Composer.tsx
 msgid "Send message"
 msgstr "Bidali mezua"
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
-#: src/components/PrinterPanel.tsx
 msgid "Send report"
 msgstr "Bidali txostena"
 
@@ -3744,11 +3727,6 @@ msgstr "Bidali txostena"
 #: src/components/SignInDoor.tsx
 msgid "Sending a code to {address}…"
 msgstr "Kode bat bidaltzen hona: {address}…"
-
-# AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Sending isn’t built yet, so nothing has left this computer. The report is saved at {path}."
-msgstr "Bidaltzeko aukera ez dago oraindik eginda; beraz, ezer ez da ordenagailu honetatik atera. Txostena hemen gorde da: {path}."
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
@@ -4278,11 +4256,6 @@ msgid "The provider rejected this key"
 msgstr "Hornitzaileak gako hau baztertu du"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "The report could not be saved."
-msgstr "Ezin izan da txostena gorde."
-
-# AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
 msgid "The report couldn’t be sent. Check your connection and try again."
 msgstr "Ezin izan da txostena bidali. Egiaztatu konexioa eta saiatu berriro."
@@ -4567,11 +4540,6 @@ msgstr "Zer gertatu zen"
 #: src/App.tsx
 msgid "What should we do with this in the current project?"
 msgstr "Zer egin behar dugu honekin uneko proiektuan?"
-
-# AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "What the report holds"
-msgstr "Zer dauka txostenak"
 
 # AI Translated
 #: src/components/Preferences.tsx

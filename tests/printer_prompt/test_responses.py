@@ -281,7 +281,7 @@ class Responses(unittest.TestCase):
         passed, detail, case, bodies = self.run_case(
             runner.ChangeNozzleClose,
             [call("printer_change", {"printerName": "Bambu Lab A1 mini", "nozzle": 0.6}, "call-1")],
-            [reply("Saved: it now has a 0.6 mm nozzle. You can close this chat.")])
+            [reply("Saved: it now has a 0.6 mm nozzle.\nChoices: Done")])
         self.assertTrue(passed, detail)
         self.assertEqual(bodies[1]["input"][-1]["call_id"], "call-1")
 

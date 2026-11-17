@@ -803,52 +803,13 @@ class ConnectWorkedOut(ConnectOutcome):
         return verdict([ended_badly(conversation, self.truth)], "worked it out with them")
 
 
-class ConnectRightCodeSilentPort(ConnectWorkedOut):
-    """Kenneth's P1S, 2026-11-02: the right code, and a network too slow to
-    reach the port. The model blamed the code."""
-
-    name = "connect-right-code-silent-port"
-    truth = "The access code is right. The Wi-Fi between this computer and the printer is badly overloaded."
-    failure = ("Bambu's network plug-in reported code -1 24 seconds after being asked to connect, which does not say why. "
-               "The app also tried the printer's port 8883 at 192.168.0.198. Just before the attempt, nothing answered within "
-               "5 seconds. Right after it failed, nothing answered within 5 seconds.")
-    person = ("I compared them, it's the same code. What else could it be?",)
-
-
-class ConnectPortWentQuiet(ConnectWorkedOut):
-    """The real P1S on 2026-11-02: the port answered, a failed attempt, then
-    nothing for minutes. Trying again at once says nothing about the code."""
-
-    name = "connect-port-went-quiet"
-    truth = "The printer stopped answering after the failed attempt, and will answer again in several minutes or after a restart."
-    failure = ("Bambu's network plug-in reported code -1 24 seconds after being asked to connect, which does not say why. "
-               "The app also tried the printer's port 8883 at 192.168.0.198. Just before the attempt, it answered in 73 ms. "
-               "Right after it failed, nothing answered within 5 seconds.")
-    person = ("should I just try again right now?",)
-
-
-class ConnectCodeRuledOut(ConnectWorkedOut):
-    """The port answers, so the code is the first guess, and the person then
-    rules it out. Not seen on a real printer: the skill was not written from it."""
-
-    name = "connect-code-ruled-out"
-    truth = "The access code is right. The printer has been running for weeks and needs a restart."
-    failure = ("Bambu's network plug-in reported code -1 24 seconds after being asked to connect, which does not say why. "
-               "The app also tried the printer's port 8883 at 192.168.0.198. Just before the attempt, it answered in 14 ms. "
-               "Right after it failed, it answered in 16 ms.")
-    person = ("I checked twice, it's the same code.",)
-
-
 class ConnectUnforeseenFailure(ConnectWorkedOut):
     """A code and an answer the skill never mentions, and a cause the person
     brings up. Passes only by reasoning: no line in the skill covers it."""
 
     name = "connect-unforeseen-failure"
     truth = "This computer is on a work VPN, which blocks the local network."
-    failure = ("Bambu's network plug-in reported code -3 2 seconds after being asked to connect, which does not say why. The "
-               "app also tried the printer's port 8883 at 192.168.0.198. Just before the attempt, the app could not try, as "
-               "this computer said \"No route to host\". Right after it failed, the app could not try, as this computer said "
-               "\"No route to host\".")
+    failure = "Bambu's network plug-in reported code -3 2 seconds after being asked to connect, which does not say why."
     person = ("hm, I'm on my work VPN today, does that matter?",)
 
 
@@ -1636,7 +1597,7 @@ CASES = {case.name: case for case in (ConnectBambu, AddNamedModel, AddChooseFrom
                                       AddManyFit, AddNameStartsTwo, AddUnshippedNozzle, AddFullList,
                                       ChangeAskLoadedNotConnected, ConnectHostNoResponse, ConnectBambuNoPlugin,
                                       ChangeEditStartGcode, ChangeStockCopy, ChangeBedSize,
-                                      ConnectRightCodeSilentPort, ConnectPortWentQuiet, ConnectCodeRuledOut, ConnectUnforeseenFailure,
+                                      ConnectUnforeseenFailure,
                                       ConnectScreenSaysDisconnected, ConnectHostKlipperShutdown, ConnectHostNoKey,
                                       ConnectHostWebPort)}
 

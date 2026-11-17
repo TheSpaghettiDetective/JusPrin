@@ -3,7 +3,7 @@
 // reading and the sending.
 
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { PrinterBlock } from '../bridge/protocol';
 import { PrinterBlockView, PrinterCredentialForm } from './PrinterPanel';
@@ -118,25 +118,5 @@ describe('the local credential form', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(close).toHaveBeenLastCalledWith('t1', false);
     expect(connect).not.toHaveBeenCalled();
-  });
-});
-
-describe('the report card', () => {
-  it('asks about a report with what it holds to read, and tells the answer without claiming it was sent', () => {
-    const answer = vi.fn();
-    const report = '{"trigger":"failed_twice"}';
-    const { rerender } = render(<PrinterBlockView block={block({ kind: 'report', report })} onAnswerReport={answer} />);
-    expect(screen.getByText('Send a report to the JusPrin developers?')).toBeInTheDocument();
-    expect(screen.getByText(report)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Send report' }));
-    expect(answer).toHaveBeenLastCalledWith(block({}).id, true);
-    fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
-    expect(answer).toHaveBeenLastCalledWith(block({}).id, false);
-
-    rerender(<PrinterBlockView block={block({ kind: 'report', report, answer: 'kept', path: '/data/report.json' })} onAnswerReport={answer} />);
-    expect(screen.queryByRole('button')).toBeNull();
-    expect(screen.getByText(/nothing has left this computer.*\/data\/report\.json/)).toBeInTheDocument();
-    rerender(<PrinterBlockView block={block({ kind: 'report', report, answer: 'declined' })} onAnswerReport={answer} />);
-    expect(screen.getByText('No report was sent.')).toBeInTheDocument();
   });
 });

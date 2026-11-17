@@ -1506,11 +1506,6 @@ msgid "Connected"
 msgstr "Połączono"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Connecting this printer has failed twice, and a report helps us fix why. It holds what the app saw and this chat, with anything that looks like an access code or API key hidden. Nothing is sent unless you choose to."
-msgstr "Połączenie z tą drukarką nie powiodło się dwa razy, a raport pomoże nam ustalić przyczynę. Zawiera to, co widziała aplikacja, oraz ten czat, z ukryciem wszystkiego, co wygląda na kod dostępu lub klucz API. Nic nie zostanie wysłane, chyba że tak zdecydujesz."
-
-# AI Translated
 #: ../HomeUI/src/App.tsx
 #: ../HomeUI/src/components/PrinterCard.tsx
 #: src/components/Panels.tsx
@@ -2792,11 +2787,6 @@ msgid "No projects match “{typed}”."
 msgstr "Żaden projekt nie pasuje do „{typed}”."
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "No report was sent."
-msgstr "Nie wysłano raportu."
-
-# AI Translated
 #: src/components/SetupCard.tsx
 msgid "No settings read from the project"
 msgstr "Nie odczytano ustawień z projektu"
@@ -2864,7 +2854,6 @@ msgstr "Jeszcze nie nasłuchuje"
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
-#: src/components/PrinterPanel.tsx
 msgid "Not now"
 msgstr "Nie teraz"
 
@@ -3723,18 +3712,12 @@ msgid "Send a new code"
 msgstr "Wyślij nowy kod"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Send a report to the JusPrin developers?"
-msgstr "Wysłać raport do twórców JusPrin?"
-
-# AI Translated
 #: src/components/Composer.tsx
 msgid "Send message"
 msgstr "Wyślij wiadomość"
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
-#: src/components/PrinterPanel.tsx
 msgid "Send report"
 msgstr "Wyślij raport"
 
@@ -3742,11 +3725,6 @@ msgstr "Wyślij raport"
 #: src/components/SignInDoor.tsx
 msgid "Sending a code to {address}…"
 msgstr "Wysyłanie kodu na {address}…"
-
-# AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Sending isn’t built yet, so nothing has left this computer. The report is saved at {path}."
-msgstr "Wysyłanie nie jest jeszcze gotowe, więc nic nie opuściło tego komputera. Raport zapisano w {path}."
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
@@ -4276,11 +4254,6 @@ msgid "The provider rejected this key"
 msgstr "Dostawca odrzucił ten klucz"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "The report could not be saved."
-msgstr "Nie udało się zapisać raportu."
-
-# AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
 msgid "The report couldn’t be sent. Check your connection and try again."
 msgstr "Nie udało się wysłać raportu. Sprawdź połączenie i spróbuj ponownie."
@@ -4565,11 +4538,6 @@ msgstr "Co się stało"
 #: src/App.tsx
 msgid "What should we do with this in the current project?"
 msgstr "Co z tym zrobić w bieżącym projekcie?"
-
-# AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "What the report holds"
-msgstr "Co zawiera raport"
 
 # AI Translated
 #: src/components/Preferences.tsx

@@ -255,14 +255,6 @@ cannot quietly undo it.
 - `connect-host-no-response`: a print host that does not respond (c922876c66:
   a failure ended with no way forward). Passes when the chat leaves the person
   with a guess at why and something to look at or try.
-- `connect-right-code-silent-port`: the right access code, a port that does not
-  answer, then "it's the same code" (the real P1S on 2026-11-02, where the
-  model blamed the code). Judged by where the chat leaves the person.
-- `connect-port-went-quiet`: the port answers before the attempt and not after
-  it, and the person asks whether to try again at once (the real P1S on
-  2026-11-02).
-- `connect-code-ruled-out`: the port answers, and the person rules the code out.
-  Not seen on a real printer, so the skill was not written from it.
 - `connect-unforeseen-failure`: a code and an answer the skill never mentions,
   and a work VPN the person brings up. Passes only by reasoning.
 - `connect-screen-says-disconnected`: nothing is heard, and the person reads

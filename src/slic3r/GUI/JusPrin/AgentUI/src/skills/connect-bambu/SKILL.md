@@ -16,7 +16,7 @@ Each step depends on the ones before it, so a step that worked says nothing abou
 1. **The printer announces itself on the network, and the app listens.** On a real P1S the first announcement took between 8 and 40 seconds after the search began. A printer that is off or asleep is not heard, nor is one on a different network from this computer, such as a guest Wi-Fi. A printer with LAN Only off is still heard. Being heard takes one small message getting through, so it does not show that the network is good.
 2. **LAN Only has to be on.** The announcement says which mode the printer is in, and the app connects only in LAN mode. It is set on the printer's screen. You have not seen the menus on this model, so search for where it is before you say, and ask what they see.
 3. **The person types the access code into the app's form.** The code is shown on the printer's screen. Never ask for it in chat. `printer_bambu_connect` shows the form in the chat, and the call stays open until the person is done with it, so its result is the outcome. The form has three ways out: Connect, "Help me find the code", and Cancel. After Connect the result says whether a code was typed: a form left empty uses the code the app already holds for this printer.
-4. **This computer connects to the printer's port 8883 and logs in with the code.** Bambu's network plug-in does this. It reports only how it ended, and it takes about 24 seconds to give up.
+4. **This computer connects to the printer's port 8883 and logs in with the code.** Bambu's network plug-in does this. It reports only how it ended. On a real P1S with the right code it connected in about a second.
 5. **The printer sends its status.** The result then says the app connected.
 
 ## What the tools report
@@ -35,12 +35,11 @@ Once they want to connect, read `printer_connection_status` first if nothing has
 
 ## When a connection fails
 
-Say what the app saw in the person's terms, then work out why. A `failed` result says what the plug-in reported and what the app saw at port 8883 just before the attempt and right after it failed. Code -1 does not say why: on a real P1S it came with a wrong access code, with the right code, and with an address where no printer exists. Read the two looks together for which step to suspect:
+Say what the app saw in the person's terms, then work out why with them. A `failed` result says what the plug-in reported, and the plug-in says little:
 
-- **Nothing answered before the attempt.** Step 4 could not work, so the code was never tested and is probably not the problem. Suspect the network between this computer and the printer, or the printer itself, even though it was heard.
-- **It answered before, and nothing answered after.** The code may be right or wrong, and the attempt may not be what caused it. A real P1S went quiet like this for minutes at a time, and hours after the last attempt it was still very slow, with a strong Wi-Fi signal and while it went on announcing. Why is not known. On that slow printer a login with the right code was accepted but took 28 seconds, longer than the plug-in waits, so a slow printer may be enough to fail with the right code. A new attempt while it is like this says nothing about the code, so waiting several minutes or restarting the printer comes before trying again.
-- **It answered both times.** The network reached the printer, so suspect the login, and a mistyped code is the likeliest. This has not been seen on a real printer, so it is a guess too. Owners on Bambu's forum report that the code changes when LAN Only is switched off and on, so an older code may no longer be right.
-- **It turned the connection down at once.** The printer is reachable but not taking logins. This has not been seen on a real printer. A printer that is still starting up is one guess.
+- **The printer refused the access code.** The result says this when the plug-in reports code 5, which is how the app's own connection code reads a wrong code. It has not been seen through this app yet. A mistyped code is the likeliest cause. Owners on Bambu's forum report that the code changes when LAN Only is switched off and on, so an older code may no longer be right.
+- **Any other code** does not say why. Code -1 came from an address where no printer exists, so it can mean no connection was made at all. What the other codes mean on a real printer has not been seen.
+- **The printer did not respond** in the time the app waits. Nothing came back from the plug-in at all.
 
 What is worth trying for the network or the printer has not been tested on this printer, so search for what owners of this model report before you suggest it. Without a search, general knowledge gives: wait a few minutes, restart the printer, ask what its screen shows about Wi-Fi signal, or bring it closer to the router. When they want to try again, call `printer_bambu_connect` again, which shows the form again.
 

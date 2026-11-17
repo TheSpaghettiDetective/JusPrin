@@ -1505,11 +1505,6 @@ msgid "Connected"
 msgstr "Conectado"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Connecting this printer has failed twice, and a report helps us fix why. It holds what the app saw and this chat, with anything that looks like an access code or API key hidden. Nothing is sent unless you choose to."
-msgstr "A conexão desta impressora falhou duas vezes, e um relatório nos ajuda a corrigir o motivo. Ele contém o que o aplicativo viu e esta conversa, com tudo o que pareça um código de acesso ou uma chave de API ocultado. Nada é enviado a menos que você escolha enviar."
-
-# AI Translated
 #: ../HomeUI/src/App.tsx
 #: ../HomeUI/src/components/PrinterCard.tsx
 #: src/components/Panels.tsx
@@ -2793,11 +2788,6 @@ msgid "No projects match “{typed}”."
 msgstr "Nenhum projeto corresponde a “{typed}”."
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "No report was sent."
-msgstr "Nenhum relatório foi enviado."
-
-# AI Translated
 #: src/components/SetupCard.tsx
 msgid "No settings read from the project"
 msgstr "Nenhuma configuração lida do projeto"
@@ -2865,7 +2855,6 @@ msgstr "Ainda não está escutando"
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
-#: src/components/PrinterPanel.tsx
 msgid "Not now"
 msgstr "Agora não"
 
@@ -3724,18 +3713,12 @@ msgid "Send a new code"
 msgstr "Enviar um novo código"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Send a report to the JusPrin developers?"
-msgstr "Enviar um relatório aos desenvolvedores do JusPrin?"
-
-# AI Translated
 #: src/components/Composer.tsx
 msgid "Send message"
 msgstr "Enviar mensagem"
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
-#: src/components/PrinterPanel.tsx
 msgid "Send report"
 msgstr "Enviar relatório"
 
@@ -3743,11 +3726,6 @@ msgstr "Enviar relatório"
 #: src/components/SignInDoor.tsx
 msgid "Sending a code to {address}…"
 msgstr "Enviando um código para {address}…"
-
-# AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Sending isn’t built yet, so nothing has left this computer. The report is saved at {path}."
-msgstr "O envio ainda não foi implementado, então nada saiu deste computador. O relatório foi salvo em {path}."
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
@@ -4278,11 +4256,6 @@ msgid "The provider rejected this key"
 msgstr "O provedor rejeitou esta chave"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "The report could not be saved."
-msgstr "Não foi possível salvar o relatório."
-
-# AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
 msgid "The report couldn’t be sent. Check your connection and try again."
 msgstr "Não foi possível enviar o relatório. Verifique sua conexão e tente novamente."
@@ -4567,11 +4540,6 @@ msgstr "O que aconteceu"
 #: src/App.tsx
 msgid "What should we do with this in the current project?"
 msgstr "O que devemos fazer com isso no projeto atual?"
-
-# AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "What the report holds"
-msgstr "O que o relatório contém"
 
 # AI Translated
 #: src/components/Preferences.tsx

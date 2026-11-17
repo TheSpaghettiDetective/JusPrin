@@ -303,7 +303,7 @@
 //              run; other programs on UDP 2021 hide the printer (see Testing/README.md)
 //              A scenario plays the connection skill's chat against a printer in
 //              LAN mode instead: lan stops at the access code form; wrong-code
-//              types a made-up code twice, and answers the report card; cloud-on
+//              types a made-up code twice; cloud-on
 //              starts in cloud mode and waits, up to 15 minutes, for someone to
 //              turn LAN Only on; real-code waits as long for someone to type the
 //              real code into the form, or takes it from JUSPRIN_P1S_CODE, and
@@ -5823,16 +5823,6 @@ private:
         return count;
     }
 
-    std::vector<nlohmann::json> p1s_report_cards() const
-    {
-        const nlohmann::json        state = live_panel()->session_json();
-        std::vector<nlohmann::json> cards;
-        for (const nlohmann::json& block : state.at("blocks"))
-            if (block.value("kind", "") == "report")
-                cards.push_back(block);
-        return cards;
-    }
-
     // Whether the model, told the person wants this, has opened the form.
     void queue_p1s_ask_for_the_form(const std::string& words)
     {
@@ -5887,28 +5877,6 @@ private:
                                     {}});
             queue_p1s_ask_for_the_form("Yes, open the form again");
             queue_p1s_submit_code("00000000", 2);
-            m_live_steps.push_back({"card: Send report",
-                                    [this] {
-                                        m_p1s_quiet_since.reset();
-                                        const auto cards = p1s_report_cards();
-                                        check(cards.size() == 1, "live_p1s_second_failure_shows_the_report_card");
-                                        if (cards.empty())
-                                            return;
-                                        std::cerr << "HARNESS LIVE   report card holds:\n" << cards.front().value("report", "") << '\n';
-                                        live_send("printer_action", {{"action", "report_send"}, {"blockId", cards.front().at("id")}});
-                                    },
-                                    // The answer is a note and starts no turn.
-                                    [this] {
-                                        const auto cards = p1s_report_cards();
-                                        return cards.empty() || cards.front().contains("answer");
-                                    },
-                                    [this] {
-                                        p1s_watch();
-                                        const auto cards = p1s_report_cards();
-                                        check(!cards.empty() && cards.front().value("answer", "") == "kept", "live_p1s_report_was_kept");
-                                        if (!cards.empty())
-                                            std::cerr << "HARNESS LIVE   report kept at " << cards.front().value("path", "") << '\n';
-                                    }});
         } else if (scenario == "cloud-on") {
             m_live_steps.push_back({"wait, up to 15 minutes: LAN Only turned on",
                                     [this] {
@@ -6916,12 +6884,6 @@ private:
                 "skill_issue", connecting);
             check(opened.value("state", "") == "opened", "connect_skill_issue_page_opened");
         }
-        // Where a report the person agreed to send goes: the real data folder.
-        const std::string kept = backend.keep_connection_report("{\"report\":\"connection\"}");
-        std::ifstream     report(kept, std::ios::binary);
-        const std::string held((std::istreambuf_iterator<char>(report)), std::istreambuf_iterator<char>());
-        check(held == "{\"report\":\"connection\"}", "connect_skill_report_is_kept_in_the_data_folder");
-        std::cerr << "HARNESS SKILL report kept at " << kept << '\n';
         panel->close();
         wait_for([panel] { return panel->host() == nullptr; }, 5s);
         finish();
@@ -7470,11 +7432,7 @@ private:
               "connection_refused_names_the_plugins_code");
         check(refused.message.find("selected printer changed") == std::string::npos,
               "connection_refused_is_not_blamed_on_the_selection");
-        // The note carries what the app saw at the printer's port, and no
-        // conclusion: nothing listens on the fake's port 8883.
-        check(refused.message.find("port 8883 at 127.0.0.1") != std::string::npos &&
-                  refused.message.find("turned the connection down") != std::string::npos,
-              "connection_failure_says_what_the_port_did");
+        // The note says what the plug-in reported, and no conclusion.
         check(refused.message.find("refused the connection") == std::string::npos, "connection_failure_draws_no_conclusion");
 
         // Connected, then dropped before any status: Lost, which upstream also
@@ -7501,19 +7459,6 @@ private:
         // ConnectStatusLost); the codes were not observed from the real plug-in,
         // which needs a LAN-mode printer and a deliberately wrong access code.
         check(messages.size() == 3, "connection_failures_are_told_apart");
-        // Each thing a look at the port can see, on a real socket.
-        {
-            boost::asio::io_context io;
-            boost::asio::ip::tcp::acceptor open_port(io, {boost::asio::ip::address_v4::loopback(), 0});
-            const int port = open_port.local_endpoint().port();
-            check(Printers::look_at_port("127.0.0.1", port, 2s).find("it answered in ") != std::string::npos, "port_look_sees_an_answer");
-            open_port.close();
-            check(Printers::look_at_port("127.0.0.1", port, 2s).find("turned the connection down") != std::string::npos,
-                  "port_look_sees_a_refusal");
-            // A documentation address: no answer, or this computer saying there is no way there.
-            check(Printers::look_at_port("192.0.2.1", 8883, 300ms).find("it answered in ") == std::string::npos,
-                  "port_look_does_not_invent_an_answer");
-        }
         answer.Unregister();
         devices->set_selected_machine("");
         wxYield();

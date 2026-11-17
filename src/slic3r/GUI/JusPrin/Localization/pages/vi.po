@@ -1505,11 +1505,6 @@ msgid "Connected"
 msgstr "Đã kết nối"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Connecting this printer has failed twice, and a report helps us fix why. It holds what the app saw and this chat, with anything that looks like an access code or API key hidden. Nothing is sent unless you choose to."
-msgstr "Kết nối máy in này đã thất bại hai lần, và một báo cáo sẽ giúp chúng tôi tìm ra nguyên nhân. Báo cáo gồm những gì ứng dụng ghi nhận và cuộc trò chuyện này, với mọi thứ trông giống mã truy cập hoặc khóa API đều được ẩn. Không có gì được gửi trừ khi bạn chọn gửi."
-
-# AI Translated
 #: ../HomeUI/src/App.tsx
 #: ../HomeUI/src/components/PrinterCard.tsx
 #: src/components/Panels.tsx
@@ -2791,11 +2786,6 @@ msgid "No projects match “{typed}”."
 msgstr "Không có dự án nào khớp với “{typed}”."
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "No report was sent."
-msgstr "Chưa gửi báo cáo nào."
-
-# AI Translated
 #: src/components/SetupCard.tsx
 msgid "No settings read from the project"
 msgstr "Không đọc được cài đặt nào từ dự án"
@@ -2863,7 +2853,6 @@ msgstr "Chưa lắng nghe"
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
-#: src/components/PrinterPanel.tsx
 msgid "Not now"
 msgstr "Để sau"
 
@@ -3722,18 +3711,12 @@ msgid "Send a new code"
 msgstr "Gửi mã mới"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Send a report to the JusPrin developers?"
-msgstr "Gửi báo cáo cho nhà phát triển JusPrin?"
-
-# AI Translated
 #: src/components/Composer.tsx
 msgid "Send message"
 msgstr "Gửi tin nhắn"
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
-#: src/components/PrinterPanel.tsx
 msgid "Send report"
 msgstr "Gửi báo cáo"
 
@@ -3741,11 +3724,6 @@ msgstr "Gửi báo cáo"
 #: src/components/SignInDoor.tsx
 msgid "Sending a code to {address}…"
 msgstr "Đang gửi mã tới {address}…"
-
-# AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Sending isn’t built yet, so nothing has left this computer. The report is saved at {path}."
-msgstr "Tính năng gửi chưa được xây dựng, nên chưa có gì rời khỏi máy tính này. Báo cáo được lưu tại {path}."
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
@@ -4275,11 +4253,6 @@ msgid "The provider rejected this key"
 msgstr "Nhà cung cấp đã từ chối khóa này"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "The report could not be saved."
-msgstr "Không thể lưu báo cáo."
-
-# AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
 msgid "The report couldn’t be sent. Check your connection and try again."
 msgstr "Không thể gửi báo cáo. Hãy kiểm tra kết nối rồi thử lại."
@@ -4564,11 +4537,6 @@ msgstr "Điều đã xảy ra"
 #: src/App.tsx
 msgid "What should we do with this in the current project?"
 msgstr "Chúng ta nên làm gì với điều này trong dự án hiện tại?"
-
-# AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "What the report holds"
-msgstr "Báo cáo chứa những gì"
 
 # AI Translated
 #: src/components/Preferences.tsx

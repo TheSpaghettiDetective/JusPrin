@@ -24,12 +24,10 @@ export const PrinterBlockView = memo(function PrinterBlockView({
   block,
   onUndoAdd,
   onInstallPlugin,
-  onAnswerReport,
 }: {
   block: PrinterBlock;
   onUndoAdd?: (blockId: string) => void;
   onInstallPlugin?: () => void;
-  onAnswerReport?: (blockId: string, send: boolean) => void;
 }) {
   if (block.kind === 'tip')
     return (
@@ -72,37 +70,6 @@ export const PrinterBlockView = memo(function PrinterBlockView({
               )}
             </span>
           )}
-      </div>
-    );
-  }
-
-  // The app's own question once connecting has failed twice. What it would
-  // send is there to read, and nothing goes unless the person says so. There
-  // is no server yet, so a yes keeps the report on this computer and says so.
-  if (block.kind === 'report') {
-    const path = block.path ?? '';
-    return (
-      <div className="printer-plugin" role="status">
-        <span className="printer-notice-heading">
-          <span className="jp-icon jp-icon-circle-alert" aria-hidden="true" />
-          <span className="printer-plugin-caption"><Trans>Send a report to the JusPrin developers?</Trans></span>
-        </span>
-        <span className="printer-notice-body">
-          {!block.answer && t`Connecting this printer has failed twice, and a report helps us fix why. It holds what the app saw and this chat, with anything that looks like an access code or API key hidden. Nothing is sent unless you choose to.`}
-          {block.answer === 'declined' && t`No report was sent.`}
-          {block.answer === 'failed' && t`The report could not be saved.`}
-          {block.answer === 'kept' && t`Sending isn’t built yet, so nothing has left this computer. The report is saved at ${path}.`}
-        </span>
-        <details className="printer-report-details">
-          <summary><Trans>What the report holds</Trans></summary>
-          <pre className="printer-report-text">{block.report}</pre>
-        </details>
-        {!block.answer && onAnswerReport && (
-          <span className="printer-report-actions">
-            <button type="button" className="primary printer-plugin-install" onClick={() => onAnswerReport(block.id, true)}>{t`Send report`}</button>
-            <button type="button" className="panel-link-button" onClick={() => onAnswerReport(block.id, false)}>{t`Not now`}</button>
-          </span>
-        )}
       </div>
     );
   }

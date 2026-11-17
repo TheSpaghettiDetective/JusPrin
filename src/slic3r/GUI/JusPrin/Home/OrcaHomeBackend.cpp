@@ -532,13 +532,7 @@ public:
     PrinterSetup::PrinterConversation& conversation() { return m_conversation; }
     nlohmann::json form() const { return m_conversation.state_json().value("form", nlohmann::json()); }
 
-    // No thread and no model: no messages, and no tool call to finish.
-    nlohmann::json chat_record() const override
-    {
-        nlohmann::json record = PrinterSetup::connection_chat_record({}, {});
-        record["app"]         = Updates::version_label();
-        return record;
-    }
+    // No thread and no model: no tool call to finish.
     bool finish_tool(const std::string&, const Agent::ToolExecutionCoordinator::ExtensionResult&) override { return false; }
     bool update_tool(const std::string&, const std::string&, bool) override { return false; }
     bool open_in_browser(const std::string& url) override { return wxLaunchDefaultBrowser(wxString::FromUTF8(url)); }

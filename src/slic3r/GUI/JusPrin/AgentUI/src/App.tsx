@@ -651,7 +651,6 @@ export function App({
               printerBlocks={session?.blocks ?? []}
               onUndoAdd={(blockId) => client.send('printer_action', { action: 'undo_add', blockId })}
               onInstallPlugin={() => client.send('printer_action', { action: 'install_network_plugin' })}
-              onAnswerReport={(blockId, send) => client.send('printer_action', { action: send ? 'report_send' : 'report_decline', blockId })}
               onRetry={(messageId) => client.send('retry_message', { messageId })}
               onToolCancel={sendToolCancel}
             />

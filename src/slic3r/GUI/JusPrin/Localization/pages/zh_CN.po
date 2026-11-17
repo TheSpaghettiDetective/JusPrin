@@ -1505,11 +1505,6 @@ msgid "Connected"
 msgstr "已连接"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Connecting this printer has failed twice, and a report helps us fix why. It holds what the app saw and this chat, with anything that looks like an access code or API key hidden. Nothing is sent unless you choose to."
-msgstr "此打印机已连续两次连接失败，提交报告可以帮助我们找出原因。报告包含本应用观察到的情况和此对话，其中任何看起来像访问码或 API 密钥的内容都会被隐藏。除非您选择发送，否则不会发送任何内容。"
-
-# AI Translated
 #: ../HomeUI/src/App.tsx
 #: ../HomeUI/src/components/PrinterCard.tsx
 #: src/components/Panels.tsx
@@ -2791,11 +2786,6 @@ msgid "No projects match “{typed}”."
 msgstr "没有与“{typed}”匹配的项目。"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "No report was sent."
-msgstr "未发送报告。"
-
-# AI Translated
 #: src/components/SetupCard.tsx
 msgid "No settings read from the project"
 msgstr "未从项目中读取到设置"
@@ -2863,7 +2853,6 @@ msgstr "尚未开始监听"
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
-#: src/components/PrinterPanel.tsx
 msgid "Not now"
 msgstr "暂不"
 
@@ -3722,18 +3711,12 @@ msgid "Send a new code"
 msgstr "发送新验证码"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Send a report to the JusPrin developers?"
-msgstr "要向 JusPrin 开发者发送报告吗？"
-
-# AI Translated
 #: src/components/Composer.tsx
 msgid "Send message"
 msgstr "发送消息"
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
-#: src/components/PrinterPanel.tsx
 msgid "Send report"
 msgstr "发送报告"
 
@@ -3741,11 +3724,6 @@ msgstr "发送报告"
 #: src/components/SignInDoor.tsx
 msgid "Sending a code to {address}…"
 msgstr "正在向 {address} 发送验证码…"
-
-# AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Sending isn’t built yet, so nothing has left this computer. The report is saved at {path}."
-msgstr "发送功能尚未完成，因此没有任何内容离开此计算机。报告已保存在 {path}。"
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
@@ -4275,11 +4253,6 @@ msgid "The provider rejected this key"
 msgstr "服务商拒绝了此密钥"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "The report could not be saved."
-msgstr "无法保存报告。"
-
-# AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
 msgid "The report couldn’t be sent. Check your connection and try again."
 msgstr "无法发送报告。请检查您的网络连接后重试。"
@@ -4564,11 +4537,6 @@ msgstr "发生了什么"
 #: src/App.tsx
 msgid "What should we do with this in the current project?"
 msgstr "在当前项目中，这个该怎么处理？"
-
-# AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "What the report holds"
-msgstr "报告包含的内容"
 
 # AI Translated
 #: src/components/Preferences.tsx

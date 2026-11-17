@@ -152,12 +152,12 @@ bool found_on_network(const PrinterConnectionInfo& info)
                        [](const ConnectionCandidate& candidate) { return !candidate.account_only; });
 }
 
-// A report holds neither an access code nor an API key. The form's credential
-// never reaches the chat; this takes out what a person may type into the chat
-// anyway, and a printer's serial, which a report has no need of: a key's own
+// An issue holds neither an access code nor an API key. The form's credential
+// never reaches the chat; this takes out what a model may copy into an issue
+// anyway, and a printer's serial, which an issue has no need of: a key's own
 // shape, and any run of six or more letters and digits with a digit in it. A
-// code of letters alone reads as a word, which is why the person is shown the
-// report and told to look.
+// code of letters alone reads as a word, which is why the person reads the
+// page before submitting it.
 std::string without_secrets(const std::string& text)
 {
     static const std::regex key("sk-[A-Za-z0-9_-]{6,}");
@@ -196,17 +196,6 @@ std::string percent_encoded(const std::string& text)
             out += static_cast<char>(c);
         else
             out += {'%', digits[c >> 4], digits[c & 15]};
-    return out;
-}
-
-json without_secrets(const json& value)
-{
-    if (value.is_string())
-        return without_secrets(value.get<std::string>());
-    json out = value;
-    if (value.is_structured())
-        for (auto it = out.begin(); it != out.end(); ++it)
-            *it = without_secrets(json(*it));
     return out;
 }
 
@@ -313,7 +302,6 @@ void PrinterConversation::start(ConversationMode mode, const std::string& printe
     m_added.clear();
     m_needs_plugin = false;
     m_host_type.clear();
-    m_failed_connections = 0;
     m_form.reset();
 
     // The session is the one it was opened for. Its opener names a printer
@@ -462,32 +450,6 @@ json PrinterConversation::state_json() const
                                            {"target", m_credential_arguments.at("target")},
                                            {"provider", m_credential_arguments.at("provider")}};
     return state;
-}
-
-// -- The report ------------------------------------------------------------
-
-json connection_chat_record(const std::vector<Agent::ConversationMessage>& messages, const std::vector<ToolActivity>& activities)
-{
-    json turns = json::array();
-    for (const Agent::ConversationMessage& message : messages)
-        if (!message.text.empty()) // a turn that only called a tool
-            turns.push_back({{"role", message.role == Agent::MessageRole::User ? "person" :
-                                      message.role == Agent::MessageRole::Note ? "app" :
-                                                                                 "model"},
-                             {"text", message.text}});
-    json tools = json::array();
-    for (const ToolActivity& activity : activities) {
-        if (activity.tool != "printer_host_connect" && activity.tool != "printer_bambu_connect" &&
-            activity.tool != "printer_connection_status")
-            continue;
-        tools.push_back({{"tool", activity.tool},
-                         {"arguments", json::parse(activity.arguments_json, nullptr, false)},
-                         // A call still open has no outcome yet.
-                         {"output", activity.error              ? json(activity.error->code + ": " + activity.error->message) :
-                                    activity.result_json.empty() ? json() :
-                                                                   json::parse(activity.result_json, nullptr, false)}});
-    }
-    return json{{"turns", std::move(turns)}, {"tools", std::move(tools)}};
 }
 
 // -- The session's tools ----------------------------------------------------
@@ -881,10 +843,8 @@ Result PrinterConversation::host_connect(const json& arguments, const ToolActivi
                                                            host_tested(action_id, arguments, outcome);
                                                        });
     // preflight_tool has checked the printer; what is left is the address.
-    if (!problem.empty()) {
-        const std::string report = connection_failed(activity.correlation_id, problem);
-        return refuse("invalid_arguments", report.empty() ? problem : problem + " " + report);
-    }
+    if (!problem.empty())
+        return refuse("invalid_arguments", problem);
     open_connect_call(activity);
     m_host_testing = name;
     return pending();
@@ -968,11 +928,8 @@ void PrinterConversation::ask_credential(const json& arguments)
     m_host.session_changed();
 }
 
-void PrinterConversation::end_connect_call(const std::string& state, std::string message)
+void PrinterConversation::end_connect_call(const std::string& state, const std::string& message)
 {
-    if (state == "failed")
-        if (const std::string report = connection_failed(m_connect_message, message); !report.empty())
-            message += " " + report;
     const std::string call = std::exchange(m_connect_call, {});
     m_connect_message.clear();
     m_connect_printer.clear();
@@ -990,44 +947,6 @@ PrinterConversation::Result PrinterConversation::pending()
     waiting.handled = true;
     waiting.pending = true;
     return waiting;
-}
-
-std::string PrinterConversation::connection_failed(const std::string& message_id, const std::string& failure)
-{
-    // The rule is the app's, not the model's: a model that is stuck is the one
-    // least likely to say so. Only where there is a skill a report can improve.
-    if (++m_failed_connections != 2 || !connection_skill())
-        return {};
-    const json report{{"report", "connection"},
-                      {"trigger", "failed_twice"},
-                      {"connectionType", m_host_type.empty() ? "bambu" : m_host_type},
-                      {"model", saved(m_printer_name).model},
-                      {"failure", without_secrets(failure)},
-                      {"chat", without_secrets(m_host.chat_record())}};
-    m_blocks.push_back(json{{"id", next_block_id()}, {"seq", m_blocks.size() + 1}, {"afterMessageId", message_id},
-                            {"kind", "report"}, {"report", report.dump(2)}});
-    return "The app is asking the person, on a card of its own, whether to send a report of this chat to the JusPrin "
-           "developers. Nothing is sent unless they choose to.";
-}
-
-void PrinterConversation::answer_report(const std::string& block_id, bool send)
-{
-    for (json& block : m_blocks) {
-        if (block.value("id", std::string()) != block_id || block.value("kind", std::string()) != "report" || block.contains("answer"))
-            continue;
-        if (send) {
-            const std::string kept = m_backend.keep_connection_report(block.at("report").get<std::string>());
-            block["answer"] = kept.empty() ? "failed" : "kept";
-            block["path"]   = kept;
-        } else
-            block["answer"] = "declined";
-        m_host.post_note(!send                     ? "The person chose not to send the report." :
-                         block["answer"] == "kept" ? "The person chose to send the report. Sending is not built yet, so it is saved on "
-                                                     "this computer and has not reached the developers." :
-                                                     "The person chose to send the report, and it could not be saved.");
-        m_host.session_changed();
-        return;
-    }
 }
 
 // -- An issue for the developers --------------------------------------------
@@ -1291,8 +1210,6 @@ bool PrinterConversation::handle_page_message(const std::string& type, const jso
         undo_add(payload.value("blockId", std::string()));
     else if (action == "install_network_plugin")
         install_network_plugin();
-    else if (action == "report_send" || action == "report_decline")
-        answer_report(payload.value("blockId", std::string()), action == "report_send");
     return true;
 }
 

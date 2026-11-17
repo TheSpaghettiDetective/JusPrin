@@ -32,6 +32,20 @@ const atRevision = {
     }));
   },
 };
+// The page's Lingui macro is a Babel transform that only the page's own build
+// runs. Here it gives the English source text, which is what the page shows in
+// English and what these tests read.
+const linguiMacro = {
+  name: 'lingui-macro-as-source',
+  setup(build) {
+    build.onResolve({ filter: /^@lingui\/core\/macro$/ }, () => ({ path: 'lingui-macro', namespace: 'lingui-macro' }));
+    build.onLoad({ filter: /.*/, namespace: 'lingui-macro' }, () => ({
+      contents: 'export const t = (strings, ...values) => typeof strings === "string" ? strings : ' +
+                'strings.message ?? strings.reduce((text, part, i) => text + values[i - 1] + part);',
+      loader: 'js',
+    }));
+  },
+};
 const session = JSON.parse(readFileSync(0, 'utf8'));
 const filament = session.kind === 'filament';
 const project = session.kind === 'project';
@@ -47,7 +61,7 @@ const bundle = await esbuild.build({
   format: 'esm',
   platform: 'node',
   write: false,
-  plugins: revision ? [atRevision] : [],
+  plugins: revision ? [linguiMacro, atRevision] : [linguiMacro],
 });
 const page = await import('data:text/javascript;base64,' + Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 process.stdout.write(JSON.stringify(project ? { instructions: page.projectInstructions() } : filament ?

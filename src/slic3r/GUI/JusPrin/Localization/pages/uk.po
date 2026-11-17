@@ -1507,11 +1507,6 @@ msgid "Connected"
 msgstr "Підключено"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Connecting this printer has failed twice, and a report helps us fix why. It holds what the app saw and this chat, with anything that looks like an access code or API key hidden. Nothing is sent unless you choose to."
-msgstr "Підключити цей принтер двічі не вдалося, а звіт допоможе нам зʼясувати чому. Він містить те, що бачила програма, і цей чат; усе, що схоже на код доступу чи ключ API, приховано. Нічого не буде надіслано, якщо ви самі цього не виберете."
-
-# AI Translated
 #: ../HomeUI/src/App.tsx
 #: ../HomeUI/src/components/PrinterCard.tsx
 #: src/components/Panels.tsx
@@ -2793,11 +2788,6 @@ msgid "No projects match “{typed}”."
 msgstr "Жоден проєкт не відповідає «{typed}»."
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "No report was sent."
-msgstr "Звіт не надіслано."
-
-# AI Translated
 #: src/components/SetupCard.tsx
 msgid "No settings read from the project"
 msgstr "З проєкту не прочитано жодних налаштувань"
@@ -2865,7 +2855,6 @@ msgstr "Ще не прослуховує"
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
-#: src/components/PrinterPanel.tsx
 msgid "Not now"
 msgstr "Не зараз"
 
@@ -3725,18 +3714,12 @@ msgid "Send a new code"
 msgstr "Надіслати новий код"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Send a report to the JusPrin developers?"
-msgstr "Надіслати звіт розробникам JusPrin?"
-
-# AI Translated
 #: src/components/Composer.tsx
 msgid "Send message"
 msgstr "Надіслати повідомлення"
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
-#: src/components/PrinterPanel.tsx
 msgid "Send report"
 msgstr "Надіслати звіт"
 
@@ -3744,11 +3727,6 @@ msgstr "Надіслати звіт"
 #: src/components/SignInDoor.tsx
 msgid "Sending a code to {address}…"
 msgstr "Надсилання коду на {address}…"
-
-# AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Sending isn’t built yet, so nothing has left this computer. The report is saved at {path}."
-msgstr "Надсилання ще не реалізовано, тому з цього компʼютера нічого не надіслано. Звіт збережено в {path}."
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
@@ -4279,11 +4257,6 @@ msgid "The provider rejected this key"
 msgstr "Постачальник відхилив цей ключ"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "The report could not be saved."
-msgstr "Не вдалося зберегти звіт."
-
-# AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
 msgid "The report couldn’t be sent. Check your connection and try again."
 msgstr "Не вдалося надіслати звіт. Перевірте підключення й спробуйте ще раз."
@@ -4568,11 +4541,6 @@ msgstr "Що сталося"
 #: src/App.tsx
 msgid "What should we do with this in the current project?"
 msgstr "Що з цим зробити в поточному проєкті?"
-
-# AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "What the report holds"
-msgstr "Що містить звіт"
 
 # AI Translated
 #: src/components/Preferences.tsx

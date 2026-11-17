@@ -77,7 +77,6 @@ interface Props {
   onUndoAdd?: (blockId: string) => void;
   // Install on the notice that Bambu's network plug-in is missing.
   onInstallPlugin?: () => void;
-  onAnswerReport?: (blockId: string, send: boolean) => void;
   // A surface's own card for one of its tool calls, in place of the generic
   // one; undefined keeps the generic card.
   renderActivity?: (activity: ToolActivityInfo) => ReactNode | undefined;
@@ -212,7 +211,6 @@ export function MessageList({
   printerBlocks,
   onUndoAdd,
   onInstallPlugin,
-  onAnswerReport,
   renderActivity,
   onScrolledChange,
 }: Props) {
@@ -285,7 +283,7 @@ export function MessageList({
     (printerBlocks ?? [])
       .filter((block) => block.afterMessageId === messageId)
       .sort((a, b) => a.seq - b.seq)
-      .map((block) => <PrinterBlockView key={block.id} block={block} onUndoAdd={onUndoAdd} onInstallPlugin={onInstallPlugin} onAnswerReport={onAnswerReport} />);
+      .map((block) => <PrinterBlockView key={block.id} block={block} onUndoAdd={onUndoAdd} onInstallPlugin={onInstallPlugin} />);
   const leadingMarkers = gcodeMarkers.filter((marker) => !turnOfItem.has(marker.afterId));
 
   // A message's bubble, or null for a tool-only reply that has nothing to

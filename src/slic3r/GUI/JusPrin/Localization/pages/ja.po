@@ -1506,11 +1506,6 @@ msgid "Connected"
 msgstr "接続済み"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Connecting this printer has failed twice, and a report helps us fix why. It holds what the app saw and this chat, with anything that looks like an access code or API key hidden. Nothing is sent unless you choose to."
-msgstr "このプリンターの接続に2回失敗しました。レポートがあれば原因の解明に役立ちます。レポートには、アプリが確認した内容とこのチャットが含まれ、アクセスコードやAPIキーに見えるものは伏せられます。送信を選ばない限り、何も送信されません。"
-
-# AI Translated
 #: ../HomeUI/src/App.tsx
 #: ../HomeUI/src/components/PrinterCard.tsx
 #: src/components/Panels.tsx
@@ -2792,11 +2787,6 @@ msgid "No projects match “{typed}”."
 msgstr "「{typed}」に一致するプロジェクトはありません。"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "No report was sent."
-msgstr "レポートは送信されませんでした。"
-
-# AI Translated
 #: src/components/SetupCard.tsx
 msgid "No settings read from the project"
 msgstr "プロジェクトから読み取った設定はありません"
@@ -2864,7 +2854,6 @@ msgstr "まだ待ち受けていません"
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
-#: src/components/PrinterPanel.tsx
 msgid "Not now"
 msgstr "今はしない"
 
@@ -3723,18 +3712,12 @@ msgid "Send a new code"
 msgstr "新しいコードを送信"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Send a report to the JusPrin developers?"
-msgstr "JusPrinの開発者にレポートを送信しますか？"
-
-# AI Translated
 #: src/components/Composer.tsx
 msgid "Send message"
 msgstr "メッセージを送信"
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
-#: src/components/PrinterPanel.tsx
 msgid "Send report"
 msgstr "レポートを送信"
 
@@ -3742,11 +3725,6 @@ msgstr "レポートを送信"
 #: src/components/SignInDoor.tsx
 msgid "Sending a code to {address}…"
 msgstr "{address}にコードを送信中…"
-
-# AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Sending isn’t built yet, so nothing has left this computer. The report is saved at {path}."
-msgstr "送信機能はまだ作られていないため、このコンピューターからは何も送信されていません。レポートは{path}に保存されています。"
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
@@ -4276,11 +4254,6 @@ msgid "The provider rejected this key"
 msgstr "プロバイダーがこのキーを拒否しました"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "The report could not be saved."
-msgstr "レポートを保存できませんでした。"
-
-# AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
 msgid "The report couldn’t be sent. Check your connection and try again."
 msgstr "レポートを送信できませんでした。接続を確認して、もう一度お試しください。"
@@ -4565,11 +4538,6 @@ msgstr "何が起きたか"
 #: src/App.tsx
 msgid "What should we do with this in the current project?"
 msgstr "現在のプロジェクトでこれをどうしますか？"
-
-# AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "What the report holds"
-msgstr "レポートの内容"
 
 # AI Translated
 #: src/components/Preferences.tsx

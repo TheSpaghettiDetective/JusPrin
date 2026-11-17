@@ -849,17 +849,14 @@ export interface NetworkPrinterInfo {
 
 // A card in the thread, anchored after the message it belongs to, in the same
 // way tool activity and history entries are. Two have something to tap: Undo
-// on the 'added' receipt, Install on the 'plugin' notice, and the answer on the
-// 'report' card.
+// on the 'added' receipt and Install on the 'plugin' notice.
 export interface PrinterBlock {
   id: string;
   seq: number;
   afterMessageId: string;
   // 'plugin': Bambu's network plug-in is missing, so a Bambu Lab printer
   // cannot be reached.
-  // 'report': connecting has failed twice, so the app asks whether to send a
-  // report to the JusPrin developers.
-  kind: 'tip' | 'network' | 'printers' | 'added' | 'plugin' | 'report';
+  kind: 'tip' | 'network' | 'printers' | 'added' | 'plugin';
   printers?: PrinterCardInfo[] | NetworkPrinterInfo[];
   // 'added': the printer printer_add just saved, as it was saved.
   printer?: AddedPrinterInfo;
@@ -867,11 +864,6 @@ export interface PrinterBlock {
   removed?: boolean;
   // 'plugin': the plug-in has been installed since.
   installed?: boolean;
-  // 'report': exactly what it holds, the person's answer once given, and where
-  // it was kept.
-  report?: string;
-  answer?: 'kept' | 'declined' | 'failed';
-  path?: string;
 }
 
 export interface AddedPrinterInfo {

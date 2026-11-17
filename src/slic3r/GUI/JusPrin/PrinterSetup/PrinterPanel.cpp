@@ -388,14 +388,6 @@ void PrinterPanel::on_pump(wxTimerEvent&)
 
 // -- What the conversation asks of its panel ---------------------------------
 
-nlohmann::json PrinterPanel::chat_record() const
-{
-    const Agent::ProjectStateDocument& document = m_web_view->host().persistence().document();
-    nlohmann::json record = connection_chat_record(document.messages(document.active_conversation_id()), m_web_view->host().tools().activities());
-    record["app"] = Updates::version_label();
-    return record;
-}
-
 std::string PrinterPanel::post_note(const std::string& text)
 {
     return m_web_view ? m_web_view->host().post_note(text) : std::string();

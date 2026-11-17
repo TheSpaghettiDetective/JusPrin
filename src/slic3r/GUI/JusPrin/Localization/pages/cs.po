@@ -1505,11 +1505,6 @@ msgid "Connected"
 msgstr "Připojeno"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Connecting this printer has failed twice, and a report helps us fix why. It holds what the app saw and this chat, with anything that looks like an access code or API key hidden. Nothing is sent unless you choose to."
-msgstr "Připojení této tiskárny dvakrát selhalo a hlášení nám pomůže zjistit proč. Obsahuje to, co aplikace viděla, a tento chat, přičemž vše, co vypadá jako přístupový kód nebo klíč API, je skryto. Nic se neodešle, dokud to sami nezvolíte."
-
-# AI Translated
 #: ../HomeUI/src/App.tsx
 #: ../HomeUI/src/components/PrinterCard.tsx
 #: src/components/Panels.tsx
@@ -2793,11 +2788,6 @@ msgid "No projects match “{typed}”."
 msgstr "Hledání „{typed}“ neodpovídají žádné projekty."
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "No report was sent."
-msgstr "Žádné hlášení nebylo odesláno."
-
-# AI Translated
 #: src/components/SetupCard.tsx
 msgid "No settings read from the project"
 msgstr "Z projektu nebyla načtena žádná nastavení"
@@ -2865,7 +2855,6 @@ msgstr "Zatím nenaslouchá"
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
-#: src/components/PrinterPanel.tsx
 msgid "Not now"
 msgstr "Teď ne"
 
@@ -3725,18 +3714,12 @@ msgid "Send a new code"
 msgstr "Poslat nový kód"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Send a report to the JusPrin developers?"
-msgstr "Odeslat hlášení vývojářům JusPrinu?"
-
-# AI Translated
 #: src/components/Composer.tsx
 msgid "Send message"
 msgstr "Odeslat zprávu"
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
-#: src/components/PrinterPanel.tsx
 msgid "Send report"
 msgstr "Odeslat hlášení"
 
@@ -3744,11 +3727,6 @@ msgstr "Odeslat hlášení"
 #: src/components/SignInDoor.tsx
 msgid "Sending a code to {address}…"
 msgstr "Odesílání kódu na {address}…"
-
-# AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Sending isn’t built yet, so nothing has left this computer. The report is saved at {path}."
-msgstr "Odesílání zatím není hotové, takže z tohoto počítače nic neodešlo. Hlášení je uloženo v {path}."
 
 # AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
@@ -4278,11 +4256,6 @@ msgid "The provider rejected this key"
 msgstr "Poskytovatel tento klíč odmítl"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "The report could not be saved."
-msgstr "Hlášení se nepodařilo uložit."
-
-# AI Translated
 #: ../HomeUI/src/components/PrintReportForm.tsx
 msgid "The report couldn’t be sent. Check your connection and try again."
 msgstr "Hlášení se nepodařilo odeslat. Zkontrolujte připojení a zkuste to znovu."
@@ -4567,11 +4540,6 @@ msgstr "Co se stalo"
 #: src/App.tsx
 msgid "What should we do with this in the current project?"
 msgstr "Co s tím máme udělat v aktuálním projektu?"
-
-# AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "What the report holds"
-msgstr "Co hlášení obsahuje"
 
 # AI Translated
 #: src/components/Preferences.tsx
