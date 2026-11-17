@@ -1,0 +1,50 @@
+<pasted_content id="241c">
+Find out why five automated runs of JusPrin's test app fail on the development branch, and fix each one.
+
+## Background
+
+JusPrin is a fork of OrcaSlicer at /Users/kenneth/Projects/JusPrin. Read AGENTS.md first, then tests/AGENTS.md. The development branch is `jusprin-dev`; the main checkout holds it, so never check `jusprin-dev` out in a worktree. Work in your own worktree under /Users/kenneth/Projects/JusPrin/.claude/worktrees/, on a new branch cut from the current head of `jusprin-dev`.
+
+The test app is the shell harness: source `tests/shell/shell_harness.cpp`, build target `shell_integration_harness`, run as
+`build/arm64/tests/shell/Release/JusPrinShellHarness.app/Contents/MacOS/JusPrinShellHarness --<mode>`.
+It drives the real app through about forty automated modes and prints one line per check: `HARNESS CHECK <name> PASS` or `FAIL`. It uses its own data folder. Never drive Kenneth's own running JusPrin.
+
+On 2026-11-16 another session ran every automated mode. Five fail, and they failed the same way before that session's work, so the causes are older and nobody has looked for them. They were last seen failing on `jusprin-dev` at commit 3c134d39e3.
+
+## The failures
+
+Counts are the number of failing checks. Some counts moved by one between runs, so treat the names as examples and the first run as your own baseline.
+
+- `--print-issues`: 6 to 7 checks, about a reply that is still running. Example: `buttons_are_disabled_while_a_reply_is_running`.
+- `--print-issue-readers`: 8 checks, about wording or printer-profile differences from OrcaSlicer. Example: `a4_toolpath_outside_in_orcas_words`.
+- `--printer-network-check`: 1 to 2 checks. Example: `first_read_tool_called`.
+- `--printer-connect-skill`: 3 checks. Example: `connect_skill_printer_added`.
+- `--project-prompt-requests`: 1 to 3 checks, varying with machine load. Example: `print-hook-plan-slice_answer_printer_list_has_its_result`.
+
+Two more things were seen and not explained. Note them only if you see them yourself:
+- `--printer-chat-sheet` passes every check but crashed once on exit (exit code 139) in about 15 runs, on `jusprin-dev` both with and without the latest commit.
+- `--chat-restoration` crashed once on exit in more than 35 runs.
+
+## What to do
+
+1. Build first. Several sessions share this Mac: check `uptime` and `pgrep -fl ninja` before building, pass `-- -j4`, run one build per build directory, and never restart a running build to change targets. Reuse the dependencies at /Users/kenneth/Projects/JusPrin/deps/build/arm64 and configure with BUILD_TESTS=ON.
+2. Run each of the five modes on your branch, one at a time, and record exactly which checks fail. Run each failing mode at least three times, so you know which failures are steady and which come and go.
+3. For each failing check, decide which is wrong: the app or the check. Use `git log -S` and `git blame` to find the commit that changed the behaviour or the check, and name it.
+   - If the app is wrong, fix the app. Show the check failing before and passing after.
+   - If the check is stale, change it to what the app is meant to do, and name the commit that made it stale.
+   - If the failure depends on timing or load, say so with numbers (how many runs, how many failures) and fix the wait itself. Do not just raise a timeout.
+4. Never apply a fix for a failure you have not reproduced. List anything you could not reproduce and leave it alone.
+5. Follow the Error handling section of AGENTS.md in any app code you touch: no new catch, default or sentence for a failure the person cannot act on.
+
+## Done looks like
+
+- Each of the five modes exits 0 on your branch, three runs in a row.
+- One commit per cause, with the reason in the message. No attribution lines in commit messages.
+- These still pass: `build/arm64/tests/agent/Release/agent_bridge_tests.app/Contents/MacOS/agent_bridge_tests`, `build/arm64/tests/jusprin/Release/jusprin_tests.app/Contents/MacOS/jusprin_tests`, and the harness's default run.
+- `scripts/run_clang_tidy.sh` passes on your changed lines.
+- Commit on your own branch only. Do not push, and do not touch `jusprin-dev`.
+
+## Report
+
+Open with two or three sentences a reader who has not seen this prompt can follow. Then give one line per failing check: what was wrong, the commit that caused it, and what you changed. End with what you could not reproduce, and the full path of your worktree and the name of your branch.
+</pasted_content id="241c">

@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7M3P2Q1132ERXJG931NF3JC",
   "strategy": "manual-commit",
   "branch": "jusprin-dev",
-  "checkpoints_count": 4,
+  "checkpoints_count": 5,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/Agent/ToolRegistry.cpp",
     "src/slic3r/GUI/JusPrin/AgentUI/src/skills.test.ts",
@@ -31,13 +31,20 @@
       "compact_transcript": "/2/transcript.jsonl",
       "content_hash": "/2/content_hash.txt",
       "prompt": "/2/prompt.txt"
+    },
+    {
+      "metadata": "/3/metadata.json",
+      "transcript": "/3/full.jsonl",
+      "compact_transcript": "/3/transcript.jsonl",
+      "content_hash": "/3/content_hash.txt",
+      "prompt": "/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 70,
-    "cache_creation_tokens": 224470,
-    "cache_read_tokens": 5045557,
-    "output_tokens": 21085,
-    "api_call_count": 35
+    "input_tokens": 318,
+    "cache_creation_tokens": 492135,
+    "cache_read_tokens": 32329745,
+    "output_tokens": 85459,
+    "api_call_count": 159
   }
 }
