@@ -6177,6 +6177,7 @@ private:
             wait_for([window] { return window->problem_shown(); }, 30s);
             wxString text = window->problem_shown() ? window->problem_text() : wxString();
             text.Replace("\n", " ");
+#ifdef __APPLE__
             if (!m_state->capture_dir.empty()) {
                 wait_for([] { return false; }, 500ms);
                 fs::create_directories(m_state->capture_dir);
@@ -6184,6 +6185,7 @@ private:
                 if (snapshot_native_window(window->GetHandle(), file.c_str()))
                     std::cout << "HARNESS ARTIFACT " << picture << " " << file << std::endl;
             }
+#endif
             window->Close();
             wait_for([] { return printer_windows().empty(); }, 5s);
             return std::string(text.ToUTF8());
