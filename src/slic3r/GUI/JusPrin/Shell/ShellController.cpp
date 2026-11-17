@@ -4,6 +4,7 @@
 #include "AppMenus.hpp"
 #include "ClassicView.hpp"
 #include "GcodeHistoryRecorder.hpp"
+#include "slic3r/GUI/JusPrin/Updates/LaunchReport.hpp"
 #include "slic3r/GUI/JusPrin/Updates/UpdateCheck.hpp"
 #include "LeftPane.hpp"
 #include "ServerSheet.hpp"
@@ -2017,6 +2018,8 @@ void attach_shell(MainFrame& frame, Notebook* tabpanel, wxSizer* main_sizer)
     // Updates, where the result appears.
     if (wxGetApp().is_editor()) {
         Updates::update_check().attach(frame);
+        // And tells JusPrin's server that this run started, once; see LaunchReport.hpp.
+        Updates::report_launch();
         wxGetApp().app_update_check = [](int by_user) {
             if (by_user != 0)
                 check_for_updates();

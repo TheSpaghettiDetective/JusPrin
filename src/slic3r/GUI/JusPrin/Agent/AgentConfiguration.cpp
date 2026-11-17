@@ -215,6 +215,11 @@ std::string cloud_error_reports_url(const AppConfig* config)
     return cloud_server_from_gateway(endpoint_for(config, account_provider())) + "/ent/jusprin/v2/error_reports";
 }
 
+std::string cloud_launches_url(const AppConfig* config)
+{
+    return cloud_server_from_gateway(endpoint_for(config, account_provider())) + "/ent/jusprin/v2/launches";
+}
+
 std::string cloud_account_token(const AppConfig* config)
 {
     return load_provider_api_key(config, account_provider().id);

@@ -88,6 +88,8 @@ orcaslicer_discover_tests(jusprin_profile_tests)
 # AppConfig. Links libslic3r for Semver and AppConfig, but no GUI.
 add_executable(jusprin_update_tests
     test_update_check.cpp
+    test_launch_record.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Updates/LaunchRecord.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Updates/ReleaseFeed.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Updates/UpdateRecord.cpp
 )

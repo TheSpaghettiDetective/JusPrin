@@ -55,6 +55,8 @@ bool is_cloud_web_done(const AppConfig* config, const std::string& url);
 std::string cloud_print_reports_url(const AppConfig* config);
 // Where the app's reports of its unexpected errors go (Support/ErrorReport.hpp).
 std::string cloud_error_reports_url(const AppConfig* config);
+// Where the app says it started (Updates::report_launch); no token goes with it.
+std::string cloud_launches_url(const AppConfig* config);
 std::string cloud_account_token(const AppConfig* config);
 
 // The docked Agent's per-chat models: every provider with a stored key, the

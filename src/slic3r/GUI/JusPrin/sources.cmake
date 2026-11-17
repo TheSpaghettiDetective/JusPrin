@@ -193,6 +193,10 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Shell/ShellRecipes.hpp
     GUI/JusPrin/Updates/ReleaseFeed.cpp
     GUI/JusPrin/Updates/ReleaseFeed.hpp
+    GUI/JusPrin/Updates/LaunchRecord.cpp
+    GUI/JusPrin/Updates/LaunchRecord.hpp
+    GUI/JusPrin/Updates/LaunchReport.cpp
+    GUI/JusPrin/Updates/LaunchReport.hpp
     GUI/JusPrin/Updates/UpdateCheck.cpp
     GUI/JusPrin/Updates/UpdateCheck.hpp
     GUI/JusPrin/Updates/UpdateRecord.cpp
