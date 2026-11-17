@@ -366,8 +366,29 @@
         json answers = json::array();
         int  calls   = 0;
         const json kept = request.body.at("input");
+        // The turn the reads are made in, named by the message it answers.
+        // The app can end it before the reads run out: the third slice read
+        // answered "busy" (refuse_slice_poll) ends the turn right after its
+        // result is sent (AgentHost::continue_after_tool). Nobody reads the
+        // answer to that request, and the next request belongs to the turn
+        // about the slice's outcome. The reads stop there; the app's answers
+        // up to that point are what the model gets.
+        const auto open_turn = [this]() -> std::string {
+            const Agent::ProjectStateDocument& document = persistence().document();
+            for (const Agent::ConversationMessage& message : document.messages(document.active_conversation_id()))
+                if (message.role == Agent::MessageRole::Assistant && message.state == Agent::MessageState::Streaming)
+                    return message.in_reply_to;
+            return {};
+        };
+        const std::string turn = open_turn();
+        check(!turn.empty(), name + "_turn_is_open");
         // One read in the turn; the result as the app gave it, or nothing.
         const auto call = [&](const std::string& tool, const json& arguments) -> std::optional<std::string> {
+            if (open_turn() != turn) {
+                std::cerr << "HARNESS PROMPT " << name << " the app ended the turn before " << tool << " (" << calls
+                          << " reads)\n";
+                return std::nullopt;
+            }
             const std::string call_id = "call_" + name + "_answer_" + std::to_string(++calls);
             prompt_answer(request, json::array({{{"type", "function_call"}, {"call_id", call_id}, {"name", tool},
                                                  {"arguments", arguments.dump()}}}), "");

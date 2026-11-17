@@ -1023,10 +1023,6 @@ msgid "Set up AI..."
 msgstr "AIを設定..."
 
 # AI Translated
-msgid "A G-code path goes beyond the plate boundaries."
-msgstr "G-codeのパスがプレートの境界を超えています。"
-
-# AI Translated
 #, c-format, boost-format
 msgid "Filaments %s cannot be printed directly on the surface of this plate."
 msgstr "フィラメント %s は、このプレートの表面に直接印刷できません。"

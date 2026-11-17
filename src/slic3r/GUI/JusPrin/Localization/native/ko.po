@@ -1022,10 +1022,6 @@ msgid "Set up AI..."
 msgstr "AI 설정..."
 
 # AI Translated
-msgid "A G-code path goes beyond the plate boundaries."
-msgstr "G-code 경로가 플레이트 경계를 벗어납니다."
-
-# AI Translated
 #, c-format, boost-format
 msgid "Filaments %s cannot be printed directly on the surface of this plate."
 msgstr "필라멘트 %s은(는) 이 플레이트 표면에 직접 출력할 수 없습니다."

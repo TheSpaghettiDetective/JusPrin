@@ -142,9 +142,11 @@ points took 9 to 13 minutes on an M-series Mac in 2026-11. At the three
 points recorded while the turn's own slice runs (`after-slice`,
 `print-hook-after-slice`, `print-hook-plan-slice`), a slice report or a read
 of the slicing section is answered "busy" until that slice ends, and the
-recorder keeps that answer; if the slice ends partway through the reads, the
-app starts the turn that tells its outcome and the recorder loses the rest,
-so how far those points get depends on the machine's speed. To keep
+recorder keeps that answer. The third such answer in one turn ends the turn,
+as the app does to a model that keeps polling its own slice, and the
+recorder stops reading there; once the slice has ended, the reads after it
+get their usual answers, and the turn that tells its outcome waits for this
+one to end. So how far those points get depends on the machine's speed. To keep
 `requests.json` small (about
 6 MB), the recorder keeps each distinct setting item once, file-wide
 (`settingItems`), and each point's workspace block once when a result
@@ -360,6 +362,9 @@ keeping those IDs: slice_start's note, and the quote and the sentence in the
 print-issues and file-loaded skills. A whole-script recording of the changed app
 (all 34 points, harness checks passing) differed from the file in those sentences
 and in the IDs, numbers and temporary paths that differ between any two recordings.
+The print-issues skill's quote of the plate-boundary warning was replaced the same
+way on 2026-11-16, when the app took OrcaSlicer 2.5.0's wording of it ("A G-code path
+goes beyond plate boundaries.").
 The harness target does not rebuild the Agent page, so a recording after a skill's
 text changes needs `jusprin_web` first, or its skill checks fail.
 

@@ -516,7 +516,7 @@ void PrintIssueMonitor::read_result(PartPlate& plate, const Print& print, std::v
             read.push_back(plate_issue(plate, IssueSource::SliceResult, refused ? IssueSeverity::Blocker : IssueSeverity::Warning,
                                        too_tall ? "toolpath_above_print_height" : "toolpath_outside_plate",
                                        too_tall ? _u8L("A G-code path goes beyond the max print height.") :
-                                                  _u8L("A G-code path goes beyond the plate boundaries."),
+                                                  _u8L("A G-code path goes beyond plate boundaries."),
                                        NotificationType::SlicingError));
         }
 

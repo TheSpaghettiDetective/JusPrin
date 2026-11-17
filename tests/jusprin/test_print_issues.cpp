@@ -317,7 +317,7 @@ TEST_CASE("what is read from the slice result or a failed slice needs no notific
     outside.id         = "slice_result:toolpath_outside_plate";
     outside.source     = IssueSource::SliceResult;
     outside.severity   = IssueSeverity::Blocker;
-    outside.message    = "A G-code path goes beyond the plate boundaries.";
+    outside.message    = "A G-code path goes beyond plate boundaries.";
     outside.answers    = 10;
     outside.unprompted = true;
 

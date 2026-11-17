@@ -1035,10 +1035,6 @@ msgid "Set up AI..."
 msgstr "Налаштувати ШІ..."
 
 # AI Translated
-msgid "A G-code path goes beyond the plate boundaries."
-msgstr "Траєкторія G-code виходить за межі пластини."
-
-# AI Translated
 #, c-format, boost-format
 msgid "Filaments %s cannot be printed directly on the surface of this plate."
 msgstr "Філаменти %s не можна друкувати безпосередньо на поверхні цієї пластини."

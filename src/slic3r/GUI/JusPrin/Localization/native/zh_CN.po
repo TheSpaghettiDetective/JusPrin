@@ -1024,10 +1024,6 @@ msgid "Set up AI..."
 msgstr "设置 AI..."
 
 # AI Translated
-msgid "A G-code path goes beyond the plate boundaries."
-msgstr "有 G-code 路径超出了盘的边界。"
-
-# AI Translated
 #, c-format, boost-format
 msgid "Filaments %s cannot be printed directly on the surface of this plate."
 msgstr "耗材丝 %s 无法直接打印在此盘的表面上。"

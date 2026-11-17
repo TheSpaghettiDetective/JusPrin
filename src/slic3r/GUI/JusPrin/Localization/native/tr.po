@@ -1028,10 +1028,6 @@ msgid "Set up AI..."
 msgstr "Yapay zekayı kur..."
 
 # AI Translated
-msgid "A G-code path goes beyond the plate boundaries."
-msgstr "Bir G-code yolu plaka sınırlarının dışına çıkıyor."
-
-# AI Translated
 #, c-format, boost-format
 msgid "Filaments %s cannot be printed directly on the surface of this plate."
 msgstr "%s filamentleri bu plakanın yüzeyine doğrudan yazdırılamaz."

@@ -433,8 +433,9 @@
         if (wanted("B1")) {
         steps.push_back({"b2_pla_with_petg_one_nozzle", [self] {
             // The X1 Carbon's 0.6 nozzle takes PETG Basic from the preset
-            // named for the 0.8 nozzle; "@BBL X1C" alone is 0.4 only.
-            self->enable_filaments({"Bambu PETG Basic @BBL X1C 0.8 nozzle", "Bambu PLA Basic @BBL X1C"});
+            // named for the 0.8 nozzle and PLA Basic from its own; "@BBL X1C"
+            // alone is 0.4 only.
+            self->enable_filaments({"Bambu PETG Basic @BBL X1C 0.8 nozzle", "Bambu PLA Basic @BBL X1C 0.6 nozzle"});
             self->two_cubes("b2");
             if (SetupCommands::filament_slots().size() < 2)
                 SetupCommands::add_filament_slot(*self->m_plater);
@@ -510,7 +511,8 @@
             std::cerr << "HARNESS PRINTER h2d installed=" << installed << " error='" << error << "' preset='" << printer.preset_name
                       << "' nozzles=" << printer.extruder_count << '\n';
             self->check(installed && printer.extruder_count == 2, "c0_two_nozzle_printer_selected");
-            self->enable_filaments({"Bambu PETG Basic @BBL H2D 0.4 nozzle", "Bambu PVA @BBL H2D", "Bambu TPU 95A HF @BBL H2D"});
+            self->enable_filaments({"Bambu PETG Basic @BBL H2D 0.4 nozzle", "Bambu PVA @BBL H2D", "Bambu TPU 95A HF @BBL H2D 0.4 nozzle",
+                                    "Bambu TPU 85A @BBL H2D 0.4 nozzle"});
             self->two_cubes("c0");
             if (SetupCommands::filament_slots().size() < 2)
                 SetupCommands::add_filament_slot(*self->m_plater);
@@ -573,7 +575,10 @@
 
         steps.push_back({"c3_tpu_on_the_wrong_nozzle", [self] {
             self->choose_filament(0, "PLA Basic");
-            self->m_tpu_chosen = self->choose_filament(1, "TPU 95A HF");
+            // TPU 85A prints from the right nozzle only (filament_printable
+            // "2"). TPU 95A HF did too until OrcaSlicer 2.5.0's sync of the
+            // Bambu Lab profiles (upstream edc2f8bf90a) let it print from both.
+            self->m_tpu_chosen = self->choose_filament(1, "TPU 85A");
             self->map_filaments(fmmManual, {1, 1}); // both on the left nozzle
         }, {}, [self] {
             self->dump_readers("c3");
@@ -722,48 +727,30 @@
             self->prepare_canvas().reload_scene(true);
             self->m_plater->update();
         }, {}, [self] { self->dump_readers("d3 before slice"); }});
+        // Since OrcaSlicer 2.5.0 (upstream 81357695c5) a prime tower partly
+        // outside the printable area is a validation error, and OrcaSlicer
+        // will not slice the plate; before, it sliced and warned. So there is
+        // no slice whose words to compare, and the monitor must block as
+        // OrcaSlicer does, in its words.
         steps.push_back({"d4_slice_with_the_tower_there", [self] { self->slice_now(); }, self->slice_ended(), [self] {
             self->stop_answering_modals();
             self->prepare_canvas().reload_scene(true);
             self->issue_monitor().refresh_now();
-            self->dump_readers("d4 sliced");
-            const Issue* tower = self->issue_coded("PlaterWarning");
+            self->dump_readers("d4 after slice");
+            const Issue* tower = nullptr;
+            for (const Issue& issue : self->issues().issues)
+                if (issue.source == PrintIssues::IssueSource::Validation &&
+                    issue.message.rfind("Prime tower is partially outside the printable area", 0) == 0)
+                    tower = &issue;
             std::cerr << "HARNESS RESULT d4 prime_tower_reported=" << (tower != nullptr) << '\n';
             self->check(tower != nullptr, "d4_prime_tower_reported");
-            if (tower != nullptr)
-                self->check(self->same_words(self->native_notice(NotificationType::PlaterWarning), tower, "d4_prime_tower"),
+            if (tower != nullptr) {
+                self->check(tower->severity == IssueSeverity::Blocker, "d4_prime_tower_outside_is_a_blocker");
+                self->check(self->same_words(self->native_notice(NotificationType::ValidateError), tower, "d4_prime_tower"),
                             "d4_prime_tower_in_orcas_words");
-            self->m_readers_sliced = self->m_plater->get_partplate_list().get_curr_plate()->is_slice_result_valid();
-        }});
-        steps.push_back({"d4b_orcas_own_words_for_that_slice", [self] {
-            self->m_native.clear();
-            if (!self->m_readers_sliced)
-                return;
-            self->m_frame->CallAfter([self] {
-                for (wxWindow* window : wxTopLevelWindows)
-                    if (auto* dialog = dynamic_cast<wxDialog*>(window); dialog != nullptr && dialog->IsModal()) {
-                        for (wxWindow* child : dialog->GetChildren())
-                            if (auto* preview = dynamic_cast<Preview*>(child); preview != nullptr && preview->get_canvas3d() != nullptr)
-                                preview->get_canvas3d()->render();
-                        self->m_native = self->native_notices();
-                        dialog->EndModal(wxID_CANCEL);
-                    }
-            });
-            installed_shell()->status_row()->request_action(PrintAction::CheckPrint);
-        }, {}, [self] {
-            const NativeNotice *area = nullptr, *outside = nullptr;
-            for (const NativeNotice& notice : self->m_native) {
-                std::cerr << "HARNESS NATIVE_IN_CHECK_PRINT type=" << notice.type << " level=" << notice.level << " text='" << one_line(notice.text) << "'\n";
-                if (notice.type == int(NotificationType::BBLSliceLimitError)) area = &notice;
-                if (notice.type == int(NotificationType::SlicingError)) outside = &notice;
             }
-            self->check(area != nullptr && self->issue_coded("nozzle_printable_area") != nullptr, "d4b_nozzle_area_reported_by_both");
-            // The words are printed, not checked: the monitor lists each
-            // filament once ("Filaments 1 are placed in the left nozzle"),
-            // where OrcaSlicer repeats one per object ("Filaments 1, 1 are").
-            self->same_words(area, self->issue_coded("nozzle_printable_area"), "d4b_nozzle_area");
-            self->check(self->same_words(outside, self->issue_coded("toolpath_outside_plate"), "d4b_toolpath_outside"),
-                        "d4b_toolpath_outside_in_orcas_words");
+            self->check(!installed_shell()->status_row()->action_state().can_slice, "d4_orca_itself_refuses_to_slice");
+            self->check(self->blockers_match_orca(), "d4_the_monitor_blocks_exactly_when_orca_refuses");
         }});
 
         steps.push_back({"d5_taller_than_the_left_nozzle_reaches", [self] {

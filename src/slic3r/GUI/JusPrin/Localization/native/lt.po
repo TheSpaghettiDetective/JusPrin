@@ -1034,10 +1034,6 @@ msgid "Set up AI..."
 msgstr "Nustatyti DI..."
 
 # AI Translated
-msgid "A G-code path goes beyond the plate boundaries."
-msgstr "G-code kelias išeina už plokštės ribų."
-
-# AI Translated
 #, c-format, boost-format
 msgid "Filaments %s cannot be printed directly on the surface of this plate."
 msgstr "Gijų %s negalima spausdinti tiesiai ant šios plokštės paviršiaus."

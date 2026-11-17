@@ -6655,7 +6655,8 @@ private:
         const std::string name = reported->at("name");
         for (const nlohmann::json& arguments : {nlohmann::json{{"deviceId", address}}, nlohmann::json{{"deviceId", name}},
                                                 nlohmann::json{{"hostType", "moonraker"}, {"address", address}}}) {
-            const std::string refusal = said(network_check_call("printer_bambu_connect", arguments, "refused_" + std::to_string(++m_network_check_refusals)));
+            const std::string refusal = said(network_check_call(arguments.contains("hostType") ? kHostConnectTool : "printer_bambu_connect",
+                                                                arguments, "refused_" + std::to_string(++m_network_check_refusals)));
             check(refusal.find(address) != std::string::npos && refusal.find("seen on the network with LAN Only off") != std::string::npos,
                   "network_check_refusal_says_so_" + std::to_string(m_network_check_refusals));
         }
@@ -16847,18 +16848,21 @@ int main(int argc, char** argv)
     // A mock Agent that answers more than one message in a chat stands in
     // for a provider the person has a key for: the app keeps a chat the
     // person has talked in on that provider, and fails its next turn when no
-    // key for it is stored.
+    // key for it is stored. The print-issue runs send a second message about
+    // an issue, and the printer chat runs call one tool per message.
     const bool mock_has_key = state->mode == HarnessState::Mode::Shell ||
                               state->mode == HarnessState::Mode::ProjectPromptRequests ||
                               state->mode == HarnessState::Mode::ReplyChoicesCapture ||
-                              state->mode == HarnessState::Mode::CalibrationCapture;
+                              state->mode == HarnessState::Mode::CalibrationCapture ||
+                              state->mode == HarnessState::Mode::PrintIssues ||
+                              state->mode == HarnessState::Mode::PrinterNetworkCheck;
     if (state->mode == HarnessState::Mode::LiveAgentUnavailable || state->task_chat_configured || mock_has_key ||
-        state->mode == HarnessState::Mode::PrintIssues || state->mode == HarnessState::Mode::PrinterSetup) {
+        state->mode == HarnessState::Mode::PrinterSetup) {
         // The unavailable setup check exercises a connection failure. The
         // configured task-chat capture and the runs with a keyed mock never
         // reach a provider, but also use the closed port so their placeholder
-        // key cannot; so do the print-issue and printer-setup runs, which store
-        // one as a key checked in Preferences would be.
+        // key cannot; so does the printer-setup run, which stores one as a
+        // key checked in Preferences would be.
         wxSetEnv("JUSPRIN_OPENAI_ENDPOINT", "http://127.0.0.1:1/v1/responses");
     }
 

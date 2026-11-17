@@ -1031,10 +1031,6 @@ msgid "Set up AI..."
 msgstr "Configurar la IA..."
 
 # AI Translated
-msgid "A G-code path goes beyond the plate boundaries."
-msgstr "Una trayectoria del G-code sale de los límites de la cama."
-
-# AI Translated
 #, c-format, boost-format
 msgid "Filaments %s cannot be printed directly on the surface of this plate."
 msgstr "Los filamentos %s no se pueden imprimir directamente sobre la superficie de esta cama."

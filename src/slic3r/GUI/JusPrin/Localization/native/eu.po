@@ -1025,10 +1025,6 @@ msgid "Set up AI..."
 msgstr "Konfiguratu AA..."
 
 # AI Translated
-msgid "A G-code path goes beyond the plate boundaries."
-msgstr "G-code ibilbide bat plakaren mugetatik kanpo doa."
-
-# AI Translated
 #, c-format, boost-format
 msgid "Filaments %s cannot be printed directly on the surface of this plate."
 msgstr "%s filamentuak ezin dira zuzenean inprimatu plaka honen gainazalean."
