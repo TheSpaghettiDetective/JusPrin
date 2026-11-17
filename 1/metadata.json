@@ -1,0 +1,45 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7KWRH4JYPB1PTJQ8QE0GGK6",
+  "session_id": "8301dc30-2a1f-4651-a315-b94dc605b6fe",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-17T04:38:12.309621Z",
+  "branch": "claude/harness-printer-chat-shell",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/shell/server_sheet_scenario.inc",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-2",
+  "turn_id": "5d85d2e1529b",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 1162,
+    "cache_creation_tokens": 3030274,
+    "cache_read_tokens": 151128456,
+    "output_tokens": 629390,
+    "api_call_count": 582
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-17T04:38:10.669244Z",
+    "agent_lines": 27,
+    "agent_removed": 7,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 27,
+    "total_lines_changed": 34,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
