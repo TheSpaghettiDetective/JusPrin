@@ -2,7 +2,7 @@
   "cli_version": "0.10.5",
   "checkpoint_id": "01M7KJ4ZDCBBQAZQP1Y56VA2WZ",
   "strategy": "manual-commit",
-  "checkpoints_count": 5,
+  "checkpoints_count": 6,
   "files_touched": [
     "tests/shell/shell_harness.cpp"
   ],
@@ -34,13 +34,20 @@
       "compact_transcript": "/3/transcript.jsonl",
       "content_hash": "/3/content_hash.txt",
       "prompt": "/3/prompt.txt"
+    },
+    {
+      "metadata": "/4/metadata.json",
+      "transcript": "/4/full.jsonl",
+      "compact_transcript": "/4/transcript.jsonl",
+      "content_hash": "/4/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 136,
-    "cache_creation_tokens": 302355,
-    "cache_read_tokens": 16815870,
-    "output_tokens": 33232,
-    "api_call_count": 68
+    "input_tokens": 1774,
+    "cache_creation_tokens": 2834611,
+    "cache_read_tokens": 209214012,
+    "output_tokens": 528751,
+    "api_call_count": 886
   }
 }
