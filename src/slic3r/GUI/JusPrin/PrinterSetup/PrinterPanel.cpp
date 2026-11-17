@@ -1,6 +1,7 @@
 // First: slic3r/GUI/I18N.hpp defines _L only while the _ macro is still
 // undefined, so it has to precede any header that brings one in.
 #include "slic3r/GUI/I18N.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 
 #include "PrinterPanel.hpp"
 
@@ -21,6 +22,7 @@
 #include <boost/log/trivial.hpp>
 
 #include <wx/sizer.h>
+#include <wx/timer.h>
 #include <wx/utils.h>
 
 #include <memory>
@@ -58,7 +60,7 @@ PrinterPanel::PrinterPanel(wxWindow*              parent,
     , m_pump(this, kPumpTimerId)
 {
     SetSizer(new wxBoxSizer(wxVERTICAL));
-    Bind(wxEVT_TIMER, &PrinterPanel::on_pump, this, kPumpTimerId);
+    Bind(wxEVT_TIMER, reported("running the printer chat", [this](wxTimerEvent& event) { on_pump(event); }), kPumpTimerId);
 }
 
 PrinterPanel::~PrinterPanel()
@@ -140,10 +142,10 @@ void PrinterPanel::build_runtime()
                 return;
             m_filament_preset = saved_as;
             // The page writes the instructions again for the copy.
-            CallAfter([this] {
+            CallAfter(reported("showing the printer chat", [this] {
                 if (m_web_view)
                     m_web_view->host().refresh_page_state();
-            });
+            }));
         });
         host.post_assistant_message("I can help with settings for " +
                                     (m_filament_name.empty() ? "the filament" : m_filament_name) +
@@ -216,7 +218,7 @@ void PrinterPanel::close()
     // tool its host is running, so it cannot be torn down inside a call its
     // own host is still on the stack for -- the trap the add-printer dialog
     // documented.
-    CallAfter([this] {
+    CallAfter(reported("closing the printer chat", [this] {
         if (m_task == Task::Printer)
             m_conversation->close();
         tear_down_runtime();
@@ -225,7 +227,7 @@ void PrinterPanel::close()
         auto after_close = std::move(m_after_close);
         if (after_close)
             after_close();
-    });
+    }));
 }
 
 void PrinterPanel::reload_agent_config()

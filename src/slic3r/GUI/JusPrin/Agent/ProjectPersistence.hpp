@@ -115,9 +115,9 @@ public:
     // owns the semantic record; persistence owns only the bytes on disk.
     std::string attachments_dir() const;
     // Writes bytes to <JusPrin data dir>/relative_path (attachment paths are
-    // caller-sanitized). Returns false when the write fails.
-    bool write_attachment_blob(const std::string& relative_path, const std::string& bytes);
-    // Reads an attachment blob back (empty when missing); used to rebuild image
+    // caller-sanitized). Throws when the write fails.
+    void write_attachment_blob(const std::string& relative_path, const std::string& bytes);
+    // Reads an attachment blob back, and throws when it cannot; used to rebuild image
     // previews after a reload without persisting them in state.json.
     std::string read_attachment_blob(const std::string& relative_path) const;
     // Removes an attachment's blob directory (relative to the JusPrin data

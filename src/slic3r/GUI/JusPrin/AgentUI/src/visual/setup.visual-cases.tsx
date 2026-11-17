@@ -87,11 +87,6 @@ export const setupCases: VisualCase[] = [
   apiKey('replacing', '6. Replacing', ['Paste the new key', 'until the new key passes', 'data-visual-focus'], [saved], replace),
   apiKey('rejected', '7. Rejected', ['The provider rejected this key', 'agent-row-status--rejected',
     'Replace it with a working key, or remove it.'], [{ ...saved, rejected: true }]),
-  apiKey('session-only', '8. Working until restart', ['This key works now, but JusPrin couldn’t save it.',
-    'add it again after JusPrin restarts'], [], (host) => {
-    host.deliver('setup_status', { phase: 'verified', provider: 'openai', elapsedMs: 500,
-      warning: 'This key could not be saved, so it will have to be entered again next time JusPrin starts.' });
-  }),
   {
     node: 'canvas board Agent setup · connect an AI tool', matrix: 'Agent setup', id: 'setup-tools', name: 'Connect an AI tool',
     frame: 'pane', expects: ['Found on this computer', 'Not found on this computer', 'Connect…', 'local sessions', 'Look again'],

@@ -19,7 +19,7 @@ import './SignInDoor.css';
 export type SignInPhase = 'idle' | 'browser' | 'email' | 'checking';
 
 // The server's refusal of the last code, password or request for a code.
-export type SignInRefusal = '' | 'wrong_code' | 'expired_code' | 'too_many_tries' | 'too_many_codes' | 'wrong_password';
+export type SignInRefusal = '' | 'wrong_code' | 'expired_code' | 'too_many_tries' | 'too_many_codes' | 'incomplete_address' | 'wrong_password';
 
 // The email sign-in while the phase is 'email': the person picks an emailed
 // code or the password ('choose'), or the app waits for the code ('code').
@@ -77,6 +77,7 @@ export interface SignInDoorProps {
 
 // What the server's refusal means to the person.
 function refusalText(email: SignInEmailStep): string {
+  const address = email.email;
   switch (email.refusal) {
     case 'wrong_code':
       return t`That code is wrong.`;
@@ -86,6 +87,8 @@ function refusalText(email: SignInEmailStep): string {
       return t`Too many tries. Wait a few minutes, or email me a code.`;
     case 'too_many_codes':
       return t`Too many codes were sent to this address. Try again in an hour.`;
+    case 'incomplete_address':
+      return t`“${address}” is not a complete email address. Check it, then try again.`;
     case 'wrong_password':
       return t`That password is wrong.`;
     default:
@@ -173,7 +176,8 @@ function ChooseStep({ email, actions, buttons, onChangeEmail }: {
   const [password, setPassword] = useState('');
   const [withPassword, setWithPassword] = useState(email.refusal === 'wrong_password');
   const refusal = refusalText(email);
-  const codeRefused = email.refusal === 'too_many_codes';
+  // The server refused to send a code: said under the button that asked for it.
+  const codeRefused = email.refusal === 'too_many_codes' || email.refusal === 'incomplete_address';
   return (
     <>
       <p className="sign-in-title">{t`We’ll email you a code.`}</p>
@@ -285,6 +289,10 @@ export function SignInDoor({ phase, email, error, outdated, actions, buttons, ch
       addressField.current?.focus();
       return;
     }
+    // Sign in is not the form's submit button, so it runs the browser's check
+    // of the address that Sign up free gets; the browser says what is wrong.
+    if (!withCode && addressField.current && !addressField.current.reportValidity())
+      return;
     setSendingCode(withCode);
     actions.email(typed);
     if (withCode) actions.sendCode();

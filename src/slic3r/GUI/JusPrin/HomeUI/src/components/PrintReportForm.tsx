@@ -18,6 +18,7 @@ const OUTCOMES: { value: PrintReportOutcome; label: string }[] = [
 export function PrintReportForm({
   entry,
   photo,
+  photoProblem,
   result,
   onChoosePhoto,
   onRemovePhoto,
@@ -27,6 +28,8 @@ export function PrintReportForm({
 }: {
   entry: HistoryEntry;
   photo?: PrintReportPhoto;
+  // The host's sentence for a chosen file the server would refuse.
+  photoProblem?: string;
   result?: PrintReportResult;
   onChoosePhoto: () => void;
   onRemovePhoto: () => void;
@@ -45,7 +48,7 @@ export function PrintReportForm({
     panel.current?.querySelector<HTMLButtonElement>('button')?.focus();
   }, []);
 
-  const closesNow = result && result.state !== 'failed';
+  const closesNow = result && (result.state === 'sent' || result.state === 'already_sent');
   useEffect(() => {
     if (result) setSending(false);
     if (closesNow) onClose();
@@ -109,6 +112,7 @@ export function PrintReportForm({
             <button type="button" className="button-secondary button-secondary-small" onClick={onChoosePhoto}><Trans>Choose a photo…</Trans></button>
           </div>
         )}
+        {photoProblem && <p role="alert">{photoProblem}</p>}
       </div>
       <label className="print-report-field">
         <span className="print-report-label"><Trans>What happened</Trans></span>
@@ -132,7 +136,7 @@ export function PrintReportForm({
           ))}
         </div>
       </div>
-      {result?.state === 'failed' && !sending && <p role="alert">{result.updateMessage ?? t`The report couldn’t be sent. Check your connection and try again.`}</p>}
+      {result?.state === 'failed' && !sending && <p role="alert">{result.updateMessage ?? result.message ?? t`The report couldn’t be sent. Check your connection and try again.`}</p>}
       <div className="printer-dialog-buttons">
         <button type="button" className="button-secondary" disabled={sending} onClick={onClose}><Trans>Not now</Trans></button>
         {result?.updateMessage && !sending ? (

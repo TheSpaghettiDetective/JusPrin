@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <deque>
 #include <stdexcept>
+#include <string>
 
 // Last: it defines the L marker.
 #include "slic3r/GUI/JusPrin/Support/Translate.hpp"
@@ -94,6 +95,11 @@ std::optional<AgentError> update_required(unsigned status, [[maybe_unused]] cons
     return AgentError{"update_required",
                       translated(L("This version of JusPrin can no longer connect to JusPrin accounts. Get the new version to keep using your account.")),
                       false};
+}
+
+std::string sign_in_ended()
+{
+    return translated(L("Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."));
 }
 
 CloudSignIn::CloudSignIn(std::string server, std::string gateway, std::string default_model, CloudAccountDeps deps,
@@ -288,14 +294,20 @@ std::optional<CloudSignInOutcome> CloudSignIn::answered(CloudHttpResult http)
         return failed(outdated->code, outdated->message, outdated->retryable);
     if (http.status == 400 && m_asked == "code/request" && errors("too_many_login_attempts"))
         m_email.refusal = "too_many_codes";
+    else if (http.status == 400 && m_asked == "code/request" && errors("invalid"))
+        // allauth's EmailField refuses an address the web view's own check
+        // lets through, such as one with no dot after the @.
+        m_email.refusal = "incomplete_address";
     else if (http.status == 400 && m_asked == "code/confirm" && errors("incorrect_code"))
         m_email.refusal = "wrong_code";
     else if (http.status == 409 && m_asked == "code/confirm")
         m_email.refusal = "expired_code";
     else if (http.status == 400 && m_asked == "login")
         m_email.refusal = errors("too_many_login_attempts") ? "too_many_tries" : "wrong_password";
-    else
+    else if (http.status == 0 || (http.status >= 400 && http.status < 500))
         return failed("sign_in_failed", translated(L("JusPrin couldn't sign you in. Try again.")), true);
+    else
+        unexpected("JusPrin's sign-in answered " + m_asked + " with HTTP " + std::to_string(http.status) + ": " + http.body);
     return std::nullopt;
 }
 
@@ -356,11 +368,14 @@ std::optional<CloudSignInOutcome> CloudSignIn::finish_check()
     }
     if (const std::optional<AgentError> outdated = update_required(models.status, models.body))
         return failed(outdated->code, outdated->message, outdated->retryable);
+    if (who.status == 0 || models.status == 0)
+        return failed("account_unreachable", translated(L("JusPrin couldn't be reached to finish signing in. Try again.")), true);
     const json who_json    = json::parse(who.body, nullptr, false);
     const json models_json = json::parse(models.body, nullptr, false);
     if (who.status != 200 || models.status != 200 || !who_json.is_object() || !models_json.is_object() ||
         !models_json.contains("data"))
-        return failed("account_unreachable", translated(L("JusPrin couldn't be reached to finish signing in. Try again.")), true);
+        unexpected("JusPrin's account check answered HTTP " + std::to_string(who.status) + ": " + who.body +
+                   ", and its model list HTTP " + std::to_string(models.status) + ": " + models.body);
 
     CloudAccountRecord record;
     record.token = m_token;
@@ -381,14 +396,22 @@ std::optional<CloudSignInOutcome> CloudSignIn::finish_check()
     if (!service)
         return failed("account_no_models", translated(L("JusPrin has no AI model for this account right now. Try again later.")), true);
 
+    // Sign-in is over whether or not the account can be stored.
+    m_phase = CloudSignInPhase::Idle;
+    m_token.clear();
+    m_store.save(record);
     CloudSignInOutcome outcome;
     outcome.kind    = CloudSignInOutcome::Kind::SignedIn;
     outcome.email   = record.email;
-    outcome.saved   = m_store.save && m_store.save(record);
     outcome.service = std::move(service);
-    m_phase         = CloudSignInPhase::Idle;
-    m_token.clear();
     return outcome;
+}
+
+void CloudSignIn::unexpected(const std::string& what)
+{
+    m_phase = CloudSignInPhase::Idle;
+    m_token.clear();
+    throw std::runtime_error(what);
 }
 
 CloudSignInOutcome CloudSignIn::failed(const std::string& code, const std::string& message, bool retryable)

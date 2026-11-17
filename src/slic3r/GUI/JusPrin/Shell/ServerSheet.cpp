@@ -1,6 +1,7 @@
 // First: slic3r/GUI/I18N.hpp defines _L only while the _ macro is still
 // undefined, so it has to precede any header that brings one in.
 #include "slic3r/GUI/I18N.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 
 #include "ServerSheet.hpp"
 
@@ -27,11 +28,13 @@
 #include <wx/panel.h>
 #include <wx/sizer.h>
 #include <wx/stattext.h>
+#include <wx/timer.h>
 #include <wx/uri.h>
 #include <wx/utils.h>
 #include <wx/webview.h>
 
 #include <algorithm>
+#include <utility>
 
 namespace Slic3r::GUI::JusPrin {
 
@@ -64,7 +67,7 @@ void request_web_link(const std::string& page, const std::string& from, std::fun
     AppConfig*        config = wxGetApp().app_config;
     const std::string token  = Agent::cloud_account_token(config);
     auto finish = [done = std::move(done)](std::string url) {
-        wxGetApp().CallAfter([done, url = std::move(url)] { done(url); });
+        wxGetApp().CallAfter(reported("opening an account page", [done, url = std::move(url)] { done(url); }));
     };
     Http http = Http::post(Agent::cloud_web_link_url(config));
     if (!token.empty())
@@ -79,17 +82,17 @@ void request_web_link(const std::string& page, const std::string& from, std::fun
         .tls_verify(true)
         .timeout_connect(10)
         .timeout_max(30)
-        .on_complete([finish](std::string body, unsigned status) {
+        .on_complete(reported("opening an account page", [finish](std::string body, unsigned status) {
             const nlohmann::json answer = nlohmann::json::parse(body, nullptr, false);
             std::string          url = status == 200 && answer.is_object() ? answer.value("url", std::string()) : std::string();
             if (url.empty())
                 BOOST_LOG_TRIVIAL(warning) << "JusPrin page link answered " << status;
             finish(std::move(url));
-        })
-        .on_error([finish](std::string, std::string error, unsigned status) {
+        }))
+        .on_error(reported("opening an account page", [finish](std::string, std::string error, unsigned status) {
             BOOST_LOG_TRIVIAL(warning) << "JusPrin page link failed: " << status << " " << error;
             finish({});
-        })
+        }))
         .perform();
 }
 
@@ -251,7 +254,7 @@ ServerSheet::ServerSheet(wxWindow* parent, const ShellTheme& theme)
         else
             event.Skip();
     });
-    Bind(wxEVT_TIMER, [this](wxTimerEvent&) { if (!m_closing) set_state(State::Failed); }, m_load_deadline.GetId());
+    Bind(wxEVT_TIMER, reported("waiting for an account page", [this](wxTimerEvent&) { if (!m_closing) set_state(State::Failed); }), m_load_deadline.GetId());
 
     // As wide as the boards draw it, and never taller than the screen it is on.
     wxSize size = FromDIP(wxSize(760, 760));
@@ -381,7 +384,7 @@ void ServerSheet::on_navigating(wxWebViewEvent& event)
         return;
     event.Veto();
     // Not from inside the web view's own callback: closing destroys it.
-    CallAfter([this] { close(); });
+    CallAfter(reported("closing an account page", [this] { close(); }));
 }
 
 void ServerSheet::on_loaded(wxWebViewEvent& event)
@@ -426,7 +429,7 @@ void ServerSheet::on_new_window_features(wxWebViewEvent& event)
         return;
     auto* popup = new PagePopup(this, *features, m_theme.palette(wxGetApp().dark_mode()).surface_raised);
     m_popup     = popup;
-    CallAfter([this, popup] {
+    CallAfter(reported("showing an account page's popup", [this, popup] {
         if (!m_closing)
             popup->ShowModal();
         m_popup = nullptr;
@@ -434,7 +437,7 @@ void ServerSheet::on_new_window_features(wxWebViewEvent& event)
         // The sheet was asked to close while the pop-up was open.
         if (m_closing && IsModal())
             EndModal(wxID_CANCEL);
-    });
+    }));
 }
 
 void ServerSheet::close()

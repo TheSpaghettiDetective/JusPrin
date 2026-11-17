@@ -481,6 +481,15 @@ msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try ag
 msgstr "Zure JusPrin saioa amaitu da. Hasi saioa berriro Hobespenetan, eta saiatu berriro."
 
 # AI Translated
+msgid "That photo could not be read."
+msgstr "Ezin izan da argazki hori irakurri."
+
+# AI Translated
+#. TRN The print report form, about a photo over the server's limit of 20 MB.
+msgid "That photo is larger than 20 MB. Choose a smaller photo, then send the report again."
+msgstr "Argazki hori 20 MB baino handiagoa da. Aukeratu argazki txikiagoa, eta bidali txostena berriro."
+
+# AI Translated
 #, boost-format
 msgid "This message needs %1% credit; you have %2%."
 msgid_plural "This message needs %1% credits; you have %2%."
@@ -888,6 +897,12 @@ msgstr "Saiatu berriro"
 #, c-format, boost-format
 msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
 msgstr "Ezerk ez du erantzun hemen: %s. Egiaztatu inprimagailua piztuta dagoela eta ordenagailu honen sare berean dagoela, eta saiatu berriro."
+
+# AI Translated
+#. TRN %s is the printer's address without its scheme, such as 192.168.1.42:7125. Printer settings is the printer's settings window.
+#, c-format, boost-format
+msgid "The printer at %s answered, but JusPrin couldn't check its secure connection. If the printer's address starts with https://, change it to http:// in Printer settings, then try again."
+msgstr "Hemengo inprimagailuak erantzun du: %s, baina JusPrin-ek ezin izan du haren konexio segurua egiaztatu. Inprimagailuaren helbidea https:// hasten bada, aldatu http:// gisa Inprimagailuaren ezarpenak atalean, eta saiatu berriro."
 
 # AI Translated
 msgid "Client configuration is a symbolic link. Use Copy and update its target manually."

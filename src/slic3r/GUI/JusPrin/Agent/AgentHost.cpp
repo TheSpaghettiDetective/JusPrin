@@ -8,6 +8,7 @@
 #include "slic3r/GUI/JusPrin/Support/Base64.hpp"
 #include "libslic3r/Exception.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpCatalog.hpp"
+#include "slic3r/GUI/JusPrin/Mcp/McpConfigFile.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpRuntime.hpp"
 #include "libslic3r/format.hpp"
 
@@ -18,6 +19,8 @@
 #include <array>
 #include <cctype>
 #include <cerrno>
+#include <cstring>
+#include <exception>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -128,10 +131,10 @@ const char* action_class_name(ActionClass action_class)
     return "read_only";
 }
 
+// A tool call's own stored JSON, or an empty object while it has none.
 json parsed_or_object(const std::string& text)
 {
-    json value = json::parse(text, nullptr, false);
-    return value.is_discarded() ? json::object() : value;
+    return text.empty() ? json::object() : json::parse(text);
 }
 
 json activity_json(const ToolActivity& activity)
@@ -604,6 +607,12 @@ json current_printer_review(Workspace::IWorkspace& workspace, IProductState& pro
     return printer_section_result(configured, devices, facts);
 }
 
+// What the person is told where an unexpected failure stopped their request,
+// beside the report.
+// Retryable: an outage or a passing failure lands here too, and a person
+// should not have to type the message again.
+AgentError unexpected_error() { return {"unexpected_error", translated(L("Something went wrong on our side")), true}; }
+
 } // namespace
 
 Workspace::PrinterFactsStore* AgentHost::DocumentProductState::facts() const
@@ -677,6 +686,10 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
                                        << (activity.source == ToolSource::Mcp ? "mcp" : "agent") << ", "
                                        << activity.action_id << "): " << activity.error->code << ": "
                                        << activity.error->message;
+        if (activity.state == ToolState::Failed && activity.error && m_unexpected_error_handler &&
+            (activity.error->code == "failed" || activity.error->code == "local_save_failed"))
+            m_unexpected_error_handler("running the tool " + activity.tool,
+                                       std::make_exception_ptr(ToolCallFailure(activity.error->code + ": " + activity.error->message)));
         // The last word of an action that replaced the project belongs to the
         // project it closed, not to the one now open.
         if (activity.session != m_workspace.snapshot().session.value())
@@ -725,6 +738,11 @@ void AgentHost::start_mcp(const std::string& discovery_path)
         Mcp::ServerOptions options;
         options.port = Mcp::kPreferredPort;
         options.fallback_to_ephemeral = true;
+        options.unexpected = [this](const std::string& doing, std::exception_ptr error) {
+            if (!m_unexpected_error_handler)
+                std::rethrow_exception(error);
+            m_unexpected_error_handler(doing, error);
+        };
         m_mcp = std::make_unique<Mcp::McpRuntime>(m_workspace, m_tools, std::filesystem::u8path(discovery_path), options);
     }
 }
@@ -1386,19 +1404,17 @@ void AgentHost::handle_user_message(const std::string& envelope_id, const std::s
         return;
     }
 
-    // Only attachments the host actually holds as staged can be sent; unknown
-    // or already-sent IDs are dropped rather than trusted.
-    std::vector<std::string> sent_attachments;
+    // The page sends only the attachments it holds as staged.
     for (const std::string& id : requested_attachments) {
         const std::optional<AttachmentRecord> record = document.find_attachment(id);
-        if (record && record->state == "staged")
-            sent_attachments.push_back(id);
+        if (!record || record->state != "staged")
+            throw RuntimeError("The page sent attachment " + id + ", which the host does not hold as staged");
     }
 
     ConversationMessage message;
     message.text              = text;
     message.client_message_id = client_id;
-    message.attachment_ids    = sent_attachments;
+    message.attachment_ids    = requested_attachments;
     accept_user_message(std::move(message), envelope_id, /*from_composer=*/true);
 }
 
@@ -1406,10 +1422,7 @@ std::string AgentHost::attachment_preview_data_url(const AttachmentRecord& recor
 {
     if (record.kind != "image" || record.stored_name.empty() || !m_image_thumbnail_maker)
         return {};
-    const std::string bytes = m_persistence.read_attachment_blob(record.relative_path());
-    if (bytes.empty())
-        return {};
-    return m_image_thumbnail_maker(bytes);
+    return m_image_thumbnail_maker(m_persistence.read_attachment_blob(record.relative_path()));
 }
 
 void AgentHost::send_attachment_updated(const AttachmentRecord& record, const std::string& correlation_id)
@@ -1486,10 +1499,8 @@ void AgentHost::store_file_attachment(AttachmentRecord record, const std::string
     } else if ((record.kind == "text" || record.kind == "gcode" || record.kind == "svg") && !is_valid_utf8(bytes)) {
         record.state = "error";
         record.error = AgentError{"not_text", translated(L("This file is not readable UTF-8 text."))};
-    } else if (!m_persistence.write_attachment_blob(record.relative_path(), bytes)) {
-        record.state = "error";
-        record.error = AgentError{"store_failed", translated(L("The attachment could not be stored."))};
     } else {
+        m_persistence.write_attachment_blob(record.relative_path(), bytes);
         record.size_bytes = bytes.size();
         if (record.kind == "text" || record.kind == "gcode" || record.kind == "svg") {
             record.preview_text = bytes.size() > kTextPreviewChars ? bytes.substr(0, kTextPreviewChars) : bytes;
@@ -2239,23 +2250,23 @@ bool AgentHost::checkpoint_active_chat()
 {
     if (!m_pin_chat_version)
         return true; // Temporary sessions and GUI-free hosts have no model store.
+    // A reply, a tool or a queued message still running: a later call saves.
     if (transition_busy())
         return false;
-    const std::optional<std::string> version = m_pin_chat_version();
-    if (!version)
-        return false;
+    const std::string version = m_pin_chat_version();
     // The blank project has no version for a chat to go back to.
-    if (version->empty())
+    if (version.empty())
         return true;
     ProjectStateDocument& document = m_persistence.document();
     const std::string active = document.active_conversation_id();
     const WorkspaceSnapshot snapshot = m_workspace.snapshot();
-    if (!document.save_chat_checkpoint(active, *version,
-            context_json(snapshot, m_workspace.configured_printer(), current_printer_review(m_workspace, m_product_state)),
-            m_persistence.timestamp()))
-        return false;
+    document.save_chat_checkpoint(active, version,
+        context_json(snapshot, m_workspace.configured_printer(), current_printer_review(m_workspace, m_product_state)),
+        m_persistence.timestamp());
     m_persistence.flush();
-    return !m_save_chat_document || m_save_chat_document();
+    if (m_save_chat_document)
+        m_save_chat_document();
+    return true;
 }
 
 void AgentHost::handle_create_conversation(const std::string& envelope_id, const std::string& payload_json)
@@ -2269,14 +2280,10 @@ void AgentHost::handle_create_conversation(const std::string& envelope_id, const
         send_bridge_error("busy", translated(L("Finish or resolve pending work before creating a chat.")), envelope_id);
         return;
     }
-    if (!checkpoint_active_chat()) {
-        send_bridge_error("save_failed", translated(L("The current chat could not be saved.")), envelope_id);
-        return;
-    }
+    checkpoint_active_chat();
     const json        payload = json::parse(payload_json, nullptr, false);
     const std::string title   = payload.is_object() ? payload.value("title", "") : std::string();
     ProjectStateDocument& document = m_persistence.document();
-    const std::string before = document.dump();
     const std::string previous = document.active_conversation_id();
     const std::string created = document.create_conversation(title, m_persistence.timestamp());
     if (const auto prior = document.chat_checkpoint(previous))
@@ -2284,11 +2291,8 @@ void AgentHost::handle_create_conversation(const std::string& envelope_id, const
             context_json(m_workspace.snapshot(), m_workspace.configured_printer(),
                          current_printer_review(m_workspace, m_product_state)), m_persistence.timestamp());
     m_persistence.flush();
-    if (m_save_chat_document && !m_save_chat_document()) {
-        document.load(before);
-        send_bridge_error("save_failed", translated(L("The new chat could not be saved.")), envelope_id);
-        return;
-    }
+    if (m_save_chat_document)
+        m_save_chat_document();
     send_state(envelope_id);
 }
 
@@ -2319,24 +2323,14 @@ void AgentHost::handle_switch_conversation(const std::string& envelope_id, const
         m_current_chat_version) {
         // Settle pending saves before comparing: an unsaved edit must not
         // match the last committed version. Preserve the outgoing chat too.
-        if (!checkpoint_active_chat()) {
-            send_bridge_error("save_failed", translated(L("The current chat could not be saved.")), envelope_id);
-            send_state(envelope_id);
-            return;
-        }
+        checkpoint_active_chat();
         if (m_current_chat_version() == checkpoint->value("versionId", "")) {
             // The model already matches. Move chat authority without restoring
             // the project or recording a fictional project change.
-            const std::string before = document.dump();
             document.set_active_conversation(conversation_id);
             m_persistence.flush();
-            if (m_save_chat_document && !m_save_chat_document()) {
-                document.load(before);
-                m_persistence.flush();
-                send_bridge_error("save_failed", translated(L("The selected chat could not be saved.")), envelope_id);
-                send_state(envelope_id);
-                return;
-            }
+            if (m_save_chat_document)
+                m_save_chat_document();
         }
     }
     m_persistence.flush();
@@ -2374,16 +2368,12 @@ void AgentHost::handle_restore_conversation(const std::string& envelope_id, cons
         send_state();
         return;
     }
-    if (!checkpoint_active_chat()) {
-        send_bridge_error("save_failed", translated(L("The current project could not be saved before restoration.")), envelope_id);
-        return;
-    }
-    if (!m_restore_chat_version(checkpoint->value("versionId", ""), target)) {
-        m_chat_transition_blocked = true;
-        send_bridge_error("restore_failed", translated(L("JusPrin couldn't put the project back.")), envelope_id);
-        send_state();
-        return;
-    }
+    checkpoint_active_chat();
+    // A restore that fails part way may leave the project between versions:
+    // project chat stays blocked until a project is opened again.
+    m_chat_transition_blocked = true;
+    m_restore_chat_version(checkpoint->value("versionId", ""), target);
+    m_chat_transition_blocked = false;
     const char* restored = L("Restored this chat's saved project setup. Check the current printer and material before printing.");
     post_note(translated(restored), {}, restored);
     checkpoint_active_chat();
@@ -2415,26 +2405,24 @@ void AgentHost::handle_delete_conversation(const std::string& envelope_id, const
     const auto belongs_to_chat = [&](const ToolActivity& activity) {
         return std::find(message_ids.begin(), message_ids.end(), activity.correlation_id) != message_ids.end();
     };
-    if (agent_busy() || std::any_of(m_tools.activities().begin(), m_tools.activities().end(), [&](const auto& activity) {
+    // Deleting the active chat makes another one active, which saves a
+    // checkpoint: that waits for all running work, not only this chat's.
+    if (agent_busy() || (id == m_persistence.document().active_conversation_id() && transition_busy()) ||
+        std::any_of(m_tools.activities().begin(), m_tools.activities().end(), [&](const auto& activity) {
             return belongs_to_chat(activity) && !tool_state_terminal(activity.state);
         })) {
         send_bridge_error("busy", translated(L("This chat is still working. Stop it or let it finish, then delete it.")), envelope_id);
         return;
     }
     ProjectStateDocument& document = m_persistence.document();
-    const std::string before = document.dump();
     const std::string previous_active = document.active_conversation_id();
     const auto removed = document.delete_conversation(id, m_persistence.timestamp());
     if (!removed) {
         send_bridge_error("unknown_conversation", translated(L("This chat no longer exists.")), envelope_id);
         return;
     }
-    if (document.active_conversation_id() != previous_active && !checkpoint_active_chat()) {
-        document.load(before);
-        m_persistence.flush();
-        send_bridge_error("save_failed", translated(L("The replacement chat could not be saved.")), envelope_id);
-        return;
-    }
+    if (document.active_conversation_id() != previous_active)
+        checkpoint_active_chat();
     m_tools.forget_terminal_activities(message_ids);
     m_persistence.flush();
     for (const auto& directory : *removed) m_persistence.remove_attachment_dir(directory);
@@ -2471,8 +2459,7 @@ void AgentHost::send_tool_activity(const ToolActivity& activity, const std::stri
 void AgentHost::send_setup_status(const std::string&               phase,
                                   const std::string&               correlation_id,
                                   std::optional<int>               elapsed_ms,
-                                  const std::optional<AgentError>& error,
-                                  const std::string&               warning)
+                                  const std::optional<AgentError>& error)
 {
     json payload{{"phase", phase}};
     if (m_setup_pending)
@@ -2481,8 +2468,6 @@ void AgentHost::send_setup_status(const std::string&               phase,
         payload["elapsedMs"] = *elapsed_ms;
     if (error)
         payload["error"] = json{{"code", error->code}, {"message", error->message}, {"retryable", error->retryable}};
-    if (!warning.empty())
-        payload["warning"] = warning;
     send_envelope(Protocol::kSetupStatus, payload.dump(), correlation_id);
 }
 
@@ -2648,8 +2633,7 @@ void AgentHost::reject_saved_key(const std::string& provider)
 void AgentHost::send_account_status(const std::string&               phase,
                                     const std::string&               correlation_id,
                                     const std::optional<AgentError>& error,
-                                    bool                             expired,
-                                    const std::string&               warning)
+                                    bool                             expired)
 {
     json payload{{"phase", phase}};
     ICloudSignIn* cloud = m_setup ? m_setup->cloud_sign_in() : nullptr;
@@ -2665,8 +2649,6 @@ void AgentHost::send_account_status(const std::string&               phase,
         payload["expired"] = true;
     if (error)
         payload["error"] = json{{"code", error->code}, {"message", error->message}, {"retryable", error->retryable}};
-    if (!warning.empty())
-        payload["warning"] = warning;
     send_envelope(Protocol::kAccountStatus, payload.dump(), correlation_id);
 }
 
@@ -2796,9 +2778,7 @@ void AgentHost::pump_account()
     switch (outcome->kind) {
     case CloudSignInOutcome::Kind::SignedIn:
         m_rejected_keys.erase(provider);
-        send_account_status("idle", {}, std::nullopt, false,
-                            outcome->saved ? std::string() :
-                                             translated(L("This sign-in could not be saved, so you will have to sign in again next time JusPrin starts.")));
+        send_account_status("idle");
         send_setup_keys();
         set_agent(std::move(outcome->service), AgentAvailability::Ready);
         request_account();
@@ -2818,7 +2798,31 @@ void AgentHost::pump_setup()
 {
     if (!m_setup)
         return;
-    pump_account();
+    // The top handlers of a sign-in and of a key check: an unexpected failure
+    // stops it, which ends in error.
+    try {
+        pump_account();
+    } catch (...) {
+        if (!m_unexpected_error_handler)
+            throw;
+        m_unexpected_error_handler("signing in to JusPrin", std::current_exception());
+        m_setup->cloud_sign_in()->cancel();
+        send_account_status("idle", {}, unexpected_error());
+    }
+    try {
+        pump_key_check();
+    } catch (...) {
+        if (!m_unexpected_error_handler)
+            throw;
+        m_unexpected_error_handler("checking an AI key", std::current_exception());
+        m_setup->cancel();
+        send_setup_status("error", {}, std::nullopt, unexpected_error());
+        m_setup_pending.reset();
+    }
+}
+
+void AgentHost::pump_key_check()
+{
     std::optional<SetupOutcome> outcome = m_setup->poll();
     if (!outcome)
         return;
@@ -2829,14 +2833,11 @@ void AgentHost::pump_setup()
         return;
     }
 
-    // The provider answered, so the credentials are good. Persisting them can
-    // still fail; the Agent works for this session either way, and the user is
-    // told which one happened rather than discovering it at the next launch.
-    std::string warning;
-    if (m_setup_pending && !m_setup->commit(*m_setup_pending))
-        warning = translated(L("This key could not be saved, so it will have to be entered again next time JusPrin starts."));
+    // The provider answered, so the credentials are good.
+    if (m_setup_pending)
+        m_setup->commit(*m_setup_pending);
 
-    send_setup_status("verified", {}, outcome->elapsed_ms, std::nullopt, warning);
+    send_setup_status("verified", {}, outcome->elapsed_ms);
     if (m_setup_pending)
         m_rejected_keys.erase(m_setup_pending->provider);
     m_setup_pending.reset();
@@ -3020,10 +3021,9 @@ void AgentHost::begin_stream(ConversationMessage assistant, const std::string& c
     // A picture or PDF goes to a blob of its own, named by the request that
     // first sends it; the document keeps only the name.
     request.keep_blob = [this, prefix = chat_record_dir(conversation_id) + "/" + request.request_id + "-",
-                         count = 0](const std::string& base64) mutable -> std::optional<std::string> {
+                         count = 0](const std::string& base64) mutable {
         std::string blob = prefix + std::to_string(++count);
-        if (!m_persistence.write_attachment_blob(blob, base64))
-            return std::nullopt;
+        m_persistence.write_attachment_blob(blob, base64);
         return blob;
     };
     if (asks_setup_check(request.skills) && purpose_recorded(conversation_id))
@@ -3075,8 +3075,6 @@ void AgentHost::load_record_text(ChatRecord& record) const
         if (part.blob.empty())
             return;
         part.base64 = m_persistence.read_attachment_blob(part.blob);
-        if (part.base64.empty())
-            throw RuntimeError("jusprin-agent: a picture a chat's record keeps is missing: " + part.blob);
     };
     for (RecordItem& item : record.items) {
         for (RecordPart& part : item.parts)
@@ -3439,7 +3437,33 @@ void AgentHost::begin_tool_followup(const PendingToolContinuation& continuation)
                   json{{"messageId", assistant.id}, {"inReplyTo", assistant.in_reply_to}, {"attempt", assistant.attempt}}.dump());
 }
 
+// The top handler of the AI request's pump, which each panel's timer runs.
+// An unexpected failure stops the request (ProviderAgent stops its own before
+// throwing); the reply it was for ends failed and the chat can go on, or the
+// title stays unmade. The failure goes to the report unchanged.
 void AgentHost::pump_stream()
+{
+    const bool title = m_title.has_value();
+    try {
+        pump_agent();
+    } catch (...) {
+        if (!m_unexpected_error_handler)
+            throw;
+        m_unexpected_error_handler(title ? "making a chat's title" : "getting the AI's reply", std::current_exception());
+        if (m_agent)
+            m_agent->cancel();
+        if (title)
+            m_title.reset();
+        else
+            fail_stream(unexpected_error());
+    }
+    if (m_waiting_agent && !agent_busy()) {
+        WaitingAgent waiting = std::move(*m_waiting_agent);
+        set_agent(std::move(waiting.agent), waiting.availability);
+    }
+}
+
+void AgentHost::pump_agent()
 {
     if (m_title && m_handshake) {
         pump_conversation_title();
@@ -3592,8 +3616,11 @@ void AgentHost::ask_confirmation(const Confirmation& question)
 void AgentHost::set_agent(AgentServicePtr agent, AgentAvailability availability)
 {
     cancel_conversation_title();
-    if (agent_busy())
+    if (agent_busy()) {
+        m_waiting_agent = WaitingAgent{std::move(agent), availability};
         return;
+    }
+    m_waiting_agent.reset();
     if (m_agent)
         m_agent->cancel();
     m_agent = std::move(agent);
@@ -3844,7 +3871,7 @@ void AgentHost::request_account()
     if (!m_model_source)
         return;
     m_model_source->fetch_account([this](std::optional<json> account) {
-        // One that could not be read keeps the last answer; signing out clears it.
+        // No answer, or a refused one, keeps the last answer; signing out clears it.
         const std::vector<std::string> configured = m_model_source->configured_providers();
         const bool signed_in = std::any_of(configured.begin(), configured.end(), [](const std::string& provider) {
             const ProviderProfile* profile = profile_for(provider);
@@ -3884,19 +3911,19 @@ void AgentHost::request_account_box()
 
 namespace {
 
-// {"<gateway chat id>": "<title>"}. The file is only a list of names: one
-// that will not read starts over, and the usage table names those chats
-// generically until each is used again.
+// {"<gateway chat id>": "<title>"}, or no file before the first title.
 json read_chat_titles(const std::string& path)
 {
-    std::ifstream in(std::filesystem::u8path(path), std::ios::binary);
-    if (!in)
+    const std::filesystem::path file = std::filesystem::u8path(path);
+    if (!std::filesystem::exists(file))
         return json::object();
-    json titles = json::parse(in, nullptr, false);
-    if (titles.is_object())
-        return titles;
-    BOOST_LOG_TRIVIAL(warning) << "Chat titles file could not be read, starting it over: " << path;
-    return json::object();
+    std::ifstream in(file, std::ios::binary);
+    if (!in)
+        throw RuntimeError("The chat titles file could not be opened: " + std::string(std::strerror(errno)));
+    json titles = json::parse(in);
+    if (!titles.is_object())
+        throw RuntimeError("The chat titles file holds " + std::string(titles.type_name()) + ", not an object");
+    return titles;
 }
 
 } // namespace
@@ -3924,21 +3951,15 @@ void AgentHost::remember_chat_titles()
         titles[id] = title;
     const std::filesystem::path path = std::filesystem::u8path(m_chat_titles_file);
     const std::filesystem::path temp = path.string() + ".tmp";
-    std::error_code ec;
-    std::filesystem::create_directories(path.parent_path(), ec);
+    std::filesystem::create_directories(path.parent_path());
     {
         std::ofstream out(temp, std::ios::binary | std::ios::trunc);
         out << titles.dump();
-        if (!out) {
-            BOOST_LOG_TRIVIAL(warning) << "Chat titles not written to " << temp.string();
-            return;
-        }
+        out.close();
+        if (!out)
+            throw RuntimeError("The chat titles file could not be written: " + std::string(std::strerror(errno)));
     }
-    std::filesystem::rename(temp, path, ec);
-    if (ec) {
-        BOOST_LOG_TRIVIAL(warning) << "Chat titles not written to " << m_chat_titles_file << ": " << ec.message();
-        return;
-    }
+    std::filesystem::rename(temp, path);
     for (auto& [id, title] : changed)
         m_chat_titles_kept[id] = std::move(title);
 }
@@ -4235,9 +4256,8 @@ void AgentHost::handle_mcp_preview(const std::string& envelope_id, const std::st
         if (!edit.previous.is_null())
             payload["previous"] = edit.previous.dump(2);
         send_envelope(Protocol::kMcpPreview, payload.dump(), envelope_id);
-    } catch (const std::exception& error) {
-        // McpConfigFile's own refusals are English lines marked for translation.
-        send_mcp_status("error", tool_id, envelope_id, {}, AgentError{"write_failed", translated(error.what()), true});
+    } catch (const Mcp::ConfigRefusal& refusal) {
+        send_mcp_status("error", tool_id, envelope_id, {}, AgentError{"write_failed", translated(refusal.what()), true});
     }
 }
 
@@ -4277,10 +4297,10 @@ void AgentHost::handle_mcp_connect(const std::string& envelope_id, const std::st
             if (m_mcp_connect.connected)
                 m_mcp_connect.connected();
             send_mcp_status("saved", tool_id, envelope_id, backup.empty() ? "" : backup.u8string());
-        } catch (const std::exception& error) {
-            const std::string text = error.what();
-            const char* code = text.find("changed after the preview") != std::string::npos ? "stale_preview" : "write_failed";
-            send_mcp_status("error", tool_id, envelope_id, {}, AgentError{code, translated(text.c_str()), true});
+        } catch (const Mcp::StalePreview& refusal) {
+            send_mcp_status("error", tool_id, envelope_id, {}, AgentError{"stale_preview", translated(refusal.what()), true});
+        } catch (const Mcp::ConfigRefusal& refusal) {
+            send_mcp_status("error", tool_id, envelope_id, {}, AgentError{"write_failed", translated(refusal.what()), true});
         }
         return;
     }

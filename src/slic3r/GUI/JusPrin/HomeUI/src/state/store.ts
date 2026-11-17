@@ -54,6 +54,8 @@ export interface HomeState {
   reportsOffered?: boolean;
   // The print report form's photo and the server's answer, while it is open.
   reportPhoto?: PrintReportPhoto;
+  // The host's sentence for a chosen file the server would refuse, in place of a photo.
+  reportPhotoProblem?: string;
   reportResult?: PrintReportResult;
   // Counts the host's state pushes, so the open history can follow them.
   stateCount: number;
@@ -99,7 +101,7 @@ export function reduce(state: HomeState, action: HomeAction): HomeState {
     return { ...state, screen: action.screen };
   }
   if (action.kind === 'report_form_reset') {
-    return { ...state, reportPhoto: undefined, reportResult: undefined };
+    return { ...state, reportPhoto: undefined, reportPhotoProblem: undefined, reportResult: undefined };
   }
   if (action.kind === 'report_sending') {
     return { ...state, reportResult: undefined };
@@ -145,9 +147,12 @@ export function reduce(state: HomeState, action: HomeAction): HomeState {
         history: (payload as HistoryPayload).entries ?? [],
         reportsOffered: (payload as HistoryPayload).reportsOffered,
       };
-    case 'print_report_photo':
-      // Cancelling the file dialog keeps the photo already there.
-      return { ...state, reportPhoto: (payload as { photo?: PrintReportPhoto }).photo ?? state.reportPhoto };
+    case 'print_report_photo': {
+      const chosen = payload as { photo?: PrintReportPhoto; problem?: string };
+      // Cancelling the file dialog keeps what is there.
+      if (!chosen.photo && !chosen.problem) return state;
+      return { ...state, reportPhoto: chosen.photo, reportPhotoProblem: chosen.problem };
+    }
     case 'print_report_result':
       return { ...state, reportResult: payload as PrintReportResult };
     case 'projects':

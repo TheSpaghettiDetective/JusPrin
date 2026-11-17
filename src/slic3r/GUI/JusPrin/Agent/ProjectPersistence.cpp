@@ -1,7 +1,10 @@
 #include "ProjectPersistence.hpp"
+#include "slic3r/GUI/JusPrin/Support/Files.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/UtcTime.hpp"
 
+#include <cerrno>
 #include <chrono>
+#include <cstring>
 #include <ctime>
 #include <filesystem>
 #include <fstream>
@@ -38,28 +41,10 @@ std::string read_file(const fs::path& path)
 {
     std::ifstream in(path, std::ios::binary);
     if (!in.is_open())
-        return {};
+        throw std::runtime_error("could not open " + path.u8string() + ": " + std::strerror(errno));
     std::stringstream buffer;
     buffer << in.rdbuf();
     return buffer.str();
-}
-
-bool write_file(const fs::path& path, const std::string& content)
-{
-    std::error_code ec;
-    fs::create_directories(path.parent_path(), ec);
-    // Write-then-rename keeps a crash from leaving a truncated state file.
-    const fs::path temp = path.string() + ".tmp";
-    {
-        std::ofstream out(temp, std::ios::binary | std::ios::trunc);
-        if (!out.is_open())
-            return false;
-        out << content;
-        if (!out.good())
-            return false;
-    }
-    fs::rename(temp, path, ec);
-    return !ec;
 }
 
 const char* edit_kind_name(Workspace::EditKind kind)
@@ -291,10 +276,8 @@ void ProjectPersistence::adopt_current_project(bool in_place_reset)
     if (in_place_reset) {
         // A full in-place reset is a new project boundary: earlier state does
         // not carry into it.
-        if (m_config.managed_root.empty()) {
-            std::error_code ec;
-            fs::remove_all(jusprin_data_dir(), ec);
-        }
+        if (m_config.managed_root.empty())
+            fs::remove_all(jusprin_data_dir());
         start_fresh_identity();
         return;
     }
@@ -302,7 +285,8 @@ void ProjectPersistence::adopt_current_project(bool in_place_reset)
     // An external archive can carry the old auxiliary document. Read it once
     // for migration; managed snapshots never write authoritative state there.
     const fs::path legacy_state = fs::path(m_attached_aux_dir) / kJusPrinDirName / kStateFileName;
-    const std::string state_text = read_file(m_config.managed_root.empty() ? fs::path(state_file_path()) : legacy_state);
+    const fs::path state_path = m_config.managed_root.empty() ? fs::path(state_file_path()) : legacy_state;
+    const std::string state_text = fs::exists(state_path) ? read_file(state_path) : std::string();
     if (state_text.empty()) {
         start_fresh_identity();
         return;
@@ -313,9 +297,12 @@ void ProjectPersistence::adopt_current_project(bool in_place_reset)
     if (result != ProjectStateDocument::LoadResult::Loaded) {
         // Keep the file it cannot read, broken or from a newer JusPrin, for
         // inspection, then start over: the model opens with a new chat history.
-        std::error_code ec;
-        fs::rename(legacy_state, legacy_state.string() + (result == ProjectStateDocument::LoadResult::Newer ? ".newer" : ".corrupt"), ec);
+        // Our own file that does not read is unexpected, and reported.
+        const bool newer = result == ProjectStateDocument::LoadResult::Newer;
+        fs::rename(legacy_state, legacy_state.string() + (newer ? ".newer" : ".corrupt"));
         start_fresh_identity();
+        if (!newer)
+            throw std::runtime_error("the chat state saved in the opened project could not be read");
         return;
     }
     m_document = std::move(loaded);
@@ -522,27 +509,25 @@ std::string ProjectPersistence::attachments_dir() const
     return (fs::path(jusprin_data_dir()) / "attachments").string();
 }
 
-bool ProjectPersistence::write_attachment_blob(const std::string& relative_path, const std::string& bytes)
+void ProjectPersistence::write_attachment_blob(const std::string& relative_path, const std::string& bytes)
 {
     if (m_config.in_memory) {
         m_blobs[relative_path] = bytes;
-        return true;
+        return;
     }
     if (!m_attached)
-        return false;
-    return write_file(fs::path(jusprin_data_dir()) / fs::path(relative_path), bytes);
+        throw std::logic_error("an attachment written before a project is attached");
+    write_file(fs::path(jusprin_data_dir()) / fs::path(relative_path), bytes);
 }
 
 std::string ProjectPersistence::read_attachment_blob(const std::string& relative_path) const
 {
     if (relative_path.empty())
         return {};
-    if (m_config.in_memory) {
-        const auto blob = m_blobs.find(relative_path);
-        return blob == m_blobs.end() ? std::string{} : blob->second;
-    }
+    if (m_config.in_memory)
+        return m_blobs.at(relative_path);
     if (!m_attached)
-        return {};
+        throw std::logic_error("an attachment read before a project is attached");
     return read_file(fs::path(jusprin_data_dir()) / fs::path(relative_path));
 }
 
@@ -563,8 +548,7 @@ void ProjectPersistence::remove_attachment_dir(const std::string& relative_dir)
     // A chat's record folder is not versioned and goes with the chat.
     if (!m_config.managed_root.empty() && relative_dir.rfind(kChatRecordsDir, 0) != 0)
         return;
-    std::error_code ec;
-    fs::remove_all(fs::path(jusprin_data_dir()) / fs::path(relative_dir), ec);
+    fs::remove_all(fs::path(jusprin_data_dir()) / fs::path(relative_dir));
 }
 
 } // namespace Slic3r::GUI::JusPrin::Agent

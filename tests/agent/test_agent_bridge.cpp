@@ -7,11 +7,15 @@
 // Keep the protocol first: it must compile without incidental standard-library includes.
 #include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
 #include <catch2/catch_all.hpp>
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers.hpp>
+#include <catch2/generators/catch_generators.hpp>
 
 #include "slic3r/GUI/JusPrin/Agent/AgentHost.hpp"
 #include "libslic3r/Exception.hpp"
 #include "../jusprin_support/DeterministicMockAgent.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentSetup.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ProjectStateDocument.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderAgent.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderFactory.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp"
@@ -29,8 +33,10 @@
 
 #include <algorithm>
 #include <deque>
+#include <exception>
 #include <functional>
 #include <map>
+#include <memory>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -39,6 +45,7 @@
 #include <set>
 #include <sstream>
 #include <stdexcept>
+#include <utility>
 
 using namespace Slic3r::GUI::JusPrin;
 using namespace Slic3r::GUI::JusPrin::Agent;
@@ -1075,6 +1082,87 @@ TEST_CASE("reload reconstructs the page from native state, mid-stream included",
     CHECK(harness.host.conversation().back().state == MessageState::Complete);
 }
 
+namespace {
+
+// The provider's answer to the first request names nothing a person can act
+// on, as ProviderAgent throws it; the next request is answered normally.
+class UnexpectedOnceAgent final : public IAgentService
+{
+public:
+    bool ready() const override { return true; }
+    bool busy() const override { return m_busy; }
+    bool start(const AgentRequest&) override
+    {
+        ++starts;
+        return m_busy = true;
+    }
+    bool continue_after_tool(const AgentToolResult&) override { return false; }
+    void cancel() override
+    {
+        ++cancels;
+        m_busy = false;
+    }
+    std::optional<AgentEvent> poll() override
+    {
+        if (!m_busy)
+            return std::nullopt;
+        if (starts == 1) {
+            m_busy = false;
+            throw UnexpectedServiceAnswer("Test Provider answered HTTP 404 (request r-1 #1, its request id req_9): model_not_found");
+        }
+        m_busy = false;
+        return AgentEvent::completed();
+    }
+    int starts{0};
+    int cancels{0};
+
+private:
+    bool m_busy{false};
+};
+
+} // namespace
+
+TEST_CASE("an unexpected answer to the AI request ends the reply failed, reported unchanged", "[agent][errors]")
+{
+    Harness harness(std::make_unique<UnexpectedOnceAgent>());
+    std::vector<std::pair<std::string, std::string>> reported;
+    harness.host.set_unexpected_error_handler([&reported](const std::string& doing, std::exception_ptr error) {
+        try {
+            std::rethrow_exception(error);
+        } catch (const std::exception& thrown) {
+            reported.emplace_back(doing, thrown.what());
+        }
+    });
+    harness.handshake();
+    harness.send_user_message("hello", "c-1");
+    harness.pump_all();
+
+    REQUIRE(reported.size() == 1);
+    CHECK(reported[0].first == "getting the AI's reply");
+    CHECK(reported[0].second == "Test Provider answered HTTP 404 (request r-1 #1, its request id req_9): model_not_found");
+    const json* failed = harness.last_of_type("assistant_failed");
+    REQUIRE(failed != nullptr);
+    CHECK((*failed)["payload"]["error"]["code"] == "unexpected_error");
+    CHECK((*failed)["payload"]["error"]["message"] == "Something went wrong on our side");
+    CHECK((*failed)["payload"]["error"]["retryable"] == true);
+    CHECK(harness.host.conversation().back().state == MessageState::Failed);
+    CHECK_FALSE(harness.host.stream_active());
+
+    // Retry asks again, and this time the reply comes.
+    harness.deliver("retry_message", json{{"messageId", (*failed)["payload"]["messageId"]}});
+    harness.pump_all();
+    CHECK(harness.host.conversation().back().state == MessageState::Complete);
+    CHECK(reported.size() == 1);
+}
+
+TEST_CASE("without a reporter, an unexpected answer leaves the pump unchanged", "[agent][errors]")
+{
+    Harness harness(std::make_unique<UnexpectedOnceAgent>());
+    harness.handshake();
+    harness.send_user_message("hello", "c-1");
+    CHECK_THROWS_AS(harness.pump_all(), UnexpectedServiceAnswer);
+}
+
 TEST_CASE("agent availability is a separate, honest state", "[agent][availability]")
 {
     Harness harness(AgentAvailability::Unavailable);
@@ -1165,6 +1253,36 @@ std::size_t file_report_notes(const Harness& harness)
 }
 
 } // namespace
+
+TEST_CASE("an AI service set up during a reply is the one the next message uses", "[agent][setup]")
+{
+    auto first_owner = std::make_unique<RecordingAgent>();
+    RecordingAgent* first = first_owner.get();
+    Harness harness(AgentServicePtr(std::move(first_owner)));
+    harness.handshake();
+    const auto replies = [](const RecordingAgent& agent) {
+        return std::count_if(agent.requests.begin(), agent.requests.end(), [](const AgentRequest& request) {
+            return request.purpose != AgentRequest::Purpose::ConversationTitle;
+        });
+    };
+
+    harness.send_user_message("where did this come from?", "c-1");
+    REQUIRE(first->busy());
+    CHECK(replies(*first) == 1);
+    // A key verified, or a sign-in finished, in another window reloads this
+    // chat's AI service while its reply is still arriving.
+    auto second_owner = std::make_unique<RecordingAgent>();
+    RecordingAgent* second = second_owner.get();
+    harness.host.set_agent(AgentServicePtr(std::move(second_owner)), AgentAvailability::Ready);
+    for (int i = 0; i < 10; ++i)
+        harness.host.pump_stream();
+
+    // The first service is gone once the reply ended; the second answers.
+    harness.send_user_message("and its settings?", "c-2");
+    for (int i = 0; i < 10; ++i)
+        harness.host.pump_stream();
+    CHECK(replies(*second) == 1);
+}
 
 TEST_CASE("a file the person opened becomes the Agent's first turn", "[agent][file-report]")
 {
@@ -1688,19 +1806,45 @@ TEST_CASE("conversations are created and switched over the bridge", "[agent][con
     }
 }
 
-TEST_CASE("a chat checkpoint tells the blank project from a failed save", "[agent][conversations]")
+TEST_CASE("a chat checkpoint tells the blank project from a failed save, which goes up with its error", "[agent][conversations]")
 {
     Harness harness;
-    std::optional<std::string> pinned = std::string();
+    bool save_fails = false;
     harness.host.set_chat_checkpoint_callbacks(
-        [&] { return pinned; }, [] { return std::string(); }, [](const std::string&) { return false; }, [] { return true; },
-        [](const std::string&, const std::string&) { return true; });
+        [&]() -> std::string {
+            if (save_fails)
+                throw std::runtime_error("the disk is full");
+            return std::string();
+        },
+        [] { return std::string(); }, [](const std::string&) { return false; }, [] {}, [](const std::string&, const std::string&) {});
     harness.handshake();
     auto& document = harness.persistence.document();
-    CHECK(harness.host.checkpoint_active_chat());
+    harness.host.checkpoint_active_chat();
     CHECK_FALSE(document.chat_checkpoint(document.active_conversation_id()));
-    pinned.reset();
+    save_fails = true;
+    CHECK_THROWS_WITH(harness.host.checkpoint_active_chat(), "the disk is full");
+}
+
+TEST_CASE("a chat checkpoint while a reply runs waits for a later call", "[agent][conversations]")
+{
+    Harness harness;
+    int pins = 0;
+    harness.host.set_chat_checkpoint_callbacks(
+        [&]() -> std::string { ++pins; return "v1"; },
+        [] { return std::string("v1"); }, [](const std::string&) { return true; }, [] {},
+        [](const std::string&, const std::string&) {});
+    harness.handshake();
+    harness.send_user_message("/slow tell me everything", "c-slow");
+    harness.host.pump_stream();
+    REQUIRE(harness.host.stream_active());
+
     CHECK_FALSE(harness.host.checkpoint_active_chat());
+    CHECK(pins == 0);
+
+    const std::string reply_id = (*harness.last_of_type("assistant_started"))["payload"]["messageId"].get<std::string>();
+    harness.deliver("stop_generation", json{{"messageId", reply_id}});
+    CHECK(harness.host.checkpoint_active_chat());
+    CHECK(pins == 1);
 }
 
 TEST_CASE("switching chats with matching checkpoints continues without restoration", "[agent][conversations]")
@@ -1712,8 +1856,12 @@ TEST_CASE("switching chats with matching checkpoints continues without restorati
     int restores = 0;
     harness.host.set_chat_checkpoint_callbacks(
         [&] { return current_version; }, [&] { return current_version; },
-        [&](const std::string&) { return version_exists; }, [&] { return save_succeeds; },
-        [&](const std::string&, const std::string&) { ++restores; return true; });
+        [&](const std::string&) { return version_exists; },
+        [&] {
+            if (!save_succeeds)
+                throw std::runtime_error("the disk is full");
+        },
+        [&](const std::string&, const std::string&) { ++restores; });
     harness.handshake();
     auto& document = harness.persistence.document();
     const std::string first = document.active_conversation_id();
@@ -1762,25 +1910,25 @@ TEST_CASE("switching chats with matching checkpoints continues without restorati
         harness.pump_all();
         CHECK(document.messages(first).empty());
     }
-    SECTION("failed persistence cannot activate the selected chat") {
+    SECTION("a failed save stops the switch with the save's own error") {
         save_succeeds = false;
-        harness.deliver("switch_conversation", json{{"conversationId", first}});
+        CHECK_THROWS_WITH(harness.deliver("switch_conversation", json{{"conversationId", first}}), "the disk is full");
         CHECK(document.active_conversation_id() == second);
-        REQUIRE(harness.last_of_type("bridge_error") != nullptr);
-        CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "save_failed");
+        CHECK(harness.last_of_type("bridge_error") == nullptr);
     }
-    SECTION("failed activation save rolls back authority and retains each plan") {
+    SECTION("a failed activation save goes up with its error, and each chat keeps its plan") {
         harness.host.set_chat_checkpoint_callbacks(
             [&] { return current_version; }, [&] { return current_version; },
             [](const std::string&) { return true; },
-            [&] { return document.active_conversation_id() == second; },
-            [&](const std::string&, const std::string&) { ++restores; return true; });
-        harness.deliver("switch_conversation", json{{"conversationId", first}});
-        CHECK(document.active_conversation_id() == second);
-        CHECK(document.plan().headline.empty());
+            [&] {
+                if (document.active_conversation_id() != second)
+                    throw std::runtime_error("the disk is full");
+            },
+            [&](const std::string&, const std::string&) { ++restores; });
+        CHECK_THROWS_WITH(harness.deliver("switch_conversation", json{{"conversationId", first}}), "the disk is full");
         CHECK(document.plan(first).headline == "Original plan");
-        REQUIRE(harness.last_of_type("bridge_error") != nullptr);
-        CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "save_failed");
+        CHECK(document.plan(second).headline.empty());
+        CHECK(harness.last_of_type("bridge_error") == nullptr);
     }
     CHECK(restores == 0);
     CHECK(harness.workspace.snapshot().revision == revision);
@@ -1793,12 +1941,11 @@ TEST_CASE("inactive chat resume checks authority and revision, and each chat kee
     harness.host.set_chat_checkpoint_callbacks(
         [&] { return current_version; }, [&] { return current_version; },
         [](const std::string& version) { return version == "v-1" || version == "v-2"; },
-        [] { return true; },
+        [] {},
         [&](const std::string& version, const std::string& chat) {
             harness.persistence.document().set_active_conversation(chat);
             harness.persistence.document().set_viewed_conversation(chat);
             current_version = version;
-            return true;
         });
     harness.handshake();
     auto& document = harness.persistence.document();
@@ -1807,7 +1954,7 @@ TEST_CASE("inactive chat resume checks authority and revision, and each chat kee
     PlanRecord quick;
     quick.headline = "Coarse layers and low infill for a quick fit check";
     document.set_plan(quick, harness.persistence.timestamp());
-    REQUIRE(harness.host.checkpoint_active_chat());
+    harness.host.checkpoint_active_chat();
     // The checkpoint holds the moment's card, without the chat's own records.
     CHECK_FALSE(document.chat_checkpoint(first)->contains("planning"));
     CHECK_FALSE((*document.chat_checkpoint(first))["summary"].contains("setupIntent"));
@@ -1865,20 +2012,21 @@ TEST_CASE("failed chat restoration keeps project input blocked", "[agent][conver
     std::string current_version = "v-1";
     harness.host.set_chat_checkpoint_callbacks(
         [&] { return current_version; }, [&] { return current_version; },
-        [](const std::string&) { return true; }, [] { return true; },
-        [](const std::string&, const std::string&) { return false; });
+        [](const std::string&) { return true; }, [] {},
+        [](const std::string&, const std::string&) { throw std::runtime_error("the model could not be loaded"); });
     harness.handshake();
-    REQUIRE(harness.host.checkpoint_active_chat());
+    harness.host.checkpoint_active_chat();
     const std::string first = harness.persistence.document().active_conversation_id();
     harness.deliver("create_conversation", json::object());
     const std::string second = harness.persistence.document().active_conversation_id();
     current_version = "v-2";
     harness.deliver("switch_conversation", json{{"conversationId", first}});
     const json state = (*harness.last_of_type("state"))["payload"];
-    harness.deliver("restore_conversation", json{{"conversationId", first},
-                                                  {"activeConversationId", second},
-                                                  {"docRevision", state["docRevision"]}});
-    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "restore_failed");
+    CHECK_THROWS_WITH(harness.deliver("restore_conversation", json{{"conversationId", first},
+                                                                    {"activeConversationId", second},
+                                                                    {"docRevision", state["docRevision"]}}),
+                      "the model could not be loaded");
+    harness.deliver("state_request");
     CHECK((*harness.last_of_type("state"))["payload"]["projectChatBlocked"] == true);
     CHECK(harness.persistence.document().active_conversation_id() == second);
     current_version = "v-1";
@@ -1888,6 +2036,61 @@ TEST_CASE("failed chat restoration keeps project input blocked", "[agent][conver
     harness.deliver("user_message", json{{"clientMessageId", "blocked-send"},
                                          {"text", "try to continue"}});
     CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "recovery_required");
+}
+
+// What the host sends the page is built from its own stored records: one that
+// will not read stops the send, instead of going out as "<discarded>", which
+// is not JSON, or as an empty object.
+TEST_CASE("a stored record that will not read stops the send", "[agent][state]")
+{
+    Harness h;
+    h.handshake();
+    std::vector<std::string> raw;
+    h.host.set_send([&raw](const std::string& envelope) { raw.push_back(envelope); });
+    ProjectStateDocument& document = h.persistence.document();
+    SECTION("a message's file report")
+    {
+        ConversationMessage note;
+        note.id          = document.allocate_message_id();
+        note.role        = MessageRole::Note;
+        note.text        = "The file opened.";
+        note.file_report = "{broken";
+        document.append_message(document.active_conversation_id(), note, h.persistence.timestamp());
+    }
+    SECTION("a message's issue context")
+    {
+        ConversationMessage asked;
+        asked.id            = document.allocate_message_id();
+        asked.role          = MessageRole::User;
+        asked.text          = "Why did this fail?";
+        asked.issue_context = "{broken";
+        document.append_message(document.active_conversation_id(), asked, h.persistence.timestamp());
+    }
+    SECTION("a message's receipt")
+    {
+        ConversationMessage note;
+        note.id      = document.allocate_message_id();
+        note.role    = MessageRole::Note;
+        note.text    = "Sent to the printer.";
+        note.receipt = "{broken";
+        document.append_message(document.active_conversation_id(), note, h.persistence.timestamp());
+    }
+    SECTION("a tool call's result")
+    {
+        ToolActivity activity;
+        activity.action_id      = "t-1";
+        activity.tool           = "workspace_inspect";
+        activity.arguments_json = "{}";
+        activity.result_json    = "{broken";
+        activity.state          = ToolState::Succeeded;
+        activity.session        = h.workspace.snapshot().session.value();
+        document.upsert_activity(activity, h.persistence.timestamp());
+    }
+    CHECK_THROWS(h.deliver("state_request"));
+    for (const std::string& envelope : raw) {
+        CHECK(envelope.find("<discarded>") == std::string::npos);
+        CHECK(envelope.find("\"result\":{}") == std::string::npos);
+    }
 }
 
 TEST_CASE("the draft is kept until it is sent", "[agent][draft]")
@@ -2273,6 +2476,43 @@ TEST_CASE("the account comes with the titles of the chats it charged", "[agent][
     CHECK((*account)["payload"]["chatTitles"] == json{{charged, "Resizing a print"}});
     CHECK((*account)["payload"]["account"]["usage_30d"]["credits"] == 15);
     std::filesystem::remove_all(file.parent_path());
+}
+
+// The chat-titles file is the app's own: one that will not read, or cannot be
+// written, stops the write; it is never started over, which would wipe it.
+TEST_CASE("a chat-titles file that will not read or write stops the write", "[agent][account]")
+{
+    const std::filesystem::path folder = std::filesystem::temp_directory_path() /
+                                         ("jusprin-chat-titles-" + std::to_string(std::random_device{}()));
+    std::filesystem::create_directories(folder);
+    Harness h;
+    auto source = std::make_shared<FakeModelSource>();
+    h.host.set_chat_model_source(source);
+    SECTION("one that will not read is kept as it is")
+    {
+        const std::filesystem::path file = folder / "chat-titles.json";
+        std::ofstream(file) << "{\"broken";
+        h.host.set_chat_titles_file(file.string());
+        h.handshake();
+        CHECK_THROWS([&] {
+            h.send_user_message("Shrink everything 75%", "c-1");
+            h.pump_all();
+        }());
+        std::ifstream in(file);
+        CHECK(std::string(std::istreambuf_iterator<char>(in), {}) == "{\"broken");
+    }
+    SECTION("one that cannot be written")
+    {
+        // A plain file where the titles file's folder goes.
+        std::ofstream(folder / "in-the-way") << "file";
+        h.host.set_chat_titles_file((folder / "in-the-way" / "chat-titles.json").string());
+        h.handshake();
+        CHECK_THROWS([&] {
+            h.send_user_message("Shrink everything 75%", "c-1");
+            h.pump_all();
+        }());
+    }
+    std::filesystem::remove_all(folder);
 }
 
 // Each refresh_account_box gets one answer, the server's HTML or null for no
@@ -2935,17 +3175,51 @@ TEST_CASE("an attachment that was refused or not stored names no stored file", "
         CHECK(only_record().error->code == "unsupported_type");
         CHECK(only_record().stored_name == "");
     }
-    SECTION("a file the project's folder would not take")
-    {
-        // A plain file where the attachments folder goes, so nothing can be written under it.
-        const std::filesystem::path folder = std::filesystem::u8path(h.persistence.jusprin_data_dir());
-        std::filesystem::create_directories(folder);
-        std::ofstream(folder / "attachments") << "in the way";
-        attach(h, "ca-png", "photo.png", "pixels");
-        CHECK(only_record().error->code == "store_failed");
-        CHECK(only_record().stored_name == "");
-        std::filesystem::remove(folder / "attachments");
-    }
+}
+
+// Storing an attachment is the app's own work: a failure there is unexpected
+// and stops the attach, with the file system's own error.
+TEST_CASE("an attachment the project's folder will not take stops the attach", "[agent][attachments]")
+{
+    Harness h;
+    h.handshake();
+    // A plain file where the attachments folder goes, so nothing can be written under it.
+    const std::filesystem::path folder = std::filesystem::u8path(h.persistence.jusprin_data_dir());
+    std::filesystem::create_directories(folder);
+    std::ofstream(folder / "attachments") << "in the way";
+    CHECK_THROWS(h.deliver("attach_file", json{{"clientAttachmentId", "ca-png"}, {"name", "photo.png"}, {"source", "picker"},
+                                               {"dataBase64", b64("pixels")}}));
+    CHECK(h.of_type("attachment_updated").empty());
+    std::filesystem::remove(folder / "attachments");
+}
+
+// The page sends only the attachments it holds as staged: an id the host does
+// not hold as staged is our own code out of step, not something to drop.
+TEST_CASE("a message naming an attachment the host does not hold as staged is unexpected", "[agent][attachments]")
+{
+    Harness h;
+    h.handshake();
+    CHECK_THROWS(h.deliver("user_message", json{{"clientMessageId", "c-1"}, {"text", "see this"},
+                                                {"attachmentIds", json::array({"a-unknown"})}}));
+    CHECK(h.last_of_type("message_added") == nullptr);
+}
+
+// An attachment whose stored file is gone stops the request: it is never sent
+// to the model as an empty file.
+TEST_CASE("an attachment whose stored file is gone stops the request", "[agent][attachments]")
+{
+    auto agent_owner = std::make_unique<RecordingAgent>();
+    RecordingAgent* agent = agent_owner.get();
+    Harness h{AgentServicePtr(std::move(agent_owner))};
+    h.handshake();
+    const json notes = attach(h, "ca-1", "notes.txt", "hello");
+    std::filesystem::remove_all(std::filesystem::u8path(h.persistence.attachments_dir()));
+    CHECK_THROWS([&] {
+        h.deliver("user_message", json{{"clientMessageId", "c-1"}, {"text", "what is this"},
+                                       {"attachmentIds", json::array({notes["id"]})}});
+        h.pump_all();
+    }());
+    CHECK(agent->requests.empty());
 }
 
 TEST_CASE("resending the same client attachment id is idempotent", "[agent][attachments]")
@@ -3125,6 +3399,38 @@ TEST_CASE("a provider tool call continues from the structured native result", "[
     CHECK(harness.host.conversation().back().text.find("native duplicate succeeded") != std::string::npos);
 }
 
+// A tool call that fails in the app's own work goes to the model, and is also
+// reported; whether the report is sent at once or not at all is the app's
+// wiring (automatic reports on or off), never a dialog.
+TEST_CASE("a tool call that fails in the app's own work is reported", "[agent][provider][tools]")
+{
+    auto provider = std::make_unique<ToolCallingAgent>();
+    ToolCallingAgent* scripted = provider.get();
+    Harness harness(std::move(provider));
+    std::vector<std::string> reported;
+    harness.host.set_unexpected_error_handler([&reported](const std::string& doing, std::exception_ptr error) {
+        try {
+            std::rethrow_exception(error);
+        } catch (const std::exception& e) {
+            reported.push_back(doing + ": " + e.what());
+        }
+    });
+    harness.handshake();
+    harness.host.tools().set_version_callbacks(
+        [](const ToolActivity&) { return std::string("v-before"); },
+        [](const ToolActivity&, const std::string&) { throw std::runtime_error("disk full"); });
+    REQUIRE(harness.workspace.select_object(harness.workspace.snapshot().plates[0].objects[0].id).succeeded());
+    harness.send_user_message("duplicate it", "reported-c-1");
+    for (int i = 0; i < 20 && !scripted->continuation; ++i) {
+        harness.host.pump_stream();
+        harness.host.pump_tools();
+    }
+    REQUIRE(scripted->continuation);
+    CHECK(scripted->continuation->state == "failed");
+    REQUIRE(reported.size() == 1);
+    CHECK(reported[0].find("disk full") != std::string::npos);
+}
+
 TEST_CASE("a change whose save fails reaches the model as the outcome every later turn replays", "[agent][provider][tools][versions]")
 {
     auto provider = std::make_unique<ToolCallingAgent>();
@@ -3265,8 +3571,14 @@ public:
         ++cancels;
     }
 
+    // The provider's answer to the check, as ProviderAgent throws one that
+    // names nothing a person can act on; thrown by the next poll.
+    std::string throws;
+
     std::optional<SetupOutcome> poll() override
     {
+        if (!throws.empty())
+            throw UnexpectedServiceAnswer(std::exchange(throws, std::string()));
         if (!m_pending)
             return std::nullopt;
         SetupOutcome outcome = std::move(*m_pending);
@@ -3275,12 +3587,12 @@ public:
         return outcome;
     }
 
-    bool commit(const SetupCredentials& credentials) override
+    void commit(const SetupCredentials& credentials) override
     {
         committed.push_back(credentials);
-        if (commit_succeeds)
-            stored[credentials.provider] = credentials.api_key;
-        return commit_succeeds;
+        if (!commit_succeeds)
+            throw std::runtime_error("The settings file could not be written.");
+        stored[credentials.provider] = credentials.api_key;
     }
 
     std::vector<SavedKey> saved_keys() const override
@@ -3348,6 +3660,8 @@ public:
     void                              cancel() override { m_phase = CloudSignInPhase::Idle; m_email.reset(); }
     std::optional<CloudSignInOutcome> poll() override
     {
+        if (!poll_throws.empty())
+            throw std::runtime_error(poll_throws);
         if (m_answer && m_email) {
             m_email->busy    = false;
             m_email->step    = m_answer->first;
@@ -3388,6 +3702,8 @@ public:
 
     std::vector<std::string> asked;
     int                      browser_starts{0};
+    // What the next poll throws, when a test sets it.
+    std::string              poll_throws;
 
 private:
     bool take(std::string what)
@@ -3516,6 +3832,37 @@ TEST_CASE("the account's browser sign-in goes to Google, never to the server's s
     CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "setup_busy");
 }
 
+TEST_CASE("an unexpected answer to a key check ends it in error, reported unchanged", "[agent][setup][errors]")
+{
+    auto    setup = std::make_shared<ScriptedSetup>();
+    Harness harness(setup);
+    std::vector<std::pair<std::string, std::string>> reported;
+    harness.host.set_unexpected_error_handler([&reported](const std::string& doing, std::exception_ptr error) {
+        try {
+            std::rethrow_exception(error);
+        } catch (const std::exception& thrown) {
+            reported.emplace_back(doing, thrown.what());
+        }
+    });
+    harness.handshake();
+
+    harness.deliver("setup_check_key", check_key_payload("sk-test"));
+    setup->throws = "OpenAI answered HTTP 404 (request setup #1): model_not_found";
+    harness.host.pump_setup();
+
+    REQUIRE(reported.size() == 1);
+    CHECK(reported[0] == std::pair<std::string, std::string>{"checking an AI key", "OpenAI answered HTTP 404 (request setup #1): model_not_found"});
+    const json* status = harness.last_of_type("setup_status");
+    REQUIRE(status != nullptr);
+    CHECK((*status)["payload"]["phase"] == "error");
+    CHECK((*status)["payload"]["provider"] == "openai");
+    CHECK((*status)["payload"]["error"]["code"] == "unexpected_error");
+    CHECK((*status)["payload"]["error"]["message"] == "Something went wrong on our side");
+    CHECK(setup->cancels == 1);
+    CHECK(setup->committed.empty());
+    CHECK(harness.host.availability() == AgentAvailability::Unavailable);
+}
+
 TEST_CASE("a rejected key reports the reason and leaves the Agent unconfigured", "[agent][setup]")
 {
     auto    setup = std::make_shared<ScriptedSetup>();
@@ -3534,24 +3881,48 @@ TEST_CASE("a rejected key reports the reason and leaves the Agent unconfigured",
     CHECK(harness.host.availability() == AgentAvailability::Unavailable);
 }
 
-TEST_CASE("a verified key that cannot be stored still connects and says so", "[agent][setup]")
+TEST_CASE("a verified key that cannot be saved ends the check in error, reported", "[agent][setup][errors]")
 {
     auto setup             = std::make_shared<ScriptedSetup>();
     setup->commit_succeeds = false;
     Harness harness(setup);
+    std::vector<std::string> reported;
+    harness.host.set_unexpected_error_handler([&reported](const std::string& doing, std::exception_ptr) { reported.push_back(doing); });
     harness.handshake();
 
     harness.deliver("setup_check_key", check_key_payload());
     setup->answer_verified();
     harness.host.pump_setup();
 
+    CHECK(reported == std::vector<std::string>{"checking an AI key"});
     const json* status = harness.last_of_type("setup_status");
     REQUIRE(status != nullptr);
-    CHECK((*status)["payload"]["phase"] == "verified");
-    // The Agent works for this session; the user is told it will not survive
-    // a restart rather than finding out at the next launch.
-    REQUIRE((*status)["payload"].contains("warning"));
-    CHECK(harness.host.availability() == AgentAvailability::Ready);
+    CHECK((*status)["payload"]["phase"] == "error");
+    CHECK((*status)["payload"]["error"]["code"] == "unexpected_error");
+    CHECK_FALSE((*status)["payload"].contains("warning"));
+    CHECK(harness.host.availability() == AgentAvailability::Unavailable);
+}
+
+TEST_CASE("a sign-in that fails unexpectedly ends in error, reported", "[agent][account][errors]")
+{
+    ScriptedSignIn cloud;
+    auto           setup = std::make_shared<ScriptedSetup>();
+    setup->cloud         = &cloud;
+    Harness harness(setup);
+    std::vector<std::string> reported;
+    harness.host.set_unexpected_error_handler([&reported](const std::string& doing, std::exception_ptr) { reported.push_back(doing); });
+    harness.handshake();
+
+    harness.deliver("account_email", json{{"email", "alex@example.com"}});
+    cloud.poll_throws = "The settings file could not be written.";
+    CHECK_NOTHROW(harness.host.pump_setup());
+
+    CHECK(reported == std::vector<std::string>{"signing in to JusPrin"});
+    const json* status = harness.last_of_type("account_status");
+    REQUIRE(status != nullptr);
+    CHECK((*status)["payload"]["phase"] == "idle");
+    CHECK((*status)["payload"]["error"]["code"] == "unexpected_error");
+    CHECK(cloud.phase() == CloudSignInPhase::Idle);
 }
 
 TEST_CASE("a provider this build cannot verify fails visibly instead of hanging", "[agent][setup]")
@@ -4184,6 +4555,38 @@ TEST_CASE("mcp_connect writes a reviewed JusPrin JSON entry", "[agent][mcp_setup
     const json written = json::parse(in);
     CHECK(written["mcpServers"]["jusprin"]["command"] == helper.u8string());
     CHECK_FALSE(written["mcpServers"]["jusprin"].contains("url"));
+}
+
+// Only the client file's own refusals, which the person can act on, are
+// shown; a failure in the app's own work goes up to be reported.
+TEST_CASE("mcp_preview shows the client file's refusal and lets other failures go up", "[agent][mcp_setup]")
+{
+    Harness harness;
+    JusPrinTest::McpDirectory directory;
+    const auto home = directory.root / "home";
+    std::filesystem::create_directories(home / ".cursor");
+    const auto cursor_config = home / ".cursor" / "mcp.json";
+    AgentHost::McpConnectSettings settings;
+    settings.home = home;
+    settings.config_home = directory.root / "config";
+    harness.host.configure_mcp_connect(settings);
+    harness.handshake();
+    SECTION("a file the person can fix")
+    {
+        { std::ofstream(cursor_config) << "[]\n"; }
+        harness.deliver("mcp_preview", json{{"toolId", "cursor"}});
+        const json* status = harness.last_of_type("mcp_status");
+        REQUIRE(status != nullptr);
+        CHECK((*status)["payload"]["error"]["code"] == "write_failed");
+    }
+    SECTION("a file the app cannot read")
+    {
+        { std::ofstream(cursor_config) << "{}\n"; }
+        std::filesystem::permissions(cursor_config, std::filesystem::perms::none);
+        CHECK_THROWS(harness.deliver("mcp_preview", json{{"toolId", "cursor"}}));
+        CHECK(harness.last_of_type("mcp_status") == nullptr);
+        std::filesystem::permissions(cursor_config, std::filesystem::perms::owner_all);
+    }
 }
 
 TEST_CASE("reveal_path resolves a tool id to the host's own config path", "[agent][mcp_setup]")
@@ -6561,7 +6964,7 @@ std::string responses_stream(const ScriptedReply& reply, const std::string& id)
                               {"name", reply.tool}, {"arguments", reply.input.dump()}});
     if (reply.fails)
         return sse(json{{"type", "response.output_text.delta"}, {"delta", reply.text}}) +
-               sse(json{{"type", "response.failed"}, {"response", json::object()}});
+               sse(json{{"type", "response.failed"}, {"response", json{{"error", json{{"code", "server_error"}, {"message", "The server had an error."}}}}}});
     return sse(json{{"type", "response.output_text.delta"}, {"delta", reply.text}}) +
            sse(json{{"type", "response.completed"},
                     {"response", json{{"output", output}, {"usage", json{{"input_tokens", 100}, {"output_tokens", 10}, {"total_tokens", 110}}}}}});
@@ -6701,6 +7104,8 @@ struct PrefixChat
     std::unique_ptr<Harness> harness;
     WireFormat               wire;
     std::vector<std::size_t> turn_starts;
+    // What the app would report: a provider's failure no person can act on.
+    std::vector<std::string> reported;
 
     explicit PrefixChat(WireFormat format, ProjectPersistence::Config config = test_persistence_config())
         : wire(std::move(format))
@@ -6709,6 +7114,7 @@ struct PrefixChat
         provider   = owner.get();
         harness    = std::make_unique<Harness>(make_provider_agent(*profile_for(wire.provider), "key", "", "", std::move(owner)),
                                             std::move(config));
+        harness->host.set_unexpected_error_handler([this](const std::string& doing, std::exception_ptr) { reported.push_back(doing); });
         harness->handshake();
     }
 
@@ -6875,12 +7281,12 @@ std::string reply_id_of_last(const Harness& harness, const std::string& type)
 } // namespace
 
 // What a request carried joins the chat's record once the provider takes it.
-// A refused request leaves nothing behind, whether the service was down or
-// would never take it (a picture too large): the person's message goes again
-// with the next turn, once.
+// A refused request leaves nothing behind, whether the service was down,
+// limiting speed, or would never take it (a picture too large): the person's
+// message goes again with the next turn, once.
 TEST_CASE("a request the provider refuses leaves nothing in the chat's record", "[agent][record]")
 {
-    const unsigned status = GENERATE(503u, 400u, 413u);
+    const unsigned status = GENERATE(429u, 413u);
     for (const WireFormat& wire : {anthropic_wire(), responses_wire()}) {
         DYNAMIC_SECTION(wire.provider << " " << status)
         {
@@ -6910,7 +7316,7 @@ TEST_CASE("a turn refused after its first request keeps only what the provider t
         {
             PrefixChat chat(wire);
             chat.person_turn("Hello.", {{"Hello."}});
-            chat.turn({chat.slice_call(), {"", {}, {}, json::object(), 400}},
+            chat.turn({chat.slice_call(), {"", {}, {}, json::object(), 429}},
                       [&] { chat.harness->send_user_message("Slice it.", "c-sliced"); });
             CHECK(chat.harness->host.conversation().back().state == MessageState::Failed);
             chat.person_turn("Thanks.", {{"You are welcome."}});
@@ -7023,7 +7429,7 @@ TEST_CASE("a managed project's chat keeps its pictures through the version store
         for (const auto& entry : fs::directory_iterator(root / chat_record_dir(id)))
             fs::remove(entry.path());
         CHECK_THROWS_WITH(chat.harness->send_user_message("Slice it.", "c-gone"),
-                          Catch::Matchers::ContainsSubstring("a picture a chat's record keeps is missing"));
+                          Catch::Matchers::ContainsSubstring("could not open"));
     }
     SECTION("the pictures go with the chat")
     {
@@ -7031,6 +7437,27 @@ TEST_CASE("a managed project's chat keeps its pictures through the version store
         chat.harness->deliver("delete_conversation", json{{"conversationId", id}});
         CHECK_FALSE(fs::exists(root / chat_record_dir(id)));
     }
+    fs::remove_all(config.managed_root);
+}
+
+// A picture the chat's record cannot keep stops the turn: the chat could
+// never send that request again, and the failure is the app's own.
+TEST_CASE("a picture the chat's record cannot keep stops the turn before anything is sent", "[agent][record][managed]")
+{
+    namespace fs = std::filesystem;
+    ProjectPersistence::Config config = test_persistence_config();
+    config.managed_root = (fs::temp_directory_path() / ("jusprin-record-" + std::to_string(std::random_device{}()))).string();
+    PrefixChat chat(anthropic_wire(), config);
+    const fs::path root = fs::u8path(chat.harness->persistence.jusprin_data_dir());
+    fs::create_directories(root);
+    std::ofstream(root / kChatRecordsDir) << "in the way";
+    chat.provider->script = {{"This is a bracket."}};
+    CHECK_THROWS([&] {
+        chat.harness->host.on_file_loaded(prusa_open());
+        chat.harness->host.pump_tools();
+        chat.harness->pump_all();
+    }());
+    CHECK(chat.provider->replies.empty());
     fs::remove_all(config.managed_root);
 }
 

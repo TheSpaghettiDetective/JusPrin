@@ -269,7 +269,7 @@ public:
     // which nothing edits while it is inactive. A missing checkpoint means
     // the chat was left with no model version to bind it to.
     std::optional<nlohmann::json> chat_checkpoint(const std::string& conversation_id) const;
-    bool save_chat_checkpoint(const std::string& conversation_id, const std::string& version_id,
+    void save_chat_checkpoint(const std::string& conversation_id, const std::string& version_id,
                               const nlohmann::json& summary, const std::string& timestamp);
     bool        needs_conversation_title(const std::string& conversation_id) const;
     bool        rename_conversation(const std::string& conversation_id, const std::string& title, bool generated = false);

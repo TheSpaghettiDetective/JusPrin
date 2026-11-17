@@ -14,6 +14,11 @@ msgstr ""
 "Plural-Forms: \n"
 
 # AI Translated
+#: src/components/SignInDoor.tsx
+msgid "“{address}” is not a complete email address. Check it, then try again."
+msgstr "“{address}” não é um endereço de e-mail completo. Confira e tente novamente."
+
+# AI Translated
 #. A photo's attribution: the title, author, link and licence are the photo's own
 #: ../HomeUI/src/components/Onboarding.tsx
 msgid "“{firstTitle}” by {author}, {firstSource}, {license}. Cropped."

@@ -63,6 +63,20 @@ std::string account_url(const ProviderProfile& profile, const std::string& endpo
 // usage activity. Fields it does not know are left alone.
 bool account_reply_readable(const nlohmann::json& account);
 
+// The account answer `status` and `body` hold, or nothing when there was none
+// to read: no answer (0), a refused sign-in (401, 403) or a release the server
+// no longer serves (426). Any other answer, one that is not
+// account_reply_readable included, is the server's fault and throws with its
+// status and body.
+std::optional<nlohmann::json> account_answer(unsigned status, const std::string& body);
+// The box HTML `status` and `body` hold, or nothing: no answer, none to show
+// (204) or a refused sign-in. Any other answer throws with its status and body.
+std::optional<std::string> account_box_answer(unsigned status, const std::string& body);
+// What is wrong when a model list answer is the service's fault (5xx, or a
+// 200 the app cannot read), to be thrown once the list is marked failed;
+// nothing for a list that read, no answer, or a refusal.
+std::optional<std::string> model_list_fault(unsigned status, const std::string& body);
+
 // One page of a provider's answer, in the provider's order (OpenAI's newest
 // first). `next_after` is set when Anthropic says there is another page.
 struct ModelListPage

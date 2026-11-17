@@ -1,4 +1,5 @@
 #include "GcodeHistoryRecorder.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 
 #include "libslic3r/PresetBundle.hpp"
 #include "slic3r/GUI/DeviceManager.hpp"
@@ -23,6 +24,7 @@
 #include "slic3r/Utils/PrintHost.hpp"
 
 #include <boost/filesystem/operations.hpp>
+#include <wx/timer.h>
 #include <wx/utils.h>
 
 #include <algorithm>
@@ -104,7 +106,7 @@ GcodeHistoryRecorder::GcodeHistoryRecorder(Plater& plater, Agent::ProjectPersist
     m_plater.Bind(print_finished(m_plater), &GcodeHistoryRecorder::on_bambu_print_finished, this);
     m_plater.Bind(send_finished(m_plater), &GcodeHistoryRecorder::on_bambu_send_finished, this);
 
-    Bind(wxEVT_TIMER, &GcodeHistoryRecorder::on_poll, this, m_poll.GetId());
+    Bind(wxEVT_TIMER, reported("recording a print sent to a printer", [this](wxTimerEvent& event) { on_poll(event); }), m_poll.GetId());
     m_poll.Start(kPollMilliseconds);
 }
 
@@ -134,10 +136,10 @@ void GcodeHistoryRecorder::hook_print_host_queue()
     // The upload queue runs on its own thread: the observer copies what it
     // needs and hands it to the GUI thread.
     m_print_host_queue->set_enqueue_observer([this](std::size_t id, const PrintHostJob& job) {
-        CallAfter([this, id, host = job.printhost->get_host(), file_name = into_u8(from_path(job.upload_data.upload_path.filename())),
+        CallAfter(reported("recording a print sent to a printer", [this, id, host = job.printhost->get_host(), file_name = into_u8(from_path(job.upload_data.upload_path.filename())),
                    start = job.upload_data.post_action == PrintHostPostUploadAction::StartPrint] {
             on_print_host_queued(id, host, file_name, start);
-        });
+        }));
     });
     m_print_host_dialog = wxGetApp().mainframe->printhost_queue_dlg();
     m_print_host_dialog->Bind(EVT_PRINTHOST_PROGRESS, &GcodeHistoryRecorder::on_print_host_progress, this);

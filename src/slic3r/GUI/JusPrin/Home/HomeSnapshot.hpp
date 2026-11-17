@@ -55,6 +55,8 @@ struct PrintReportPhoto
     std::string   name;
     std::uint64_t size_bytes{0};
     std::string   thumbnail; // a data URL; empty when the file could not be drawn
+    // Set when the server would refuse the file: the form says it and keeps no photo.
+    std::string   problem;
 };
 
 // What the person filled in on the print report form.
@@ -69,11 +71,15 @@ struct PrintReportForm
 
 struct PrintReportAnswer
 {
-    enum class State { Sent, AlreadySent, Failed };
+    // Unexpected: the answer was reported as unexpected; the form only stops waiting.
+    enum class State { Sent, AlreadySent, Failed, Unexpected };
     State       state{State::Failed};
     int         credits{0};
     // Failed: the server's words when it no longer serves this release.
     std::string update_message;
+    // Failed: the app's sentence for a refusal the person can act on; empty
+    // keeps the form's own sentence about the connection.
+    std::string message;
 };
 
 struct ProjectEntry

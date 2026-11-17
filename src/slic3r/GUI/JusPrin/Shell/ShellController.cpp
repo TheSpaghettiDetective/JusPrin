@@ -1,4 +1,5 @@
 #include "ShellController.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 
 #include "AgentPane.hpp"
 #include "AppMenus.hpp"
@@ -34,6 +35,7 @@
 #include "slic3r/GUI/BBLTopbar.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/DialogListeners.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/StoredFormat.hpp"
 #include "slic3r/GUI/MsgDialog.hpp"
 #include "slic3r/GUI/Project.hpp"
 #include "slic3r/GUI/Notebook.hpp"
@@ -60,8 +62,11 @@
 #include <functional>
 #include <utility>
 #include <map>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
+#include <string>
+#include <vector>
 
 namespace Slic3r::GUI::JusPrin {
 
@@ -301,7 +306,7 @@ private:
 
 ShellController::ShellController()
 {
-    Bind(wxEVT_TIMER, [this](wxTimerEvent&) {
+    Bind(wxEVT_TIMER, reported("saving the project and running the app's timers", [this](wxTimerEvent&) {
         if (m_autosave) {
             m_autosave->tick();
             const std::string head = m_autosave->current_version();
@@ -309,7 +314,19 @@ ShellController::ShellController()
                 m_agent_pane->web_view().host().persistence().document().doc_revision() : 0;
             if (!head.empty() && m_autosave->state() == Workspace::ProjectAutosave::State::Saved &&
                 (head != m_timeline_version_head || document_revision != m_timeline_document_revision)) {
-                if (m_agent_pane && m_agent_pane->web_view().host().checkpoint_active_chat()) {
+                // A pin that cannot be written is a failed save: the autosave
+                // keeps its error, the title says "Couldn't save" and the next
+                // tick saves again. So this checkpoint, which no one asked
+                // for, has nothing to report then. One a person asks for, by
+                // a new chat or another chat, still stops with that error.
+                bool checkpointed = false;
+                try {
+                    checkpointed = m_agent_pane && m_agent_pane->web_view().host().checkpoint_active_chat();
+                } catch (const std::runtime_error& error) {
+                    if (m_autosave->state() != Workspace::ProjectAutosave::State::Failed || m_autosave->error() != error.what())
+                        throw;
+                }
+                if (checkpointed) {
                     m_timeline_version_head = m_autosave->current_version();
                     m_timeline_document_revision = m_agent_pane->web_view().host().persistence().document().doc_revision();
                     m_agent_pane->web_view().host().refresh_page_state();
@@ -338,7 +355,7 @@ ShellController::ShellController()
         host.pump_stream();
         host.pump_tools();
         host.pump_setup();
-    }, m_runtime_timer.GetId());
+    }), m_runtime_timer.GetId());
 }
 
 ShellController::~ShellController()
@@ -449,8 +466,14 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 m_home->refresh();
         });
         auto& project_host = m_agent_pane->web_view().host();
+        // The autosave keeps why a save failed; a failure goes up with it.
         project_host.set_chat_checkpoint_callbacks(
-            [this] { return m_autosave->pin_current(); },
+            [this] {
+                const std::optional<std::string> pinned = m_autosave->pin_current();
+                if (!pinned)
+                    throw std::runtime_error(m_autosave->error());
+                return *pinned;
+            },
             [this] {
                 return m_autosave->state() == Workspace::ProjectAutosave::State::Saved
                     ? m_autosave->current_version() : std::string();
@@ -461,9 +484,13 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                     return version.id == id;
                 });
             },
-            [this] { return m_autosave->save_now(); },
+            [this] {
+                if (!m_autosave->save_now())
+                    throw std::runtime_error(m_autosave->error());
+            },
             [this](const std::string& version, const std::string& chat) {
-                return m_autosave->restore_chat(version, chat);
+                if (!m_autosave->restore_chat(version, chat))
+                    throw std::runtime_error(m_autosave->error());
             });
         project_host.checkpoint_active_chat();
         project_host.set_restore_points_provider([this] {
@@ -501,10 +528,10 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 // Hiding a wxWebView from inside its own script-message
                 // callback can stall its platform message pump. Collapse on
                 // the next native turn, after this handler has returned.
-                m_frame->CallAfter([this] {
+                m_frame->CallAfter(reported("showing the AI pane", [this] {
                     if (m_installed && !m_agent_pane_collapsed)
                         toggle_agent_pane();
-                });
+                }));
                 return true;
             }
             if (action == "open_print_history") {
@@ -514,11 +541,11 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
             if (action == "confirm_answer") {
                 // After this handler returns, as for collapsing: the answer
                 // may switch tabs and start a turn.
-                m_frame->CallAfter([this, id = payload.value("requestId", std::string()),
+                m_frame->CallAfter(reported("answering a calibration question", [this, id = payload.value("requestId", std::string()),
                                     confirmed = payload.value("confirmed", false)] {
                     if (m_installed)
                         answer_calibration(id, confirmed);
-                });
+                }));
                 return true;
             }
             if (action == "compute_setup_estimates") {
@@ -586,12 +613,15 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
             // OS: in a new project, without the question below.
             if (!boost::algorithm::iends_with(path.string(), ".3mf"))
                 return take_opened_files({path});
-            const auto found = m_autosave->projects_for_source(source);
-            if (!found) {
+            std::vector<Workspace::ProjectAutosave::SourceMatch> matches;
+            try {
+                matches = m_autosave->projects_for_source(source);
+            } catch (const Workspace::ProjectsUnreadable& error) {
                 // Whether the file was opened before cannot be told, and a
                 // project made from it could not be saved either. The open
                 // stops, the current project stays, and opening the file
                 // again works once the projects folder can be read.
+                BOOST_LOG_TRIVIAL(error) << error.what();
                 MessageDialog dialog(m_frame,
                                      _L("Your saved projects couldn't be read, so JusPrin can't check whether you've opened this "
                                         "file before. The file wasn't opened. Try again once JusPrin can read its projects folder."),
@@ -602,7 +632,6 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 dialog.ShowModal();
                 return true;
             }
-            const auto& matches = *found;
             if (matches.empty())
                 return false;
             const bool current = matches.front().current;
@@ -682,14 +711,9 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 if (!m_autosave)
                     return Coordinator::EarlierLookup{};
                 const auto found = m_autosave->projects_for_source(std::filesystem::u8path(path));
-                if (!found) {
-                    Coordinator::EarlierLookup unreadable;
-                    unreadable.unreadable = true;
-                    return unreadable;
-                }
-                if (found->empty())
+                if (found.empty())
                     return Coordinator::EarlierLookup{};
-                const auto& match = found->front();
+                const auto& match = found.front();
                 return Coordinator::EarlierLookup{Coordinator::EarlierProject{match.id, match.name, match.current, match.changed}};
             },
             [this](const std::string& id) {
@@ -744,10 +768,10 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 start_calibration(printer_name, {}, spools);
             });
         m_home->host().set_confirmation_listener([this](const std::string& id, bool confirmed) {
-            m_frame->CallAfter([this, id, confirmed] {
+            m_frame->CallAfter(reported("answering a calibration question", [this, id, confirmed] {
                 if (m_installed)
                     answer_calibration(id, confirmed);
-            });
+            }));
         });
 
         main_sizer.Detach(&tabpanel);
@@ -1124,7 +1148,7 @@ bool ShellController::handle_window_request(const nlohmann::json& payload)
     const std::string from = payload.value("from", std::string());
     // Closing it brings the main window back to the front, where the chat on
     // screen reads the account again (read_account_on_screen).
-    m_frame->CallAfter([this, page, from] { ServerSheet::open(m_frame, page, from, {}); });
+    m_frame->CallAfter(reported("opening an account page", [this, page, from] { ServerSheet::open(m_frame, page, from, {}); }));
     return true;
 }
 
@@ -1488,8 +1512,13 @@ void ShellController::open_preferences(const std::string& section, PreferencesCl
     m_preferences_open = true;
     Preferences::AfterClose after;
     {
+        // The project chat, or a printer or filament chat open over the screen.
+        const auto reply_running = [this] {
+            const Agent::AgentHost* task = m_printer_panel != nullptr ? m_printer_panel->host() : nullptr;
+            return m_agent_pane->web_view().host().busy() || (task != nullptr && task->busy());
+        };
         Preferences::PreferencesWindow window(m_frame, *m_theme, *m_workspace, m_agent_pane->web_view().host(),
-                                              Preferences::OpenRequest{section, bool(closed)});
+                                              reply_running, Preferences::OpenRequest{section, bool(closed)});
         window.ShowModal();
         after = window.after_close();
     }
@@ -1524,10 +1553,10 @@ void ShellController::request_preferences(const std::string& section, Preference
     if (m_preferences_requested)
         return;
     m_preferences_requested = true;
-    m_frame->CallAfter([this, section, closed = std::move(closed)] {
+    m_frame->CallAfter(reported("opening Preferences", [this, section, closed = std::move(closed)] {
         m_preferences_requested = false;
         open_preferences(section, closed);
-    });
+    }));
 }
 
 void ShellController::on_prepare_canvas_tab(SimpleEvent&)
@@ -1770,7 +1799,7 @@ void ShellController::open_printer_conversation(const std::string& printer_name,
 
 void ShellController::open_print_history(const std::string& focus_hash)
 {
-    m_frame->CallAfter([this, focus_hash] {
+    m_frame->CallAfter(reported("showing a chat", [this, focus_hash] {
         if (!m_installed || m_task_open || m_tabpanel->GetSelectedPageName() == TAB_ID_HOME)
             return;
         const Agent::ProjectStateDocument& document = m_persistence->document();
@@ -1781,16 +1810,16 @@ void ShellController::open_print_history(const std::string& focus_hash)
         if (!focus_hash.empty())
             m_home_screen["focus"] = focus_hash;
         m_tabpanel->SelectPageByName(TAB_ID_HOME);
-    });
+    }));
 }
 
 void ShellController::leave_print_history()
 {
-    m_frame->CallAfter([this] {
+    m_frame->CallAfter(reported("leaving Print history", [this] {
         if (!m_installed || m_history_return_tab.empty())
             return;
         m_tabpanel->SelectPageByName(std::exchange(m_history_return_tab, wxString()));
-    });
+    }));
 }
 
 Agent::ToolExecutionCoordinator::PrintDialogOutcome
@@ -1835,7 +1864,7 @@ ShellController::open_print_dialog(const Agent::ToolExecutionCoordinator::PrintD
     if (!presets.use_bbl_network() && (host == nullptr || host->value.empty()))
         return Outcome{"no_printer", "No printer connection is set up for the selected printer. The sliced file can be "
                                      "exported instead.", {}};
-    m_frame->CallAfter([this, plate = *request.plate] {
+    m_frame->CallAfter(reported("showing a plate", [this, plate = *request.plate] {
         if (!m_installed)
             return;
         // The plate can go between the call and this turn.
@@ -1847,7 +1876,7 @@ ShellController::open_print_dialog(const Agent::ToolExecutionCoordinator::PrintD
         }
         SimpleEvent print(EVT_GLTOOLBAR_PRINT_PLATE);
         m_plater->GetEventHandler()->ProcessEvent(print);
-    });
+    }));
     return Outcome{{}, {}, dialog};
 }
 
@@ -1864,7 +1893,7 @@ std::vector<std::pair<std::string, std::vector<Agent::GcodeRecord>>> ShellContro
 
 void ShellController::print_again(const std::string& project_id, const std::string& hash)
 {
-    m_frame->CallAfter([this, project_id, hash] {
+    m_frame->CallAfter(reported("restoring a chat's project", [this, project_id, hash] {
         if (!m_installed)
             return;
         // The page drew its button from a state that can move before the
@@ -1881,12 +1910,12 @@ void ShellController::print_again(const std::string& project_id, const std::stri
             return;
         }
         m_gcode_history->print_again(project_id, hash);
-    });
+    }));
 }
 
 void ShellController::open_in_chat(const std::string& project_id, const std::string& conversation_id, const std::string& item_id)
 {
-    m_frame->CallAfter([this, project_id, conversation_id, item_id] {
+    m_frame->CallAfter(reported("showing a chat", [this, project_id, conversation_id, item_id] {
         if (!m_installed)
             return;
         const Agent::ProjectStateDocument& document = m_persistence->document();
@@ -1905,7 +1934,7 @@ void ShellController::open_in_chat(const std::string& project_id, const std::str
             MessageDialog(m_frame, _L("The chat this G-code went out from is no longer in the project."), _L("Chat not found"),
                           wxOK | wxICON_INFORMATION)
                 .ShowModal();
-    });
+    }));
 }
 
 void ShellController::open_filament_help(std::size_t slot, const std::string& preset, const std::string& shown)
@@ -2127,13 +2156,13 @@ void detach_shell()
     // the uninstall destroys whatever would own one.
     if (shell_slot() != nullptr && wxGetApp().is_adding_script_handler()) {
         auto* retry = new wxTimer();
-        retry->Bind(wxEVT_TIMER, [retry](wxTimerEvent&) {
+        retry->Bind(wxEVT_TIMER, reported("switching to the classic view", [retry](wxTimerEvent&) {
             // A frame destroyed meanwhile has left the shell uninstalled.
             if (shell_slot() != nullptr && shell_slot()->is_installed())
                 detach_shell();
             // Last: this handler goes with the timer.
             delete retry;
-        });
+        }));
         retry->StartOnce(kDetachRetryMs);
         return;
     }

@@ -4,6 +4,9 @@
 #include <array>
 #include <cctype>
 #include <cstdlib>
+#include <optional>
+#include <stdexcept>
+#include <string>
 
 namespace Slic3r::GUI::JusPrin::Agent {
 
@@ -169,6 +172,33 @@ bool account_reply_readable(const json& account)
                is_a(lot, "granted", &json::is_number) &&
                (expires == lot.end() || expires->is_null() || expires->is_string());
     });
+}
+
+std::optional<json> account_answer(unsigned status, const std::string& body)
+{
+    if (status == 0 || status == 401 || status == 403 || status == 426)
+        return std::nullopt;
+    json account = json::parse(body, nullptr, false);
+    if (status != 200 || !account_reply_readable(account))
+        throw std::runtime_error("The account answered HTTP " + std::to_string(status) + ": " + body);
+    return account;
+}
+
+std::optional<std::string> account_box_answer(unsigned status, const std::string& body)
+{
+    if (status == 0 || status == 204 || status == 401 || status == 403)
+        return std::nullopt;
+    if (status != 200 || body.empty())
+        throw std::runtime_error("The account box answered HTTP " + std::to_string(status) + ": " + body);
+    return body;
+}
+
+std::optional<std::string> model_list_fault(unsigned status, const std::string& body)
+{
+    const json response = json::parse(body, nullptr, false);
+    if (status >= 500 || (status == 200 && (!response.is_object() || !response.contains("data"))))
+        return "The model list answered HTTP " + std::to_string(status) + ": " + body;
+    return std::nullopt;
 }
 
 ModelListPage parse_model_list(const ProviderProfile& profile, const json& response)

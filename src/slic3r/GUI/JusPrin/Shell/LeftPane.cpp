@@ -1,4 +1,5 @@
 #include "LeftPane.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 #include "SetupCommands.hpp"
 
 #include "slic3r/GUI/GUI_App.hpp"
@@ -491,7 +492,7 @@ void LeftPane::show_filament_choices(ObjectId object)
 {
     // The popup that ran this row is closing; the choices open in a new one
     // on the next turn, anchored to the same row.
-    CallAfter([this, object] {
+    CallAfter(reported("showing an object", [this, object] {
         const auto row = std::find_if(m_rows.begin(), m_rows.end(), [object](const PaneRow& candidate) {
             return candidate.kind == PaneRow::Kind::Object && candidate.object == object;
         });
@@ -511,12 +512,12 @@ void LeftPane::show_filament_choices(ObjectId object)
             items.push_back(std::move(item));
         }
         open_menu(static_cast<std::size_t>(row - m_rows.begin()), std::move(items));
-    });
+    }));
 }
 
 void LeftPane::show_split_choices(ObjectId object)
 {
-    CallAfter([this, object] {
+    CallAfter(reported("showing an object", [this, object] {
         const auto row = std::find_if(m_rows.begin(), m_rows.end(), [object](const PaneRow& candidate) {
             return candidate.kind == PaneRow::Kind::Object && candidate.object == object;
         });
@@ -535,7 +536,7 @@ void LeftPane::show_split_choices(ObjectId object)
         if (std::find(actions.begin(), actions.end(), ObjectAction::SplitToParts) != actions.end())
             add(ObjectAction::SplitToParts, _L("To parts"));
         open_menu(static_cast<std::size_t>(row - m_rows.begin()), std::move(items));
-    });
+    }));
 }
 
 std::vector<std::size_t> LeftPane::action_hits() const

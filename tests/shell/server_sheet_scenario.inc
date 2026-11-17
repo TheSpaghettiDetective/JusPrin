@@ -427,3 +427,165 @@ document.getElementById('ok').onclick = function () { window.opener.postMessage(
                        self->finish();
                    });
     }
+
+// --delete-account-waits: Delete account in Preferences waits while a reply
+// runs in a printer chat, as it does while one runs in the project chat: the
+// reply would be left holding the deleted account's sign-in. A stand-in
+// server on a loopback port counts the deletions it is asked for; the account
+// and its token exist nowhere else. Once the reply ends, Delete account goes
+// through, so the wait is the reply's and not the setup's.
+
+    class StandInAccountServer
+    {
+    public:
+        StandInAccountServer() : m_acceptor(m_io, boost::asio::ip::tcp::endpoint(boost::asio::ip::address_v4::loopback(), 0))
+        {
+            m_thread = std::thread([this] { serve(); });
+        }
+        ~StandInAccountServer()
+        {
+            m_stopping = true;
+            boost::system::error_code    ignored;
+            boost::asio::ip::tcp::socket wake(m_io);
+            wake.connect(m_acceptor.local_endpoint(), ignored);
+            m_thread.join();
+        }
+        std::string address() const { return "http://127.0.0.1:" + std::to_string(m_acceptor.local_endpoint().port()); }
+        int         deletions() const { return m_deletions; }
+
+    private:
+        void serve()
+        {
+            for (;;) {
+                boost::system::error_code    error;
+                boost::asio::ip::tcp::socket socket(m_io);
+                m_acceptor.accept(socket, error);
+                if (m_stopping || error)
+                    return;
+                boost::asio::streambuf request;
+                const size_t           head = boost::asio::read_until(socket, request, "\r\n\r\n", error);
+                const std::string      line(boost::asio::buffers_begin(request.data()),
+                                            boost::asio::buffers_begin(request.data()) + head);
+                const bool             deletion = line.rfind("DELETE /ent/jusprin/v2/account ", 0) == 0;
+                if (deletion)
+                    ++m_deletions;
+                // Everything else the app asks this account for is not here.
+                const std::string reply = std::string("HTTP/1.1 ") + (deletion ? "204 No Content" : "404 Not Found") +
+                                          "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+                boost::asio::write(socket, boost::asio::buffer(reply), error);
+                socket.close(error);
+            }
+        }
+
+        boost::asio::io_context        m_io;
+        boost::asio::ip::tcp::acceptor m_acceptor;
+        std::atomic<bool>              m_stopping{false};
+        std::atomic<int>               m_deletions{0};
+        std::thread                    m_thread;
+    };
+
+    // A model whose reply runs until `finish` is set.
+    class EndlessReplyAgent final : public Agent::IAgentService
+    {
+    public:
+        explicit EndlessReplyAgent(std::shared_ptr<bool> finish) : m_finish(std::move(finish)) {}
+        bool ready() const override { return true; }
+        bool busy() const override { return m_active; }
+        bool start(const Agent::AgentRequest&) override { return m_active = true; }
+        bool continue_after_tool(const Agent::AgentToolResult&) override { return true; }
+        void cancel() override { m_active = false; }
+        std::optional<Agent::AgentEvent> poll() override
+        {
+            if (!m_active || !*m_finish)
+                return std::nullopt;
+            m_active = false;
+            return Agent::AgentEvent::completed();
+        }
+
+    private:
+        std::shared_ptr<bool> m_finish;
+        bool                  m_active{false};
+    };
+
+    // Presses Delete account in Preferences, as the page's confirmation does,
+    // and closes the window once the server has had time to be asked.
+    void delete_account_from_preferences(const std::string& name)
+    {
+        using namespace std::chrono_literals;
+        auto sent = std::make_shared<std::optional<std::chrono::steady_clock::time_point>>();
+        m_modal_gate = [sent, name](wxDialog& dialog) {
+            auto* window = dynamic_cast<Preferences::PreferencesWindow*>(&dialog);
+            if (window == nullptr)
+                return true;
+            if (!window->page_connected())
+                return false;
+            if (!*sent) {
+                window->web_view().host().on_page_message(nlohmann::json{{"protocol", Agent::Protocol::kName},
+                                                                          {"version", Agent::Protocol::kVersion},
+                                                                          {"id", name},
+                                                                          {"type", Agent::Protocol::kDeleteAccount},
+                                                                          {"payload", nlohmann::json::object()}}
+                                                               .dump());
+                *sent = std::chrono::steady_clock::now();
+            }
+            return std::chrono::steady_clock::now() > **sent + 3s;
+        };
+        m_modals_before = m_modals_answered;
+        answer_modals(wxID_CANCEL);
+        installed_shell()->request_preferences("account");
+        const bool closed = wait_for([sent] {
+            if (!*sent)
+                return false;
+            for (wxWindow* window : wxTopLevelWindows)
+                if (dynamic_cast<Preferences::PreferencesWindow*>(window) != nullptr)
+                    return false;
+            return true;
+        }, 60s);
+        stop_answering_modals();
+        check(closed, name + "_preferences_closed");
+    }
+
+    void verify_delete_account_waits()
+    {
+        using namespace std::chrono_literals;
+        auto server = std::make_shared<StandInAccountServer>();
+        wxSetEnv("JUSPRIN_SERVER_URL", wxString::FromUTF8(server->address()));
+
+        PrinterSetup::PrinterPanel* panel = installed_shell()->printer_panel();
+        panel->open(PrinterSetup::ConversationMode::Add);
+        const bool loaded = wait_for([panel] {
+            return panel->host() != nullptr && panel->host()->handshake_complete() && panel->instructions_ready();
+        }, 60s);
+        check(loaded, "delete_account_waits_printer_chat_loaded");
+        if (!loaded)
+            return finish();
+        Agent::AgentHost* host   = panel->host();
+        auto              finish_reply = std::make_shared<bool>(false);
+        host->set_agent(std::make_unique<EndlessReplyAgent>(finish_reply), Agent::AgentAvailability::Ready);
+        host->on_page_message(nlohmann::json{{"protocol", Agent::Protocol::kName},
+                                             {"version", Agent::Protocol::kVersion},
+                                             {"id", "delete-account-waits"},
+                                             {"type", "user_message"},
+                                             {"payload", {{"clientMessageId", "delete-account-waits-c"}, {"text", "Add my printer"}}}}
+                                  .dump());
+        check(wait_for([host] { return host->busy(); }, 20s), "delete_account_waits_printer_reply_running");
+        // Signed in only now: a chat signed in before its turn would build its
+        // model from the account instead of the stand-in above.
+        AppConfig* config = wxGetApp().app_config;
+        config->set("jusprin_agent", "jusprin_api_key", std::string("delete-account-waits-token"));
+        config->set("jusprin_agent", "jusprin_account", std::string("delete-account-waits@example.com"));
+        config->set("jusprin_agent", "provider", std::string("jusprin"));
+        config->set("jusprin_agent", "enabled", std::string("true"));
+        config->set("jusprin_agent", "cloud_consent", std::string("true"));
+
+        delete_account_from_preferences("delete_account_during_printer_reply");
+        std::cout << "HARNESS DELETE ACCOUNT during printer reply: deletions=" << server->deletions() << std::endl;
+        check(server->deletions() == 0, "delete_account_waits_for_the_printer_chat_reply");
+
+        *finish_reply = true;
+        check(wait_for([host] { return !host->busy(); }, 20s), "delete_account_waits_printer_reply_ended");
+        delete_account_from_preferences("delete_account_after_printer_reply");
+        std::cout << "HARNESS DELETE ACCOUNT after printer reply: deletions=" << server->deletions() << std::endl;
+        check(server->deletions() == 1, "delete_account_goes_through_once_the_reply_ends");
+        finish();
+    }

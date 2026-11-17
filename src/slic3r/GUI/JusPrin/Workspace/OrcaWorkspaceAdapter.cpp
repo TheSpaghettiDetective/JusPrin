@@ -1,4 +1,5 @@
 #include "OrcaWorkspaceAdapter.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 #include "SliceBounds.hpp"
 #include "SliceRequests.hpp"
 #include "PlaterProjectState.hpp"
@@ -58,6 +59,7 @@
 #include <cmath>
 #include <iterator>
 #include <limits>
+#include <memory>
 #include <set>
 
 namespace Slic3r::GUI::JusPrin::Workspace {
@@ -532,8 +534,10 @@ OrcaWorkspaceAdapter::OrcaWorkspaceAdapter(Plater& plater) : m_plater(plater)
 {
     wxASSERT(wxIsMainThread());
     m_session = ProjectSessionId(m_plater.project_state_session());
-    m_project_subscription = m_plater.subscribe_project_state(
-        [this](const ProjectStateChanged& change) { on_project_state_changed(change); });
+    // OrcaSlicer calls this inside its own operation, often from a
+    // transaction's destructor, so it is an entry point of JusPrin's own.
+    m_project_subscription = m_plater.subscribe_project_state(reported(
+        "following a change to the project", [this](const ProjectStateChanged& change) { on_project_state_changed(change); }));
     // Slicing changes what a plate holds without changing the project, so it
     // raises no ProjectStateChanged and consumers would keep reporting the
     // plate unsliced until something unrelated moved. The header already
@@ -784,10 +788,10 @@ void OrcaWorkspaceAdapter::schedule_load_report()
     if (m_tool_loads != 0 || m_report_scheduled || m_finished_loads.empty())
         return;
     m_report_scheduled = true;
-    wxGetApp().CallAfter([this, alive = std::weak_ptr<bool>(m_alive)] {
+    wxGetApp().CallAfter(reported("reporting an opened file", [this, alive = std::weak_ptr<bool>(m_alive)] {
         if (alive.lock())
             deliver_load_report();
-    });
+    }));
 }
 
 LoadReport OrcaWorkspaceAdapter::take_load_report(bool started_by_agent)
@@ -2621,8 +2625,10 @@ CommandResult OrcaWorkspaceAdapter::open_project(const ProjectOpenRequest& reque
     add_outside_messages(report, outside.take_messages());
     if (!released)
         return CommandResult::failure(WorkspaceError::Failed, "The open project could not be saved, so it stays open");
+    // OrcaSlicer's load answers a file it will not read with its own message,
+    // which the report carries; the file is the person's, so it is refused.
     if (!loaded)
-        return CommandResult::failure(WorkspaceError::Failed, "The app did not open that file");
+        return CommandResult::failure(WorkspaceError::Refused, "The app did not open that file");
     return CommandResult::success();
 }
 
@@ -2796,8 +2802,9 @@ CommandResult OrcaWorkspaceAdapter::import_objects(const ImportRequest& request,
     }
     report = take_load_report(/*started_by_agent=*/true);
     add_outside_messages(report, outside.take_messages());
+    // As in open_project: a file OrcaSlicer will not read is refused.
     if (indices.empty())
-        return CommandResult::failure(WorkspaceError::Failed, "The app did not import that file");
+        return CommandResult::failure(WorkspaceError::Refused, "The app did not import that file");
     for (size_t index : indices) {
         const ObjectId id(m_session, m_plater.model().objects[index]->id().id);
         m_known_object_ids.insert(id.value());

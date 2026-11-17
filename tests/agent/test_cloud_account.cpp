@@ -3,6 +3,11 @@
 // stored state, and what the gateway is sent on every request.
 
 #include <catch2/catch_all.hpp>
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers.hpp>
+#include <catch2/matchers/catch_matchers_string.hpp>
+#include <catch2/generators/catch_generators.hpp>
+#include <catch2/catch_message.hpp>
 
 #include "kept_turn.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentSetup.hpp"
@@ -17,6 +22,9 @@
 #include <map>
 #include <memory>
 #include <set>
+#include <stdexcept>
+#include <string>
+#include <utility>
 #include <vector>
 
 using namespace Slic3r::GUI::JusPrin::Agent;
@@ -135,9 +143,9 @@ struct Fixture
         CloudAccountStore store;
         store.load = [this] { return stored; };
         store.save = [this](const CloudAccountRecord& record) {
-            if (save_succeeds)
-                stored = record;
-            return save_succeeds;
+            if (!save_succeeds)
+                throw std::runtime_error("The settings file could not be written.");
+            stored = record;
         };
         store.erase = [this] {
             ++erases;
@@ -216,6 +224,21 @@ TEST_CASE("a sign-in whose browser step cannot start fails and stays idle", "[ag
     CHECK(f.sign_in->phase() == CloudSignInPhase::Idle);
 }
 
+TEST_CASE("a sign-in that cannot be saved stops there, with sign-in idle again", "[agent][account][errors]")
+{
+    Fixture f;
+    f.save_succeeds = false;
+    REQUIRE(f.sign_in->start(CloudBrowserStart::Google));
+    f.browser_returns("tok-1");
+    f.machine.answer(kWho, 200, me_body("alex@example.com"));
+    CHECK_FALSE(f.sign_in->poll().has_value());
+    f.machine.answer(kModels, 200, models_body({{"slicer-1", "anthropic"}}));
+
+    CHECK_THROWS_WITH(f.sign_in->poll(), Catch::Matchers::ContainsSubstring("could not be written"));
+    CHECK(f.sign_in->phase() == CloudSignInPhase::Idle);
+    CHECK_FALSE(f.stored.has_value());
+}
+
 TEST_CASE("a token the browser brings back is checked, stored and handed over as an agent", "[agent][account]")
 {
     Fixture f;
@@ -232,7 +255,6 @@ TEST_CASE("a token the browser brings back is checked, stored and handed over as
     REQUIRE(outcome.has_value());
     CHECK(outcome->kind == CloudSignInOutcome::Kind::SignedIn);
     CHECK(outcome->email == "alex@example.com");
-    CHECK(outcome->saved);
     CHECK(outcome->service != nullptr);
     CHECK(f.sign_in->phase() == CloudSignInPhase::Idle);
     REQUIRE(f.stored.has_value());
@@ -315,6 +337,31 @@ TEST_CASE("a server that cannot be reached leaves the account as it was", "[agen
     CHECK(outcome->kind == CloudSignInOutcome::Kind::Failed);
     CHECK(outcome->error.code == "account_unreachable");
     CHECK_FALSE(f.stored.has_value());
+}
+
+TEST_CASE("an account check the server answers with a fault is unexpected, not unreachable", "[agent][account][errors]")
+{
+    Fixture f;
+    REQUIRE(f.sign_in->start(CloudBrowserStart::Google));
+    f.browser_returns("tok-1");
+    const auto [who, models] = GENERATE(std::make_pair(500u, 200u), std::make_pair(200u, 502u));
+    CAPTURE(who, models);
+    f.machine.answer(kWho, who, who == 200 ? me_body("alex@example.com") : "<html>who</html>");
+    f.machine.answer(kModels, models, models == 200 ? models_body({{"slicer-1", "anthropic"}}) : "<html>models</html>");
+    CHECK_THROWS_WITH(f.sign_in->poll(), ContainsSubstring("HTTP 50"));
+    CHECK(f.sign_in->phase() == CloudSignInPhase::Idle);
+    CHECK_FALSE(f.stored.has_value());
+}
+
+TEST_CASE("an account check whose answer will not read is unexpected", "[agent][account][errors]")
+{
+    Fixture f;
+    REQUIRE(f.sign_in->start(CloudBrowserStart::Google));
+    f.browser_returns("tok-1");
+    f.machine.answer(kWho, 200, me_body("alex@example.com"));
+    f.machine.answer(kModels, 200, "{\"models\": []}");
+    CHECK_THROWS_WITH(f.sign_in->poll(), ContainsSubstring("{\"models\": []}"));
+    CHECK(f.sign_in->phase() == CloudSignInPhase::Idle);
 }
 
 TEST_CASE("a stored sign-in the server refuses is reported expired and kept", "[agent][account]")
@@ -826,35 +873,81 @@ TEST_CASE("every gateway reply carries its chat's title, percent-encoded, for Bi
     CHECK(title_header("", "Orphan").empty());
 }
 
-TEST_CASE("the gateway's refusals read as the account's, not a key's", "[agent][account]")
+TEST_CASE("the gateway's answers a person can act on are read by their code, and every other is thrown", "[agent][account][errors]")
 {
-    const auto failure = [](unsigned status) {
+    const auto gateway = [](const std::string& code) {
+        return json{{"type", "error"}, {"error", {{"code", code}, {"message", "The gateway's own words."}}}}.dump();
+    };
+    // Before the reply: the gateway's answer, as the transport delivers it.
+    const auto answer = [](unsigned status, const std::string& body) {
         std::vector<AgentHttpRequest>             requests;
         std::vector<IAgentHttpTransport::EventFn> callbacks;
-        AgentServicePtr                           agent = account_agent(kFormatAnthropic, requests, callbacks);
+        AgentServicePtr                           agent = account_agent(kFormatResponses, requests, callbacks);
         AgentRequest                              request;
         JusPrinTest::kept_nowhere(request);
-        request.request_id   = "turn";
-        request.user_text    = "hello";
+        request.request_id = "turn-9";
+        request.user_text  = "hello";
         REQUIRE(agent->start(request));
-        callbacks.back()(AgentHttpEvent{AgentHttpEvent::Kind::Error, {}, "HTTP error", status});
+        callbacks.back()(AgentHttpEvent{AgentHttpEvent::Kind::Error, body, "HTTP error", status});
         std::optional<AgentEvent> event = drain(*agent);
         REQUIRE(event.has_value());
         REQUIRE(event->error.has_value());
         return *event->error;
     };
-    const AgentError expired = failure(401);
-    CHECK(expired.code == "invalid_credentials");
-    CHECK_THAT(expired.message, ContainsSubstring("sign-in has ended"));
-    CHECK_FALSE(expired.retryable);
-    // A refusal for payment without the gateway's own code is the same want
-    // of credits: the Get more credits button goes with its code.
-    const AgentError quota = failure(402);
-    CHECK(quota.code == "credits_exhausted");
-    CHECK(quota.message == "You're out of credits.");
-    CHECK_FALSE(quota.retryable);
-    // Upstream trouble the gateway reports as its own is the service's.
-    CHECK(failure(502).code == "service_unavailable");
+    CHECK(answer(429, gateway("rate_limited")).code == "rate_limited");
+    CHECK(answer(413, gateway("request_too_large")).code == "request_too_large");
+    // Anything else names nothing the person can act on, the gateway's own
+    // failure included, and a 402 without the numbers the gateway always sends.
+    for (const char* code : {"server_error", "busy", "unavailable", "timeout", "invalid_request"})
+        CHECK_THROWS_WITH(answer(503, gateway(code)), ContainsSubstring("HTTP 503") && ContainsSubstring(code) && ContainsSubstring("turn-9"));
+    CHECK_THROWS_WITH(answer(402, gateway("credits_exhausted")), ContainsSubstring("HTTP 402"));
+    CHECK_THROWS_WITH(answer(502, "<html>Bad gateway</html>"), ContainsSubstring("HTTP 502") && ContainsSubstring("Bad gateway"));
+
+    // Partway through a reply, in either format: always thrown.
+    for (const char* format : {kFormatAnthropic, kFormatResponses}) {
+        DYNAMIC_SECTION("format " << format)
+        {
+            const auto event = [format](const std::string& code) {
+                std::vector<AgentHttpRequest>             requests;
+                std::vector<IAgentHttpTransport::EventFn> callbacks;
+                AgentServicePtr                           agent = account_agent(format, requests, callbacks);
+                AgentRequest                              request;
+                JusPrinTest::kept_nowhere(request);
+                request.request_id = "turn-9";
+                request.user_text  = "hello";
+                REQUIRE(agent->start(request));
+                const json data = std::string(format) == kFormatAnthropic ?
+                                      json{{"type", "error"}, {"error", {{"type", "api_error"}, {"code", code}, {"message", "words"}}}} :
+                                      json{{"type", "error"}, {"code", code}, {"message", "words"}};
+                callbacks.back()(AgentHttpEvent{AgentHttpEvent::Kind::Data, "event: error\ndata: " + data.dump() + "\n\n", {}, 200});
+                std::optional<AgentEvent> last = drain(*agent);
+                REQUIRE(last.has_value());
+                REQUIRE(last->error.has_value());
+                return *last->error;
+            };
+            CHECK_THROWS_WITH(event("rate_limited"), ContainsSubstring("rate_limited") && ContainsSubstring("turn-9"));
+        }
+    }
+}
+
+TEST_CASE("the gateway's refusals read as the account's, not a key's", "[agent][account]")
+{
+    std::vector<AgentHttpRequest>             requests;
+    std::vector<IAgentHttpTransport::EventFn> callbacks;
+    AgentServicePtr                           agent = account_agent(kFormatAnthropic, requests, callbacks);
+    AgentRequest                              request;
+    JusPrinTest::kept_nowhere(request);
+    request.request_id = "turn";
+    request.user_text  = "hello";
+    REQUIRE(agent->start(request));
+    const std::string signed_out = json{{"type", "error"}, {"error", {{"code", "unauthorized"}, {"message", "words"}}}}.dump();
+    callbacks.back()(AgentHttpEvent{AgentHttpEvent::Kind::Error, signed_out, "HTTP error", 401});
+    std::optional<AgentEvent> event = drain(*agent);
+    REQUIRE(event.has_value());
+    REQUIRE(event->error.has_value());
+    CHECK(event->error->code == "invalid_credentials");
+    CHECK_THAT(event->error->message, ContainsSubstring("sign-in has ended"));
+    CHECK_FALSE(event->error->retryable);
 }
 
 namespace {
@@ -991,6 +1084,24 @@ TEST_CASE("too many codes for an address is said where the code was asked for", 
     CHECK(f.sign_in->email_step()->refusal == "too_many_codes");
 }
 
+TEST_CASE("an address the server says is not complete is said where the code was asked for", "[agent][account][email]")
+{
+    Fixture f;
+    REQUIRE(f.sign_in->start_email("alex@gmail"));
+    REQUIRE(f.sign_in->send_code());
+    // What allauth's code request answers for an address its EmailField
+    // refuses, such as one with no dot after the @.
+    f.machine.answer_post(kAuth + "code/request", 400,
+                          json{{"status", 400},
+                               {"errors", {{{"message", "Enter a valid email address."}, {"code", "invalid"}, {"param", "email"}}}}}
+                              .dump());
+    CHECK_FALSE(f.sign_in->poll().has_value());
+    CHECK(f.sign_in->phase() == CloudSignInPhase::Email);
+    CHECK(f.sign_in->email_step()->step == CloudEmailStep::Step::Choose);
+    CHECK(f.sign_in->email_step()->email == "alex@gmail");
+    CHECK(f.sign_in->email_step()->refusal == "incomplete_address");
+}
+
 TEST_CASE("a new code refused for too many leaves the pending code working", "[agent][account][email]")
 {
     Fixture f;
@@ -1052,14 +1163,26 @@ TEST_CASE("a refusal the person cannot act on ends the email sign-in with one ge
     REQUIRE(f.sign_in->submit_code("418203"));
     const auto [status, body] =
         GENERATE(std::make_pair(400u, refusal("account_inactive")), std::make_pair(401u, json{{"status", 401}}.dump()),
-                 std::make_pair(500u, std::string("<html>")), std::make_pair(0u, std::string()),
-                 std::make_pair(200u, std::string("{}")));
+                 std::make_pair(0u, std::string()));
     CAPTURE(status, body);
     f.machine.answer_post(kAuth + "code/confirm", status, body);
     const std::optional<CloudSignInOutcome> outcome = f.sign_in->poll();
     REQUIRE(outcome.has_value());
     CHECK(outcome->kind == CloudSignInOutcome::Kind::Failed);
     CHECK(outcome->error.code == "sign_in_failed");
+    CHECK(f.sign_in->phase() == CloudSignInPhase::Idle);
+    CHECK_FALSE(f.stored.has_value());
+}
+
+TEST_CASE("a sign-in answer from the server's own fault is unexpected, with its status and body", "[agent][account][email][errors]")
+{
+    Fixture f;
+    code_sent(f);
+    REQUIRE(f.sign_in->submit_code("418203"));
+    const auto [status, body] = GENERATE(std::make_pair(500u, std::string("<html>")), std::make_pair(200u, std::string("{}")));
+    CAPTURE(status, body);
+    f.machine.answer_post(kAuth + "code/confirm", status, body);
+    CHECK_THROWS_WITH(f.sign_in->poll(), ContainsSubstring(std::to_string(status)) && ContainsSubstring(body));
     CHECK(f.sign_in->phase() == CloudSignInPhase::Idle);
     CHECK_FALSE(f.stored.has_value());
 }

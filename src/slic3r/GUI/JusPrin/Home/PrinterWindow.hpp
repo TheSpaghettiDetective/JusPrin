@@ -15,6 +15,7 @@
 
 #include "PopOutWindow.hpp"
 
+#include <wx/string.h>
 #include <wx/timer.h>
 
 #include <string>
@@ -46,6 +47,8 @@ public:
     PrinterWebView* view() const { return m_view; }
     // Whether the window says the page did not load, in place of the page.
     bool problem_shown() const;
+    // What the window says about the page, while it says it.
+    wxString problem_text() const;
 
     // The page `config` names for its print host, as Orca's Device tab
     // computes it; empty when the profile has no print host.
@@ -55,7 +58,9 @@ private:
     void load();
     void on_loaded(wxWebViewEvent& event);
     void on_error(wxWebViewEvent& event);
-    void show_problem();
+    // `secure_connection`: the printer answered, but its secure connection
+    // could not be checked; otherwise nothing answered.
+    void show_problem(bool secure_connection);
     void hide_problem();
     void apply_appearance();
 

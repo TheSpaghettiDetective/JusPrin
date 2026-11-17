@@ -1,6 +1,7 @@
 // First: slic3r/GUI/I18N.hpp defines _L only while the _ macro is still
 // undefined, so it has to precede any header that brings one in.
 #include "slic3r/GUI/I18N.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 
 #include "AboutWindow.hpp"
 
@@ -96,12 +97,12 @@ public:
         const wxSize lockup = m_lockup.GetLogicalSize();
         SetMinSize(wxSize(std::max(lockup.x, m_box.GetRight() + 1), std::max(lockup.y, m_box.GetBottom() + 1)));
         Bind(wxEVT_PAINT, &AnimatedLockup::on_paint, this);
-        Bind(wxEVT_TIMER, [this](wxTimerEvent&) {
+        Bind(wxEVT_TIMER, reported("showing the About window", [this](wxTimerEvent&) {
             ++m_current;
             Refresh(false);
             if (m_current + 1 < m_frames.size())
                 m_timer.StartOnce(m_frames[m_current].second);
-        });
+        }));
         if (m_current + 1 < m_frames.size())
             m_timer.StartOnce(m_frames[m_current].second);
     }
@@ -174,7 +175,7 @@ AboutWindow::AboutWindow(wxWindow* parent, const ShellTheme& theme)
         else
             event.Skip();
     });
-    Bind(wxEVT_TIMER, [this](wxTimerEvent&) { show_copy_label(false); }, m_copied.GetId());
+    Bind(wxEVT_TIMER, reported("showing the About window", [this](wxTimerEvent&) { show_copy_label(false); }), m_copied.GetId());
 
     CentreOnParent();
     wxGetApp().UpdateDlgDarkUI(this);

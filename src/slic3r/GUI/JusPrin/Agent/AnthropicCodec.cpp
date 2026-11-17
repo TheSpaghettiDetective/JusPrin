@@ -331,15 +331,17 @@ void AnthropicCodec::reset()
 std::vector<StreamEvent> AnthropicCodec::parse(const std::string& payload)
 {
     std::vector<StreamEvent> events;
-    const auto               failed = [&events](AgentError error) {
+    // Never an error a person can act on: the loop stops the turn with what
+    // the service sent.
+    const auto               failed = [&events](std::string text) {
         StreamEvent event;
-        event.kind  = StreamEvent::Kind::Failed;
-        event.error = std::move(error);
+        event.kind = StreamEvent::Kind::ServiceError;
+        event.text = std::move(text);
         events.push_back(std::move(event));
     };
     const json event = json::parse(payload, nullptr, false);
     if (!event.is_object()) {
-        failed({"malformed_response", translated(L("The AI service returned an unreadable streaming response.")), false});
+        failed("sent an event that is not JSON: " + payload);
         return events;
     }
     const std::string type = event.value("type", "");
@@ -358,7 +360,7 @@ std::vector<StreamEvent> AnthropicCodec::parse(const std::string& payload)
     } else if (type == "content_block_delta") {
         const auto found = m_blocks.find(event.value("index", 0));
         if (found == m_blocks.end()) {
-            failed({"malformed_response", translated(L("The AI service streamed a delta for a block it never opened.")), false});
+            failed("sent a delta for a block it never opened: " + payload);
             return events;
         }
         Block&            block = found->second;
@@ -389,7 +391,7 @@ std::vector<StreamEvent> AnthropicCodec::parse(const std::string& payload)
             const std::string& text  = found->second.partial_json;
             const json         input = json::parse(text.empty() ? "{}" : text, nullptr, false);
             if (input.is_discarded()) {
-                failed({"malformed_response", translated(L("The AI service sent a tool call whose arguments are not JSON.")), false});
+                failed("sent tool call arguments that are not JSON: " + text);
                 return events;
             }
             found->second.content["input"] = input;
@@ -407,7 +409,7 @@ std::vector<StreamEvent> AnthropicCodec::parse(const std::string& payload)
     } else if (type == "message_stop") {
         events.push_back(finish());
     } else if (type == "error") {
-        failed({"agent_service_error", translated(L("The AI service could not complete the response.")), true});
+        failed("sent the event " + payload);
     }
     return events;
 }
@@ -415,10 +417,6 @@ std::vector<StreamEvent> AnthropicCodec::parse(const std::string& payload)
 StreamEvent AnthropicCodec::finish()
 {
     StreamEvent event;
-    if (m_stop_reason == "max_tokens" || m_stop_reason == "model_context_window_exceeded") {
-        event.kind = StreamEvent::Kind::Incomplete;
-        return event;
-    }
     if (m_stop_reason == "refusal") {
         event.kind = StreamEvent::Kind::Failed;
         std::string category = m_stop_details.is_object() && m_stop_details.value("category", json()).is_string() ?
@@ -429,8 +427,9 @@ StreamEvent AnthropicCodec::finish()
     }
     if (m_stop_reason != "end_turn" && m_stop_reason != "tool_use" && m_stop_reason != "stop_sequence" &&
         m_stop_reason != "pause_turn") {
-        event.kind  = StreamEvent::Kind::Failed;
-        event.error = {"malformed_response", translated(L("The AI service ended its response for a reason this build does not know.")), false};
+        // The loop stops the turn with it.
+        event.kind = StreamEvent::Kind::ServiceError;
+        event.text = "ended its response with the stop reason \"" + m_stop_reason + "\"";
         return event;
     }
     event.kind           = StreamEvent::Kind::TurnComplete;

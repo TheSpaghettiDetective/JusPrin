@@ -164,14 +164,10 @@ public:
         bool                current{false};
         std::optional<bool> changed;
     };
-    // What a lookup found: the project made from the file before, if any, or
-    // that the saved projects could not be read to tell.
-    struct EarlierLookup
-    {
-        EarlierLookup(std::optional<EarlierProject> found = std::nullopt) : project(std::move(found)) {}
-        std::optional<EarlierProject> project;
-        bool                          unreadable{false};
-    };
+    // What a lookup found: the project made from the file before, if any. It
+    // throws Workspace::ProjectsUnreadable when the saved projects cannot be
+    // read to tell.
+    using EarlierLookup = std::optional<EarlierProject>;
     // Finds, opens (answering what went wrong, or nothing), and tells the owner
     // which file the new project came from. Without them every file opens as a
     // new project.

@@ -111,11 +111,11 @@ struct AgentRequest
     // What the chat has sent before, picture text loaded, and where the
     // items this turn sends go to be kept: the record of the chat the turn
     // belongs to, and the blob each picture or PDF is written to before the
-    // request that first sends it (nullopt when it could not be written).
+    // request that first sends it.
     // Required for a reply; a title keeps nothing.
     ChatRecord                            record;
     std::function<void(const std::string& format, std::vector<RecordItem> items)> on_recorded;
-    std::function<std::optional<std::string>(const std::string& base64)>         keep_blob;
+    std::function<std::string(const std::string& base64)>                        keep_blob;
     // The chat message this turn answers, when the model has not been sent it
     // yet: its id, and its words or report, or the app's note that started
     // the turn, which the model reads in the operator's voice.

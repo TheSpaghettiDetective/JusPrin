@@ -1436,7 +1436,7 @@ private:
         const auto projects = autosave->projects();
         check(projects && projects->empty(), "first_run_lists_no_projects");
         const auto matches = autosave->projects_for_source(std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl");
-        check(matches && matches->empty(), "first_run_source_matches_no_projects");
+        check(matches.empty(), "first_run_source_matches_no_projects");
 
         std::filesystem::create_directories(root.parent_path());
         std::ofstream(root, std::ios::binary) << "not a folder";

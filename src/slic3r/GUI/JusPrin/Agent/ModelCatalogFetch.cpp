@@ -1,11 +1,15 @@
 #include "ModelCatalogFetch.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 
 #include "CloudAccount.hpp"
+#include "ModelCatalog.hpp"
 #include "slic3r/Utils/Http.hpp"
 
-#include <boost/log/trivial.hpp>
 #include <nlohmann/json.hpp>
 
+#include <optional>
+#include <stdexcept>
+#include <string>
 #include <utility>
 
 namespace Slic3r::GUI::JusPrin::Agent {
@@ -40,7 +44,7 @@ void request_page(std::shared_ptr<Fetch> fetch, const std::string& after)
         .timeout_connect(10)
         .timeout_max(30)
         .on_progress([fetch](Slic3r::Http::Progress, bool& cancel) { cancel = *fetch->cancelled; })
-        .on_complete([fetch](std::string body, unsigned status) {
+        .on_complete(reported("reading the AI models list", [fetch](std::string body, unsigned status) {
             if (*fetch->cancelled)
                 return;
             const nlohmann::json response = nlohmann::json::parse(body, nullptr, false);
@@ -49,6 +53,9 @@ void request_page(std::shared_ptr<Fetch> fetch, const std::string& after)
                 if (const std::optional<AgentError> outdated = update_required(status, body))
                     fetch->result.update_message = outdated->message;
                 fetch->done(std::move(fetch->result));
+                // Marked failed above; the service's own fault goes on up.
+                if (const std::optional<std::string> fault = model_list_fault(status, body))
+                    throw std::runtime_error(*fault);
                 return;
             }
             ModelListPage page = parse_model_list(fetch->profile, response);
@@ -60,8 +67,8 @@ void request_page(std::shared_ptr<Fetch> fetch, const std::string& after)
             }
             fetch->result.ok = true;
             fetch->done(std::move(fetch->result));
-        })
-        .on_error([fetch](std::string body, std::string error, unsigned status) {
+        }))
+        .on_error(reported("reading the AI models list", [fetch](std::string body, std::string error, unsigned status) {
             if (*fetch->cancelled)
                 return;
             fetch->result.error   = error.empty() ? "model list answered " + std::to_string(status) : error;
@@ -69,7 +76,9 @@ void request_page(std::shared_ptr<Fetch> fetch, const std::string& after)
             if (const std::optional<AgentError> outdated = update_required(status, body))
                 fetch->result.update_message = outdated->message;
             fetch->done(std::move(fetch->result));
-        })
+            if (const std::optional<std::string> fault = model_list_fault(status, body))
+                throw std::runtime_error(*fault);
+        }))
         .perform();
 }
 
@@ -88,25 +97,15 @@ void fetch_account(const ProviderProfile& profile, const std::string& api_key, c
         .timeout_connect(10)
         .timeout_max(30)
         .on_progress([cancelled](Slic3r::Http::Progress, bool& cancel) { cancel = *cancelled; })
-        .on_complete([cancelled, finished](std::string body, unsigned status) {
+        .on_complete(reported("reading the account", [cancelled, finished](std::string body, unsigned status) {
             if (*cancelled)
                 return;
-            nlohmann::json response = nlohmann::json::parse(body, nullptr, false);
-            if (status == 200 && account_reply_readable(response)) {
-                (*finished)(std::move(response));
-                return;
-            }
-            // A server that answers but not in the account's shape is one the
-            // app cannot read: the same as no answer.
-            if (status == 200)
-                BOOST_LOG_TRIVIAL(error) << "Account answer is missing the credits or usage the app reads: "
-                                         << body.substr(0, 200);
-            (*finished)(std::nullopt);
-        })
-        .on_error([cancelled, finished](std::string, std::string, unsigned) {
+            (*finished)(account_answer(status, body));
+        }))
+        .on_error(reported("reading the account", [cancelled, finished](std::string body, std::string, unsigned status) {
             if (!*cancelled)
-                (*finished)(std::nullopt);
-        })
+                (*finished)(account_answer(status, body));
+        }))
         .perform();
 }
 
@@ -124,16 +123,18 @@ void fetch_account_box(const ProviderProfile& profile, const std::string& token,
         .timeout_connect(10)
         .timeout_max(30)
         .on_progress([cancelled](Slic3r::Http::Progress, bool& cancel) { cancel = *cancelled; })
-        .on_complete([cancelled, finished](std::string body, unsigned status) {
+        .on_complete(reported("reading the account box", [cancelled, finished](std::string body, unsigned status) {
             if (*cancelled)
                 return;
-            // 204, and anything but HTML, is no box.
-            (*finished)(status == 200 && !body.empty() ? std::optional<std::string>(std::move(body)) : std::nullopt);
-        })
-        .on_error([cancelled, finished](std::string, std::string, unsigned) {
-            if (!*cancelled)
-                (*finished)(std::nullopt);
-        })
+            (*finished)(account_box_answer(status, body));
+        }))
+        .on_error(reported("reading the account box", [cancelled, finished](std::string body, std::string, unsigned status) {
+            if (*cancelled)
+                return;
+            // No box is shown; a server fault goes on up once that is said.
+            (*finished)(std::nullopt);
+            account_box_answer(status, body);
+        }))
         .perform();
 }
 
@@ -149,14 +150,14 @@ void delete_account(const ProviderProfile& profile, const std::string& token, co
         .timeout_connect(10)
         .timeout_max(60)
         .on_progress([cancelled](Slic3r::Http::Progress, bool& cancel) { cancel = *cancelled; })
-        .on_complete([cancelled, finished](std::string, unsigned status) {
+        .on_complete(reported("deleting the account", [cancelled, finished](std::string, unsigned status) {
             if (!*cancelled)
                 (*finished)(status == 204);
-        })
-        .on_error([cancelled, finished](std::string, std::string, unsigned) {
+        }))
+        .on_error(reported("deleting the account", [cancelled, finished](std::string, std::string, unsigned) {
             if (!*cancelled)
                 (*finished)(false);
-        })
+        }))
         .perform();
 }
 

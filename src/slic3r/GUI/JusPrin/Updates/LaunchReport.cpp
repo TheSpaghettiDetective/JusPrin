@@ -6,6 +6,7 @@
 #include "libslic3r/AppConfig.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 #include "slic3r/Utils/Http.hpp"
 
 #include <boost/log/trivial.hpp>
@@ -38,10 +39,12 @@ void report_launch()
         .set_post_body(body)
         .timeout_connect(5)
         .timeout_max(10)
-        .on_error([](std::string, std::string error, unsigned status) {
-            // A lost report is a count the server misses, nothing the person
-            // needs to hear about.
-            BOOST_LOG_TRIVIAL(info) << "JusPrin's start report was not delivered: HTTP " << status << ", " << error;
+        .on_error([](std::string answer, std::string error, unsigned status) {
+            // On the HTTP thread; report_if_automatic goes on to the main thread.
+            if (const auto report = launch_failure_report(status, answer))
+                report_if_automatic("telling JusPrin's server that the app started", *report);
+            else
+                BOOST_LOG_TRIVIAL(info) << "JusPrin's start report reached no server: " << error;
         })
         .perform();
 }

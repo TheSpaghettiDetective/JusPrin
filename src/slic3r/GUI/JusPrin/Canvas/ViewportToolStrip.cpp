@@ -1,4 +1,5 @@
 #include "ViewportToolStrip.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 
 #include "CanvasIcons.hpp"
 
@@ -16,6 +17,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <memory>
 #include <string>
 
 namespace Slic3r::GUI::JusPrin {
@@ -180,10 +182,10 @@ void ViewportToolStrip::render()
 
 void ViewportToolStrip::run_after_frame(StripTool tool, const StripRect& button)
 {
-    wxGetApp().CallAfter([self = std::weak_ptr<ViewportToolStrip*>(m_self), tool, button]() {
+    wxGetApp().CallAfter(reported("running a view tool", [self = std::weak_ptr<ViewportToolStrip*>(m_self), tool, button]() {
         if (const auto strip = self.lock())
             (*strip)->run(tool, button);
-    });
+    }));
 }
 
 void ViewportToolStrip::run(StripTool tool, const StripRect& button)

@@ -21,7 +21,7 @@ std::mutex config_mutex;
 std::optional<std::string> read_config(const fs::path& path)
 {
     if (fs::is_symlink(fs::symlink_status(path)))
-        throw std::runtime_error(L("Client configuration is a symbolic link. Use Copy and update its target manually."));
+        throw ConfigRefusal(L("Client configuration is a symbolic link. Use Copy and update its target manually."));
     if (!fs::exists(path)) return std::nullopt;
     std::ifstream file(path, std::ios::binary);
     if (!file) throw std::runtime_error("Cannot read client configuration: " + path.u8string());
@@ -29,7 +29,7 @@ std::optional<std::string> read_config(const fs::path& path)
     file.read(bytes.data(), bytes.size());
     if (file.bad()) throw std::runtime_error("Failed reading client configuration: " + path.u8string());
     bytes.resize(std::size_t(file.gcount()));
-    if (bytes.size() > 1024 * 1024) throw std::runtime_error(L("Client configuration exceeds the 1 MiB setup limit."));
+    if (bytes.size() > 1024 * 1024) throw ConfigRefusal(L("Client configuration exceeds the 1 MiB setup limit."));
     return bytes;
 }
 
@@ -51,7 +51,7 @@ std::string jsonc(const std::string& source)
             else if (c == '"') quoted = false;
         } else if (c == '"') quoted = true;
         else if (c == '{' || c == '[') {
-            if (++depth > 32) throw std::runtime_error(L("Client configuration exceeds nesting depth 32."));
+            if (++depth > 32) throw ConfigRefusal(L("Client configuration exceeds nesting depth 32."));
         } else if (c == '}' || c == ']') { if (depth) --depth; }
         else if (c == '/' && i + 1 < text.size() && (text[i + 1] == '/' || text[i + 1] == '*')) {
             const bool block = text[i + 1] == '*';
@@ -64,7 +64,7 @@ std::string jsonc(const std::string& source)
                 }
                 if (text[i] != '\n' && text[i] != '\r') text[i] = ' ';
             }
-            if (!closed) throw std::runtime_error(L("Client configuration has an unterminated comment."));
+            if (!closed) throw ConfigRefusal(L("Client configuration has an unterminated comment."));
         }
     }
     quoted = false; escaped = false;
@@ -178,9 +178,15 @@ ConfigEdit prepare_json_connection(const fs::path& path, const std::string& root
     ConfigEdit edit{path, read_config(path), {}, {}};
     const std::string source = edit.before.value_or("{}\n");
     const auto masked = jsonc(source);
-    const auto original = json::parse(masked);
+    // A file that is not JSON is the person's to fix, like the refusals below.
+    json original;
+    try {
+        original = json::parse(masked);
+    } catch (const json::parse_error& error) {
+        throw ConfigRefusal(error.what());
+    }
     if (!original.is_object() || (original.contains(root) && !original[root].is_object()))
-        throw std::runtime_error(L("Client configuration and its server map must be JSON objects. No changes made."));
+        throw ConfigRefusal(L("Client configuration and its server map must be JSON objects. No changes made."));
     auto expected = original;
     expected[root]["jusprin"] = server;
     edit.after = source;
@@ -192,7 +198,7 @@ ConfigEdit prepare_json_connection(const fs::path& path, const std::string& root
         else insert_member(edit.after, masked, *servers, "jusprin", server);
     } else insert_member(edit.after, masked, document, root, json{{"jusprin", server}});
     if (json::parse(jsonc(edit.after)) != expected)
-        throw std::runtime_error(L("Client configuration has ambiguous duplicate keys. No changes made."));
+        throw ConfigRefusal(L("Client configuration has ambiguous duplicate keys. No changes made."));
     const auto previous = original.contains(root) && original[root].contains("jusprin") ? original[root]["jusprin"] : json();
     edit.previous = previous;
     edit.next = server;
@@ -207,7 +213,7 @@ fs::path apply_config_edit(const ConfigEdit& edit)
 {
     std::lock_guard<std::mutex> guard(config_mutex);
     if (read_config(edit.path) != edit.before)
-        throw std::runtime_error(L("Client configuration changed after the preview. Review the new change and confirm again."));
+        throw StalePreview(L("Client configuration changed after the preview. Review the new change and confirm again."));
     if (edit.before && *edit.before == edit.after) return {};
     fs::create_directories(edit.path.parent_path());
     const auto suffix = boost::uuids::to_string(boost::uuids::random_generator()());
@@ -220,7 +226,7 @@ fs::path apply_config_edit(const ConfigEdit& edit)
     }
     write_file(temporary, edit.after, permissions);
     if (read_config(edit.path) != edit.before)
-        throw std::runtime_error(L("Client configuration changed while preparing the write. Original file retained; review again."));
+        throw ConfigRefusal(L("Client configuration changed while preparing the write. Original file retained; review again."));
 #ifdef _WIN32
     if (!MoveFileExW(temporary.c_str(), edit.path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
         throw fs::filesystem_error("Replace client configuration", temporary, edit.path,

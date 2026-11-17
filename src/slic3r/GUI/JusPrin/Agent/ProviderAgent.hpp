@@ -21,6 +21,8 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <optional>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -40,6 +42,17 @@ struct SentRequest
 // X-JusPrin-Chat: the chat key hashed, so the gateway never sees a project or
 // chat id.
 std::string gateway_chat_id(const std::string& chat_key);
+
+// An AI service's answer that names nothing a person can act on, in the
+// service's own words: its status or event, its request id, and the turn the
+// request belonged to. poll() throws it where the answer is read, after
+// stopping the request; the top handler of the pump that polled reports it
+// (AgentHost::pump_stream, AgentHost::pump_setup).
+class UnexpectedServiceAnswer : public std::runtime_error
+{
+public:
+    using std::runtime_error::runtime_error;
+};
 
 struct ProviderAgentConfig
 {
@@ -81,16 +94,22 @@ private:
     RecordPart kept(RecordPart part);
     // Hands the chat's record what the provider accepted and is settled.
     void record();
-    bool post();
+    void post();
     void accept_http(std::uint64_t generation, AgentHttpEvent event);
     void parse_available();
     void parse_sse_frame(const std::string& frame);
     void handle(StreamEvent event);
     void finish_response(StreamEvent event);
-    bool next_call();
+    void next_call();
     void answer_call(const std::string& call_id, const nlohmann::json& output);
     void fail(AgentError error);
-    AgentError http_error(unsigned status, const std::string& detail, const std::string& body = {}) const;
+    // The error a person can act on that an answer names (see
+    // ProviderAgent.cpp); each throws UnexpectedServiceAnswer when none does.
+    AgentError http_error(const AgentHttpEvent& event);
+    std::optional<AgentError> gateway_answer(const std::string& code, const std::string& body) const;
+    std::optional<AgentError> provider_answer(unsigned status) const;
+    // Stops the request and throws what the service answered.
+    [[noreturn]] void unexpected(const std::string& answered, const std::string& words);
 
     ProviderAgentConfig                   m_config;
     std::unique_ptr<IProviderCodec>       m_codec;
@@ -108,9 +127,7 @@ private:
     // call without its result, never an operator message with nothing after
     // it).
     std::function<void(const std::string&, std::vector<RecordItem>)> m_on_recorded;
-    std::function<std::optional<std::string>(const std::string&)>    m_keep_blob;
-    // A picture of this turn could not be written to its blob.
-    bool                                  m_unkept{false};
+    std::function<std::string(const std::string&)>                   m_keep_blob;
     std::size_t                           m_recorded{0};
     std::size_t                           m_settled{0};
     // The results of the response's calls so far.
@@ -131,6 +148,8 @@ private:
     unsigned                              m_rejected_calls{0};
     unsigned                              m_paused_turns{0};
     std::uint64_t                         m_http_generation{0};
+    // The service's id for the request in flight, once its headers came.
+    std::string                           m_service_request_id;
     bool                                  m_busy{false};
     bool                                  m_waiting_for_tool{false};
     bool                                  m_terminal_seen{false};

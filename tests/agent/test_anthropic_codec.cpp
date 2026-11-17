@@ -4,6 +4,9 @@
 // drive the loop alike is test_provider_conformance.cpp's.
 
 #include <catch2/catch_all.hpp>
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers.hpp>
+#include <catch2/matchers/catch_matchers_string.hpp>
 
 #include "kept_turn.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AnthropicCodec.hpp"
@@ -683,10 +686,7 @@ TEST_CASE("each stop reason ends the response as it should", "[agent][anthropic]
     const Case cases[] = {
         {"end_turn", AgentEventKind::Completed, "", false, nullptr},
         {"stop_sequence", AgentEventKind::Completed, "", false, nullptr},
-        {"max_tokens", AgentEventKind::Failed, "incomplete_response", true, nullptr},
-        {"model_context_window_exceeded", AgentEventKind::Failed, "incomplete_response", true, nullptr},
         {"refusal", AgentEventKind::Failed, "refusal", false, json{{"type", "refusal"}, {"category", "cyber"}, {"explanation", "x"}}},
-        {"something_new", AgentEventKind::Failed, "malformed_response", false, nullptr},
     };
     for (const Case& item : cases) {
         CAPTURE(item.stop_reason);
@@ -703,6 +703,17 @@ TEST_CASE("each stop reason ends the response as it should", "[agent][anthropic]
             CHECK(event->error->message == "The AI service declined to answer (cyber).");
         CHECK_FALSE(agent.service->busy());
     }
+    // A response cut short, and a stop reason this build does not know, name
+    // nothing a person can act on.
+    for (const char* stop_reason : {"max_tokens", "model_context_window_exceeded", "something_new"}) {
+        CAPTURE(stop_reason);
+        Agent agent;
+        REQUIRE(agent.service->start(request_fixture()));
+        agent.fake->data(stream(json::array({text("Partly.")}), stop_reason));
+        CHECK_THROWS_WITH(agent.poll_until(AgentEventKind::Failed),
+                          Catch::Matchers::ContainsSubstring("Anthropic ended its response with the stop reason \"" + std::string(stop_reason) + "\""));
+        CHECK_FALSE(agent.service->busy());
+    }
 
     SECTION("a paused turn is sent again with what it said so far")
     {
@@ -717,22 +728,27 @@ TEST_CASE("each stop reason ends the response as it should", "[agent][anthropic]
         REQUIRE(agent.poll_until(AgentEventKind::Completed));
     }
 
-    SECTION("an error event, and arguments that are not JSON")
+    SECTION("an error event, and what cannot be read")
     {
         Agent agent;
         REQUIRE(agent.service->start(request_fixture()));
         agent.fake->data(sse(json{{"type", "error"}, {"error", json{{"type", "overloaded_error"}, {"message", "Overloaded"}}}}));
-        auto event = agent.poll_until(AgentEventKind::Failed);
-        REQUIRE(event);
-        CHECK(event->error->code == "agent_service_error");
-        CHECK(event->error->retryable);
+        CHECK_THROWS_WITH(agent.poll_until(AgentEventKind::Failed),
+                          Catch::Matchers::ContainsSubstring("overloaded_error") && Catch::Matchers::ContainsSubstring("Overloaded"));
 
         REQUIRE(agent.service->start(request_fixture()));
         agent.fake->data(sse(json{{"type", "content_block_start"}, {"index", 0}, {"content_block", tool_use("toolu_x", "workspace_inspect")}}) +
                          sse(json{{"type", "content_block_delta"}, {"index", 0}, {"delta", json{{"type", "input_json_delta"}, {"partial_json", "{\"sect"}}}}) +
                          sse(json{{"type", "content_block_stop"}, {"index", 0}}));
-        event = agent.poll_until(AgentEventKind::Failed);
-        REQUIRE(event);
-        CHECK(event->error->code == "malformed_response");
+        CHECK_THROWS_WITH(agent.poll_until(AgentEventKind::Failed),
+                          Catch::Matchers::ContainsSubstring("sent tool call arguments that are not JSON: {\"sect"));
+
+        REQUIRE(agent.service->start(request_fixture()));
+        agent.fake->data("data: not-json\n\n");
+        CHECK_THROWS_WITH(agent.poll_until(AgentEventKind::Failed), Catch::Matchers::ContainsSubstring("sent an event that is not JSON: not-json"));
+
+        REQUIRE(agent.service->start(request_fixture()));
+        agent.fake->data(sse(json{{"type", "content_block_delta"}, {"index", 3}, {"delta", json{{"type", "text_delta"}, {"text", "x"}}}}));
+        CHECK_THROWS_WITH(agent.poll_until(AgentEventKind::Failed), Catch::Matchers::ContainsSubstring("sent a delta for a block it never opened"));
     }
 }

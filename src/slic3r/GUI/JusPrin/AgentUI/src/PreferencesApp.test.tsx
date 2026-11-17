@@ -814,20 +814,6 @@ describe('Preferences › Agent', () => {
     expect(screen.getByLabelText('OpenAI API key')).toHaveFocus();
   });
 
-  it('says when a working key could not be stored', () => {
-    openApiKeyScreen();
-    host.deliver('setup_status', {
-      phase: 'verified',
-      provider: 'openai',
-      elapsedMs: 500,
-      warning: 'This key could not be saved, so it will have to be entered again next time JusPrin starts.',
-    });
-
-    expect(screen.getByTestId('agent-key-openai-standing')).toHaveTextContent('This key works now, but JusPrin couldn’t save it.');
-    expect(row('openai').getByText('You’ll need to add it again after JusPrin restarts.')).toBeInTheDocument();
-    expect(row('openai').getByRole('button', { name: 'Replace OpenAI key' })).toBeEnabled();
-  });
-
   it('keeps a refused key open to correct, and clears the refusal once it changes', async () => {
     openApiKeyScreen();
     fireEvent.click(screen.getByRole('button', { name: 'Add OpenAI key' }));
@@ -868,6 +854,21 @@ describe('Preferences › Agent', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Check key' }));
     expect(host.lastOfType('setup_check_key')!.payload).toEqual({ provider: 'anthropic', apiKey: 'sk-ant-offline' });
+  });
+
+  it('says only that something went wrong when a check ends in an unexpected error', async () => {
+    openApiKeyScreen();
+    fireEvent.click(screen.getByRole('button', { name: 'Add OpenAI key' }));
+    await userEvent.type(screen.getByLabelText('OpenAI API key'), 'sk-test');
+    fireEvent.click(screen.getByRole('button', { name: 'Check key' }));
+    host.deliver('setup_status', {
+      phase: 'error',
+      provider: 'openai',
+      error: { code: 'unexpected_error', message: 'Something went wrong on our side', retryable: false },
+    });
+
+    expect(screen.getByTestId('setup-error')).toHaveTextContent(/^Something went wrong on our side$/);
+    expect(row('openai').getByText('No key')).toBeInTheDocument();
   });
 
   it('abandons a check when the user cancels', async () => {

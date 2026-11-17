@@ -1,4 +1,5 @@
 #include "CloudSignInMachine.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 
 #include "Base64.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
@@ -21,6 +22,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 namespace Slic3r::GUI::JusPrin::Agent {
 
@@ -144,11 +146,11 @@ CloudAccountDeps make_cloud_account_deps()
             .tls_verify(true)
             .timeout_connect(10)
             .timeout_max(30)
-            .on_complete([done](std::string body, unsigned status) { done({status, std::move(body)}); })
-            .on_error([done](std::string body, std::string error, unsigned status) {
+            .on_complete(reported("reading the JusPrin account", [done](std::string body, unsigned status) { done({status, std::move(body)}); }))
+            .on_error(reported("reading the JusPrin account", [done](std::string body, std::string error, unsigned status) {
                 BOOST_LOG_TRIVIAL(warning) << "JusPrin account request failed (" << status << "): " << error;
                 done({status, std::move(body)});
-            })
+            }))
             .perform();
     };
     deps.post = [](const std::string& url, const std::string& body, const std::string& session,
@@ -166,13 +168,13 @@ CloudAccountDeps make_cloud_account_deps()
             .tls_verify(true)
             .timeout_connect(10)
             .timeout_max(30)
-            .on_complete([done](std::string body, unsigned status) { done({status, std::move(body)}); })
-            .on_error([done](std::string body, std::string error, unsigned status) {
+            .on_complete(reported("signing in to JusPrin", [done](std::string body, unsigned status) { done({status, std::move(body)}); }))
+            .on_error(reported("signing in to JusPrin", [done](std::string body, std::string error, unsigned status) {
                 // A refusal (4xx) comes here too, with the server's body.
                 if (status == 0)
                     BOOST_LOG_TRIVIAL(warning) << "JusPrin email sign-in request failed: " << error;
                 done({status, std::move(body)});
-            })
+            }))
             .perform();
     };
     deps.revoke = [](const std::string& url, const std::string& client_id, const std::string& token) {
@@ -182,9 +184,9 @@ CloudAccountDeps make_cloud_account_deps()
             .form_add("client_id", client_id)
             .timeout_connect(10)
             .timeout_max(30)
-            .on_error([](std::string, std::string error, unsigned status) {
+            .on_error(reported("signing out of JusPrin", [](std::string, std::string error, unsigned status) {
                 BOOST_LOG_TRIVIAL(warning) << "JusPrin sign-out could not revoke the token (" << status << "): " << error;
-            })
+            }))
             .perform();
     };
     deps.pkce = [](std::string& verifier, std::string& challenge, std::string& state) {

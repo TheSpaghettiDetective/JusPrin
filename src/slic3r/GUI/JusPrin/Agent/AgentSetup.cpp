@@ -20,7 +20,7 @@ AgentRequest probe_request()
     request.user_text  = "Reply with the single word: ready.";
     // The check is no chat's: it keeps nothing of what it sends.
     request.on_recorded = [](const std::string&, std::vector<RecordItem>) {};
-    request.keep_blob   = [](const std::string&) -> std::optional<std::string> { return std::nullopt; };
+    request.keep_blob   = [](const std::string&) { return std::string(); };
     return request;
 }
 
@@ -133,9 +133,9 @@ std::optional<SetupOutcome> ProviderKeySetup::poll()
     return std::nullopt;
 }
 
-bool ProviderKeySetup::commit(const SetupCredentials& credentials)
+void ProviderKeySetup::commit(const SetupCredentials& credentials)
 {
-    return m_commit && m_commit(credentials);
+    m_commit(credentials);
 }
 
 std::vector<SavedKey> ProviderKeySetup::saved_keys() const

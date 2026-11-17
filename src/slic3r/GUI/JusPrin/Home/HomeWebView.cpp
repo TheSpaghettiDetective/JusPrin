@@ -27,6 +27,7 @@
 #include <wx/filesys.h>
 #include <wx/sizer.h>
 #include <wx/stattext.h>
+#include <wx/timer.h>
 #include <wx/toplevel.h>
 #include <wx/webview.h>
 
@@ -54,8 +55,8 @@ wxString home_page_url()
 HomeWebView::HomeWebView(wxWindow* parent, const ShellTheme& theme, MainFrame& frame)
     : wxPanel(parent, wxID_ANY), m_theme(theme), m_live_timer(this), m_poll_timer(this)
 {
-    Bind(wxEVT_TIMER, &HomeWebView::on_live_tick, this, m_live_timer.GetId());
-    Bind(wxEVT_TIMER, &HomeWebView::on_poll_tick, this, m_poll_timer.GetId());
+    Bind(wxEVT_TIMER, reported("refreshing Home", [this](wxTimerEvent& event) { on_live_tick(event); }), m_live_timer.GetId());
+    Bind(wxEVT_TIMER, reported("refreshing Home", [this](wxTimerEvent& event) { on_poll_tick(event); }), m_poll_timer.GetId());
     m_backend = std::make_unique<OrcaHomeBackend>(frame);
     m_host    = std::make_unique<HomeHost>(*m_backend, [this](const std::string& envelope) {
         if (m_webview == nullptr)
@@ -96,7 +97,7 @@ HomeWebView::HomeWebView(wxWindow* parent, const ShellTheme& theme, MainFrame& f
             event.Veto();
             // After the drop has finished: opening shows dialogs and switches
             // screens, which must not run inside the web view's callback.
-            CallAfter([this, path = *file]() { m_backend->open_dropped_path(path); });
+            CallAfter(reported("opening a dropped file", [this, path = *file]() { m_backend->open_dropped_path(path); }));
             return;
         }
         // Every (re)load needs a fresh handshake before other traffic.

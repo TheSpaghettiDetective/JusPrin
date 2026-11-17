@@ -8,8 +8,10 @@
 #include <cctype>
 #include <cstdint>
 #include <iomanip>
+#include <optional>
 #include <random>
 #include <sstream>
+#include <string>
 
 namespace Slic3r::GUI::JusPrin::Updates {
 
@@ -45,6 +47,13 @@ std::string install_id(AppConfig& config)
 std::string launch_report_body(const std::string& install_id, const std::string& app, const std::string& os)
 {
     return nlohmann::json{{"install", install_id}, {"app", app}, {"os", os}}.dump();
+}
+
+std::optional<std::string> launch_failure_report(unsigned status, const std::string& answer)
+{
+    if (status == 0)
+        return std::nullopt;
+    return "JusPrin's server answered the start report with HTTP " + std::to_string(status) + ": " + answer;
 }
 
 } // namespace Slic3r::GUI::JusPrin::Updates

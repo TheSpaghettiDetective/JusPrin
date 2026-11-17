@@ -482,6 +482,15 @@ msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try ag
 msgstr "A JusPrin-bejelentkezésed lejárt. Jelentkezz be újra a Beállításokban, majd próbáld újra."
 
 # AI Translated
+msgid "That photo could not be read."
+msgstr "Ezt a fotót nem sikerült beolvasni."
+
+# AI Translated
+#. TRN The print report form, about a photo over the server's limit of 20 MB.
+msgid "That photo is larger than 20 MB. Choose a smaller photo, then send the report again."
+msgstr "Ez a fotó nagyobb 20 MB-nál. Válassz kisebb fotót, majd küldd el újra a jelentést."
+
+# AI Translated
 #, boost-format
 msgid "This message needs %1% credit; you have %2%."
 msgid_plural "This message needs %1% credits; you have %2%."
@@ -890,6 +899,12 @@ msgstr "Próbáld újra"
 #, c-format, boost-format
 msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
 msgstr "Semmi sem válaszolt itt: %s. Ellenőrizd, hogy a nyomtató be van-e kapcsolva, és ugyanazon a hálózaton van-e, mint ez a számítógép, majd próbáld újra."
+
+# AI Translated
+#. TRN %s is the printer's address without its scheme, such as 192.168.1.42:7125. Printer settings is the printer's settings window.
+#, c-format, boost-format
+msgid "The printer at %s answered, but JusPrin couldn't check its secure connection. If the printer's address starts with https://, change it to http:// in Printer settings, then try again."
+msgstr "A(z) %s címen lévő nyomtató válaszolt, de a JusPrin nem tudta ellenőrizni a biztonságos kapcsolatát. Ha a nyomtató címe https://-sel kezdődik, módosítsd http://-re a Nyomtatóbeállításokban, majd próbáld újra."
 
 # AI Translated
 msgid "Client configuration is a symbolic link. Use Copy and update its target manually."

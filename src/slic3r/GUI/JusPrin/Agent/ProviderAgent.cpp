@@ -10,6 +10,8 @@
 #include <algorithm>
 #include <filesystem>
 #include <sstream>
+#include <stdexcept>
+#include <string>
 #include <utility>
 
 #include "libslic3r/format.hpp"
@@ -256,7 +258,6 @@ void ProviderAgent::begin_transcript(const AgentRequest& request)
     m_app_started             = request.app_started;
     m_on_recorded             = request.on_recorded;
     m_keep_blob               = request.keep_blob;
-    m_unkept                  = false;
     std::vector<RecordItem>& items = m_transcript.items;
     const auto text = [](std::string value) {
         RecordPart part;
@@ -360,10 +361,7 @@ void ProviderAgent::push_skills(const std::vector<AgentSkillUse>& skills, std::v
 
 RecordPart ProviderAgent::kept(RecordPart part)
 {
-    if (const std::optional<std::string> blob = m_keep_blob(part.base64))
-        part.blob = *blob;
-    else
-        m_unkept = true;
+    part.blob = m_keep_blob(part.base64);
     return part;
 }
 
@@ -392,7 +390,8 @@ bool ProviderAgent::start(const AgentRequest& request)
     m_paused_turns     = 0;
     m_kind = request.purpose == AgentRequest::Purpose::ConversationTitle ? RequestKind::ConversationTitle : RequestKind::Reply;
     begin_transcript(request);
-    return post();
+    post();
+    return true;
 }
 
 bool ProviderAgent::continue_after_tool(const AgentToolResult& result)
@@ -417,7 +416,8 @@ bool ProviderAgent::continue_after_tool(const AgentToolResult& result)
     m_waiting_for_tool = false;
     m_pending_call_id.clear();
     m_pending_tool.clear();
-    return next_call();
+    next_call();
+    return true;
 }
 
 void ProviderAgent::answer_call(const std::string& call_id, const json& output)
@@ -425,15 +425,10 @@ void ProviderAgent::answer_call(const std::string& call_id, const json& output)
     m_results.results.push_back(RecordResult{call_id, output.dump(), true, std::nullopt});
 }
 
-bool ProviderAgent::post()
+void ProviderAgent::post()
 {
-    // A picture the record could not keep: the chat could never send this
-    // request again, so it is not sent now.
-    if (m_unkept) {
-        m_busy = false;
-        return false;
-    }
     m_sse_buffer.clear();
+    m_service_request_id.clear();
     m_terminal_seen = false;
     m_busy = true;
     ++m_transcript.request_sequence;
@@ -464,9 +459,8 @@ bool ProviderAgent::post()
             accept_http(generation, std::move(event));
         })) {
         m_busy = false;
-        return false;
+        throw std::runtime_error("the HTTP transport did not start the request");
     }
-    return true;
 }
 
 void ProviderAgent::accept_http(std::uint64_t generation, AgentHttpEvent event)
@@ -506,10 +500,10 @@ void ProviderAgent::handle(StreamEvent event)
     switch (event.kind) {
     case StreamEvent::Kind::TextDelta: m_events.push_back(AgentEvent::delta(std::move(event.text))); break;
     case StreamEvent::Kind::TurnComplete: finish_response(std::move(event)); break;
-    case StreamEvent::Kind::Incomplete:
-        fail(AgentError{"incomplete_response", translated(L("The AI service stopped before finishing its response.")), true});
-        break;
     case StreamEvent::Kind::Failed: fail(std::move(event.error)); break;
+    // An error inside a reply, or a reply cut short or unreadable, names
+    // nothing a person can act on.
+    case StreamEvent::Kind::ServiceError: unexpected(event.text, {});
     }
 }
 
@@ -530,24 +524,21 @@ void ProviderAgent::finish_response(StreamEvent event)
         // The provider paused its own turn and resumes it from this one.
         constexpr unsigned kPausedTurnLimit = 4;
         if (++m_paused_turns > kPausedTurnLimit) {
-            fail(AgentError{"agent_paused_too_often", translated(L("The AI service kept pausing its response.")), true});
-            return;
+            unexpected("paused its response more than " + std::to_string(kPausedTurnLimit) + " times", {});
         }
-        if (!post())
-            fail(AgentError{"agent_continuation_failed", translated(L("AI could not be asked to continue its response.")), true});
+        post();
         return;
     }
     for (ProviderToolCall& call : event.calls)
         m_queued_calls.push_back(std::move(call));
-    if (!next_call())
-        fail(AgentError{"agent_continuation_failed", translated(L("AI could not be told the results of its tool calls.")), true});
+    next_call();
 }
 
 // Hands out the next call of the response, or, once every call has its
 // result, sends them all back. Whatever the model sent, the next request
 // never carries a call without its result. False only when that request
 // could not be sent.
-bool ProviderAgent::next_call()
+void ProviderAgent::next_call()
 {
     while (!m_queued_calls.empty()) {
         const ProviderToolCall item = std::move(m_queued_calls.front());
@@ -590,31 +581,31 @@ bool ProviderAgent::next_call()
             m_failed_call = request.tool + " (" + call_id + ")";
             continue;
         }
-        if (call_id.empty() || !available || !validation.valid()) {
-            fail(AgentError{"malformed_tool_call", translated(L("AI returned an invalid tool call.")), false});
-            return true;
-        }
+        if (call_id.empty() || !available || !validation.valid())
+            unexpected("sent a call to " + request.tool + " that cannot run (" +
+                           (call_id.empty() ? "no call id" : available ? validation.error->code : "unknown_tool") + ")",
+                       request.arguments_json);
         request.arguments_json = std::move(validation.arguments_json);
         m_pending_call_id = call_id;
         m_pending_tool    = request.tool;
         m_waiting_for_tool = true;
         AgentToolCall call{call_id, std::move(request), true};
         m_events.push_back(AgentEvent::tool_call(std::move(call)));
-        return true;
+        return;
     }
     if (m_results.results.empty()) {
         m_settled = m_transcript.items.size();
         record();
         m_busy = false;
         m_events.push_back(AgentEvent::completed());
-        return true;
+        return;
     }
     // The results go back together, and with them the skills they fired.
     m_transcript.items.push_back(std::exchange(m_results, RecordItem{RecordItem::Kind::Results}));
     m_settled = m_transcript.items.size();
     push_skills(skills_to_send(m_step_skills));
     m_step_skills.clear();
-    return post();
+    post();
 }
 
 void ProviderAgent::parse_available()
@@ -628,6 +619,8 @@ void ProviderAgent::parse_available()
         if (queued.generation != m_http_generation)
             continue;
         AgentHttpEvent& event = queued.event;
+        if (!event.request_id.empty())
+            m_service_request_id = event.request_id;
         if (event.kind == AgentHttpEvent::Kind::Data) {
             m_sse_buffer += event.data;
             for (;;) {
@@ -643,7 +636,7 @@ void ProviderAgent::parse_available()
                 parse_sse_frame(frame);
             }
         } else if (event.kind == AgentHttpEvent::Kind::Error) {
-            fail(http_error(event.status, event.error, event.data));
+            fail(http_error(event));
         } else if (!m_terminal_seen) {
             // A valid SSE stream may close immediately after its final data
             // line without a trailing blank-line delimiter. Consume that
@@ -653,7 +646,7 @@ void ProviderAgent::parse_available()
                 m_sse_buffer.clear();
             }
             if (!m_terminal_seen)
-                fail(AgentError{"malformed_response", translated(L("The AI service ended before a complete response arrived.")), true});
+                unexpected("ended its stream before the response was complete", {});
         }
     }
 }
@@ -668,52 +661,111 @@ std::optional<AgentEvent> ProviderAgent::poll()
     return event;
 }
 
-AgentError ProviderAgent::http_error(unsigned status, const std::string& detail, const std::string& body) const
+// What an AI request can end in. A person is told the cause only where they
+// can do something about it; every other answer is unexpected: the request
+// stops and the answer is thrown, to be reported with the service's words.
+//
+//   JusPrin account, by the gateway's code: update_required, unauthorized,
+//   credits_exhausted, request_too_large, rate_limited.
+//   An own key, by the HTTP status: 401, 413, 429.
+//   No answer at all: the network.
+//   An error inside a reply is always unexpected.
+namespace {
+
+AgentError rate_limited(const std::string& name)
+{
+    // TRN %1% is an AI provider, such as OpenAI.
+    return {"rate_limited", Slic3r::format(translated(L("The %1% service is rate limited. Try again shortly.")), name), true};
+}
+
+AgentError too_large(const std::string& name)
+{
+    // TRN %1% is an AI provider, such as OpenAI.
+    return {"request_too_large", Slic3r::format(translated(L("The request was too large for the %1% service.")), name), false};
+}
+
+// The code the gateway's error body names its cause by.
+std::string error_code(const std::string& body)
+{
+    const json answer = json::parse(body, nullptr, false);
+    if (!answer.is_object() || !answer.value("error", json()).is_object())
+        return {};
+    const json code = answer["error"].value("code", json());
+    return code.is_string() ? code.get<std::string>() : std::string();
+}
+
+} // namespace
+
+AgentError ProviderAgent::http_error(const AgentHttpEvent& event)
+{
+    // No answer at all: the connection failed or stalled.
+    if (event.status < 400)
+        // TRN %1% is an AI provider, such as OpenAI.
+        return {"network_error", Slic3r::format(translated(L("The AI request could not reach the %1% service.")), m_config.profile.display_name), true};
+    std::optional<AgentError> expected;
+    if (m_config.profile.account_sign_in) {
+        expected = update_required(event.status, event.data);
+        if (!expected)
+            expected = gateway_answer(error_code(event.data), event.data);
+    } else {
+        expected = provider_answer(event.status);
+    }
+    if (expected)
+        return *expected;
+    unexpected("answered HTTP " + std::to_string(event.status), event.data.empty() ? event.error : event.data);
+}
+
+std::optional<AgentError> ProviderAgent::gateway_answer(const std::string& code, const std::string& body) const
 {
     const std::string& name = m_config.profile.display_name;
-    if (m_config.profile.account_sign_in)
-        if (const std::optional<AgentError> outdated = update_required(status, body))
-            return *outdated;
-    if (m_config.profile.account_sign_in && (status == 401 || status == 403))
-        return {"invalid_credentials", translated(L("Your JusPrin sign-in has ended. Sign in again in Preferences, then try again.")), false};
-    if (m_config.profile.account_sign_in && status == 402) {
+    if (code == "unauthorized")
+        return AgentError{"invalid_credentials", sign_in_ended(), false};
+    if (code == "credits_exhausted") {
         // What the message costs and what the person has, from the gateway's
-        // numbers, in the app's language.
-        const nlohmann::json answer = nlohmann::json::parse(body, nullptr, false);
-        if (answer.is_object() && answer.contains("error") && answer["error"].value("code", "") == "credits_exhausted" &&
-            answer.value("cost", nlohmann::json()).is_number_unsigned() && answer.value("balance", nlohmann::json()).is_number_unsigned()) {
-            const unsigned cost = answer["cost"].get<unsigned>();
-            // TRN %1% is what the message costs in credits, %2% the credits the person has.
-            return {"credits_exhausted",
-                    Slic3r::format(translated_plural("This message needs %1% credit; you have %2%.",
-                                                     "This message needs %1% credits; you have %2%.", cost),
-                                   cost, answer["balance"].get<unsigned>()),
-                    false};
-        }
+        // numbers, in the app's language. The gateway always sends both.
+        const json answer = json::parse(body, nullptr, false);
+        if (!answer.is_object() || !answer.value("cost", json()).is_number_unsigned() || !answer.value("balance", json()).is_number_unsigned())
+            return std::nullopt;
+        const unsigned cost = answer["cost"].get<unsigned>();
+        // TRN %1% is what the message costs in credits, %2% the credits the person has.
+        return AgentError{"credits_exhausted",
+                          Slic3r::format(translated_plural("This message needs %1% credit; you have %2%.",
+                                                           "This message needs %1% credits; you have %2%.", cost),
+                                         cost, answer["balance"].get<unsigned>()),
+                          false};
     }
-    // Any other refusal for payment is the same want of credits, with the
-    // same Get more credits button.
-    if (m_config.profile.account_sign_in && status == 402)
-        return {"credits_exhausted", translated(L("You're out of credits.")), false};
-    if (status == 401 || status == 403)
+    // The person sent too many turns in a minute.
+    if (code == "rate_limited")
+        return rate_limited(name);
+    if (code == "request_too_large")
+        return too_large(name);
+    return std::nullopt;
+}
+
+std::optional<AgentError> ProviderAgent::provider_answer(unsigned status) const
+{
+    const std::string& name = m_config.profile.display_name;
+    if (status == 401)
         // TRN %1% is an AI provider, such as OpenAI.
-        return {"invalid_credentials", Slic3r::format(translated(L("The %1% API key was rejected. Update the AI configuration and try again.")), name), false};
+        return AgentError{"invalid_credentials", Slic3r::format(translated(L("The %1% API key was rejected. Update the AI configuration and try again.")), name), false};
     if (status == 413)
-        // TRN %1% is an AI provider, such as OpenAI.
-        return {"request_too_large", Slic3r::format(translated(L("The request was too large for the %1% service.")), name), false};
+        return too_large(name);
     if (status == 429)
-        // TRN %1% is an AI provider, such as OpenAI.
-        return {"rate_limited", Slic3r::format(translated(L("The %1% service is rate limited. Try again shortly.")), name), true};
-    if (status == 529)
-        // TRN %1% is an AI provider, such as OpenAI.
-        return {"service_overloaded", Slic3r::format(translated(L("The %1% service is overloaded. Try again shortly.")), name), true};
-    if (status >= 500)
-        // TRN %1% is an AI provider, such as OpenAI.
-        return {"service_unavailable", Slic3r::format(translated(L("The %1% service is temporarily unavailable.")), name), true};
-    if (status == 408 || detail.find("timed out") != std::string::npos || detail.find("Timeout") != std::string::npos)
-        return {"timeout", translated(L("The AI request timed out.")), true};
-    // TRN %1% is an AI provider, such as OpenAI.
-    return {"network_error", Slic3r::format(translated(L("The AI request could not reach the %1% service.")), name), true};
+        return rate_limited(name);
+    return std::nullopt;
+}
+
+void ProviderAgent::unexpected(const std::string& answered, const std::string& words)
+{
+    std::string what = m_config.profile.display_name + " " + answered + " (request " + m_transcript.request_id + " #" +
+                       std::to_string(m_transcript.request_sequence);
+    if (!m_service_request_id.empty())
+        what += ", its request id " + m_service_request_id;
+    what += ")";
+    if (!words.empty())
+        what += ": " + words;
+    cancel();
+    throw UnexpectedServiceAnswer(what);
 }
 
 void ProviderAgent::fail(AgentError error)

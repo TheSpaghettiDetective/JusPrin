@@ -1,4 +1,5 @@
 #include "HostLaneReader.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 
 #include "NamedPrinters.hpp"
 #include "libslic3r/PresetBundle.hpp"
@@ -209,10 +210,10 @@ std::optional<HostStatus> host_status(const std::string& name)
         } else {
             read = [config = preset->config, in_flight = reads()] { return probe_page(config, in_flight); };
         }
-        std::thread([shared = readings(), in_flight = reads(), key, read = std::move(read)] {
+        std::thread(reported("reading a printer's status", [shared = readings(), in_flight = reads(), key, read = std::move(read)] {
             shared->finish(key, read(), HostReadings::Clock::now());
             --in_flight->running;
-        }).detach();
+        })).detach();
     }
     return readings()->status(key, now);
 }

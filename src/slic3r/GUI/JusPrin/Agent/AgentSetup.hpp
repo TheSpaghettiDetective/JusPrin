@@ -69,10 +69,9 @@ public:
     // Releases at most one finished outcome; called from the owner's tick.
     virtual std::optional<SetupOutcome> poll() = 0;
 
-    // Persists credentials that have just been verified. Reports failure
-    // rather than pretending: a key that was not stored is a key the user
-    // will have to enter again next launch, and they are told so.
-    virtual bool commit(const SetupCredentials& credentials) = 0;
+    // Persists credentials that have just been verified; throws when they
+    // could not be written.
+    virtual void commit(const SetupCredentials& credentials) = 0;
 
     // Every provider with a stored key, in provider_profiles() order.
     virtual std::vector<SavedKey> saved_keys() const = 0;
@@ -101,7 +100,7 @@ class ProviderKeySetup final : public IAgentSetupService
 {
 public:
     using TransportFactory = std::function<std::unique_ptr<IAgentHttpTransport>()>;
-    using CommitFn         = std::function<bool(const SetupCredentials&)>;
+    using CommitFn         = std::function<void(const SetupCredentials&)>;
     // Reads one provider's stored key ("" when none) and deletes it.
     struct KeyStore
     {
@@ -125,7 +124,7 @@ public:
     bool                        start_check(const SetupCredentials& credentials) override;
     void                        cancel() override;
     std::optional<SetupOutcome> poll() override;
-    bool                        commit(const SetupCredentials& credentials) override;
+    void                        commit(const SetupCredentials& credentials) override;
     std::vector<SavedKey>       saved_keys() const override;
     bool                        remove_key(const std::string& provider) override;
     ICloudSignIn*               cloud_sign_in() override { return m_cloud.get(); }

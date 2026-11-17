@@ -3,6 +3,9 @@
 // order, refusals, skills, errors) are test_provider_agent.cpp's.
 
 #include <catch2/catch_all.hpp>
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers.hpp>
+#include <catch2/matchers/catch_matchers_string.hpp>
 
 #include "kept_turn.hpp"
 #include "slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.hpp"
@@ -821,9 +824,7 @@ TEST_CASE("OpenAI errors are safe and actionable", "[agent][openai][errors]")
 
     REQUIRE(agent.start(request_fixture()));
     fake->data("data: not-json\n\n");
-    const auto malformed = poll_until(agent, AgentEventKind::Failed);
-    REQUIRE(malformed);
-    CHECK(malformed->error->code == "malformed_response");
+    CHECK_THROWS_WITH(poll_until(agent, AgentEventKind::Failed), Catch::Matchers::ContainsSubstring("sent an event that is not JSON: not-json"));
 
     REQUIRE(agent.start(request_fixture()));
     agent.cancel();

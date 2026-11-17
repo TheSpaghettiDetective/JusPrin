@@ -4,6 +4,9 @@
 // API makes of that transcript is test_openai_responses_agent.cpp's.
 
 #include <catch2/catch_all.hpp>
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers.hpp>
+#include <catch2/matchers/catch_matchers_string.hpp>
 
 #include "kept_turn.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderAgent.hpp"
@@ -18,11 +21,13 @@
 #include <fstream>
 #include <memory>
 #include <sstream>
+#include <stdexcept>
 #include <vector>
 
 using namespace Slic3r::GUI::JusPrin::Agent;
 namespace Workspace = Slic3r::GUI::JusPrin::Workspace;
 using nlohmann::json;
+using Catch::Matchers::ContainsSubstring;
 
 namespace {
 
@@ -42,6 +47,11 @@ public:
     void error(unsigned status, std::string detail = {})
     {
         callbacks.back()(AgentHttpEvent{AgentHttpEvent::Kind::Error, {}, std::move(detail), status});
+    }
+    // A refusal as the transport delivers one: the body, curl's words, the status.
+    void refuse(unsigned status, std::string body)
+    {
+        callbacks.back()(AgentHttpEvent{AgentHttpEvent::Kind::Error, std::move(body), "HTTP error", status});
     }
 
     std::vector<AgentHttpRequest> requests;
@@ -104,8 +114,8 @@ public:
         const json script = json::parse(payload, nullptr, false);
         StreamEvent event;
         if (!script.is_object()) {
-            event.kind  = StreamEvent::Kind::Failed;
-            event.error = {"malformed_response", "unreadable", false};
+            event.kind = StreamEvent::Kind::ServiceError;
+            event.text = "sent an event that is not JSON: " + payload;
         } else if (script.contains("text")) {
             event.kind = StreamEvent::Kind::TextDelta;
             event.text = script["text"].get<std::string>();
@@ -125,7 +135,8 @@ public:
                 event.usage        = usage;
             }
         } else if (script.contains("incomplete")) {
-            event.kind = StreamEvent::Kind::Incomplete;
+            event.kind = StreamEvent::Kind::ServiceError;
+            event.text = "ended its response early";
         } else {
             event.kind  = StreamEvent::Kind::Failed;
             event.error = {script["failed"].value("code", "scripted_failure"), "The script said so.",
@@ -429,15 +440,13 @@ TEST_CASE("a final SSE frame without a trailing delimiter is consumed", "[agent]
     REQUIRE(h.poll_until(AgentEventKind::Completed));
     CHECK_FALSE(h.agent->busy());
 
-    // Ending with no terminal event at all is a failure the person can retry.
+    // Ending with no terminal event at all names nothing a person can act on.
     REQUIRE(h.agent->start(request_fixture()));
     h.fake->data(frame(json{{"text", "half"}}));
     h.fake->complete();
-    const auto failed = h.poll_until(AgentEventKind::Failed);
-    REQUIRE(failed);
-    REQUIRE(failed->error);
-    CHECK(failed->error->code == "malformed_response");
-    CHECK(failed->error->retryable);
+    CHECK_THROWS_WITH(h.poll_until(AgentEventKind::Failed),
+                      ContainsSubstring("ended its stream before the response was complete") && ContainsSubstring("#1"));
+    CHECK_FALSE(h.agent->busy());
 }
 
 TEST_CASE("every call of a response runs in order and their results go back together, after the opaque turn",
@@ -584,11 +593,9 @@ TEST_CASE("HTTP failures are mapped to safe errors that name the provider", "[ag
     struct Case { unsigned status; const char* detail; const char* code; bool retryable; const char* mention; };
     const Case cases[] = {{401, "body omitted", "invalid_credentials", false, "The Test Provider API key was rejected"},
                           {429, "sensitive upstream body", "rate_limited", true, "The Test Provider service is rate limited"},
-                          {0, "Operation timed out", "timeout", true, "timed out"},
-                          {503, "body omitted", "service_unavailable", true, "The Test Provider service is temporarily unavailable"},
+                          {0, "Operation timed out", "network_error", true, "could not reach the Test Provider service"},
                           {0, "could not resolve host", "network_error", true, "could not reach the Test Provider service"},
-                          {413, "body omitted", "request_too_large", false, "too large for the Test Provider service"},
-                          {529, "body omitted", "service_overloaded", true, "The Test Provider service is overloaded"}};
+                          {413, "body omitted", "request_too_large", false, "too large for the Test Provider service"}};
     for (const Case& item : cases) {
         CAPTURE(item.status, item.detail);
         Harness h;
@@ -605,28 +612,42 @@ TEST_CASE("HTTP failures are mapped to safe errors that name the provider", "[ag
     }
 }
 
+TEST_CASE("an answer that names nothing a person can act on stops the turn with the service's status and text", "[agent][loop][errors]")
+{
+    const std::string not_found = R"({"error":{"message":"The model `gpt-x` does not exist","type":"invalid_request_error","code":"model_not_found"}})";
+    for (const unsigned status : {400u, 403u, 404u, 408u, 500u, 503u, 529u}) {
+        CAPTURE(status);
+        Harness h;
+        REQUIRE(h.agent->start(request_fixture()));
+        h.fake->refuse(status, not_found);
+        CHECK_THROWS_WITH(h.poll_until(AgentEventKind::Failed),
+                          ContainsSubstring("Test Provider answered HTTP " + std::to_string(status)) &&
+                              ContainsSubstring("model_not_found") && ContainsSubstring("assistant-7-attempt-1"));
+        // The turn stopped there: nothing is waiting, nothing more arrives.
+        CHECK_FALSE(h.agent->busy());
+        CHECK(h.fake->cancelled);
+        CHECK_FALSE(h.agent->poll());
+    }
+}
+
 TEST_CASE("what the codec reports ends the turn as it says", "[agent][loop][errors]")
 {
     Harness h;
     REQUIRE(h.agent->start(request_fixture()));
     h.fake->data(frame(json{{"incomplete", true}}));
-    auto event = h.poll_until(AgentEventKind::Failed);
-    REQUIRE(event);
-    CHECK(event->error->code == "incomplete_response");
-    CHECK(event->error->retryable);
+    CHECK_THROWS_WITH(h.poll_until(AgentEventKind::Failed), ContainsSubstring("ended its response early"));
+    CHECK_FALSE(h.agent->busy());
 
     REQUIRE(h.agent->start(request_fixture()));
     h.fake->data(frame(json{{"failed", json{{"code", "refusal"}, {"retryable", false}}}}));
-    event = h.poll_until(AgentEventKind::Failed);
+    auto event = h.poll_until(AgentEventKind::Failed);
     REQUIRE(event);
     CHECK(event->error->code == "refusal");
     CHECK_FALSE(event->error->retryable);
 
     REQUIRE(h.agent->start(request_fixture()));
     h.fake->data("data: not-json\n\n");
-    event = h.poll_until(AgentEventKind::Failed);
-    REQUIRE(event);
-    CHECK(event->error->code == "malformed_response");
+    CHECK_THROWS_WITH(h.poll_until(AgentEventKind::Failed), ContainsSubstring("sent an event that is not JSON: not-json"));
 
     // Cancelling drops whatever the cancelled request still delivers.
     REQUIRE(h.agent->start(request_fixture()));
@@ -638,7 +659,7 @@ TEST_CASE("what the codec reports ends the turn as it says", "[agent][loop][erro
     CHECK_FALSE(h.agent->poll());
 }
 
-TEST_CASE("malformed tool arguments go back to the model twice, then end the turn", "[agent][loop][tools]")
+TEST_CASE("malformed tool arguments go back to the model twice, then end the turn as unexpected", "[agent][loop][tools]")
 {
     Harness h;
     REQUIRE(h.agent->start(request_fixture()));
@@ -656,10 +677,9 @@ TEST_CASE("malformed tool arguments go back to the model twice, then end the tur
     }
     h.fake->data(frame(bad));
     h.fake->complete();
-    const auto event = h.poll_until(AgentEventKind::Failed);
-    REQUIRE(event);
-    REQUIRE(event->error);
-    CHECK(event->error->code == "malformed_tool_call");
+    CHECK_THROWS_WITH(h.poll_until(AgentEventKind::Failed),
+                      ContainsSubstring("sent a call to plate_layout that cannot run (invalid_arguments)") && ContainsSubstring("72"));
+    CHECK_FALSE(h.agent->busy());
     CHECK_FALSE(h.poll_until(AgentEventKind::ToolCall));
 }
 
@@ -909,11 +929,11 @@ TEST_CASE("the loop is not ready without a key, a model, an endpoint, a codec or
     no_endpoint.profile.endpoint.clear();
     CHECK_FALSE(ProviderAgent(no_endpoint, std::make_unique<ScriptedCodec>(), std::make_unique<FakeTransport>()).ready());
 
-    // A transport that refuses the post leaves the loop idle.
+    // A transport that refuses the post stops the request, and leaves the loop idle.
     auto transport = std::make_unique<FakeTransport>();
     transport->accept_posts = false;
     ProviderAgent agent(config, std::make_unique<ScriptedCodec>(), std::move(transport));
-    CHECK_FALSE(agent.start(request_fixture()));
+    CHECK_THROWS_WITH(agent.start(request_fixture()), "the HTTP transport did not start the request");
     CHECK_FALSE(agent.busy());
 }
 
@@ -993,7 +1013,7 @@ TEST_CASE("the record gets every item sent, never a call without its result nor 
     }
     SECTION("a turn whose request the provider refuses keeps nothing")
     {
-        const unsigned status = GENERATE(503u, 400u, 413u);
+        const unsigned status = GENERATE(429u, 413u);
         REQUIRE(h.agent->start(request));
         h.fake->error(status);
         REQUIRE(h.poll_until(AgentEventKind::Failed));
@@ -1005,7 +1025,7 @@ TEST_CASE("the record gets every item sent, never a call without its result nor 
         h.fake->data(frame(json{{"turn", "t1"}, {"calls", json::array({call("call-1", "workspace_inspect")})}}));
         REQUIRE(h.poll_until(AgentEventKind::ToolCall));
         REQUIRE(h.agent->continue_after_tool(AgentToolResult{"call-1", "succeeded", R"({"state":"succeeded"})"}));
-        h.fake->error(400);
+        h.fake->error(429);
         REQUIRE(h.poll_until(AgentEventKind::Failed));
         CHECK(recorded == std::vector<std::string>{"user"});
     }
@@ -1034,8 +1054,8 @@ TEST_CASE("the record gets every item sent, never a call without its result nor 
     SECTION("a request whose picture could not be kept is never sent")
     {
         request.skills    = {file_loaded_skill("Skill one.")};
-        request.keep_blob = [](const std::string&) -> std::optional<std::string> { return std::nullopt; };
-        CHECK_FALSE(h.agent->start(request));
+        request.keep_blob = [](const std::string&) -> std::string { throw std::runtime_error("disk full"); };
+        CHECK_THROWS_WITH(h.agent->start(request), "disk full");
         CHECK(h.fake->requests.empty());
         CHECK_FALSE(h.agent->busy());
     }
@@ -1103,9 +1123,8 @@ TEST_CASE("a paused response is sent again with its turn appended, a bounded num
     }
     CHECK(h.fake->requests.size() == before + 4);
     h.fake->data(frame(json{{"turn", "again"}, {"resend", true}}));
-    const auto failed = h.poll_until(AgentEventKind::Failed);
-    REQUIRE(failed);
-    CHECK(failed->error->code == "agent_paused_too_often");
+    CHECK_THROWS_WITH(h.poll_until(AgentEventKind::Failed), ContainsSubstring("paused its response more than 4 times"));
+    CHECK_FALSE(h.agent->busy());
     CHECK(h.fake->requests.size() == before + 4);
 }
 

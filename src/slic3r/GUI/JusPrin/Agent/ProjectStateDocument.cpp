@@ -2,8 +2,12 @@
 #include "slic3r/GUI/JusPrin/Workspace/Regions.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <optional>
 #include <set>
 #include <stdexcept>
+#include <string>
+#include <utility>
 
 // Last: it defines the L marker.
 #include "slic3r/GUI/JusPrin/Support/Translate.hpp"
@@ -19,11 +23,14 @@ const char* role_name(MessageRole role)
     return role == MessageRole::User ? "user" : role == MessageRole::Note ? "note" : "assistant";
 }
 
-MessageRole role_from(const std::string& name)
+// Nothing for a role a newer build added (StoredFormat.hpp: a new value keeps
+// the format number).
+std::optional<MessageRole> role_from(const std::string& name)
 {
     if (name == "user") return MessageRole::User;
     if (name == "note") return MessageRole::Note;
-    return MessageRole::Assistant;
+    if (name == "assistant") return MessageRole::Assistant;
+    return std::nullopt;
 }
 
 const char* message_state_name(MessageState state)
@@ -73,13 +80,16 @@ const char* action_class_name(ActionClass action_class)
     return "read_only";
 }
 
-ActionClass action_class_from(const std::string& name)
+// Nothing for an action class a newer build added.
+std::optional<ActionClass> action_class_from(const std::string& name)
 {
+    if (name == "read_only")
+        return ActionClass::ReadOnly;
     if (name == "mutation")
         return ActionClass::Mutation;
     if (name == "destructive")
         return ActionClass::Destructive;
-    return ActionClass::ReadOnly;
+    return std::nullopt;
 }
 
 // Updates the known fields of an existing JSON object in place, so fields
@@ -137,11 +147,16 @@ void write_message_fields(json& entry, const ConversationMessage& message)
         entry.erase("forModel");
 }
 
-ConversationMessage read_message(const json& entry)
+// Nothing for a message whose role a newer build added: this build cannot say
+// who wrote it, so it neither shows it nor changes it.
+std::optional<ConversationMessage> read_message(const json& entry)
 {
+    const std::optional<MessageRole> role = role_from(entry.value("role", "assistant"));
+    if (!role)
+        return std::nullopt;
     ConversationMessage message;
     message.id                = entry.value("id", "");
-    message.role              = role_from(entry.value("role", "assistant"));
+    message.role              = *role;
     message.state             = message_state_from(entry.value("state", "complete"));
     message.text              = entry.value("text", "");
     message.attempt           = entry.value("attempt", 1);
@@ -380,13 +395,15 @@ void write_activity_fields(json& entry, const ToolActivity& activity)
         entry["approves"] = activity.approves;
 }
 
-// Nothing for an action whose state or source a newer build added: this build
-// cannot say how it ended, so it neither shows it nor changes it.
+// Nothing for an action whose state, source or action class a newer build
+// added: this build cannot say how it ended or what it may do, so it neither
+// shows it nor changes it.
 std::optional<ToolActivity> read_activity(const json& entry)
 {
     const std::optional<ToolState> state = tool_state_from(entry.value("state", "running"));
     const std::string source = entry.at("source").get<std::string>();
-    if (!state || (source != "mcp" && source != "agent"))
+    const std::optional<ActionClass> action_class = action_class_from(entry.value("actionClass", "read_only"));
+    if (!state || !action_class || (source != "mcp" && source != "agent"))
         return std::nullopt;
     ToolActivity activity;
     activity.action_id         = entry.value("actionId", "");
@@ -397,12 +414,8 @@ std::optional<ToolActivity> read_activity(const json& entry)
     activity.tool              = entry.value("tool", "");
     activity.title             = entry.value("title", "");
     activity.arguments_json    = entry.value("arguments", "");
-    activity.action_class      = action_class_from(entry.value("actionClass", "read_only"));
-    try {
-        activity.session = std::stoull(entry.value("sessionId", "0"));
-    } catch (const std::exception&) {
-        activity.session = 0;
-    }
+    activity.action_class      = *action_class;
+    activity.session = std::stoull(entry.value("sessionId", "0"));
     activity.expected_revision = entry.value("expectedRevision", std::uint64_t(0));
     activity.state             = *state;
     if (entry.contains("progress") && entry["progress"].is_object()) {
@@ -516,9 +529,37 @@ PlanRecord read_plan(const json& stored)
 
 // A chat's record as state.json keeps it: every field, a picture's blob path
 // but never its bytes.
-NLOHMANN_JSON_SERIALIZE_ENUM(RecordPart::Kind, {{RecordPart::Kind::Text, "text"}, {RecordPart::Kind::Image, "image"}, {RecordPart::Kind::Pdf, "pdf"}})
-NLOHMANN_JSON_SERIALIZE_ENUM(RecordItem::Kind, {{RecordItem::Kind::User, "user"}, {RecordItem::Kind::Operator, "operator"},
-                                                {RecordItem::Kind::Assistant, "assistant"}, {RecordItem::Kind::Results, "results"}})
+// A kind this build does not know will not read: the record is what the model
+// is sent, and an item read as another kind would send it something else.
+namespace {
+template<typename Kind, std::size_t N>
+Kind record_kind(const json& entry, const std::pair<Kind, const char*> (&names)[N])
+{
+    const std::string name = entry.get<std::string>();
+    for (const auto& [kind, known] : names)
+        if (name == known)
+            return kind;
+    throw std::runtime_error("A chat record holds a kind this build does not know: " + name);
+}
+template<typename Kind, std::size_t N>
+std::string record_kind_name(Kind kind, const std::pair<Kind, const char*> (&names)[N])
+{
+    for (const auto& [known, name] : names)
+        if (kind == known)
+            return name;
+    throw std::logic_error("A chat record kind has no name");
+}
+const std::pair<RecordPart::Kind, const char*> part_kinds[] = {
+    {RecordPart::Kind::Text, "text"}, {RecordPart::Kind::Image, "image"}, {RecordPart::Kind::Pdf, "pdf"}};
+const std::pair<RecordItem::Kind, const char*> item_kinds[] = {{RecordItem::Kind::User, "user"},
+                                                               {RecordItem::Kind::Operator, "operator"},
+                                                               {RecordItem::Kind::Assistant, "assistant"},
+                                                               {RecordItem::Kind::Results, "results"}};
+} // namespace
+void to_json(json& entry, const RecordPart::Kind& kind) { entry = record_kind_name(kind, part_kinds); }
+void from_json(const json& entry, RecordPart::Kind& kind) { kind = record_kind(entry, part_kinds); }
+void to_json(json& entry, const RecordItem::Kind& kind) { entry = record_kind_name(kind, item_kinds); }
+void from_json(const json& entry, RecordItem::Kind& kind) { kind = record_kind(entry, item_kinds); }
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RecordPart, kind, text, mime, filename, blob)
 void to_json(json& entry, const RecordResult& result)
 {
@@ -726,20 +767,19 @@ std::optional<json> ProjectStateDocument::chat_checkpoint(const std::string& con
     return std::optional<json>(std::in_place, record);
 }
 
-bool ProjectStateDocument::save_chat_checkpoint(const std::string& conversation_id,
+void ProjectStateDocument::save_chat_checkpoint(const std::string& conversation_id,
                                                  const std::string& version_id,
                                                  const json& summary,
                                                  const std::string& timestamp)
 {
     json* conversation = conversation_json(conversation_id);
     if (!conversation || conversation_id != active_conversation_id() || version_id.empty() || !summary.is_object())
-        return false;
+        throw std::logic_error("a chat checkpoint for a chat that is not active, or with no version");
     (*conversation)["resumeCheckpoint"] = json{{"versionId", version_id},
                                                   {"summary", summary},
                                                   {"boundaryId", last_item_id(conversation_id)},
                                                   {"savedAt", timestamp}};
     touch();
-    return true;
 }
 
 bool ProjectStateDocument::needs_conversation_title(const std::string& conversation_id) const
@@ -955,7 +995,7 @@ void ProjectStateDocument::append_message(const std::string&         conversatio
 {
     json* conversation = conversation_json(conversation_id);
     if (conversation == nullptr)
-        return;
+        throw std::logic_error("a message appended to chat " + conversation_id + ", which the document does not hold");
     json entry;
     write_message_fields(entry, message);
     entry["seq"]       = next_seq();
@@ -985,7 +1025,8 @@ std::vector<ConversationMessage> ProjectStateDocument::messages(const std::strin
     if (conversation == nullptr)
         return result;
     for (const json& entry : (*conversation)["messages"])
-        result.push_back(read_message(entry));
+        if (std::optional<ConversationMessage> message = read_message(entry))
+            result.push_back(std::move(*message));
     return result;
 }
 

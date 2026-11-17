@@ -43,6 +43,9 @@ struct AgentHttpEvent
     std::string data;
     std::string error;
     unsigned    status{0};
+    // The service's own id for the request (its request-id or x-request-id
+    // header), once its headers have come; empty when it sends none.
+    std::string request_id;
 };
 
 class IAgentHttpTransport

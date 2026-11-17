@@ -7,6 +7,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <cstddef>
 #include <string>
 #include <utility>
 #include <vector>
@@ -244,6 +245,35 @@ TEST_CASE("a gallery that could not be read fills in once it can", "[home]")
 
     // Readable again, the projects go back to being read only with a send.
     CHECK_FALSE(host.refresh_if_changed());
+}
+
+// Print history opened while the projects folder cannot be read: the page is
+// told so with the state Home's gallery uses, and the live refresh then keeps
+// reading until the folder is back, so the list returns by itself.
+TEST_CASE("print history opened on an unreadable projects folder says so and fills in once it can", "[home]")
+{
+    FakeBackend backend;
+    backend.projects = {a_project("0", "Garage bracket")};
+    Wire     wire;
+    HomeHost host(backend, wire.sink());
+    host.on_page_message(hello());
+    REQUIRE(wire.of_type("state").back().at("payload").at("projectsProblem") == "");
+
+    backend.projects.clear();
+    backend.projects_problem = "Your projects couldn't be loaded.";
+    host.on_page_message(page_message("history_request"));
+    CHECK(wire.of_type("state").back().at("payload").at("projectsProblem") == "Your projects couldn't be loaded.");
+    CHECK(wire.of_type("history").size() == 1);
+
+    // Asked again while nothing changed: no second state.
+    const std::size_t states = wire.of_type("state").size();
+    host.on_page_message(page_message("history_request"));
+    CHECK(wire.of_type("state").size() == states);
+
+    backend.projects_problem.clear();
+    backend.projects = {a_project("0", "Garage bracket")};
+    CHECK(host.refresh_if_changed());
+    CHECK(wire.of_type("state").back().at("payload").at("projectsProblem") == "");
 }
 
 // A page speaking a version this build does not must be told so, not left
@@ -769,6 +799,27 @@ TEST_CASE("the page chooses a report's photo through the host and hears back on 
     CHECK(photo.at("thumbnail") == "data:image/png;base64,AA");
 }
 
+TEST_CASE("a report photo the backend will not send is refused when it is chosen, with its sentence", "[home]")
+{
+    FakeBackend backend;
+    Wire        wire;
+    HomeHost    host(backend, wire.sink());
+    host.on_page_message(hello());
+
+    const std::string too_large = "That photo is larger than 20 MB. Choose a smaller photo, then send the report again.";
+    backend.report_photo = PrintReportPhoto{"1", "phone.jpg", 25000000, "", too_large};
+    host.on_page_message(page_message("print_report_choose_photo"));
+    json payload = wire.of_type("print_report_photo").back().at("payload");
+    CHECK_FALSE(payload.contains("photo"));
+    CHECK(payload.at("problem") == too_large);
+
+    backend.report_photo = PrintReportPhoto{"2", "phone-small.jpg", 2400000, ""};
+    host.on_page_message(page_message("print_report_choose_photo"));
+    payload = wire.of_type("print_report_photo").back().at("payload");
+    CHECK(payload.at("photo").at("id") == "2");
+    CHECK_FALSE(payload.contains("problem"));
+}
+
 TEST_CASE("a print report's answer reaches the page later, with the history as it now stands", "[home]")
 {
     FakeBackend backend;
@@ -796,7 +847,15 @@ TEST_CASE("a print report's answer reaches the page later, with the history as i
     CHECK(result.at("hash") == "a71f");
     CHECK(result.at("state") == "sent");
     CHECK(result.at("credits") == 25);
+    CHECK_FALSE(result.contains("message"));
     CHECK(wire.of_type("history").size() == before + 1);
+
+    PrintReportAnswer refused;
+    refused.message = "That photo could not be read.";
+    backend.report_done(refused);
+    const json failed = wire.of_type("print_report_result").back().at("payload");
+    CHECK(failed.at("state") == "failed");
+    CHECK(failed.at("message") == "That photo could not be read.");
 }
 
 TEST_CASE("a print report answered after the host is gone goes nowhere", "[home]")

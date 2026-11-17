@@ -24,6 +24,8 @@
 #include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 
 #include <deque>
+#include <exception>
+#include <stdexcept>
 #include <filesystem>
 #include <functional>
 #include <map>
@@ -80,6 +82,14 @@ public:
     // thread: whether the server says it is gone.
     using DeleteAccountDone = std::function<void(bool deleted)>;
     virtual void delete_account(DeleteAccountDone done) { done(false); }
+};
+
+// A tool call that failed in the app's own work, not by the model's
+// mistake. Its error already went to the model; the report of it is sent
+// only when the person has automatic reports on, and opens no dialog.
+struct ToolCallFailure : std::runtime_error
+{
+    using std::runtime_error::runtime_error;
 };
 
 class AgentHost
@@ -140,6 +150,14 @@ public:
     // the web view that shows the page sets it.
     using PageErrorHandler = std::function<void(const std::string& error, const std::string& where)>;
     void set_page_error_handler(PageErrorHandler handler) { m_page_error_handler = std::move(handler); }
+    // Reports an unexpected failure that stopped a request this host runs
+    // from its pumps (an AI reply or title, a key check), or a
+    // ToolCallFailure: what the app was doing and the failure as it reached
+    // the top. The web view that shows the page sets it. Without one, the
+    // failure leaves the pump unchanged.
+    using UnexpectedErrorHandler = std::function<void(const std::string& doing, std::exception_ptr error)>;
+    void set_unexpected_error_handler(UnexpectedErrorHandler handler) { m_unexpected_error_handler = std::move(handler); }
+    const UnexpectedErrorHandler& unexpected_error_handler() const { return m_unexpected_error_handler; }
     // Carried in every `state` snapshot as `session`, so a page that reloads
     // is told what its surface shows without asking the subject itself.
     void set_session_state_provider(std::function<nlohmann::json()> provider)
@@ -207,12 +225,13 @@ public:
     // A completed, failed, or stopped reply is a document durability boundary.
     void set_turn_boundary_callback(std::function<void()> callback) { m_turn_boundary_callback = std::move(callback); }
     // Managed projects supply native model-version operations. Temporary
-    // printer conversations intentionally leave these unset.
-    void set_chat_checkpoint_callbacks(std::function<std::optional<std::string>()> pin_current,
+    // printer conversations intentionally leave these unset. Pinning, saving
+    // and restoring throw the save's own error when they fail.
+    void set_chat_checkpoint_callbacks(std::function<std::string()> pin_current,
                                        std::function<std::string()> current_version,
                                        std::function<bool(const std::string&)> version_exists,
-                                       std::function<bool()> save_document,
-                                       std::function<bool(const std::string&, const std::string&)> restore)
+                                       std::function<void()> save_document,
+                                       std::function<void(const std::string&, const std::string&)> restore)
     {
         m_pin_chat_version = std::move(pin_current);
         m_current_chat_version = std::move(current_version);
@@ -220,6 +239,8 @@ public:
         m_save_chat_document = std::move(save_document);
         m_restore_chat_version = std::move(restore);
     }
+    // Saves the active chat's checkpoint. False, saving nothing, while a
+    // reply, tool or queued message runs; a failed save throws.
     bool checkpoint_active_chat();
 
     // Call when the page starts (re)loading; the host requires a new
@@ -232,6 +253,8 @@ public:
 
     void set_appearance(bool dark);
     void set_availability(AgentAvailability availability);
+    // Installs the AI service. One that comes while a reply is running waits
+    // for the reply to end, so the next message uses it.
     void set_agent(AgentServicePtr agent, AgentAvailability availability);
     // Lets each chat choose its provider, model and thinking level: the
     // composer's pickers, switchable between any two turns. The choice is
@@ -512,8 +535,7 @@ private:
     void handle_account_open_link(const std::string& type, const std::string& payload_json);
     void pump_account();
     void send_account_status(const std::string& phase, const std::string& correlation_id = {},
-                             const std::optional<AgentError>& error = std::nullopt, bool expired = false,
-                             const std::string& warning = {});
+                             const std::optional<AgentError>& error = std::nullopt, bool expired = false);
     // The stored keys as setup_keys describes them; nothing before the
     // handshake or without a setup service.
     void send_setup_keys(const std::string& correlation_id = {});
@@ -537,8 +559,7 @@ private:
     void send_setup_status(const std::string&               phase,
                            const std::string&               correlation_id = {},
                            std::optional<int>               elapsed_ms     = std::nullopt,
-                           const std::optional<AgentError>& error          = std::nullopt,
-                           const std::string&               warning        = {});
+                           const std::optional<AgentError>& error          = std::nullopt);
     void send_attachment_updated(const AttachmentRecord& record, const std::string& correlation_id = {});
     std::string attachment_preview_data_url(const AttachmentRecord& record) const;
     void send_tool_activity(const ToolActivity& activity, const std::string& correlation_id = {});
@@ -592,6 +613,10 @@ private:
     void start_conversation_title(const std::string& conversation_id);
     void cancel_conversation_title();
     void pump_conversation_title();
+    // pump_stream's work, below its top handler.
+    void pump_agent();
+    // pump_setup's key check, below its top handler.
+    void pump_key_check();
 
     Workspace::IWorkspace&           m_workspace;
     // The intent and plan tools' owner: the project document, written through
@@ -666,17 +691,23 @@ private:
     ToolActivitySubscription         m_tool_activity_subscription;
     std::unique_ptr<Mcp::McpRuntime>   m_mcp;
     AgentServicePtr                  m_agent;
+    struct WaitingAgent
+    {
+        AgentServicePtr   agent;
+        AgentAvailability availability;
+    };
+    std::optional<WaitingAgent>      m_waiting_agent;
     AgentSetupServicePtr             m_setup;
     Workspace::WorkspaceSubscription m_workspace_subscription;
 
     SendFn                m_send;
     std::function<void()> m_handshake_listener;
     std::function<void()> m_turn_boundary_callback;
-    std::function<std::optional<std::string>()> m_pin_chat_version;
+    std::function<std::string()> m_pin_chat_version;
     std::function<std::string()> m_current_chat_version;
     std::function<bool(const std::string&)> m_chat_version_exists;
-    std::function<bool()> m_save_chat_document;
-    std::function<bool(const std::string&, const std::string&)> m_restore_chat_version;
+    std::function<void()> m_save_chat_document;
+    std::function<void(const std::string&, const std::string&)> m_restore_chat_version;
     bool m_chat_transition_blocked{false};
 
     // The project chat's instructions arrive from its page with
@@ -722,6 +753,7 @@ private:
     bool slice_ended(const std::string& action_id);
     PageMessageHandler              m_page_message_handler;
     PageErrorHandler                m_page_error_handler;
+    UnexpectedErrorHandler          m_unexpected_error_handler;
     std::function<nlohmann::json()> m_restore_points_provider;
     ToolExecutionCoordinator::ExtensionExecutor m_session_tool_executor;
     ToolOutputFormatter             m_session_tool_output;

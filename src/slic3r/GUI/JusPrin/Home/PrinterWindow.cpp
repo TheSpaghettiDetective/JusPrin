@@ -1,6 +1,7 @@
 // First: slic3r/GUI/I18N.hpp defines _L only while the _ macro is still
 // undefined, so it has to precede any header that brings one in.
 #include "slic3r/GUI/I18N.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 
 #include "PrinterWindow.hpp"
 
@@ -15,6 +16,7 @@
 #include <wx/panel.h>
 #include <wx/sizer.h>
 #include <wx/stattext.h>
+#include <wx/timer.h>
 #include <wx/uri.h>
 #include <wx/webview.h>
 
@@ -103,7 +105,7 @@ PrinterWindow::PrinterWindow(const std::string& printer_name, const DynamicPrint
             browser->Bind(wxEVT_WEBVIEW_ERROR, &PrinterWindow::on_error, this);
         }
     // A closing window has already let its page go (PopOutWindow::release).
-    Bind(wxEVT_TIMER, [this](wxTimerEvent&) { if (!closing()) show_problem(); }, m_load_deadline.GetId());
+    Bind(wxEVT_TIMER, reported("waiting for the printer page", [this](wxTimerEvent&) { if (!closing()) show_problem(false); }), m_load_deadline.GetId());
 
     Show();
     // PrinterWebView defers a load until it is shown, so the load follows Show.
@@ -123,6 +125,8 @@ void PrinterWindow::show_printer(const std::string& printer_name, const DynamicP
 }
 
 bool PrinterWindow::problem_shown() const { return m_problem->IsShown(); }
+
+wxString PrinterWindow::problem_text() const { return m_problem_detail->GetLabel(); }
 
 void PrinterWindow::load()
 {
@@ -149,19 +153,29 @@ void PrinterWindow::on_error(wxWebViewEvent& event)
     if (event.GetInt() == wxWEBVIEW_NAV_ERR_USER_CANCELLED)
         return;
     m_load_deadline.Stop();
-    show_problem();
+    // The printer answered, but its secure connection could not be checked:
+    // a certificate of its own, as most printers on a home network have, or
+    // an https address on a printer that only speaks http, whose failed
+    // handshake WebKit on macOS reports under wx's AUTH kind. A page behind a
+    // password is no error here: WebKit shows the printer's own 401 page.
+    const int  kind   = event.GetInt();
+    const bool secure = kind == wxWEBVIEW_NAV_ERR_CERTIFICATE ||
+                        (kind == wxWEBVIEW_NAV_ERR_AUTH && wxString::FromUTF8(m_url).Lower().StartsWith("https://"));
+    show_problem(secure);
 }
 
-void PrinterWindow::show_problem()
+void PrinterWindow::show_problem(bool secure_connection)
 {
     if (m_problem->IsShown())
         return;
     // A new label each time: wx's Wrap() keeps the first text it wrapped and
     // skips a width it has already wrapped at, so a reused one comes back
     // unwrapped, or with the old address.
-    auto* detail = new wxStaticText(m_problem, wxID_ANY, wxString::Format(
-        _L("Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."),
-        wxString::FromUTF8(m_address)));
+    const wxString address = wxString::FromUTF8(m_address);
+    auto*          detail  = new wxStaticText(m_problem, wxID_ANY, secure_connection ?
+        // TRN %s is the printer's address without its scheme, such as 192.168.1.42:7125. Printer settings is the printer's settings window.
+        wxString::Format(_L("The printer at %s answered, but JusPrin couldn't check its secure connection. If the printer's address starts with https://, change it to http:// in Printer settings, then try again."), address) :
+        wxString::Format(_L("Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."), address));
     m_problem_detail->GetContainingSizer()->Replace(m_problem_detail, detail);
     m_problem_detail->Destroy();
     m_problem_detail = detail;

@@ -9,6 +9,7 @@
 #include "slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolErrors.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpProtocol.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/StoredFormat.hpp"
 #include "../jusprin_support/CommaLocale.hpp"
 #include "../jusprin_support/FakeProductState.hpp"
 #include "../jusprin_support/FakeWorkspace.hpp"
@@ -17,6 +18,7 @@
 #include <boost/uuid/uuid_io.hpp>
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <stdexcept>
@@ -1254,12 +1256,11 @@ TEST_CASE("opening a project names the activity and reports what was asked", "[t
     CHECK_FALSE(registry.validate_call(*registry.find("project_open"), json{{"path", model}, {"openedBefore", "keep"}}.dump()).valid());
 
     // Saved projects that cannot be read leave the question unanswerable:
-    // nothing opens, at the request or at its run, and the call says why.
+    // nothing opens, at the request or at its run, and the call says why,
+    // with the file system's reason.
     h.coordinator.set_earlier_projects(
-        [](const std::string&) {
-            ToolExecutionCoordinator::EarlierLookup lookup;
-            lookup.unreadable = true;
-            return lookup;
+        [](const std::string&) -> std::optional<ToolExecutionCoordinator::EarlierProject> {
+            throw Slic3r::GUI::JusPrin::Workspace::ProjectsUnreadable("projects: Permission denied");
         },
         [&](const std::string& id) { continued.push_back(id); return std::string(); }, {});
     const int opens_before_unreadable = h.workspace.opens;
@@ -1267,8 +1268,15 @@ TEST_CASE("opening a project names the activity and reports what was asked", "[t
     REQUIRE(unreadable.error.has_value());
     CHECK(unreadable.error->code == "local_save_failed");
     CHECK(unreadable.error->message.find("could not read its saved projects") != std::string::npos);
+    CHECK(unreadable.error->message.find("projects: Permission denied") != std::string::npos);
     const ToolActivity unreadable_existing = submit(json{{"path", model}, {"openedBefore", "existing"}});
     settle(unreadable_existing);
+    const auto unreadable_end = std::find_if(h.events.rbegin(), h.events.rend(), [&](const ToolActivity& event) {
+        return event.action_id == unreadable_existing.action_id && tool_state_terminal(event.state);
+    });
+    REQUIRE(unreadable_end != h.events.rend());
+    REQUIRE(unreadable_end->error.has_value());
+    CHECK(unreadable_end->error->message.find("projects: Permission denied") != std::string::npos);
     CHECK(h.workspace.opens == opens_before_unreadable);
     CHECK(continued == std::vector<std::string>{"p-1"});
     h.coordinator.set_earlier_projects({}, {}, {});

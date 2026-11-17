@@ -2,10 +2,17 @@
 // project pane show: one table of G-codes, filtered by project or printer.
 
 #include <catch2/catch_all.hpp>
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers.hpp>
 
 #include "slic3r/GUI/JusPrin/Home/PrintHistory.hpp"
 
 #include <nlohmann/json.hpp>
+
+#include <filesystem>
+#include <fstream>
+#include <random>
+#include <string>
 
 using namespace Slic3r::GUI::JusPrin;
 using namespace Slic3r::GUI::JusPrin::Home;
@@ -298,13 +305,68 @@ TEST_CASE("the server's answer to a report", "[print-history]")
 
     const auto refused = [](const std::string& code) { return R"({"type": "error", "error": {"code": ")" + code + R"(", "message": "x"}})"; };
     CHECK(print_report_answer(409, refused("already_reported")).state == State::AlreadySent);
-    CHECK(print_report_answer(409, refused("something_else")).state == State::Failed);
-    CHECK(print_report_answer(500, "").update_message.empty());
     const PrintReportAnswer outdated = print_report_answer(426, refused("update_required"));
     CHECK(outdated.state == State::Failed);
     CHECK_THAT(outdated.update_message, Catch::Matchers::ContainsSubstring("can no longer connect to JusPrin accounts"));
-    CHECK(print_report_answer(400, refused("photo_unreadable")).state == State::Failed);
-    CHECK(print_report_answer(413, refused("request_too_large")).state == State::Failed);
-    CHECK(print_report_answer(0, "").state == State::Failed);
-    CHECK(print_report_answer(502, "<html>bad gateway</html>").state == State::Failed);
+    // The server's expected refusals a person can act on, each told in the
+    // app's sentence for the same next step; no answer keeps the form's own.
+    const PrintReportAnswer signed_out = print_report_answer(401, refused("unauthorized"));
+    CHECK(signed_out.state == State::Failed);
+    CHECK(signed_out.message == "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again.");
+    const PrintReportAnswer photo = print_report_answer(400, refused("photo_unreadable"));
+    CHECK(photo.state == State::Failed);
+    CHECK(photo.message == "That photo could not be read.");
+    // The form refuses a photo over the server's limit when it is chosen; this
+    // says the same if one gets through.
+    const PrintReportAnswer too_large = print_report_answer(413, refused("request_too_large"));
+    CHECK(too_large.state == State::Failed);
+    CHECK(too_large.message == "That photo is larger than 20 MB. Choose a smaller photo, then send the report again.");
+    const PrintReportAnswer unanswered = print_report_answer(0, "");
+    CHECK(unanswered.state == State::Failed);
+    CHECK(unanswered.message.empty());
+}
+
+TEST_CASE("a report photo over the server's 20 MB is refused when it is chosen", "[print-history]")
+{
+    const std::string too_large = "That photo is larger than 20 MB. Choose a smaller photo, then send the report again.";
+    CHECK(report_photo_problem(20u * 1024 * 1024 + 1) == too_large);
+    CHECK(report_photo_problem(25000000) == too_large);
+    // The server takes a photo of exactly its limit.
+    CHECK(report_photo_problem(20u * 1024 * 1024).empty());
+    CHECK(report_photo_problem(2400000).empty());
+}
+
+TEST_CASE("an answer to a report that no person decided is unexpected, with its status and body", "[print-history][errors]")
+{
+    const auto refused = [](const std::string& code) { return R"({"type": "error", "error": {"code": ")" + code + R"(", "message": "x"}})"; };
+    CHECK_THROWS_WITH(print_report_answer(502, "<html>bad gateway</html>"),
+                      Catch::Matchers::ContainsSubstring("502") && Catch::Matchers::ContainsSubstring("<html>bad gateway</html>"));
+    CHECK_THROWS_WITH(print_report_answer(500, refused("server_error")), Catch::Matchers::ContainsSubstring("server_error"));
+    CHECK_THROWS(print_report_answer(409, refused("something_else")));
+    // The form sends neither a short text nor a report without a photo, so the
+    // server refusing one is unexpected.
+    CHECK_THROWS_WITH(print_report_answer(400, refused("text_too_short")), Catch::Matchers::ContainsSubstring("text_too_short"));
+    CHECK_THROWS_WITH(print_report_answer(400, refused("photo_needed")), Catch::Matchers::ContainsSubstring("photo_needed"));
+    // Stored, but not read: our own server on both ends.
+    CHECK_THROWS_WITH(print_report_answer(201, "not json"), Catch::Matchers::ContainsSubstring("not json"));
+    CHECK_THROWS(print_report_answer(201, R"({"id": 7})"));
+}
+
+TEST_CASE("an exported file that is gone is missing, one that cannot be read is an error", "[print-history]")
+{
+    namespace fs = std::filesystem;
+    const fs::path folder = fs::temp_directory_path() / ("jusprin-export-check-" + std::to_string(std::random_device{}()));
+    fs::create_directories(folder);
+    const fs::path file = folder / "plate.gcode";
+    std::ofstream(file) << "G1 X0\n";
+
+    REQUIRE(exported_file(file));
+    CHECK(exported_file(file)->size == 6);
+    CHECK_FALSE(exported_file(folder / "gone.gcode"));
+    CHECK_FALSE(exported_file(folder / "no-drive" / "plate.gcode"));
+
+    fs::permissions(folder, fs::perms::none);
+    CHECK_THROWS_AS(exported_file(file), fs::filesystem_error);
+    fs::permissions(folder, fs::perms::owner_all);
+    fs::remove_all(folder);
 }

@@ -91,10 +91,10 @@ public:
         std::optional<bool> changed;
     };
     // Read-only lookup also works when another app instance owns the store lock.
-    // Nothing when the projects folder cannot be read: whether the file was
-    // opened before is then unknown, which is not the same as "no".
+    // Throws ProjectsUnreadable when the projects folder cannot be read:
+    // whether the file was opened before is then unknown, which is not "no".
     bool has_local_project_for_source(const std::filesystem::path& source) const;
-    std::optional<std::vector<SourceMatch>> projects_for_source(const std::filesystem::path& source) const;
+    std::vector<SourceMatch> projects_for_source(const std::filesystem::path& source) const;
     // The file the open project was opened from, kept with its MD5 from now
     // on, unless one is kept already. A .3mf is recorded on its own: it is
     // the project's file.

@@ -1,6 +1,7 @@
 // First: slic3r/GUI/I18N.hpp defines _L only while the _ macro is still
 // undefined, so it has to precede any header that brings one in.
 #include "slic3r/GUI/I18N.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 
 #include "SplashWindow.hpp"
 
@@ -162,7 +163,7 @@ int SplashWindow::FilterEvent(wxEvent& event)
         // Gone from the screen now; destroyed on the event loop's next turn,
         // because this filter is still being called from the filter list.
         Hide();
-        CallAfter([this] { Destroy(); });
+        CallAfter(reported("closing the splash screen", [this] { Destroy(); }));
     }
     return wxEventFilter::Event_Skip;
 }

@@ -342,8 +342,11 @@
     {
         if (!m_modal_closer_bound) {
             m_modal_closer.Bind(wxEVT_TIMER, [this](wxTimerEvent&) {
-                for (wxWindow* window : wxTopLevelWindows)
-                    if (auto* dialog = dynamic_cast<wxDialog*>(window); dialog != nullptr && dialog->IsModal()) {
+                // Only the innermost modal dialog, as a person can: ending one
+                // whose loop runs under another's leaves it open for good.
+                // wx lists top-level windows in the order they were made.
+                for (auto it = wxTopLevelWindows.rbegin(); it != wxTopLevelWindows.rend(); ++it)
+                    if (auto* dialog = dynamic_cast<wxDialog*>(*it); dialog != nullptr && dialog->IsModal()) {
                         if (!m_state->capture_dir.empty() && m_modal_pictured != dialog) {
                             m_modal_pictured = dialog;
                             blit_screen(dialog->GetScreenRect(), "issues-dialog-" + std::to_string(m_modals_answered + 1));
@@ -355,6 +358,7 @@
                         ++m_modals_answered;
                         std::cerr << "HARNESS MODAL '" << m_last_modal_title << "' answered " << m_modal_answer << '\n';
                         dialog->EndModal(m_modal_answer);
+                        return;
                     }
             });
             m_modal_closer_bound = true;

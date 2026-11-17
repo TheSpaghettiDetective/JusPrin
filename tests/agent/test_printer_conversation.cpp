@@ -2500,7 +2500,7 @@ TEST_CASE("a printer conversation writes nothing into the project", "[printer-co
     persistence.document().append_message("c-1", Agent::ConversationMessage{"m-1"}, persistence.timestamp());
     persistence.commit();
     persistence.flush();
-    REQUIRE(persistence.write_attachment_blob("attachments/a-1/photo.png", "bytes"));
+    persistence.write_attachment_blob("attachments/a-1/photo.png", "bytes");
 
     CHECK(persistence.read_attachment_blob("attachments/a-1/photo.png") == "bytes");
     CHECK_FALSE(std::filesystem::exists(project / "JusPrin"));
@@ -3232,7 +3232,7 @@ json request_body(const Agent::AgentSessionProfile& profile, const std::string& 
     request.record       = std::move(record);
     request.unsent       = std::move(unsent);
     request.on_recorded  = [](const std::string&, std::vector<Agent::RecordItem>) {};
-    request.keep_blob    = [](const std::string&) -> std::optional<std::string> { return "chats/c/blob"; };
+    request.keep_blob    = [](const std::string&) -> std::string { return "chats/c/blob"; };
     REQUIRE(agent.start(request));
     REQUIRE(capture->requests.size() == 1);
     return json::parse(capture->requests.front().body);
@@ -3529,7 +3529,7 @@ std::vector<std::string> offered(Agent::AgentRequest request)
     CapturingTransport* capture   = transport.get();
     Agent::OpenAIResponsesAgent agent({"key", "gpt-5.4-mini", "https://api.openai.com/v1/responses"}, std::move(transport));
     request.on_recorded = [](const std::string&, std::vector<Agent::RecordItem>) {};
-    request.keep_blob   = [](const std::string&) -> std::optional<std::string> { return "chats/c/blob"; };
+    request.keep_blob   = [](const std::string&) -> std::string { return "chats/c/blob"; };
     REQUIRE(agent.start(request));
     REQUIRE(capture->requests.size() == 1);
     const json body = json::parse(capture->requests.front().body);

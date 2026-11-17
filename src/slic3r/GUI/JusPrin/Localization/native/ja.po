@@ -482,6 +482,15 @@ msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try ag
 msgstr "JusPrinのサインインの有効期限が切れました。設定でもう一度サインインしてから、もう一度お試しください。"
 
 # AI Translated
+msgid "That photo could not be read."
+msgstr "その写真を読み込めませんでした。"
+
+# AI Translated
+#. TRN The print report form, about a photo over the server's limit of 20 MB.
+msgid "That photo is larger than 20 MB. Choose a smaller photo, then send the report again."
+msgstr "その写真は 20 MB を超えています。もっと小さい写真を選んでから、もう一度レポートを送信してください。"
+
+# AI Translated
 #, boost-format
 msgid "This message needs %1% credit; you have %2%."
 msgid_plural "This message needs %1% credits; you have %2%."
@@ -889,6 +898,12 @@ msgstr "再試行"
 #, c-format, boost-format
 msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
 msgstr "%sから応答がありません。プリンターの電源が入っていて、このコンピューターと同じネットワークにあることを確認してから、もう一度お試しください。"
+
+# AI Translated
+#. TRN %s is the printer's address without its scheme, such as 192.168.1.42:7125. Printer settings is the printer's settings window.
+#, c-format, boost-format
+msgid "The printer at %s answered, but JusPrin couldn't check its secure connection. If the printer's address starts with https://, change it to http:// in Printer settings, then try again."
+msgstr "%s のプリンターは応答しましたが、JusPrin はその安全な接続を確認できませんでした。プリンターのアドレスが https:// で始まる場合は、プリンター設定で http:// に変更してから、もう一度お試しください。"
 
 # AI Translated
 msgid "Client configuration is a symbolic link. Use Copy and update its target manually."

@@ -348,6 +348,15 @@
 //              the server's pages in the app's sheet, and its Get the new
 //              version… opens Preferences on Updates; with JUSPRIN_SERVER_URL
 //              the sheet loads that server's pages, signed out
+//   --delete-account-waits
+//              Delete account in Preferences, against a stand-in server,
+//              waits while a reply runs in a printer chat and goes through
+//              once it ends
+//   --printer-window [capture-dir]
+//              what a printer window from Home says when its page does not
+//              load: an https address on a printer that only speaks http, and
+//              a closed port; JUSPRIN_HARNESS_CERTIFICATE_PAGE adds a page
+//              served with a certificate of its own
 //   --print-history [capture-dir]
 //              the G-code record end to end with the in-process fake Bambu
 //              printer: an export through the export_file path, two sends
@@ -363,6 +372,7 @@
 
 // First: on Windows asio needs winsock2.h ahead of any windows.h.
 #include <boost/asio.hpp>
+#include <boost/asio/buffer.hpp>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -436,6 +446,7 @@
 #include "slic3r/GUI/JusPrin/PrinterSetup/OrcaPrinterBackend.hpp"
 #include "slic3r/Utils/NetworkAgent.hpp"
 #include "slic3r/GUI/JusPrin/Testing/FakeBambuAgent.hpp"
+#include "slic3r/Utils/CloudProvider.hpp"
 #include "slic3r/Utils/NetworkAgentFactory.hpp"
 #include "slic3r/GUI/DeviceCore/DevManager.h"
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
@@ -493,6 +504,7 @@
 #include <boost/nowide/fstream.hpp>
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cctype>
 #include <chrono>
@@ -500,6 +512,7 @@
 #include <csignal>
 #include <cstdlib>
 #include <cstring>
+#include <exception>
 #include <fstream>
 #include <iterator>
 #include <functional>
@@ -509,6 +522,7 @@
 #include <optional>
 #include <regex>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <thread>
 #include <utility>
@@ -818,6 +832,87 @@ private:
     std::thread                    m_thread;
 };
 
+// How many unexpected errors the app has reported in this run.
+// report_unexpected_error logs each one as it is made, before any dialog, and
+// the log is flushed line by line.
+int unexpected_errors_logged()
+{
+    int count = 0;
+    for (const auto& entry : fs::directory_iterator(fs::path(data_dir()) / "log")) {
+        std::ifstream     file(entry.path().string(), std::ios::binary);
+        const std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        for (std::size_t at = text.find("Unexpected error while"); at != std::string::npos; at = text.find("Unexpected error while", at + 1))
+            ++count;
+    }
+    return count;
+}
+
+// A printer's web server that speaks only http, on a loopback port: it
+// answers whatever arrives at once with 400, as nginx in front of Mainsail or
+// Fluidd answers a secure handshake sent to its http port. StandInHost waits
+// for a whole request, which a handshake never sends.
+class StandInHttpOnlyPrinter
+{
+public:
+    StandInHttpOnlyPrinter() : m_acceptor(m_io, boost::asio::ip::tcp::endpoint(boost::asio::ip::address_v4::loopback(), 0))
+    {
+        m_thread = std::thread([this] { serve(); });
+    }
+    ~StandInHttpOnlyPrinter()
+    {
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_stopping = true;
+            // A connection that never sends anything would hold the read.
+            if (m_serving != nullptr) {
+                boost::system::error_code ignored;
+                m_serving->shutdown(boost::asio::ip::tcp::socket::shutdown_both, ignored);
+            }
+        }
+        boost::system::error_code    ignored;
+        boost::asio::ip::tcp::socket wake(m_io);
+        wake.connect(m_acceptor.local_endpoint(), ignored);
+        m_thread.join();
+    }
+    // Without the scheme: the caller picks it.
+    std::string server() const { return "127.0.0.1:" + std::to_string(m_acceptor.local_endpoint().port()); }
+
+private:
+    void serve()
+    {
+        for (;;) {
+            boost::system::error_code    error;
+            boost::asio::ip::tcp::socket socket(m_io);
+            m_acceptor.accept(socket, error);
+            {
+                std::lock_guard<std::mutex> lock(m_mutex);
+                if (m_stopping || error)
+                    return;
+                m_serving = &socket;
+            }
+            std::array<char, 4096> received{};
+            socket.read_some(boost::asio::buffer(received), error);
+            {
+                std::lock_guard<std::mutex> lock(m_mutex);
+                m_serving = nullptr;
+                if (m_stopping)
+                    return;
+            }
+            const std::string reply = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/html\r\nContent-Length: 11\r\n"
+                                      "Connection: close\r\n\r\nBad Request";
+            boost::asio::write(socket, boost::asio::buffer(reply), error);
+            socket.close(error);
+        }
+    }
+
+    boost::asio::io_context        m_io;
+    boost::asio::ip::tcp::acceptor m_acceptor;
+    std::mutex                     m_mutex;
+    bool                           m_stopping{false};
+    boost::asio::ip::tcp::socket*  m_serving{nullptr}; // the connection being read, under m_mutex
+    std::thread                    m_thread;
+};
+
 // A Moonraker host with a multi-filament unit, on a loopback port: answers
 // /server/info as a connection test expects, and the two lane sources from
 // whatever the test last set -- a body, or nothing (a 404) for lane_data.
@@ -998,6 +1093,9 @@ private:
                         R"(,"granted":500,"expires_at":null}]},"plan":null,"usage_30d":{"activity":[]}})";
             } else if (path == "/ent/jusprin/v2/models") {
                 reply = R"({"data":[{"id":"jusprin-standard","label":"Standard","format":"responses"}]})";
+            } else if (path == "/ent/jusprin/v2/account_box") {
+                // No box, as the server answers once the launch offer has ended.
+                status = 204;
             } else {
                 status = 404;
                 reply  = R"({"type":"error","error":{"code":"not_found","message":"Not Found"}})";
@@ -1006,7 +1104,7 @@ private:
                 std::lock_guard<std::mutex> lock(m_mutex);
                 m_requests.push_back(method + " " + path + (body.empty() ? "" : " " + body));
             }
-            const std::string response = "HTTP/1.1 " + std::to_string(status) + (status == 200 ? " OK" : " Refused") +
+            const std::string response = "HTTP/1.1 " + std::to_string(status) + (status < 300 ? " OK" : " Refused") +
                                          "\r\nContent-Type: application/json\r\nContent-Length: " + std::to_string(reply.size()) +
                                          "\r\nConnection: close\r\n\r\n" + reply;
             boost::asio::write(socket, boost::asio::buffer(response), error);
@@ -1450,7 +1548,9 @@ struct HarnessState
         PreferencesCapture,
         ServerSheet,
         ServerSheetPopup,
-        PrinterChatSheet
+        PrinterChatSheet,
+        DeleteAccountWaits,
+        PrinterWindow
     };
 
     std::atomic<int>  result{-1};
@@ -1929,6 +2029,10 @@ public:
                 begin_print_history();
                 return;
             }
+            if (m_state->mode == HarnessState::Mode::PrinterWindow) {
+                verify_printer_window_problems();
+                return;
+            }
             if (m_state->mode == HarnessState::Mode::AccountBox) {
                 verify_account_box();
                 return;
@@ -1947,6 +2051,10 @@ public:
             }
             if (m_state->mode == HarnessState::Mode::PrinterChatSheet) {
                 verify_printer_chat_sheet();
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::DeleteAccountWaits) {
+                verify_delete_account_waits();
                 return;
             }
             if (m_state->mode == HarnessState::Mode::ExternalProjectHistory) {
@@ -3245,8 +3353,14 @@ private:
                                                           persistence().document().project_id());
         auto& host = installed_shell()->agent_pane()->web_view().host();
         // Nothing is unsaved, but a chat checkpoint still has to pin the saved
-        // version in the folder.
-        check(!host.checkpoint_active_chat() && autosave->state() == Workspace::ProjectAutosave::State::Failed,
+        // version in the folder: it stops with the save's own error.
+        bool checkpoint_stopped = false;
+        try {
+            host.checkpoint_active_chat();
+        } catch (const std::runtime_error& error) {
+            checkpoint_stopped = error.what() == autosave->error();
+        }
+        check(checkpoint_stopped && autosave->state() == Workspace::ProjectAutosave::State::Failed,
               "unavailable_storage_refuses_a_checkpoint_visibly");
         // The page's restore points are built from the version list.
         host.refresh_page_state();
@@ -4208,10 +4322,14 @@ private:
         const std::filesystem::path pending = std::filesystem::path(data_dir()) / "jusprin" / "projects" /
                                                persistence().document().project_id() / "pending";
         const Agent::ToolActivity* unsaved = nullptr;
+        const int                  reported_before = unexpected_errors_logged();
         {
             UnavailableFolder folder(pending);
             unsaved = call_in_panel(named, "printer_change", {{"printerName", named}, {"nozzle", 0.4}}, "nozzle_panel_unsaved");
         }
+        // The failed save is said as "Couldn't save" in the title, and the
+        // tool's own result; the app's timers find nothing else to report.
+        check(unexpected_errors_logged() == reported_before, "nozzle_panel_unsaved_reports_no_unexpected_error");
         check(unsaved != nullptr && unsaved->state == Agent::ToolState::Failed && unsaved->error &&
                   unsaved->error->code == "local_save_failed" && parent() == "Bambu Lab X1 Carbon 0.6 nozzle" &&
                   printers.get_edited_preset().config.opt_string("printer_notes") == "kept",
@@ -6072,6 +6190,57 @@ private:
         check(true, "printer_window_quick_close_survives_the_late_answer");
     }
 
+    // --printer-window: what a printer window says in place of a page that
+    // did not load. A printer that answered at an https address whose secure
+    // connection could not be checked is not "nothing answered". The stand-in
+    // printer speaks only http, so its https address fails the secure
+    // handshake, as a real printer's does. A printer with a certificate of
+    // its own fails the same way: JUSPRIN_HARNESS_CERTIFICATE_PAGE names such
+    // a page (a local https server with a self-signed certificate) for a
+    // check by hand.
+    void verify_printer_window_problems()
+    {
+        using namespace std::chrono_literals;
+        const auto said = [this](const std::string& page, const std::string& picture) {
+            DynamicPrintConfig config = wxGetApp().preset_bundle->printers.get_edited_preset().config;
+            config.set_key_value("print_host_webui", new ConfigOptionString(page));
+            auto* window = new Home::PrinterWindow("Printer window check", config);
+            wait_for([window] { return window->problem_shown(); }, 30s);
+            wxString text = window->problem_shown() ? window->problem_text() : wxString();
+            text.Replace("\n", " ");
+            if (!m_state->capture_dir.empty()) {
+                wait_for([] { return false; }, 500ms);
+                fs::create_directories(m_state->capture_dir);
+                const std::string file = (m_state->capture_dir / (picture + ".png")).string();
+                if (snapshot_native_window(window->GetHandle(), file.c_str()))
+                    std::cout << "HARNESS ARTIFACT " << picture << " " << file << std::endl;
+            }
+            window->Close();
+            wait_for([] { return printer_windows().empty(); }, 5s);
+            return std::string(text.ToUTF8());
+        };
+        const auto secure_sentence = [](const std::string& address) {
+            return "The printer at " + address +
+                   " answered, but JusPrin couldn't check its secure connection. If the printer's address starts with "
+                   "https://, change it to http:// in Printer settings, then try again.";
+        };
+        StandInHttpOnlyPrinter printer;
+        const std::string      server = printer.server();
+        const std::string      secure = said("https://" + server, "printer-window-https-on-http");
+        std::cerr << "HARNESS NOTE printer_window_https_on_http " << secure << '\n';
+        check(secure == secure_sentence(server), "printer_window_says_the_secure_connection_could_not_be_checked");
+        if (const char* page = std::getenv("JUSPRIN_HARNESS_CERTIFICATE_PAGE")) {
+            const std::string own = said(page, "printer-window-own-certificate");
+            std::cerr << "HARNESS NOTE printer_window_own_certificate " << own << '\n';
+            const std::string address = std::string(page).substr(std::string(page).find("://") + 3);
+            check(own == secure_sentence(address.substr(0, address.find('/'))), "printer_window_says_an_own_certificate_could_not_be_checked");
+        }
+        const std::string closed = said("http://127.0.0.1:9", "printer-window-closed-port");
+        std::cerr << "HARNESS NOTE printer_window_closed_port " << closed << '\n';
+        check(closed.rfind("Nothing answered at 127.0.0.1:9.", 0) == 0, "printer_window_says_nothing_answered_at_a_closed_port");
+        finish();
+    }
+
     // Testing a print host takes as long as the host takes to answer, and
     // the app goes on meanwhile: a host that holds the request for three
     // seconds leaves a 100 ms timer ticking the whole time. The address is
@@ -7803,8 +7972,15 @@ private:
         check(any_row(screen, "matches, checked just now"), "print_history_export_matches");
         check(any_row(screen, "Sent to "), "print_history_sends_listed");
         check(any_row(screen, "Finished"), "print_history_finished_print_listed");
-        // The print the fake failed is neither printing nor finished.
-        check(any_row(screen, "Started"), "print_history_stopped_print_only_started");
+        // The print the fake failed is neither printing nor finished: nobody
+        // knows how it ended, so it gets no row (PrintHistory.tsx rowsOf),
+        // while the count above still has both prints.
+        int finished_rows = 0;
+        for (const nlohmann::json& entry : entries)
+            for (const nlohmann::json& row : entry.value("rows", nlohmann::json::array()))
+                finished_rows += row.get<std::string>().find("Finished") != std::string::npos;
+        check(finished_rows == 1 && !any_row(screen, "Printing") && !any_row(screen, "Started"),
+              "print_history_stopped_print_has_no_row");
         std::string text = entries.size() == 1 ? entries[0].value("text", "") : std::string();
         std::transform(text.begin(), text.end(), text.begin(), [](unsigned char c) { return char(std::tolower(c)); });
         check(text.find("fail") == std::string::npos && text.find("cancel") == std::string::npos, "print_history_draws_no_failure");
@@ -8190,8 +8366,43 @@ private:
                     for (const fs::path& file : {earlier, fs::path(self->m_print_history_copy),
                                                  earlier.parent_path() / (earlier.stem().string() + " (2)" + earlier.extension().string())})
                         fs::remove(file);
-                    self->finish();
+                    self->print_history_unreadable_projects();
                 });
+            });
+        });
+    }
+
+    // The projects folder cannot be read while Print history is open: the
+    // screen says what Home's gallery says, rather than the list as it was
+    // read before, and the list comes back by itself once the folder can be
+    // read again, with nothing pressed. A folder that cannot be read is a
+    // state the screen says, not an unexpected error for the person to report.
+    void print_history_unreadable_projects()
+    {
+        const std::string sentence = _L("Your projects couldn't be loaded. JusPrin will keep trying.").ToUTF8().data();
+        const int reported_before = unexpected_errors_logged();
+        auto folder = std::make_shared<UnavailableFolder>(std::filesystem::path(data_dir()) / "jusprin" / "projects");
+        installed_shell()->home_view()->refresh();
+        static constexpr const char* kRead =
+            "{ entries: document.querySelectorAll('.history-entry').length,"
+            "  problem: (document.querySelector('.history-problem') || {}).textContent || '',"
+            "  text: (document.querySelector('.history-list, main') || document.body).textContent.slice(0, 400) }";
+        read_page(home_page(), "unreadable", "document.querySelector('.history-problem')", kRead,
+                  "print_history_unreadable_drawn",
+                  [self = shared_from_this(), folder, sentence, reported_before](const nlohmann::json& shown) mutable {
+            std::cerr << "HARNESS NOTE print_history_unreadable " << shown.dump() << '\n';
+            self->capture_history("print-history-projects-unreadable");
+            self->check(shown.value("entries", -1) == 0 && shown.value("problem", "") == sentence,
+                        "print_history_says_the_projects_could_not_be_loaded");
+            // Readable again; nothing nudges the page.
+            folder.reset();
+            self->read_page(self->home_page(), "readable", "document.querySelectorAll('.history-entry').length > 0", kRead,
+                            "print_history_readable_again_drawn", [self, reported_before](const nlohmann::json& back) {
+                std::cerr << "HARNESS NOTE print_history_readable_again " << back.dump() << '\n';
+                self->check(back.value("entries", 0) > 0 && back.value("problem", "x").empty(),
+                            "print_history_lists_again_by_itself");
+                self->check(unexpected_errors_logged() == reported_before, "print_history_unreadable_projects_report_no_unexpected_error");
+                self->finish();
             });
         });
     }
@@ -13497,7 +13708,7 @@ private:
         check(prompt_count == 5 && persistence().document().project_id() == newest, "reopen_open_project_menu_asks_too");
 
         const std::filesystem::path file(source.string());
-        const auto unchanged = autosave->projects_for_source(file).value();
+        const auto unchanged = autosave->projects_for_source(file);
         const auto describe = [&](const char* label, const std::vector<Workspace::ProjectAutosave::SourceMatch>& matches) {
             std::cout << "HARNESS NOTE " << label << " current project " << persistence().document().project_id() << ":";
             for (const auto& match : matches)
@@ -13511,7 +13722,7 @@ private:
         const std::string  original((std::istreambuf_iterator<char>(original_file)), std::istreambuf_iterator<char>());
         original_file.close();
         std::ofstream(source.string(), std::ios::binary | std::ios::app) << ' ';
-        const auto changed = autosave->projects_for_source(file).value();
+        const auto changed = autosave->projects_for_source(file);
         describe("changed", changed);
         check(!changed.empty() && changed.front().changed == true, "reopen_changed_file_is_noticed");
         std::ofstream(source.string(), std::ios::binary | std::ios::trunc) << original;
@@ -13897,7 +14108,7 @@ private:
         record.state         = "staged";
         const std::string bytes = "picture";
         record.size_bytes       = bytes.size();
-        check(persistence().write_attachment_blob(record.relative_path(), bytes), "blank_attachment_stored");
+        persistence().write_attachment_blob(record.relative_path(), bytes);
         document.add_attachment(record, persistence().timestamp());
         persistence().commit();
         return record.relative_path();
@@ -13937,6 +14148,45 @@ private:
         return names;
     }
 
+    // A file the person picked that OrcaSlicer will not read, imported or
+    // opened by the agent: the call is refused, and nothing is reported, as
+    // the person's own file is nothing the app's report could fix.
+    void verify_unreadable_file_is_not_reported()
+    {
+        const fs::path junk = fs::temp_directory_path() / fs::unique_path("jusprin-not-a-mesh-%%%%.stl");
+        std::ofstream(junk.string()) << "this is not a mesh";
+        Agent::AgentHost& host = installed_shell()->agent_pane()->web_view().host();
+        const Agent::AgentHost::UnexpectedErrorHandler shown = host.unexpected_error_handler();
+        std::vector<std::string> reported;
+        host.set_unexpected_error_handler([&reported](const std::string& doing, std::exception_ptr) { reported.push_back(doing); });
+        // The shell's timer runs the call, as it runs the agent's; pumping
+        // from here would run it again from inside OrcaSlicer's load.
+        const auto run = [&](const char* tool, nlohmann::json arguments) {
+            const std::string action = host.tools().submit({tool, arguments.dump()}, std::string("unreadable-") + tool).action_id;
+            std::optional<Agent::ToolError> error;
+            for (int tick = 0; tick < 400; ++tick) {
+                const Agent::ToolActivity* call = host.tools().find(action);
+                if (call == nullptr)
+                    break;
+                error = call->error;
+                if (Agent::tool_state_terminal(call->state))
+                    break;
+                wxTheApp->Yield(true);
+                std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            }
+            return error;
+        };
+        const auto imported = run("object_import_file", {{"sessionId", std::to_string(installed_shell()->workspace()->snapshot().session.value())},
+                                                         {"path", junk.string()}});
+        check(imported && imported->code == "refused", "unreadable_file_import_is_refused");
+        run("project_open", {{"path", junk.string()}});
+        for (const auto& doing : reported)
+            std::cout << "HARNESS NOTE reported: " << doing << std::endl;
+        check(reported.empty(), "unreadable_file_is_not_reported");
+        host.set_unexpected_error_handler(shown);
+        fs::remove(junk);
+    }
+
     void verify_file_opening()
     {
         using Decision = ShellController::ReimportDecision;
@@ -13967,6 +14217,8 @@ private:
         check(wxGetApp().app_config->get_bool("single_instance"), "file_opening_single_instance");
         check(wxGetApp().app_config->get(SETTING_PROJECT_LOAD_BEHAVIOUR) == OPTION_PROJECT_LOAD_BEHAVIOUR_LOAD_ALL,
               "file_opening_no_project_or_geometry_question");
+
+        verify_unreadable_file_is_not_reported();
 
         // A project with an object in it, and Home in front of it.
         m_plater->load_files(std::vector<boost::filesystem::path>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
@@ -15625,10 +15877,11 @@ private:
         // pick. Detaching the shell hands the choice back to the profile.
         NetworkAgent* agent = wxGetApp().getAgent();
         const std::string profile_agent = agent->get_printer_agent()->get_agent_info().id;
-        agent->set_printer_agent(NetworkAgentFactory::create_printer_agent_by_id(
-            JUSPRIN_FAKE_BAMBU_AGENT_ID, agent->get_cloud_agent(BBL_CLOUD_PROVIDER), Slic3r::data_dir()));
-        check(profile_agent != JUSPRIN_FAKE_BAMBU_AGENT_ID &&
-                  agent->get_printer_agent()->get_agent_info().id == JUSPRIN_FAKE_BAMBU_AGENT_ID,
+        // With --fake-printer the profile already picks the fake one.
+        const std::string other = profile_agent == JUSPRIN_FAKE_BAMBU_AGENT_ID ? MOONRAKER_PRINTER_AGENT_ID : JUSPRIN_FAKE_BAMBU_AGENT_ID;
+        agent->set_printer_agent(
+            NetworkAgentFactory::create_printer_agent_by_id(other, agent->get_cloud_agent(BBL_CLOUD_PROVIDER), Slic3r::data_dir()));
+        check(profile_agent != other && agent->get_printer_agent()->get_agent_info().id == other,
               "detach_fixture_installs_an_agent_the_profile_does_not_pick");
         m_frame->select_tab(TAB_ID_PREPARE);
         // The default run replaced the project just before this. The shell
@@ -16264,6 +16517,9 @@ int main(int argc, char** argv)
             if (index + 1 < argc && argv[index + 1][0] != '-')
                 state->capture_dir = fs::absolute(argv[++index]);
         }
+        else if (argument == "--delete-account-waits") {
+            state->mode = HarnessState::Mode::DeleteAccountWaits;
+        }
         else if (argument == "--server-sheet-popup") {
             state->mode = HarnessState::Mode::ServerSheetPopup;
             // Optionally a folder for a picture of the pop-up.
@@ -16273,6 +16529,12 @@ int main(int argc, char** argv)
         else if (argument == "--printer-chat-sheet") {
             state->mode = HarnessState::Mode::PrinterChatSheet;
             // Optionally a folder for pictures of the sheet.
+            if (index + 1 < argc && argv[index + 1][0] != '-')
+                state->capture_dir = fs::absolute(argv[++index]);
+        }
+        else if (argument == "--printer-window") {
+            state->mode = HarnessState::Mode::PrinterWindow;
+            // Optionally a folder for pictures of the window.
             if (index + 1 < argc && argv[index + 1][0] != '-')
                 state->capture_dir = fs::absolute(argv[++index]);
         }

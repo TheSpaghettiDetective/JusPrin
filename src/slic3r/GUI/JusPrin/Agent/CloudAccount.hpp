@@ -116,8 +116,8 @@ struct CloudAccountStore
 {
     std::function<std::optional<CloudAccountRecord>()> load;
     // Stores a verified account and records the choices that make it the
-    // Agent's provider. False when it could not be written.
-    std::function<bool(const CloudAccountRecord&)> save;
+    // Agent's provider; throws when it could not be written.
+    std::function<void(const CloudAccountRecord&)> save;
     std::function<bool()> erase;
 };
 
@@ -140,7 +140,8 @@ struct CloudEmailStep
     bool        busy{false};
     // The server's refusal of the last try: "wrong_code", "expired_code"
     // (the code no longer works: it expired or was tried too often),
-    // "too_many_codes", "wrong_password" or "too_many_tries" (passwords).
+    // "too_many_codes", "incomplete_address" (the server refused the address
+    // the code was asked for), "wrong_password" or "too_many_tries" (passwords).
     // Empty when there is none.
     std::string refusal;
     // A new code went out because the person asked for one.
@@ -159,8 +160,6 @@ struct CloudSignInOutcome
     enum class Kind { SignedIn, Expired, Failed };
     Kind            kind{Kind::Failed};
     std::string     email;
-    // SignedIn: whether the account could be stored on this computer.
-    bool            saved{false};
     // SignedIn: the agent for the account's default model, idle.
     AgentServicePtr service;
     // Failed: what went wrong.
@@ -249,6 +248,9 @@ private:
     void ask_models(std::uint64_t generation);
     std::optional<CloudSignInOutcome> finish_check();
     CloudSignInOutcome failed(const std::string& code, const std::string& message, bool retryable);
+    // A server answer no person decided: back to idle, then thrown for the
+    // caller's top handler to report.
+    [[noreturn]] void unexpected(const std::string& what);
 
     std::string                    m_server;
     std::string                    m_gateway;
@@ -281,5 +283,9 @@ std::string cloud_server_from_gateway(const std::string& gateway);
 // message is English). Every request names the release in its User-Agent
 // (Updates::user_agent). Null for any other answer.
 std::optional<AgentError> update_required(unsigned status, const std::string& body);
+
+// The app's sentence, in its language, when the server refuses the stored
+// JusPrin sign-in (unauthorized): sign in again in Preferences.
+std::string sign_in_ended();
 
 } // namespace Slic3r::GUI::JusPrin::Agent

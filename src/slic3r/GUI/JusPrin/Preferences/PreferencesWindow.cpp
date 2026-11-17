@@ -1,6 +1,7 @@
 // First: slic3r/GUI/I18N.hpp defines _L only while the _ macro is still
 // undefined, so it has to precede any header that brings one in.
 #include "slic3r/GUI/I18N.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 
 #include "PreferencesWindow.hpp"
 
@@ -34,13 +35,16 @@
 #include <wx/msgdlg.h>
 #include <wx/intl.h>
 #include <wx/sizer.h>
+#include <wx/timer.h>
 #include <wx/translation.h>
 
 #include <wx/stdpaths.h>
 
 #include <algorithm>
 #include <cstdlib>
+#include <functional>
 #include <stdexcept>
+#include <utility>
 
 #ifdef _WIN32
 #include <wx/msw/wrapwin.h>
@@ -147,6 +151,7 @@ PreferencesWindow::PreferencesWindow(wxWindow*               parent,
                                      const ShellTheme&       theme,
                                      Workspace::IWorkspace&  workspace,
                                      const Agent::AgentHost& docked,
+                                     std::function<bool()>   reply_running,
                                      OpenRequest             request)
     : wxDialog(parent, wxID_ANY, _L("Preferences"), wxDefaultPosition, wxDefaultSize, wxDEFAULT_DIALOG_STYLE)
     , m_theme(theme)
@@ -169,15 +174,15 @@ PreferencesWindow::PreferencesWindow(wxWindow*               parent,
     Agent::AgentHost& host = m_view->host();
     host.share_mcp_connect(docked);
     // This window's host has no chat of its own; the reply that would be left
-    // holding a deleted account's sign-in runs in the docked panel.
-    host.set_reply_running_elsewhere([&docked] { return docked.busy(); });
+    // holding a deleted account's sign-in runs in another chat.
+    host.set_reply_running_elsewhere(std::move(reply_running));
     host.set_session_state_provider([this] { return state(); });
     host.set_page_message_handler([this](const std::string& type, const json& payload) { return on_page_message(type, payload); });
 
     // A check that finishes, or starts, while the window is open shows at once.
     m_update_listener = Updates::update_check().subscribe([this] { push_state(); });
 
-    Bind(wxEVT_TIMER, &PreferencesWindow::on_pump, this, kPumpTimerId);
+    Bind(wxEVT_TIMER, reported("running Preferences", [this](wxTimerEvent& event) { on_pump(event); }), kPumpTimerId);
     m_pump.Start(kPumpIntervalMs);
     apply_appearance();
     CentreOnParent();
@@ -221,7 +226,7 @@ bool PreferencesWindow::on_page_message(const std::string& type, const json& pay
         if (m_request.close_when_done &&
             (done == "tool" || (done == "key" && wxGetApp().app_config->get("jusprin_agent", "enabled") == "true")))
             after.done = done;
-        CallAfter([this, after] { close_for(after); });
+        CallAfter(reported("closing Preferences", [this, after] { close_for(after); }));
         return true;
     }
     if (type == Agent::Protocol::kShellAction && payload.is_object() && payload.value("action", std::string()) == "open_server_page") {
@@ -230,12 +235,12 @@ bool PreferencesWindow::on_page_message(const std::string& type, const json& pay
         // main window's screens read it when they come back on screen.
         const std::string page = payload.value("page", std::string());
         const std::string from = payload.value("from", std::string());
-        CallAfter([this, page, from] {
+        CallAfter(reported("opening an account page", [this, page, from] {
             ServerSheet::open(this, page, from, [this] {
                 if (m_view != nullptr)
                     m_view->host().refresh_account();
             });
-        });
+        }));
         return true;
     }
     if (type == Agent::Protocol::kShellAction && payload.is_object() && payload.value("action", std::string()) == "check_for_updates") {
@@ -255,7 +260,7 @@ bool PreferencesWindow::on_page_message(const std::string& type, const json& pay
     if (outcome.error.empty() && outcome.effect != Effect::None) {
         // Not from inside the web view's message handler: some of these open
         // a modal dialog or close this window.
-        CallAfter([this, outcome] { carry_out(outcome); });
+        CallAfter(reported("closing Preferences", [this, outcome] { carry_out(outcome); }));
     }
     return true;
 }
@@ -450,14 +455,14 @@ void run_after_close(const AfterClose& after)
     case AfterClose::Kind::Restart:
         // Closing the main window destroys the shell that opened this one,
         // so the restart runs from the application, on its next turn.
-        wxGetApp().CallAfter([] { restart_application(); });
+        wxGetApp().CallAfter(reported("restarting the app", [] { restart_application(); }));
         break;
     case AfterClose::Kind::OrcaPreferences:
-        wxGetApp().CallAfter([] {
+        wxGetApp().CallAfter(reported("opening the classic preferences", [] {
             g_opening_orca_dialog = true;
             wxGetApp().open_preferences();
             g_opening_orca_dialog = false;
-        });
+        }));
         break;
     }
 }

@@ -97,9 +97,13 @@ struct ProviderToolCall
 // A neutral event parsed from one streamed payload.
 struct StreamEvent
 {
-    enum class Kind { TextDelta, TurnComplete, Incomplete, Failed };
+    // Failed: the model declined to answer. ServiceError: the service said
+    // the reply failed, ended it early, or sent what cannot be read; the loop
+    // stops the turn and reports what it sent.
+    enum class Kind { TextDelta, TurnComplete, Failed, ServiceError };
     Kind                          kind{Kind::TextDelta};
-    std::string                   text;           // TextDelta
+    // TextDelta: the text. ServiceError: what the service said, for a report.
+    std::string                   text;
     nlohmann::json                assistant_turn; // TurnComplete, opaque to the loop
     std::vector<ProviderToolCall> calls;          // TurnComplete
     std::optional<AgentUsage>     usage;          // TurnComplete, when the provider reported it

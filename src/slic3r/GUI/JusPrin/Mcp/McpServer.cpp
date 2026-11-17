@@ -6,6 +6,7 @@
 #include <array>
 #include <cctype>
 #include <deque>
+#include <exception>
 #include <mutex>
 #include <stdexcept>
 #include <thread>
@@ -197,7 +198,16 @@ McpServer::Impl::Impl(ServerOptions config) : options(config)
     origin = "http://127.0.0.1:" + std::to_string(port);
     url = origin + "/mcp";
     accept();
-    worker = std::thread([this] { io.run(); });
+    worker = std::thread([this] {
+        // The top handler of this thread (AGENTS.md, Error handling).
+        try {
+            io.run();
+        } catch (...) {
+            if (!options.unexpected)
+                throw;
+            options.unexpected("serving outside AI clients", std::current_exception());
+        }
+    });
 }
 
 void McpServer::Impl::accept()

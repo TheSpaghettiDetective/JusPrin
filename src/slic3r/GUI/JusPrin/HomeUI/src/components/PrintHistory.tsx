@@ -214,12 +214,15 @@ function Entry({ entry, showProject, focused, reportsOffered, actions }: { entry
 export function PrintHistory({
   screen,
   entries,
+  problem,
   printers,
   reportsOffered,
   actions,
 }: {
   screen: HistoryScreen;
   entries?: HistoryEntry[];
+  // Set while the projects folder cannot be read: shown instead of the list.
+  problem?: string;
   printers: PrinterInfo[];
   reportsOffered: boolean;
   actions: PrintHistoryActions;
@@ -316,7 +319,7 @@ export function PrintHistory({
               )}
             </div>
             <div className="history-tools">
-              {entries && <span className="history-count">{countLine(shown, Boolean(projectId || printerId || query.trim()))}</span>}
+              {entries && !problem && <span className="history-count">{countLine(shown, Boolean(projectId || printerId || query.trim()))}</span>}
               <label className="gallery-search">
                 <SearchGlyph />
                 <input type="search" placeholder={t`Search prints`} aria-label={t`Search prints`} value={query}
@@ -324,7 +327,9 @@ export function PrintHistory({
               </label>
             </div>
           </div>
-          {!entries ? (
+          {problem ? (
+            <p className="empty history-problem" role="alert">{problem}</p>
+          ) : !entries ? (
             <p className="empty"><Trans>Loading print history…</Trans></p>
           ) : entries.length === 0 ? (
             <p className="empty"><Trans>Nothing printed or exported yet.</Trans></p>

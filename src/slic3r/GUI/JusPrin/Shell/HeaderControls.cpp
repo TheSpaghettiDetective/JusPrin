@@ -1,4 +1,5 @@
 #include "HeaderControls.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 #include "LucideIcon.hpp"
 #include <wx/dcbuffer.h>
 #include <wx/graphics.h>
@@ -759,14 +760,14 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
                                      owner=wxWeakRef<wxWindow>(GetParent())](wxCommandEvent&) {
                 if (dismisses) {
                     close();
-                    if (owner) owner->CallAfter([owner,action] { if (owner) action(); });
+                    if (owner) owner->CallAfter(reported("running a menu item", [owner,action] { if (owner) action(); }));
                     return;
                 }
                 // Like keeps_open rows, this rebuilds the popup's own contents.
                 // MSVC binds 'this' in a nested lambda's init-capture to the
                 // enclosing closure, not to HeaderMenu, so name the menu first.
                 auto* menu = this;
-                CallAfter([self=wxWeakRef<wxWindow>(menu),action] { if (self) action(); });
+                CallAfter(reported("running a menu item", [self=wxWeakRef<wxWindow>(menu),action] { if (self) action(); }));
             });
         m_items.push_back(button);
         button->Bind(wxEVT_ENTER_WINDOW,[this,index=int(m_items.size()-1)](wxMouseEvent& e) {
@@ -786,11 +787,11 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
                 // MSVC binds 'this' in a nested lambda's init-capture to the
                 // enclosing closure, not to HeaderMenu, so name the menu first.
                 auto* menu = this;
-                CallAfter([self=wxWeakRef<wxWindow>(menu),invoke] { if (self) invoke(); });
+                CallAfter(reported("running a menu item", [self=wxWeakRef<wxWindow>(menu),invoke] { if (self) invoke(); }));
                 return;
             }
             close();
-            if (owner) owner->CallAfter([owner,invoke] { if (owner) invoke(); });
+            if (owner) owner->CallAfter(reported("running a menu item", [owner,invoke] { if (owner) invoke(); }));
         });
     }
     place_header(); // a step with fewer rows than requested still gets its view

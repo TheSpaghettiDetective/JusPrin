@@ -295,10 +295,13 @@ export type PrintReportOutcome = 'worked' | 'partly' | 'failed';
 
 export interface PrintReportResult {
   hash: string;
-  state: 'sent' | 'already_sent' | 'failed';
+  // unexpected: the app reported the answer in its error dialog; the form only stops waiting.
+  state: 'sent' | 'already_sent' | 'failed' | 'unexpected';
   credits: number;
   // The server's words when it no longer serves this release of the app.
   updateMessage?: string;
+  // failed: the app's sentence, translated, for a refusal the person can act on.
+  message?: string;
 }
 
 // A printer action the host understood but could not carry out, such as a
@@ -342,7 +345,7 @@ export type OnboardingStep = 'hidden' | 'welcome' | 'printers';
 export type SignInPhase = 'idle' | 'browser' | 'email' | 'checking';
 
 // The server's refusal of the last code, password or request for a code.
-export type EmailRefusal = '' | 'wrong_code' | 'expired_code' | 'too_many_tries' | 'too_many_codes' | 'wrong_password';
+export type EmailRefusal = '' | 'wrong_code' | 'expired_code' | 'too_many_tries' | 'too_many_codes' | 'incomplete_address' | 'wrong_password';
 
 // The email door while signIn is 'email': the person picks an emailed code
 // or the password ('choose'), or the app waits for the code ('code').

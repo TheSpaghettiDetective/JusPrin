@@ -29,6 +29,14 @@ public:
     using std::runtime_error::runtime_error;
 };
 
+// The local projects folder could not be read; what() names it and the file
+// system's reason.
+class ProjectsUnreadable : public std::runtime_error
+{
+public:
+    using std::runtime_error::runtime_error;
+};
+
 struct StoredFormat
 {
     enum class Check { Readable, Newer, Unreadable };

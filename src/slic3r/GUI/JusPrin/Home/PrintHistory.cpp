@@ -1,12 +1,20 @@
 #include "PrintHistory.hpp"
 
+#include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
 #include "slic3r/GUI/JusPrin/Agent/CloudAccount.hpp"
 
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <cstdint>
+#include <filesystem>
 #include <optional>
+#include <system_error>
 #include <set>
+#include <stdexcept>
+#include <string>
+
+#include "slic3r/GUI/JusPrin/Support/Translate.hpp"
 
 namespace Slic3r { namespace GUI { namespace JusPrin { namespace Home {
 
@@ -178,20 +186,70 @@ bool report_due(const std::vector<GcodeRecord>& records, const std::string& fini
     return finished;
 }
 
+std::optional<ExportedFile> exported_file(const std::filesystem::path& path)
+{
+    // A drive that is not plugged in reads as a path that is not there; any
+    // other failure, such as a folder the person may not read, is not "gone".
+    std::error_code error;
+    const std::uintmax_t size = std::filesystem::file_size(path, error);
+    if (error == std::errc::no_such_file_or_directory || error == std::errc::not_a_directory)
+        return std::nullopt;
+    if (error)
+        throw std::filesystem::filesystem_error("Reading an exported G-code file", path, error);
+    return ExportedFile{size, std::filesystem::last_write_time(path)};
+}
+
+namespace {
+
+// The server's limit on one report photo: JUSPRIN_V2_REPORT_MAX_PHOTO_BYTES in
+// tsd-enterprise's settings_ent.py. The app uploads the file as it is on disk.
+constexpr std::uint64_t kReportPhotoMaxBytes = 20u * 1024 * 1024;
+
+std::string photo_too_large()
+{
+    // TRN The print report form, about a photo over the server's limit of 20 MB.
+    return translated(L("That photo is larger than 20 MB. Choose a smaller photo, then send the report again."));
+}
+
+} // namespace
+
+std::string report_photo_problem(std::uint64_t size_bytes)
+{
+    return size_bytes > kReportPhotoMaxBytes ? photo_too_large() : std::string();
+}
+
 PrintReportAnswer print_report_answer(unsigned status, const std::string& body)
 {
     PrintReportAnswer answer;
     const json parsed = json::parse(body, nullptr, false);
-    if (status == 201 && parsed.is_object()) {
+    const std::string code = parsed.is_object() && parsed.contains("error") && parsed["error"].is_object() ?
+                                 parsed["error"].value("code", std::string()) : std::string();
+    if (status == 201) {
+        // Stored; an answer the app cannot read is our server's fault.
+        if (!parsed.is_object() || !parsed.contains("credits") || !parsed["credits"].is_number_integer())
+            throw std::runtime_error("The print report answered HTTP 201: " + body);
         answer.state   = PrintReportAnswer::State::Sent;
-        answer.credits = parsed.value("credits", 0);
-    } else if (status == 409 && parsed.is_object() && parsed.contains("error") && parsed["error"].is_object() &&
-               parsed["error"].value("code", std::string()) == "already_reported") {
+        answer.credits = parsed["credits"].get<int>();
+    } else if (status == 409 && code == "already_reported") {
         // Sent from this account before, from another computer or another copy
         // of the project: the entry says sent, with nothing to add.
         answer.state = PrintReportAnswer::State::AlreadySent;
     } else if (const std::optional<Agent::AgentError> outdated = Agent::update_required(status, body)) {
         answer.update_message = outdated->message;
+    } else if (code == "unauthorized") {
+        answer.message = Agent::sign_in_ended();
+    } else if (code == "photo_unreadable") {
+        // The server's sentence for this refusal (errors.py EXPECTED), in the app's language.
+        answer.message = translated(L("That photo could not be read."));
+    } else if (code == "request_too_large") {
+        // The form refuses such a photo when it is chosen; this covers one
+        // that gets through.
+        answer.message = photo_too_large();
+    } else if (status != 0) {
+        // No answer keeps the form's own sentence. Every other answer is
+        // unexpected, including a short text or a missing photo: the form
+        // sends neither.
+        throw std::runtime_error("The print report answered HTTP " + std::to_string(status) + ": " + body);
     }
     return answer;
 }

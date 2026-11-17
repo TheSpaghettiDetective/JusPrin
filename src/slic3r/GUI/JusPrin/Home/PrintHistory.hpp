@@ -13,7 +13,10 @@
 
 #include <nlohmann/json_fwd.hpp>
 
+#include <cstdint>
+#include <filesystem>
 #include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -48,8 +51,23 @@ HistorySummary summarize(const std::vector<Agent::GcodeRecord>& records, const s
 bool report_due(const std::vector<Agent::GcodeRecord>& records, const std::string& finished_since,
                 const std::vector<LivePrint>& live);
 
-// What the server's answer to a print report means.
+// The form's sentence for a photo the server would refuse for its size, or
+// empty when the server takes it.
+std::string report_photo_problem(std::uint64_t size_bytes);
+
+// What the server's answer to a print report means: Failed for no answer and
+// for the refusals errors.py lists as expected. Any other answer, a stored
+// report the app cannot read included, throws with its status and body.
 PrintReportAnswer print_report_answer(unsigned status, const std::string& body);
+
+// An exported G-code file's size and last write, or nothing when the file, or
+// the drive it was written to, is not there.
+struct ExportedFile
+{
+    std::uintmax_t                  size{0};
+    std::filesystem::file_time_type written;
+};
+std::optional<ExportedFile> exported_file(const std::filesystem::path& path);
 
 // What the application knows that the records do not.
 struct HistoryFacts

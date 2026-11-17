@@ -1,15 +1,40 @@
 #include "OpenAIResponsesAgent.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 #include "AgentTransport.hpp"
 
 #include "slic3r/Utils/Http.hpp"
 
+#include <boost/algorithm/string/case_conv.hpp>
+#include <boost/algorithm/string/trim.hpp>
+
+#include <cstddef>
 #include <memory>
 #include <mutex>
+#include <sstream>
+#include <string>
 #include <utility>
 
 namespace Slic3r::GUI::JusPrin::Agent {
 
 namespace {
+
+// The service's id for the request, from the response's headers as they
+// have come so far: Anthropic's request-id, OpenAI's x-request-id.
+std::string request_id_in(const std::string& headers)
+{
+    std::string        found;
+    std::istringstream lines(headers);
+    std::string        line;
+    while (std::getline(lines, line)) {
+        const std::size_t colon = line.find(':');
+        if (colon == std::string::npos)
+            continue;
+        const std::string name = boost::algorithm::to_lower_copy(line.substr(0, colon));
+        if (name == "request-id" || name == "x-request-id")
+            found = boost::algorithm::trim_copy(line.substr(colon + 1));
+    }
+    return found;
+}
 
 class OpenAIHttpTransport final : public IAgentHttpTransport
 {
@@ -33,7 +58,14 @@ public:
             .timeout_max(request.request_timeout_seconds)
             .size_limit(request.response_size_limit)
             .set_post_body(request.body)
-            .on_progress([weak = std::weak_ptr<State>(state)](Slic3r::Http::Progress progress, bool& should_cancel) {
+            .on_header_callback(reported("receiving the AI's reply", [weak = std::weak_ptr<State>(state)](std::string headers) {
+                const auto locked = weak.lock();
+                if (!locked)
+                    return;
+                std::lock_guard<std::mutex> guard(locked->mutex);
+                locked->request_id = request_id_in(headers);
+            }))
+            .on_progress(reported("receiving the AI's reply", [weak = std::weak_ptr<State>(state)](Slic3r::Http::Progress progress, bool& should_cancel) {
                 const auto locked = weak.lock();
                 if (!locked)
                     return;
@@ -43,9 +75,9 @@ public:
                     return;
                 std::string delta = progress.buffer.substr(locked->seen);
                 locked->seen = progress.buffer.size();
-                locked->event(AgentHttpEvent{AgentHttpEvent::Kind::Data, std::move(delta), {}, 0});
-            })
-            .on_complete([weak = std::weak_ptr<State>(state)](std::string body, unsigned status) {
+                locked->event(AgentHttpEvent{AgentHttpEvent::Kind::Data, std::move(delta), {}, 0, locked->request_id});
+            }))
+            .on_complete(reported("receiving the AI's reply", [weak = std::weak_ptr<State>(state)](std::string body, unsigned status) {
                 const auto locked = weak.lock();
                 if (!locked)
                     return;
@@ -53,17 +85,17 @@ public:
                 if (locked->cancelled)
                     return;
                 if (body.size() > locked->seen)
-                    locked->event(AgentHttpEvent{AgentHttpEvent::Kind::Data, body.substr(locked->seen), {}, status});
-                locked->event(AgentHttpEvent{AgentHttpEvent::Kind::Complete, {}, {}, status});
-            })
-            .on_error([weak = std::weak_ptr<State>(state)](std::string body, std::string error, unsigned status) {
+                    locked->event(AgentHttpEvent{AgentHttpEvent::Kind::Data, body.substr(locked->seen), {}, status, locked->request_id});
+                locked->event(AgentHttpEvent{AgentHttpEvent::Kind::Complete, {}, {}, status, locked->request_id});
+            }))
+            .on_error(reported("receiving the AI's reply", [weak = std::weak_ptr<State>(state)](std::string body, std::string error, unsigned status) {
                 const auto locked = weak.lock();
                 if (!locked)
                     return;
                 std::lock_guard<std::mutex> guard(locked->mutex);
                 if (!locked->cancelled)
-                    locked->event(AgentHttpEvent{AgentHttpEvent::Kind::Error, std::move(body), std::move(error), status});
-            });
+                    locked->event(AgentHttpEvent{AgentHttpEvent::Kind::Error, std::move(body), std::move(error), status, locked->request_id});
+            }));
         state->http = http.perform();
         return state->http != nullptr;
     }
@@ -90,6 +122,7 @@ private:
         EventFn          event;
         Slic3r::Http::Ptr http;
         std::size_t      seen{0};
+        std::string      request_id;
         bool             cancelled{false};
     };
     std::shared_ptr<State> m_state;

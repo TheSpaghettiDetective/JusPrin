@@ -1,4 +1,5 @@
 #include "CheckPrintDialog.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 #include "CheckPrintReportPanel.hpp"
 #include "HeaderControls.hpp"
 #include "SetupCommands.hpp"
@@ -16,6 +17,7 @@
 #include "slic3r/GUI/JusPrin/Support/DecimalText.hpp"
 #include "slic3r/GUI/IMSlider.hpp"
 #include "slic3r/GUI/ImGuiWrapper.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/ProjectState.hpp"
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
@@ -25,6 +27,7 @@
 #include <wx/panel.h>
 #include <wx/sizer.h>
 #include <wx/stattext.h>
+#include <wx/timer.h>
 
 #include <algorithm>
 #include <cfloat>
@@ -115,7 +118,7 @@ CheckPrintDialog::CheckPrintDialog(wxWindow* parent, const ShellTheme& theme, Pl
     forget_pointer();
     canvas->get_wxglcanvas()->Bind(wxEVT_LEAVE_WINDOW, [this](wxMouseEvent& event) {
         event.Skip();
-        CallAfter([this] { forget_pointer(); });
+        CallAfter(reported("closing Check print", [this] { forget_pointer(); }));
     });
     // OrcaSlicer's canvas turns Tab into its own event, which only the
     // Plater's canvases handle.
@@ -130,9 +133,10 @@ CheckPrintDialog::CheckPrintDialog(wxWindow* parent, const ShellTheme& theme, Pl
     });
     m_close->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { EndModal(wxID_CANCEL); });
 
-    m_subscription = m_plater.subscribe_project_state([this](const ProjectStateChanged&) { close_if_stale(); });
+    m_subscription = m_plater.subscribe_project_state(
+        reported("following a change to the project", [this](const ProjectStateChanged&) { close_if_stale(); }));
     m_plater.Bind(EVT_SLICE_STATUS_CHANGED, &CheckPrintDialog::on_slice_status_changed, this);
-    Bind(wxEVT_TIMER, [this](wxTimerEvent&) { close_if_stale(); }, m_stale_timer.GetId());
+    Bind(wxEVT_TIMER, reported("closing Check print", [this](wxTimerEvent&) { close_if_stale(); }), m_stale_timer.GetId());
     m_stale_timer.Start(200);
     Bind(wxEVT_CHAR_HOOK, [this](wxKeyEvent& event) {
         if (event.GetKeyCode() == WXK_ESCAPE)

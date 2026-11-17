@@ -1,6 +1,7 @@
 // First: slic3r/GUI/I18N.hpp defines _L only while the _ macro is still
 // undefined, so it has to precede any header that brings one in.
 #include "slic3r/GUI/I18N.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 
 #include "OrcaImportWindow.hpp"
 
@@ -14,11 +15,13 @@
 
 #include <nlohmann/json.hpp>
 
+#include <wx/defs.h>
 #include <wx/sizer.h>
 #include <wx/utils.h>
 
 #include <algorithm>
 #include <stdexcept>
+#include <vector>
 
 namespace Slic3r::GUI::JusPrin::Home {
 
@@ -138,11 +141,11 @@ bool OrcaImportWindow::on_page_message(const std::string& type, const json& payl
     // Each runs once the page's message is answered: closing destroys the
     // view that sent it, and the other two open windows of their own.
     if (action == "close")
-        CallAfter([this] { EndModal(wxID_OK); });
+        CallAfter(reported("closing the import window", [this] { EndModal(wxID_OK); }));
     else if (action == "import")
-        CallAfter([this, printers = payload.at("printers").get<std::vector<std::string>>()] { import(printers); });
+        CallAfter(reported("importing printers", [this, printers = payload.at("printers").get<std::vector<std::string>>()] { import(printers); }));
     else if (action == "choose_folder")
-        CallAfter([this] { choose_folder(); });
+        CallAfter(reported("choosing a folder to import from", [this] { choose_folder(); }));
     else
         return false;
     return true;

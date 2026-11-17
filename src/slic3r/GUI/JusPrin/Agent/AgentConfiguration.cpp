@@ -12,6 +12,7 @@
 #include <boost/log/trivial.hpp>
 
 #include <cstdlib>
+#include <stdexcept>
 #include <string>
 #include <utility>
 
@@ -124,6 +125,15 @@ ProviderListeners logging_listeners()
     return listeners;
 }
 
+// Writes the settings file at once. AppConfig::save() leaves the settings
+// unsaved when the file could not be written.
+void save_now(AppConfig& config)
+{
+    config.save();
+    if (config.dirty())
+        throw std::runtime_error("AppConfig::save() could not write the settings file");
+}
+
 bool configured_true(const AppConfig* config, const char* key)
 {
     if (config == nullptr)
@@ -166,8 +176,6 @@ AgentSetupServicePtr make_agent_setup(AppConfig* config)
     // about the key staying on this machine, and chose to continue: that is
     // the cloud consent load_agent_runtime() requires on the next launch.
     auto commit = [config](const SetupCredentials& credentials) {
-        if (config == nullptr || credentials.provider.empty() || credentials.api_key.empty())
-            return false;
         config->set(kSection, api_key_item_for(credentials.provider), credentials.api_key);
         config->set(kSection, "provider", credentials.provider);
         config->set(kSection, "enabled", "true");
@@ -175,10 +183,8 @@ AgentSetupServicePtr make_agent_setup(AppConfig* config)
         if (!credentials.model.empty())
             config->set(kSection, "model", credentials.model);
         // Written now, not at the next routine save, so a crash after setup
-        // does not lose a key the user was just told is stored. A write that
-        // failed leaves the settings unsaved, which is the answer here.
-        config->save();
-        return !config->dirty();
+        // does not lose a key the user was just told is stored.
+        save_now(*config);
     };
     ProviderKeySetup::KeyStore keys;
     keys.load   = [config](const std::string& provider) { return load_provider_api_key(config, provider); };
@@ -243,18 +249,13 @@ CloudSignInPtr make_cloud_sign_in(AppConfig* config)
     // account row told the person what goes to JusPrin and on to the model's
     // provider: the same choices and consent a verified key records.
     store.save = [config, id = row.id](const CloudAccountRecord& record) {
-        if (config == nullptr)
-            return false;
         config->set(kSection, api_key_item_for(id), record.token);
         config->set(kSection, account_item_for(id), record.email);
         store_formats(config, id, record.formats);
         config->set(kSection, "provider", id);
         config->set(kSection, "enabled", "true");
         config->set(kSection, "cloud_consent", "true");
-        // A write that failed leaves the settings unsaved; the person is then
-        // told the sign-in will not be there next time.
-        config->save();
-        return !config->dirty();
+        save_now(*config);
     };
     store.erase = [config, id = row.id]() { return remove_provider_key(config, id); };
     auto agents = [row, gateway](const std::string& token, const std::string& model, const std::string& format) -> AgentServicePtr {

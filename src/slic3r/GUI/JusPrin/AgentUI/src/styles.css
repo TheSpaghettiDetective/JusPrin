@@ -2744,8 +2744,6 @@ h2.credit-offer-title {
 }
 
 .agent-row-status--saved .jp-icon { color: var(--status-success); }
-.agent-row-status--sessionOnly { color: var(--text-primary); }
-.agent-row-status--sessionOnly .jp-icon { color: var(--status-warning); }
 .agent-row-status--rejected { color: var(--status-danger); }
 .agent-row-status--unavailable { color: var(--text-primary); }
 

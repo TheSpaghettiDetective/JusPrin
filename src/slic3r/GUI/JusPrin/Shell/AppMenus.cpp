@@ -1,4 +1,5 @@
 #include "AppMenus.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 
 #include "AboutWindow.hpp"
 #include "SetupCommands.hpp"
@@ -209,10 +210,10 @@ void AppMenus::install()
     // commands, and the handler bound last runs first. The shell installs
     // during MainFrame's constructor, before that hook is bound, so this
     // binds once the constructor is done.
-    CallAfter([this] {
+    CallAfter(reported("setting up the menus", [this] {
         if (m_installed)
             m_frame.Bind(wxEVT_CHAR_HOOK, &AppMenus::on_char_hook, this);
-    });
+    }));
 }
 
 void AppMenus::uninstall()
@@ -476,7 +477,7 @@ void AppMenus::build_view(wxMenu* menu)
     items.push_back(command(menu, _L("Switch to classic view…"), {[this] {
         // On the frame's next turn, so this handler returns before uninstall
         // takes the menus apart.
-        m_frame.CallAfter([] { detach_shell(); });
+        m_frame.CallAfter(reported("switching to the classic view", [] { detach_shell(); }));
     }}));
     arrange(menu, items);
 }

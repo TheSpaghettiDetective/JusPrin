@@ -12,6 +12,7 @@
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/HMS.hpp"
 #include "slic3r/GUI/JusPrin/Home/OnboardingModel.hpp"
+#include "slic3r/GUI/JusPrin/Home/PrintHistory.hpp"
 #include "slic3r/GUI/JusPrin/Home/ProjectStatus.hpp"
 #include "slic3r/GUI/JusPrin/Shell/GcodeHistoryRecorder.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ServerSheet.hpp"
@@ -34,7 +35,10 @@
 #include "slic3r/GUI/JusPrin/Updates/Version.hpp"
 #include "slic3r/GUI/JusPrin/Support/DecimalText.hpp"
 #include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
+#include "slic3r/GUI/JusPrin/Support/Files.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
+#include "slic3r/GUI/JusPrin/Agent/CloudAccount.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ManufacturingHistory.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/UtcTime.hpp"
 #include "slic3r/GUI/MsgDialog.hpp"
@@ -578,10 +582,10 @@ void OrcaHomeBackend::refresh_account()
     if (!m_models) {
         std::weak_ptr<void> alive = m_alive;
         m_models = Agent::make_chat_model_source(wxGetApp().app_config, [alive](std::function<void()> run) {
-            wxGetApp().CallAfter([alive, run = std::move(run)] {
+            wxGetApp().CallAfter(reported("showing the account on Home", [alive, run = std::move(run)] {
                 if (!alive.expired())
                     run();
-            });
+            }));
         });
     }
     m_models->fetch_account([this, token = Agent::cloud_account_token(wxGetApp().app_config)](std::optional<nlohmann::json> account) {
@@ -672,7 +676,15 @@ bool OrcaHomeBackend::poll_onboarding()
         const Agent::CloudSignInPhase before = m_sign_in->phase();
         // The email steps move within one phase: a code asked for, refused, sent again.
         const std::optional<Agent::CloudEmailStep> email_before = m_sign_in->email_step();
-        const std::optional<Agent::CloudSignInOutcome> outcome = m_sign_in->poll();
+        std::optional<Agent::CloudSignInOutcome> outcome;
+        try {
+            outcome = m_sign_in->poll();
+        } catch (...) {
+            // The sign-in is idle again; the page hears so on the next tick,
+            // and the timer's handler reports the failure.
+            m_onboarding_changed = true;
+            throw;
+        }
         m_onboarding_changed = m_onboarding_changed || m_sign_in->phase() != before || m_sign_in->email_step() != email_before;
         if (outcome) {
             m_onboarding_changed = true;
@@ -680,9 +692,7 @@ bool OrcaHomeBackend::poll_onboarding()
                                  outcome->error.code == "update_required";
             switch (outcome->kind) {
             case Agent::CloudSignInOutcome::Kind::SignedIn:
-                m_sign_in_error = outcome->saved ? std::string() :
-                                                   utf8(_L("This sign-in could not be saved, so you will have to sign in again next time "
-                                                           "JusPrin starts."));
+                m_sign_in_error.clear();
                 // The docked agent runs on the account from now on.
                 if (ShellController* shell = installed_shell())
                     shell->reload_agent_settings();
@@ -771,7 +781,7 @@ void OrcaHomeBackend::open_prices()
     // Not from inside the page's message handler, which the sheet's own
     // web view would nest in.
     MainFrame* frame = wxGetApp().mainframe;
-    frame->CallAfter([frame] { ServerSheet::open(frame, "prices", "welcome", {}); });
+    frame->CallAfter(reported("opening the prices page", [frame] { ServerSheet::open(frame, "prices", "welcome", {}); }));
 }
 
 void OrcaHomeBackend::cancel_sign_in()
@@ -873,7 +883,7 @@ void OrcaHomeBackend::choose_printers_way(const std::string& way)
     // Not found on this computer: the person picks its folder. The picker
     // is modal, so it opens once the page's message is answered.
     std::weak_ptr<void> alive = m_alive;
-    wxGetApp().CallAfter([this, alive, &app, opened] {
+    wxGetApp().CallAfter(reported("choosing a folder to import from", [this, alive, &app, opened] {
         if (alive.expired())
             return;
         const OrcaImporter::FolderChoice choice = m_importer.choose_folder(app, &m_frame);
@@ -885,7 +895,7 @@ void OrcaHomeBackend::choose_printers_way(const std::string& way)
             m_way_problem = choice.problem;
         }
         m_onboarding_changed = true;
-    });
+    }));
 }
 
 void OrcaHomeBackend::printer_form_message(const nlohmann::json& payload)
@@ -1001,9 +1011,12 @@ ProjectList OrcaHomeBackend::recent_projects() const
     // The projects folder itself could not be read; a project in it that
     // cannot be read is left out by projects() on its own. Home says so
     // instead of showing an empty gallery, and HomeHost keeps reading the
-    // folder while Home is on screen.
-    if (!managed)
+    // folder while Home is on screen. Nor is there a history: the one read
+    // before names files in folders that cannot be read now.
+    if (!managed) {
+        m_history.clear();
         return {{}, utf8(_L("Your projects couldn't be loaded. JusPrin will keep trying."))};
+    }
     // Match printing jobs by the project's display name, which is what Orca
     // uses for a job. The source file may have been deleted after import.
     std::map<std::string, MachineObject*> printing_by_stem;
@@ -1242,17 +1255,14 @@ std::string OrcaHomeBackend::check_export(const Agent::GcodeDestination& exporte
 {
     // A file that is not there, or a drive that is not plugged in, is the
     // "not found" row, not an error.
-    const std::filesystem::path path = std::filesystem::u8path(exported.path);
-    std::error_code             absent;
-    const std::uintmax_t        size = std::filesystem::file_size(path, absent);
-    const auto                  written = absent ? std::filesystem::file_time_type() : std::filesystem::last_write_time(path, absent);
-    if (absent) {
+    const std::optional<ExportedFile> file = exported_file(std::filesystem::u8path(exported.path));
+    if (!file) {
         m_file_checks.erase(exported.path);
         return "missing";
     }
     FileCheck& check = m_file_checks[exported.path];
-    if (check.hash.empty() || check.size != size || check.written != written)
-        check = {size, written, Agent::sha256_file_hex(exported.path)};
+    if (check.hash.empty() || check.size != file->size || check.written != file->written)
+        check = {file->size, file->written, Agent::sha256_file_hex(exported.path)};
     return check.hash == exported.file_hash ? "matches" : "changed";
 }
 
@@ -1350,6 +1360,9 @@ std::optional<PrintReportPhoto> OrcaHomeBackend::choose_report_photo()
     photo.id         = std::to_string(m_report_photos.size() + 1);
     photo.name       = file.filename().u8string();
     photo.size_bytes = std::filesystem::file_size(file);
+    photo.problem    = report_photo_problem(photo.size_bytes);
+    if (!photo.problem.empty())
+        return photo;
     m_report_photos[photo.id] = path;
 
     // Only for the form's row: a file wxImage cannot read still uploads, and
@@ -1387,17 +1400,25 @@ void OrcaHomeBackend::send_print_report(const PrintReportForm& form, std::functi
 
     AppConfig* config  = wxGetApp().app_config;
     const auto finish  = [alive = std::weak_ptr<void>(m_alive), form, done = std::move(done)](unsigned status, const std::string& body) {
-        PrintReportAnswer answer = print_report_answer(status, body);
-        if (answer.state == PrintReportAnswer::State::Failed)
-            BOOST_LOG_TRIVIAL(warning) << "Print report for G-code " << form.hash << " answered " << status;
-        wxGetApp().CallAfter([alive, form, done, answer] {
+        wxGetApp().CallAfter(reported("sending a print report", [alive, form, done, status, body] {
             if (alive.expired())
                 return;
-            ShellController* shell = installed_shell();
-            if (answer.state != PrintReportAnswer::State::Failed && shell != nullptr && shell->gcode_history() != nullptr)
+            PrintReportAnswer answer;
+            try {
+                answer = print_report_answer(status, body);
+            } catch (...) {
+                // The form stops waiting; the report dialog says the rest.
+                done(PrintReportAnswer{PrintReportAnswer::State::Unexpected});
+                throw;
+            }
+            if (answer.state != PrintReportAnswer::State::Failed) {
+                ShellController* shell = installed_shell();
+                if (shell == nullptr || shell->gcode_history() == nullptr)
+                    throw std::logic_error("Print report for G-code " + form.hash + " was answered with no G-code history to keep it");
                 shell->gcode_history()->record_report(form.project_id, form.hash, answer.credits);
+            }
             done(answer);
-        });
+        }));
     };
     Http::post(Agent::cloud_print_reports_url(config))
         .header("Authorization", "Bearer " + Agent::cloud_account_token(config))
@@ -1410,8 +1431,8 @@ void OrcaHomeBackend::send_print_report(const PrintReportForm& form, std::functi
         .tls_verify(true)
         .timeout_connect(10)
         .timeout_max(kReportUploadSeconds)
-        .on_complete([finish](std::string body, unsigned status) { finish(status, body); })
-        .on_error([finish](std::string body, std::string, unsigned status) { finish(status, body); })
+        .on_complete(reported("sending a print report", [finish](std::string body, unsigned status) { finish(status, body); }))
+        .on_error(reported("sending a print report", [finish](std::string body, std::string, unsigned status) { finish(status, body); }))
         .perform();
 }
 
@@ -1466,32 +1487,22 @@ void OrcaHomeBackend::open_dropped_files(const std::vector<DroppedFile>& files)
     // before. A file opened from its own folder has a different path.
     wxArrayString paths;
     for (const DroppedFile& file : files) {
-        try {
-            const std::filesystem::path name = std::filesystem::u8path(file.name).filename();
-            if (name.empty() || name == "." || name == "..")
-                continue;
-            const std::filesystem::path root     = dropped_files_folder();
-            const std::filesystem::path incoming = root / boost::filesystem::unique_path().string() / name;
-            std::filesystem::create_directories(incoming.parent_path());
-            std::ofstream(incoming, std::ios::binary).write(file.bytes.data(), std::streamsize(file.bytes.size()));
-            std::string incoming_name = incoming.u8string(), digest;
-            if (!bbl_calc_md5(incoming_name, digest) || digest.empty())
-                throw std::runtime_error("its digest could not be read");
-            const std::filesystem::path kept = root / digest / name;
-            if (!std::filesystem::exists(kept)) {
-                std::filesystem::create_directories(kept.parent_path());
-                std::filesystem::rename(incoming, kept);
-            }
-            std::filesystem::remove_all(incoming.parent_path());
-            paths.Add(wxString::FromUTF8(kept.u8string()));
-        } catch (const std::exception& error) {
-            BOOST_LOG_TRIVIAL(error) << "Home could not keep the dropped file " << file.name << ": " << error.what();
-            MessageDialog(&m_frame, wxString::Format(_L("%s couldn't be opened. Try opening it with Open… instead."),
-                                                     wxString::FromUTF8(file.name)),
-                          _L("Couldn't open file"), wxOK | wxICON_ERROR)
-                .ShowModal();
-            return;
+        const std::filesystem::path name = std::filesystem::u8path(file.name).filename();
+        if (name.empty() || name == "." || name == "..")
+            continue;
+        const std::filesystem::path root     = dropped_files_folder();
+        const std::filesystem::path incoming = root / boost::filesystem::unique_path().string() / name;
+        write_file(incoming, file.bytes);
+        std::string incoming_name = incoming.u8string(), digest;
+        if (!bbl_calc_md5(incoming_name, digest) || digest.empty())
+            throw std::runtime_error("The digest of the dropped file " + incoming_name + " could not be read");
+        const std::filesystem::path kept = root / digest / name;
+        if (!std::filesystem::exists(kept)) {
+            std::filesystem::create_directories(kept.parent_path());
+            std::filesystem::rename(incoming, kept);
         }
+        std::filesystem::remove_all(incoming.parent_path());
+        paths.Add(wxString::FromUTF8(kept.u8string()));
     }
     if (!paths.empty())
         open_as_new_project(paths);
@@ -1587,7 +1598,7 @@ void OrcaHomeBackend::open_preferences()
     if (ShellController* shell = installed_shell())
         shell->request_preferences();
     else
-        wxGetApp().CallAfter([] { wxGetApp().open_preferences(); });
+        wxGetApp().CallAfter(reported("opening the printer settings", [] { wxGetApp().open_preferences(); }));
 }
 
 std::string OrcaHomeBackend::open_printer_settings(const std::string& printer_id)

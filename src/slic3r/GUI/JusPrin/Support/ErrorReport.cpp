@@ -11,13 +11,16 @@
 #include <boost/log/trivial.hpp>
 #include <nlohmann/json.hpp>
 
+#include <wx/thread.h>
 #include <wx/utils.h>
 #include <wx/window.h>
 
+#include <algorithm>
 #include <deque>
 #include <filesystem>
 #include <typeinfo>
 #include <utility>
+#include <vector>
 
 namespace Slic3r::GUI::JusPrin {
 
@@ -44,9 +47,12 @@ bool reports_automatically()
 
 // The reports waiting for the person, one dialog at a time. A failure that
 // repeats while its dialog is open or waiting adds nothing: the person has one
-// thing to answer.
-std::deque<ErrorReport> g_waiting;
-bool                    g_showing = false;
+// thing to answer. Nor does one they already answered in this run: a failure
+// that comes back each time a window is in front again would otherwise reopen
+// the dialog as soon as it closes, since closing it puts the window in front.
+std::deque<ErrorReport>  g_waiting;
+std::vector<ErrorReport> g_answered;
+bool                     g_showing = false;
 
 bool same_failure(const ErrorReport& a, const ErrorReport& b) { return a.doing == b.doing && a.error == b.error; }
 
@@ -58,6 +64,7 @@ void show_next()
     const ErrorReport report = g_waiting.front();
     const ErrorReportDialog::Answer answer = ErrorReportDialog::ask(report);
     g_waiting.pop_front();
+    g_answered.push_back(report);
     g_showing = false;
     if (answer.automatically) {
         wxGetApp().app_config->set_bool(kReportErrorsKey, true);
@@ -131,19 +138,41 @@ void send_error_report(const ErrorReport& report)
 
 void report_unexpected_error(std::string doing, std::string error, std::string where)
 {
+    // An entry point on another thread (an HTTP callback, a worker) reports
+    // on the main thread, where the waiting reports and the dialog live.
+    if (!wxThread::IsMain()) {
+        wxGetApp().CallAfter([doing = std::move(doing), error = std::move(error), where = std::move(where)]() mutable {
+            report_unexpected_error(std::move(doing), std::move(error), std::move(where));
+        });
+        return;
+    }
     ErrorReport report = make_error_report(std::move(doing), std::move(error), std::move(where));
     BOOST_LOG_TRIVIAL(error) << "Unexpected error while " << report.doing << ": " << report.error;
     if (reports_automatically()) {
         send_error_report(report);
         return;
     }
-    for (const ErrorReport& waiting : g_waiting)
-        if (same_failure(waiting, report))
-            return;
+    const auto same = [&report](const ErrorReport& asked) { return same_failure(asked, report); };
+    if (std::any_of(g_waiting.begin(), g_waiting.end(), same) || std::any_of(g_answered.begin(), g_answered.end(), same))
+        return;
     g_waiting.push_back(std::move(report));
     // After the event that failed: the dialog's own loop never runs inside a
     // page's message handler or the main loop's exception hook.
     wxGetApp().CallAfter([] { show_next(); });
+}
+
+void report_if_automatic(std::string doing, std::string error)
+{
+    // From another thread (an HTTP callback), on the main thread, where the
+    // settings it reads are written.
+    if (!wxThread::IsMain()) {
+        wxGetApp().CallAfter([doing = std::move(doing), error = std::move(error)]() mutable {
+            report_if_automatic(std::move(doing), std::move(error));
+        });
+        return;
+    }
+    if (reports_automatically())
+        send_error_report(make_error_report(std::move(doing), std::move(error), {}));
 }
 
 std::string describe_current_exception()

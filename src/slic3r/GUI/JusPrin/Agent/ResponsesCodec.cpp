@@ -2,10 +2,8 @@
 #include "RecordConversion.hpp"
 
 #include <algorithm>
+#include <string>
 #include <utility>
-
-// Last: it defines the L marker.
-#include "slic3r/GUI/JusPrin/Support/Translate.hpp"
 
 namespace Slic3r::GUI::JusPrin::Agent {
 
@@ -144,7 +142,7 @@ std::vector<StreamEvent> ResponsesCodec::parse(const std::string& payload)
     };
     const json event = json::parse(payload, nullptr, false);
     if (!event.is_object()) {
-        push(StreamEvent::Kind::Failed).error = {"malformed_response", translated(L("The AI service returned an unreadable streaming response.")), false};
+        push(StreamEvent::Kind::ServiceError).text = "sent an event that is not JSON: " + payload;
         return events;
     }
     const std::string type = event.value("type", "");
@@ -156,7 +154,7 @@ std::vector<StreamEvent> ResponsesCodec::parse(const std::string& payload)
         m_completed = true;
         const json& response = event["response"];
         if (!response.is_object() || !response.contains("output") || !response["output"].is_array()) {
-            push(StreamEvent::Kind::Failed).error = {"malformed_response", translated(L("The AI service response did not contain valid output.")), false};
+            push(StreamEvent::Kind::ServiceError).text = "sent a completed response without an output list: " + payload;
             return events;
         }
         StreamEvent& complete = push(StreamEvent::Kind::TurnComplete);
@@ -174,10 +172,10 @@ std::vector<StreamEvent> ResponsesCodec::parse(const std::string& payload)
                 reported.cached_input = usage["input_tokens_details"].value("cached_tokens", std::uint64_t{0});
             complete.usage = reported;
         }
-    } else if (type == "response.incomplete") {
-        push(StreamEvent::Kind::Incomplete);
-    } else if (type == "response.failed" || type == "error") {
-        push(StreamEvent::Kind::Failed).error = {"agent_service_error", translated(L("The AI service could not complete the response.")), true};
+    } else if (type == "response.incomplete" || type == "response.failed" || type == "error") {
+        // Never an error a person can act on: the loop stops the turn with it.
+        StreamEvent& failed = push(StreamEvent::Kind::ServiceError);
+        failed.text = "sent the event " + payload;
     }
     return events;
 }

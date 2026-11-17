@@ -1,4 +1,5 @@
 #include "StatusRow.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 #include "CheckPrintDialog.hpp"
 #include "HeaderControls.hpp"
 #include "FilamentChipModel.hpp"
@@ -135,7 +136,7 @@ StatusRow::StatusRow(wxWindow*                  parent,
     });
 
     m_project_state_subscription = m_plater.subscribe_project_state(
-        [this](const ProjectStateChanged&) { refresh(); });
+        reported("showing the project's status", [this](const ProjectStateChanged&) { refresh(); }));
     m_plater.Bind(EVT_SLICE_STATUS_CHANGED, &StatusRow::on_slice_status_changed, this);
     // The tab panel and this row are siblings, so wx may destroy either one
     // first at shutdown; only unbind while the tab panel still exists.
@@ -576,7 +577,7 @@ void StatusRow::show_overflow_menu()
                 // The menu invokes this on the header after dismissal. Detach
                 // on the frame's next turn so the header's handler can return
                 // before uninstall destroys it.
-                if (frame) frame->CallAfter([frame] { if (frame) detach_shell(); });
+                if (frame) frame->CallAfter(reported("switching to the classic view", [frame] { if (frame) detach_shell(); }));
             }}
     };
     if (m_autosave != nullptr && m_autosave->state() == Workspace::ProjectAutosave::State::Failed)

@@ -1,4 +1,5 @@
 #include "FilamentMenu.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 #include "ShellRecipes.hpp"
 #include "ShellController.hpp"
 
@@ -234,7 +235,7 @@ private:
         report_cursor();
         auto apply = m_apply[index];
         wxWindow* menu = GetParent();
-        menu->CallAfter([alive = wxWeakRef<wxWindow>(menu), apply] { if (alive && apply) apply(); });
+        menu->CallAfter(reported("choosing a filament", [alive = wxWeakRef<wxWindow>(menu), apply] { if (alive && apply) apply(); }));
     }
 
     void paint(wxPaintEvent&)
@@ -295,7 +296,7 @@ void FilamentMenu::reopen(const Ptr& self, View view)
     // The callbacks hold the controller, so it is still alive here.
     menu->set_dismiss_listener([self] {
         if (self->m_stepping_out) return;
-        self->m_owner->CallAfter([self] { end_visit(self); });
+        self->m_owner->CallAfter(reported("closing the filament menu", [self] { end_visit(self); }));
     });
     show(self, view);
     menu->open(*self->m_anchor);

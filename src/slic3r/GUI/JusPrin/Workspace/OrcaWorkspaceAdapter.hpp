@@ -7,7 +7,10 @@
 #include <map>
 #include <set>
 
+class wxCommandEvent;
+
 namespace Slic3r {
+class ModelObject;
 class SlicingProcessCompletedEvent;
 }
 

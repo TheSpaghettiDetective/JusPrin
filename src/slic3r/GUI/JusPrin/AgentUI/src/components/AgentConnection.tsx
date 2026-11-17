@@ -115,7 +115,6 @@ export function AccountRow({ account, status, actions, aiUnavailable, outdatedMe
       <div className="agent-account-offer" data-testid="agent-account">
         <span className="agent-account-eyebrow">{t`JusPrin account`}</span>
         <FirstMonthOffer freeAfter status={status} actions={actions} />
-        {status.warning && <p className="agent-row-note">{status.warning}</p>}
       </div>
     );
   }
@@ -204,16 +203,13 @@ export function AccountRow({ account, status, actions, aiUnavailable, outdatedMe
       {!checking && status.error?.code === 'update_required' && (
         <button type="button" className="primary" onClick={actions.getNewVersion}>{t`Get the new version…`}</button>
       )}
-      {!checking && status.warning && <p className="agent-row-note">{status.warning}</p>}
       </div>
     </div>
   );
 }
 
 // What is stored for a provider, as its row's status line says it.
-// 'sessionOnly' is a key that passed its check but could not be written to
-// this computer: it works until JusPrin restarts.
-export type KeyStanding = 'none' | 'saved' | 'rejected' | 'sessionOnly';
+export type KeyStanding = 'none' | 'saved' | 'rejected';
 
 // The row's key form. 'unreachable' is a check that never got an answer, so
 // the key stays locked for another try; 'refused' is one the provider
@@ -222,7 +218,6 @@ export type KeyForm = 'closed' | 'entering' | 'checking' | 'unreachable' | 'refu
 
 const STANDING_LINE: Record<Exclude<KeyStanding, 'none'>, { icon: string; text: string }> = {
   saved: { icon: 'check', text: t`Key saved on this computer` },
-  sessionOnly: { icon: 'triangle-alert', text: t`This key works now, but JusPrin couldn’t save it.` },
   rejected: { icon: 'circle-alert', text: t`The provider rejected this key` },
 };
 
@@ -338,11 +333,6 @@ export function ProviderKeyRow({
         </div>
       )}
 
-      {form === 'closed' && standing === 'sessionOnly' && (
-        <p className="agent-row-note">
-          {t`You’ll need to add it again after JusPrin restarts.`}
-        </p>
-      )}
       {form === 'closed' && standing === 'rejected' && (
         <p className="agent-row-note">{t`Replace it with a working key, or remove it.`}</p>
       )}
@@ -351,7 +341,7 @@ export function ProviderKeyRow({
 }
 
 // A check that never reached the provider says nothing about the key.
-const UNREACHED = new Set(['network_error', 'timeout', 'service_unavailable', 'service_overloaded', 'setup_failed']);
+const UNREACHED = new Set(['network_error', 'timeout', 'setup_failed']);
 
 export interface ProviderKeysProps {
   // Preferences lists the ways one under another and names each one.
@@ -417,6 +407,8 @@ export function ProviderKeys({ heading = false, setup, savedKeys, onCheck, onCan
     if (form === 'unreachable') return t`Couldn’t reach ${name} to check this key. Nothing was saved. Try again.`;
     if (form !== 'refused') return undefined;
     if (setup.error?.code === 'invalid_credentials') return t`${name} rejected this key. Nothing was saved.`;
+    // Something nobody decided an outcome for: the app's one sentence for it.
+    if (setup.error?.code === 'unexpected_error') return setup.error.message;
     const reason = setup.error?.message;
     return reason ? t`${reason} Nothing was saved.` : t`The key could not be checked. Nothing was saved.`;
   };
@@ -444,16 +436,14 @@ export function ProviderKeys({ heading = false, setup, savedKeys, onCheck, onCan
       </div>
       {PROVIDERS.map((provider) => {
         const saved = savedKeys.find((candidate) => candidate.provider === provider.id);
-        const sessionOnly = setup.phase === 'verified' && !!setup.warning && setup.provider === provider.id;
-        // A key that could not be stored has no hint: the host never kept it.
-        const standing: KeyStanding = sessionOnly ? 'sessionOnly' : saved ? (saved.rejected ? 'rejected' : 'saved') : 'none';
+        const standing: KeyStanding = saved ? (saved.rejected ? 'rejected' : 'saved') : 'none';
         const form = formFor(provider);
         return (
           <ProviderKeyRow
             key={provider.id}
             provider={provider}
             standing={standing}
-            hint={sessionOnly ? undefined : saved?.hint}
+            hint={saved?.hint}
             form={form}
             error={errorFor(provider, form)}
             value={open === provider.id ? key : ''}

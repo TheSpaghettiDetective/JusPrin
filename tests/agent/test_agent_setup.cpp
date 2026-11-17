@@ -77,17 +77,13 @@ struct Fixture
 {
     TransportLog                       log;
     std::vector<SetupCredentials>      committed;
-    bool                               commit_succeeds{true};
     std::unique_ptr<ProviderKeySetup>  setup;
 
     Fixture()
     {
         setup = std::make_unique<ProviderKeySetup>(
             [this]() -> std::unique_ptr<IAgentHttpTransport> { return std::make_unique<FakeTransport>(log); },
-            [this](const SetupCredentials& credentials) {
-                committed.push_back(credentials);
-                return commit_succeeds;
-            });
+            [this](const SetupCredentials& credentials) { committed.push_back(credentials); });
     }
 
     SetupCredentials openai_key(std::string key = "sk-test-key") const
@@ -206,15 +202,12 @@ TEST_CASE("cancelling a check abandons it and the provider connection", "[agent]
     CHECK_FALSE(fixture.setup->poll().has_value());
 }
 
-TEST_CASE("committing reports whether the credential was actually stored", "[agent][setup]")
+TEST_CASE("committing hands the credential to the store", "[agent][setup]")
 {
     Fixture fixture;
-    CHECK(fixture.setup->commit(fixture.openai_key("sk-stored")));
+    fixture.setup->commit(fixture.openai_key("sk-stored"));
     REQUIRE(fixture.committed.size() == 1);
     CHECK(fixture.committed.front().api_key == "sk-stored");
-
-    fixture.commit_succeeds = false;
-    CHECK_FALSE(fixture.setup->commit(fixture.openai_key()));
 }
 
 TEST_CASE("an OpenRouter key is checked against OpenRouter, and only the table decides what is supported", "[agent][setup][openrouter]")

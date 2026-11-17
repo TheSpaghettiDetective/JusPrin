@@ -28,15 +28,16 @@ struct ModelListResult
 
 // Fetches every page of the list on Http's own thread and calls `done` there
 // once. Setting `*cancelled` stops it; `done` is then not called.
-// The signed-in account's credits, plan and usage; nothing when they could not
-// be read, or were not account_reply_readable. `done` runs on the request's
-// thread.
+// The signed-in account's credits, plan and usage, or nothing, as
+// account_answer reads the answer; an answer that is the server's fault is
+// not passed on and is reported. `done` runs on the request's thread.
 void fetch_account(const ProviderProfile& profile, const std::string& api_key, const std::string& endpoint_override,
                    std::shared_ptr<std::atomic<bool>> cancelled, std::function<void(std::optional<nlohmann::json>)> done);
 
 // The HTML of the box on Preferences › Account, from the account's server at
-// `url`, sent with `token` when there is one; nothing when the server sends
-// none or cannot be reached. `done` runs on the request's thread.
+// `url`, sent with `token` when there is one, or nothing, as
+// account_box_answer reads the answer; a server fault is also reported.
+// `done` runs on the request's thread.
 void fetch_account_box(const ProviderProfile& profile, const std::string& token, const std::string& url,
                        std::shared_ptr<std::atomic<bool>> cancelled, std::function<void(std::optional<std::string>)> done);
 

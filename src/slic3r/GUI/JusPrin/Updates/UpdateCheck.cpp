@@ -1,4 +1,5 @@
 #include "UpdateCheck.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 
 #include "UpdateRecord.hpp"
 #include "Version.hpp"
@@ -11,6 +12,7 @@
 
 #include <boost/log/trivial.hpp>
 
+#include <utility>
 #include <wx/timer.h>
 
 namespace Slic3r::GUI::JusPrin::Updates {
@@ -56,13 +58,13 @@ void UpdateCheck::attach(MainFrame& frame)
     // destruction leaves it alone.
     m_timer        = std::make_unique<wxTimer>();
     wxTimer* timer = m_timer.get();
-    timer->Bind(wxEVT_TIMER, [this, timer](wxTimerEvent&) {
+    timer->Bind(wxEVT_TIMER, reported("checking for a new version", [this, timer](wxTimerEvent&) {
         const bool at_startup = !m_started;
         m_started             = true;
         if (at_startup)
             timer->Start(kTickMs);
         tick(at_startup);
-    });
+    }));
     timer->Start(m_started ? kTickMs : kFirstTickMs, m_started ? wxTIMER_CONTINUOUS : wxTIMER_ONE_SHOT);
     frame.Bind(wxEVT_DESTROY, [this, &frame, timer](wxWindowDestroyEvent& event) {
         if (event.GetEventObject() == &frame && m_timer.get() == timer)
@@ -98,18 +100,18 @@ void UpdateCheck::check_now()
         .timeout_connect(5)
         .timeout_max(10)
         .on_complete([this](std::string body, unsigned status) {
-            wxGetApp().CallAfter([this, body = std::move(body), status] {
+            wxGetApp().CallAfter(reported("checking for a new version", [this, body = std::move(body), status] {
                 if (status == 200) {
                     finish(now(), body);
                 } else {
                     BOOST_LOG_TRIVIAL(warning) << "JusPrin's update check got HTTP " << status;
                     finish(now(), std::nullopt);
                 }
-            });
+            }));
         })
         .on_error([this](std::string, std::string error, unsigned status) {
             BOOST_LOG_TRIVIAL(warning) << "JusPrin's update check failed: HTTP " << status << ", " << error;
-            wxGetApp().CallAfter([this] { finish(now(), std::nullopt); });
+            wxGetApp().CallAfter(reported("checking for a new version", [this] { finish(now(), std::nullopt); }));
         })
         .perform();
 }

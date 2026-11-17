@@ -1,6 +1,7 @@
 // First: slic3r/GUI/I18N.hpp defines _L only while the _ macro is still
 // undefined, so it has to precede any header that brings one in.
 #include "slic3r/GUI/I18N.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 
 #include "McpSetupCommand.hpp"
 
@@ -51,7 +52,7 @@ McpSetupResult run_mcp_setup_command(wxWindow* parent, const std::vector<std::st
         }
     };
     wxTimer timer(&progress);
-    progress.Bind(wxEVT_TIMER, [&](wxTimerEvent&) {
+    progress.Bind(wxEVT_TIMER, reported("connecting an outside AI client", [&](wxTimerEvent&) {
         drain();
         const auto elapsed = std::chrono::steady_clock::now() - started;
         if (!timed_out && elapsed > std::chrono::seconds(30)) {
@@ -59,7 +60,7 @@ McpSetupResult run_mcp_setup_command(wxWindow* parent, const std::vector<std::st
             label->SetLabel(_L("The setup command timed out. Stopping it..."));
             wxProcess::Kill(pid, wxSIGTERM);
         } else if (timed_out && elapsed > std::chrono::seconds(32)) wxProcess::Kill(pid, wxSIGKILL);
-    });
+    }));
     progress.Bind(wxEVT_CLOSE_WINDOW, [&](wxCloseEvent& event) {
         if (event.CanVeto()) event.Veto(); // Keep the owned process alive only while its monitor exists.
     });
@@ -113,7 +114,7 @@ void start_mcp_setup_command(wxWindow* parent, const std::vector<std::string>& a
             timer.Stop();
             auto complete = std::move(done);
             complete(std::move(result));
-            CallAfter([this] { delete this; });
+            CallAfter(reported("connecting an outside AI client", [this] { delete this; }));
         }
     };
     auto* watch = new Watch(parent, std::move(done));
@@ -128,7 +129,7 @@ void start_mcp_setup_command(wxWindow* parent, const std::vector<std::string>& a
         return;
     }
     watch->process.CloseOutput();
-    watch->Bind(wxEVT_TIMER, [watch](wxTimerEvent&) {
+    watch->Bind(wxEVT_TIMER, reported("connecting an outside AI client", [watch](wxTimerEvent&) {
         watch->drain();
         const auto elapsed = std::chrono::steady_clock::now() - watch->started;
         if (!watch->timed_out && elapsed > std::chrono::seconds(30)) {
@@ -136,7 +137,7 @@ void start_mcp_setup_command(wxWindow* parent, const std::vector<std::string>& a
             wxProcess::Kill(watch->pid, wxSIGTERM);
         } else if (watch->timed_out && elapsed > std::chrono::seconds(32))
             wxProcess::Kill(watch->pid, wxSIGKILL);
-    });
+    }));
     watch->Bind(wxEVT_END_PROCESS, [watch](wxProcessEvent& event) {
         if (event.GetPid() != watch->pid) { event.Skip(); return; }
         watch->drain();

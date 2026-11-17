@@ -1,7 +1,7 @@
 // Deterministic interaction tests: a scripted mock host plays the native side
 // of the bridge while the real page runs in jsdom.
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { App } from './App';
@@ -586,6 +586,21 @@ describe('first launch', () => {
     expect(host.lastOfType('onboarding_sign_in_email')!.payload).toEqual({ email: 'alex@example.com' });
   });
 
+  it('checks the address the way Sign up free does before Sign in sends it', async () => {
+    const host = start();
+    host.deliver('state', welcome());
+    const address = screen.getByRole('textbox', { name: 'Email' }) as HTMLInputElement;
+    await userEvent.type(address, 'alex.example.com');
+    const invalid = vi.fn();
+    address.addEventListener('invalid', invalid);
+    host.clear();
+    await userEvent.click(screen.getByRole('button', { name: 'Sign up free' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    // The browser says what is wrong with the address, in its own words, both times.
+    expect(invalid).toHaveBeenCalledTimes(2);
+    expect(host.messages()).toEqual([]);
+  });
+
   it('shows the code on its way after Sign up free, never the step that asks how', async () => {
     const host = start();
     host.deliver('state', welcome());
@@ -603,6 +618,18 @@ describe('first launch', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Too many codes were sent to this address.');
     expect(screen.getByRole('button', { name: 'Use a password instead' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(host.lastOfType('onboarding_sign_in_cancel')).toBeDefined();
+  });
+
+  it('says an address the server refuses is not complete, beside the address and Change email', async () => {
+    const host = start();
+    host.deliver('state', welcome());
+    await userEvent.type(screen.getByRole('textbox', { name: 'Email' }), 'alex@gmail{Enter}');
+    expect(host.lastOfType('onboarding_sign_in_send_code')).toBeDefined();
+    host.deliver('state', welcome({ signIn: 'email', email: emailStep({ step: 'choose', email: 'alex@gmail', refusal: 'incomplete_address' }) }));
+    expect(screen.getByRole('alert')).toHaveTextContent('“alex@gmail” is not a complete email address. Check it, then try again.');
+    expect(screen.getByText(/^alex@gmail\./)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Change email' }));
     expect(host.lastOfType('onboarding_sign_in_cancel')).toBeDefined();
   });
 
@@ -1410,6 +1437,18 @@ describe('Print history', () => {
     expect(screen.getByText('Projects')).toBeInTheDocument();
   });
 
+  it('says the projects could not be loaded instead of the list read before', () => {
+    const host = openFromHome();
+    host.deliver('state', state({ projects: [], projectsProblem: 'Your projects couldn’t be loaded. JusPrin will keep trying.' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Your projects couldn’t be loaded. JusPrin will keep trying.');
+    expect(screen.queryAllByRole('article')).toHaveLength(0);
+    // The folder is readable again: the list the host sends next is shown.
+    host.deliver('state', state());
+    host.deliver('history', { entries: [bracket(), vent()] });
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getAllByRole('article')).toHaveLength(2);
+  });
+
   it('asks again when the host state moves under it', () => {
     const host = openFromHome();
     const asked = host.received.filter((envelope) => envelope.type === 'history_request').length;
@@ -1547,6 +1586,21 @@ describe('Print history', () => {
       expect(send).toBeDisabled();
     });
 
+    it('says a photo over the server\'s limit is too large when it is chosen, until a smaller one is', () => {
+      const host = openHistory([finished()]);
+      fireEvent.click(screen.getByRole('button', { name: offer }));
+      const form = within(screen.getByRole('dialog', { name: 'Tell us how it printed' }));
+      fireEvent.click(form.getByRole('button', { name: 'Choose a photo…' }));
+      const tooLarge = 'That photo is larger than 20 MB. Choose a smaller photo, then send the report again.';
+      host.deliver('print_report_photo', { problem: tooLarge });
+      expect(form.getByRole('alert')).toHaveTextContent(tooLarge);
+      expect(form.getByRole('button', { name: 'Choose a photo…' })).toBeInTheDocument();
+      expect(form.getByRole('button', { name: 'Send report' })).toBeDisabled();
+      host.deliver('print_report_photo', { photo });
+      expect(form.queryByRole('alert')).toBeNull();
+      expect(form.getByText('bracket.jpg')).toBeInTheDocument();
+    });
+
     it('a cancelled file dialog keeps the photo already chosen', () => {
       const host = openHistory([finished()]);
       fireEvent.click(screen.getByRole('button', { name: offer }));
@@ -1583,6 +1637,33 @@ describe('Print history', () => {
       expect(screen.getByRole('alert')).toHaveTextContent('The report couldn’t be sent.');
       expect(screen.getByRole('textbox', { name: /What happened/ })).toHaveValue(LONG);
       expect(screen.getByText('bracket.jpg')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Send report' })).toBeEnabled();
+    });
+
+    it('says the app\'s sentence for a refusal the person can act on, and keeps the form', () => {
+      const entry = finished();
+      const host = openHistory([entry]);
+      fireEvent.click(screen.getByRole('button', { name: offer }));
+      fillIn(host);
+      fireEvent.click(screen.getByRole('button', { name: 'Send report' }));
+      host.deliver('print_report_result', { hash: entry.hash, state: 'failed', credits: 0,
+        message: 'Your JusPrin sign-in has ended. Sign in again in Preferences, then try again.' });
+      expect(screen.getByRole('alert')).toHaveTextContent('Your JusPrin sign-in has ended. Sign in again in Preferences, then try again.');
+      expect(screen.getByRole('alert')).not.toHaveTextContent('Check your connection');
+      expect(screen.getByRole('textbox', { name: /What happened/ })).toHaveValue(LONG);
+      expect(screen.getByRole('button', { name: 'Send report' })).toBeEnabled();
+    });
+
+    it('stops waiting, with no sentence of its own, when the answer was reported as unexpected', () => {
+      const entry = finished();
+      const host = openHistory([entry]);
+      fireEvent.click(screen.getByRole('button', { name: offer }));
+      fillIn(host);
+      fireEvent.click(screen.getByRole('button', { name: 'Send report' }));
+      host.deliver('print_report_result', { hash: entry.hash, state: 'unexpected', credits: 0 });
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      expect(screen.queryByRole('alert')).toBeNull();
+      expect(screen.getByRole('textbox', { name: /What happened/ })).toHaveValue(LONG);
       expect(screen.getByRole('button', { name: 'Send report' })).toBeEnabled();
     });
 

@@ -3,10 +3,14 @@
 // documented response.
 
 #include <catch2/catch_all.hpp>
+#include <catch2/matchers/catch_matchers.hpp>
+#include <catch2/matchers/catch_matchers_string.hpp>
 
 #include "slic3r/GUI/JusPrin/Agent/ModelCatalog.hpp"
 
 #include <nlohmann/json.hpp>
+
+#include <optional>
 
 using namespace Slic3r::GUI::JusPrin::Agent;
 using nlohmann::json;
@@ -167,4 +171,30 @@ TEST_CASE("an account answer is read only when it has what the app reads from it
     json expiry = served;
     expiry["credits"]["lots"][0]["expires_at"] = 1764547200;
     CHECK_FALSE(account_reply_readable(expiry));
+}
+
+TEST_CASE("an account answer that is the server's fault is unexpected, with its status and body", "[agent][models][account][errors]")
+{
+    using Catch::Matchers::ContainsSubstring;
+    const std::string served = R"({"credits": {"total": 5, "lots": []}, "usage_30d": {"activity": []}})";
+    REQUIRE(account_answer(200, served).has_value());
+    // No answer, or a refused sign-in: nothing to read, and the last answer stays.
+    for (const unsigned status : {0u, 401u, 403u, 426u})
+        CHECK_FALSE(account_answer(status, "").has_value());
+    CHECK_THROWS_WITH(account_answer(500, "<html>down</html>"),
+                      ContainsSubstring("500") && ContainsSubstring("<html>down</html>"));
+    CHECK_THROWS_WITH(account_answer(200, R"({"credits": {}})"), ContainsSubstring(R"({"credits": {}})"));
+
+    CHECK(account_box_answer(200, "<p>box</p>") == std::optional<std::string>("<p>box</p>"));
+    for (const unsigned status : {0u, 204u, 401u, 403u})
+        CHECK_FALSE(account_box_answer(status, "").has_value());
+    CHECK_THROWS_WITH(account_box_answer(502, "bad gateway"), ContainsSubstring("502") && ContainsSubstring("bad gateway"));
+
+    CHECK_FALSE(model_list_fault(200, R"({"data": []})").has_value());
+    for (const unsigned status : {0u, 401u, 403u, 426u})
+        CHECK_FALSE(model_list_fault(status, "").has_value());
+    const std::optional<std::string> down = model_list_fault(503, "<html>busy</html>");
+    REQUIRE(down.has_value());
+    CHECK_THAT(*down, ContainsSubstring("503") && ContainsSubstring("<html>busy</html>"));
+    CHECK(model_list_fault(200, "{}").has_value());
 }

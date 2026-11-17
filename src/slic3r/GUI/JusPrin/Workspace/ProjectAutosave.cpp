@@ -26,11 +26,14 @@
 #include <algorithm>
 #include <chrono>
 #include <cwctype>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iterator>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
+#include <system_error>
 #include <utility>
 
 namespace Slic3r::GUI::JusPrin::Workspace {
@@ -151,10 +154,9 @@ bool project_edit(WorkspaceChangeReasons reasons)
 // cannot be listed (its permissions, a storage fault): callers say so rather
 // than treat it as holding no projects. No projects folder yet is a new
 // installation with none.
-std::optional<std::vector<std::filesystem::path>> project_folders(const std::filesystem::path& root)
+std::vector<std::filesystem::path> project_folders(const std::filesystem::path& root, std::error_code& error)
 {
     std::vector<std::filesystem::path> folders;
-    std::error_code error;
     // exists() clears the error for a path that is not there; is_directory()
     // reports it as an error.
     if (!std::filesystem::exists(root, error) && !error)
@@ -162,6 +164,13 @@ std::optional<std::vector<std::filesystem::path>> project_folders(const std::fil
     std::filesystem::directory_iterator it(root, error);
     for (const std::filesystem::directory_iterator end; !error && it != end; it.increment(error))
         folders.push_back(it->path());
+    return folders;
+}
+
+std::optional<std::vector<std::filesystem::path>> project_folders(const std::filesystem::path& root)
+{
+    std::error_code error;
+    std::vector<std::filesystem::path> folders = project_folders(root, error);
     if (error) {
         BOOST_LOG_TRIVIAL(error) << "Local projects could not be listed: " << root.string() << ": " << error.message();
         return std::nullopt;
@@ -757,11 +766,10 @@ std::optional<std::vector<ProjectAutosave::ManagedProject>> ProjectAutosave::pro
 
 bool ProjectAutosave::has_local_project_for_source(const std::filesystem::path& source) const
 {
-    const auto matches = projects_for_source(source);
-    return matches && !matches->empty();
+    return !projects_for_source(source).empty();
 }
 
-std::optional<std::vector<ProjectAutosave::SourceMatch>> ProjectAutosave::projects_for_source(const std::filesystem::path& source) const
+std::vector<ProjectAutosave::SourceMatch> ProjectAutosave::projects_for_source(const std::filesystem::path& source) const
 {
     if (source.empty())
         return std::vector<SourceMatch>{};
@@ -776,10 +784,11 @@ std::optional<std::vector<ProjectAutosave::SourceMatch>> ProjectAutosave::projec
         return *digest_now != digest;
     };
     std::vector<std::pair<std::filesystem::file_time_type, SourceMatch>> matches;
-    const auto folders = project_folders(m_root);
-    if (!folders)
-        return std::nullopt;
-    for (const auto& folder : *folders) {
+    std::error_code error;
+    const std::vector<std::filesystem::path> folders = project_folders(m_root, error);
+    if (error)
+        throw ProjectsUnreadable("The local projects folder " + m_root.u8string() + " could not be read: " + error.message());
+    for (const auto& folder : folders) {
         try {
             // A project folder that cannot be read is skipped, as in projects().
             if (!std::filesystem::is_directory(folder) || !std::filesystem::is_regular_file(folder / "HEAD"))

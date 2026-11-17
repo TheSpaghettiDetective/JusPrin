@@ -70,7 +70,7 @@ inline Slic3r::GUI::JusPrin::Agent::RecordItem kept_result(const Slic3r::GUI::Ju
 inline Slic3r::GUI::JusPrin::Agent::AgentRequest& kept_nowhere(Slic3r::GUI::JusPrin::Agent::AgentRequest& request)
 {
     request.on_recorded = [](const std::string&, std::vector<Slic3r::GUI::JusPrin::Agent::RecordItem>) {};
-    request.keep_blob   = [](const std::string&) -> std::optional<std::string> { return "chats/test/blob"; };
+    request.keep_blob   = [](const std::string&) -> std::string { return "chats/test/blob"; };
     return request;
 }
 

@@ -481,6 +481,15 @@ msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try ag
 msgstr "JusPrin 로그인이 만료되었습니다. 기본 설정에서 다시 로그인한 후 다시 시도하세요."
 
 # AI Translated
+msgid "That photo could not be read."
+msgstr "이 사진을 읽을 수 없습니다."
+
+# AI Translated
+#. TRN The print report form, about a photo over the server's limit of 20 MB.
+msgid "That photo is larger than 20 MB. Choose a smaller photo, then send the report again."
+msgstr "이 사진은 20MB보다 큽니다. 더 작은 사진을 선택한 후 보고서를 다시 보내세요."
+
+# AI Translated
 #, boost-format
 msgid "This message needs %1% credit; you have %2%."
 msgid_plural "This message needs %1% credits; you have %2%."
@@ -888,6 +897,12 @@ msgstr "다시 시도"
 #, c-format, boost-format
 msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
 msgstr "%s에서 응답이 없습니다. 프린터가 켜져 있고 이 컴퓨터와 같은 네트워크에 있는지 확인한 후 다시 시도하세요."
+
+# AI Translated
+#. TRN %s is the printer's address without its scheme, such as 192.168.1.42:7125. Printer settings is the printer's settings window.
+#, c-format, boost-format
+msgid "The printer at %s answered, but JusPrin couldn't check its secure connection. If the printer's address starts with https://, change it to http:// in Printer settings, then try again."
+msgstr "%s의 프린터가 응답했지만 JusPrin이 보안 연결을 확인할 수 없습니다. 프린터 주소가 https://로 시작하면 프린터 설정에서 http://로 변경한 후 다시 시도하세요."
 
 # AI Translated
 msgid "Client configuration is a symbolic link. Use Copy and update its target manually."

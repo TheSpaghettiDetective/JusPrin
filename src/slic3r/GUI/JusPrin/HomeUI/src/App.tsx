@@ -182,12 +182,13 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
     const reportedEntry = state.history?.find((entry) => entry.hash === reporting);
     return (
       <>
-        <PrintHistory key={screenKey(screen)} screen={screen} entries={state.history} printers={state.printers}
+        <PrintHistory key={screenKey(screen)} screen={screen} entries={state.history} problem={state.projectsProblem} printers={state.printers}
           reportsOffered={Boolean(state.reportsOffered)} actions={actions} />
         {reportedEntry && (
           <PrintReportForm
             entry={reportedEntry}
             photo={state.reportPhoto}
+            photoProblem={state.reportPhotoProblem}
             result={state.reportResult?.hash === reportedEntry.hash ? state.reportResult : undefined}
             onChoosePhoto={() => client.send('print_report_choose_photo', {})}
             onRemovePhoto={() => dispatch({ kind: 'report_form_reset' })}

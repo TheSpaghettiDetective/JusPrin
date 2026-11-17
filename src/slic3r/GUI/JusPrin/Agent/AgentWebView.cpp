@@ -24,6 +24,7 @@
 #include <nlohmann/json.hpp>
 
 #include <cstdlib>
+#include <exception>
 #include <memory>
 #include <optional>
 #include <string>
@@ -32,6 +33,7 @@
 #include <wx/filedlg.h>
 #include <wx/filesys.h>
 #include <wx/gdicmn.h>
+#include <wx/timer.h>
 #include <wx/utils.h>
 #include <wx/sizer.h>
 #include <wx/stattext.h>
@@ -134,6 +136,15 @@ AgentWebView::AgentWebView(wxWindow*                                  parent,
     m_host->set_page_error_handler([](const std::string& error, const std::string& where) {
         report_unexpected_error("running the app page's code", error, where);
     });
+    m_host->set_unexpected_error_handler([](const std::string& doing, std::exception_ptr error) {
+        try {
+            std::rethrow_exception(error);
+        } catch (const Agent::ToolCallFailure&) {
+            report_if_automatic(doing, describe_current_exception());
+        } catch (...) {
+            report_unexpected_error(doing, describe_current_exception());
+        }
+    });
     m_host->set_chat_titles_file((boost::filesystem::path(data_dir()) / "jusprin" / "chat-titles.json").string());
     m_host->set_mcp_cli_runner([this](const std::vector<std::string>& arguments, Agent::AgentHost::McpCliDone done) {
         start_mcp_setup_command(this, arguments, [complete = std::move(done)](McpSetupResult result) {
@@ -146,12 +157,12 @@ AgentWebView::AgentWebView(wxWindow*                                  parent,
     // before that handler returns is a way to stall the view's own message
     // pump. Nothing here depends on the reveal having happened.
     m_host->set_reveal_path_handler([this](const std::string& path) {
-        CallAfter([path] { desktop_open_any_folder(path); });
+        CallAfter(reported("showing a file in its folder", [path] { desktop_open_any_folder(path); }));
     });
     // The account's sign-in opens Google's page, and the pages it links to,
     // in the desktop's browser; deferred like the reveal above.
     m_host->set_url_opener([this](const std::string& url) {
-        CallAfter([url] { wxLaunchDefaultBrowser(wxString::FromUTF8(url)); });
+        CallAfter(reported("opening a link in the browser", [url] { wxLaunchDefaultBrowser(wxString::FromUTF8(url)); }));
     });
     // The composer's + menu asks for one kind of file; the host names the
     // extensions and the dialog filters to them, upper case too, since some
@@ -159,7 +170,7 @@ AgentWebView::AgentWebView(wxWindow*                                  parent,
     // above: a modal dialog must not run inside the script-message handler.
     m_host->set_file_picker([this](const Agent::AgentHost::FilePickerRequest& request,
                                    std::function<void(std::vector<std::string>)> done) {
-        CallAfter([this, request, done = std::move(done)] {
+        CallAfter(reported("attaching the chosen files", [this, request, done = std::move(done)] {
             wxString patterns;
             for (const std::string& extension : request.extensions) {
                 const wxString lower = wxString::FromUTF8(extension);
@@ -175,15 +186,8 @@ AgentWebView::AgentWebView(wxWindow*                                  parent,
                 for (const wxString& path : paths)
                     chosen.push_back(path.ToUTF8().data());
             }
-            // The top of this entry point (AGENTS.md, Error handling): the
-            // chosen files are read here, after the page's message was
-            // handled, so a failure in reading one ends here.
-            try {
-                done(std::move(chosen));
-            } catch (...) {
-                report_unexpected_error("attaching the chosen files", describe_current_exception());
-            }
-        });
+            done(std::move(chosen));
+        }));
     });
     m_host->set_image_thumbnail_maker(
         [](const std::string& bytes) { return Agent::image_thumbnail_data_url(bytes); });
@@ -280,12 +284,12 @@ AgentWebView::AgentWebView(wxWindow*                                  parent,
         }
     }
 
-    Bind(wxEVT_TIMER, [this](wxTimerEvent& event) {
+    Bind(wxEVT_TIMER, reported("checking the app page's handshake", [this](wxTimerEvent& event) {
         if (event.GetId() == kHandshakeTimerId)
             on_handshake_deadline(event);
         else
             event.Skip();
-    });
+    }));
 }
 
 AgentWebView::~AgentWebView()
@@ -392,7 +396,7 @@ void AgentWebView::enable_chat_model_choice(AppConfig* config)
     // A list arrives on Http's thread; CallAfter brings it to this window's
     // thread, and drops it if the window is gone by then.
     m_host->set_chat_model_source(Agent::make_chat_model_source(config, [this](std::function<void()> deliver) {
-        CallAfter(std::move(deliver));
+        CallAfter(reported("showing the AI models list", std::move(deliver)));
     }));
 }
 

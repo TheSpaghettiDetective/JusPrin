@@ -1,4 +1,5 @@
 #include "MonitorWindow.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 
 #include "slic3r/GUI/DeviceCore/DevManager.h"
 #include "slic3r/GUI/DeviceManager.hpp"
@@ -11,6 +12,7 @@
 
 #include <wx/display.h>
 #include <wx/sizer.h>
+#include <wx/timer.h>
 
 #include <algorithm>
 #include <stdexcept>
@@ -52,7 +54,7 @@ MonitorWindow::MonitorWindow(const std::string& device_id)
 
     auto* body = new wxPanel(this);
     m_notice = new NoticeRow(body, *theme, _L("This window stopped updating because the app switched to another printer."),
-                             _L("Close"), [this] { CallAfter([this] { close(); }); }, true);
+                             _L("Close"), [this] { CallAfter(reported("closing the printer monitor", [this] { close(); })); }, true);
     m_notice->Hide();
     m_panel = new MonitorPanel(body, wxID_ANY);
     auto* column = new wxBoxSizer(wxVERTICAL);
@@ -80,7 +82,7 @@ MonitorWindow::MonitorWindow(const std::string& device_id)
         watch(event.GetString().ToStdString());
         event.Skip();
     });
-    Bind(wxEVT_TIMER, [this](wxTimerEvent&) { check_machine(); }, m_check_timer.GetId());
+    Bind(wxEVT_TIMER, reported("checking the monitored printer", [this](wxTimerEvent&) { check_machine(); }), m_check_timer.GetId());
     m_check_timer.Start(kCheckMs);
 
     // Upstream reconnects a LAN printer that is selected again, dropping its

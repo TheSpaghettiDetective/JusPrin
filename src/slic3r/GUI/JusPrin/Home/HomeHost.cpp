@@ -1,10 +1,12 @@
 #include "HomeHost.hpp"
 
+#include "HomeSnapshot.hpp"
 #include "slic3r/GUI/JusPrin/Support/Base64.hpp"
 
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <optional>
 #include <utility>
 
 namespace Slic3r { namespace GUI { namespace JusPrin { namespace Home {
@@ -24,6 +26,12 @@ void HomeHost::reset_page() { m_connected = false; }
 
 json HomeHost::history_payload()
 {
+    // While the projects folder cannot be read, Print history shows the
+    // sentence Home's gallery shows, from the state. Sending that state also
+    // keeps refresh_if_changed reading the folder, so the list comes back by
+    // itself once it can be read.
+    if (m_backend.recent_projects().problem != m_sent_projects_problem)
+        send_state(collect());
     return json{{"entries", m_backend.print_history()}, {"reportsOffered", m_backend.reports_offered()}};
 }
 
@@ -251,7 +259,9 @@ void HomeHost::on_page_message(const std::string& text)
     }
     else if (type == "print_report_choose_photo") {
         json reply = json::object();
-        if (const std::optional<PrintReportPhoto> photo = m_backend.choose_report_photo()) {
+        if (const std::optional<PrintReportPhoto> photo = m_backend.choose_report_photo(); photo && !photo->problem.empty()) {
+            reply["problem"] = photo->problem;
+        } else if (photo) {
             reply["photo"] = json{{"id", photo->id}, {"name", photo->name}, {"sizeBytes", photo->size_bytes}};
             if (!photo->thumbnail.empty())
                 reply["photo"]["thumbnail"] = photo->thumbnail;
@@ -266,10 +276,13 @@ void HomeHost::on_page_message(const std::string& text)
             if (alive.expired() || !m_connected)
                 return;
             const char* state = answer.state == PrintReportAnswer::State::Sent        ? "sent" :
-                                answer.state == PrintReportAnswer::State::AlreadySent ? "already_sent" : "failed";
+                                answer.state == PrintReportAnswer::State::AlreadySent ? "already_sent" :
+                                answer.state == PrintReportAnswer::State::Unexpected  ? "unexpected" : "failed";
             json result{{"hash", hash}, {"state", state}, {"credits", answer.credits}};
             if (!answer.update_message.empty())
                 result["updateMessage"] = answer.update_message;
+            if (!answer.message.empty())
+                result["message"] = answer.message;
             send("print_report_result", result);
             send("history", history_payload());
         });

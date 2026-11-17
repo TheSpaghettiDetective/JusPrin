@@ -19,6 +19,7 @@
 #include <wx/dialog.h>
 #include <wx/timer.h>
 
+#include <functional>
 #include <string>
 
 namespace Slic3r::GUI {
@@ -58,11 +59,13 @@ class PreferencesWindow : public wxDialog
 {
 public:
     // `docked` is the docked Agent panel's host, whose AI tool connections
-    // this window offers too.
+    // this window offers too. `reply_running` says whether a reply runs in
+    // any chat, which Delete account waits for.
     PreferencesWindow(wxWindow*              parent,
                       const ShellTheme&      theme,
                       Workspace::IWorkspace& workspace,
                       const Agent::AgentHost& docked,
+                      std::function<bool()>  reply_running,
                       OpenRequest            request);
     ~PreferencesWindow() override;
 

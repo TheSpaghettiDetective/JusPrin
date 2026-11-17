@@ -367,8 +367,7 @@ export interface AttachmentInfo {
 }
 
 // Where a credential check has got to. 'verified' means the provider
-// answered and the Agent is being connected; 'warning' is set when the key
-// worked but could not be written to JusPrin's settings.
+// answered and the Agent is being connected.
 export type SetupPhase = 'idle' | 'checking' | 'verified' | 'error';
 
 export interface SetupStatusPayload {
@@ -376,7 +375,6 @@ export interface SetupStatusPayload {
   provider?: string;
   elapsedMs?: number;
   error?: AgentErrorInfo;
-  warning?: string;
 }
 
 // A provider with a stored key, as the host describes it: never the key, only
@@ -402,7 +400,6 @@ export interface AccountStatusPayload {
   email?: SignInEmailStep;
   expired?: boolean;
   error?: AgentErrorInfo;
-  warning?: string;
 }
 
 export interface SetupKeysPayload {

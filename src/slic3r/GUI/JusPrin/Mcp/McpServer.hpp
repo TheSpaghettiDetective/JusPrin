@@ -4,7 +4,10 @@
 
 #include <atomic>
 #include <chrono>
+#include <exception>
+#include <functional>
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace Slic3r::GUI::JusPrin::Mcp {
@@ -17,6 +20,9 @@ struct ServerOptions
     std::size_t max_connections{16};
     std::chrono::milliseconds request_timeout{std::chrono::minutes(5)};
     std::chrono::milliseconds header_timeout{std::chrono::seconds(10)};
+    // Reports a failure that leaves the server's thread, saying what it was
+    // doing; without one the failure ends the app.
+    std::function<void(const std::string& doing, std::exception_ptr error)> unexpected;
 };
 
 struct PendingCall

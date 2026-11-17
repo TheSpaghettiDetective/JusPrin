@@ -1,4 +1,5 @@
 #include "ClassicView.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 #include "NoticeRow.hpp"
 
 #include "slic3r/GUI/BBLTopbar.hpp"
@@ -48,7 +49,7 @@ void ClassicViewReturn::install()
 
     // Not dismissible: it is the mode indicator, and the way back goes with it.
     m_banner = new NoticeRow(&m_frame, m_theme, _L("You're in the classic OrcaSlicer view."), _L("Back to JusPrin"),
-                             [this] { m_frame.CallAfter(m_on_return); });
+                             [this] { m_frame.CallAfter(reported("leaving the classic view", m_on_return)); });
     m_banner->SetName("Classic view banner");
     m_main_sizer.Insert(at, m_banner, 0, wxEXPAND);
     m_frame.Layout();
@@ -116,7 +117,7 @@ void ClassicViewReturn::on_frame_destroy(wxWindowDestroyEvent& event)
 
 void ClassicViewReturn::on_menu_row(wxCommandEvent&)
 {
-    m_frame.CallAfter(m_on_return);
+    m_frame.CallAfter(reported("leaving the classic view", m_on_return));
 }
 
 } // namespace Slic3r::GUI::JusPrin

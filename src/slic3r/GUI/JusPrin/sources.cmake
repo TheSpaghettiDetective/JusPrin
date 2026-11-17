@@ -64,6 +64,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Support/DecimalText.hpp
     GUI/JusPrin/Support/ErrorReport.cpp
     GUI/JusPrin/Support/ErrorReport.hpp
+    GUI/JusPrin/Support/Files.cpp
+    GUI/JusPrin/Support/Files.hpp
     GUI/JusPrin/Support/PageLanguage.cpp
     GUI/JusPrin/Support/PageLanguage.hpp
     GUI/JusPrin/Support/Translate.hpp

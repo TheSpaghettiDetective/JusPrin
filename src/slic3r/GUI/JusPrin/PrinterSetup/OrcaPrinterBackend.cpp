@@ -1,6 +1,7 @@
 // First: slic3r/GUI/I18N.hpp defines _L only while the _ macro is still
 // undefined, so it has to precede any header that brings one in.
 #include "slic3r/GUI/I18N.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 
 #include "OrcaPrinterBackend.hpp"
 
@@ -760,10 +761,10 @@ PrinterConnectionInfo OrcaPrinterBackend::connection(const std::string& name)
 std::shared_ptr<OrcaPrinterBackend::PortLook> OrcaPrinterBackend::start_port_look(const std::string& address)
 {
     auto look = std::make_shared<PortLook>();
-    std::thread([look, address] {
+    std::thread(reported("looking for a printer on the network", [look, address] {
         look->said = Printers::look_at_port(address, kBambuLanPort, kPortLookLimit);
         look->done.store(true);
-    }).detach();
+    })).detach();
     return look;
 }
 
@@ -855,13 +856,13 @@ std::string OrcaPrinterBackend::connect_printer(const std::string& name, const s
     // now, and select it again once that notice has run.
     m_connection_attempt->reselecting = true;
     devices->set_selected_machine("");
-    wxGetApp().CallAfter([alive = std::weak_ptr<bool>(m_alive), this, device_id] {
+    wxGetApp().CallAfter(reported("connecting a printer", [alive = std::weak_ptr<bool>(m_alive), this, device_id] {
         if (alive.expired() || !m_connection_attempt || m_connection_attempt->device_id != device_id)
             return;
         m_connection_attempt->reselecting       = false;
         m_connection_attempt->connect_requested = std::chrono::steady_clock::now();
         wxGetApp().getDeviceManager()->set_selected_machine(device_id);
-    });
+    }));
     return {};
 }
 

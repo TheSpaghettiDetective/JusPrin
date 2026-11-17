@@ -1,4 +1,5 @@
 #include "IssueOverlay.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 
 #include "slic3r/GUI/JusPrin/Brand/BrandPalette.hpp"
 #include "slic3r/GUI/JusPrin/Canvas/CanvasIcons.hpp"
@@ -22,6 +23,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
+#include <utility>
 
 namespace Slic3r::GUI::JusPrin::PrintIssues {
 
@@ -249,10 +252,10 @@ void IssueOverlay::after_frame(std::function<void(IssueOverlay&)> action)
 {
     // A click may change the selection or post a message; neither belongs
     // inside the canvas's render pass.
-    wxGetApp().CallAfter([self = std::weak_ptr<IssueOverlay*>(m_self), action = std::move(action)]() {
+    wxGetApp().CallAfter(reported("running a print issue's action", [self = std::weak_ptr<IssueOverlay*>(m_self), action = std::move(action)]() {
         if (const auto overlay = self.lock())
             action(**overlay);
-    });
+    }));
 }
 
 void IssueOverlay::select(const std::string& issue_id)

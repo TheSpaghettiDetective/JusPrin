@@ -4,6 +4,9 @@
 // attachments). GUI-free.
 
 #include <catch2/catch_all.hpp>
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers.hpp>
+#include <catch2/matchers/catch_matchers_string.hpp>
 
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProjectStateDocument.hpp"
@@ -14,6 +17,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <stdexcept>
 
 using namespace Slic3r::GUI::JusPrin;
@@ -339,7 +343,7 @@ TEST_CASE("viewing history never changes authority and checkpoints bind a chat t
     ProjectStateDocument document;
     document.initialize_identity("p", "l", kT);
     const std::string first = document.active_conversation_id();
-    REQUIRE(document.save_chat_checkpoint(first, "v-1", nlohmann::json{{"estimate", "saved"}}, kT));
+    document.save_chat_checkpoint(first, "v-1", nlohmann::json{{"estimate", "saved"}}, kT);
     const auto saved = document.chat_checkpoint(first);
     REQUIRE(saved);
     CHECK((*saved)["versionId"] == "v-1");
@@ -350,7 +354,7 @@ TEST_CASE("viewing history never changes authority and checkpoints bind a chat t
     REQUIRE(document.set_viewed_conversation(first));
     CHECK(document.active_conversation_id() == second);
     CHECK(document.viewed_conversation_id() == first);
-    CHECK_FALSE(document.save_chat_checkpoint(first, "v-2", nlohmann::json::object(), kT));
+    CHECK_THROWS_AS(document.save_chat_checkpoint(first, "v-2", nlohmann::json::object(), kT), std::logic_error);
 
     ProjectStateDocument reloaded;
     REQUIRE(reloaded.load(document.dump()) == ProjectStateDocument::LoadResult::Loaded);
@@ -497,6 +501,43 @@ TEST_CASE("a restore counts until the model next replies", "[project-state][chan
     CHECK_FALSE(document.restored_since_reply("m-3"));
     restore();
     CHECK(document.restored_since_reply("m-3"));
+}
+
+// The document is the app's own: a field it wrote that will not read, or a
+// message for a chat it does not hold, is an error, never a default.
+TEST_CASE("a stored tool call's session that will not read is an error, not session 0", "[project-state][schema]")
+{
+    ProjectStateDocument document;
+    document.initialize_identity("p", "l", kT);
+    ToolActivity activity;
+    activity.action_id      = "t-1";
+    activity.tool           = "workspace_inspect";
+    activity.arguments_json = "{}";
+    activity.state          = ToolState::Succeeded;
+    activity.session        = 7;
+    document.upsert_activity(activity, kT);
+    json saved = json::parse(document.dump());
+    std::function<void(json&)> mangle = [&mangle](json& node) {
+        if (node.is_object()) {
+            if (node.contains("actionId") && node.value("actionId", "") == "t-1")
+                node["sessionId"] = "seven";
+            for (auto& [key, value] : node.items())
+                mangle(value);
+        } else if (node.is_array())
+            for (json& value : node)
+                mangle(value);
+    };
+    mangle(saved);
+    REQUIRE(document.load(saved.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    CHECK_THROWS(document.activities());
+}
+
+TEST_CASE("a message for a chat the document does not hold is an error", "[project-state][conversations]")
+{
+    ProjectStateDocument document;
+    document.initialize_identity("p", "l", kT);
+    CHECK_THROWS_AS(document.append_message("c-missing", user_message(document.allocate_message_id(), "lost", "c-1"), kT),
+                    std::logic_error);
 }
 
 TEST_CASE("unknown fields survive a load-edit-save cycle", "[project-state][schema]")
@@ -1022,6 +1063,76 @@ TEST_CASE("a message state a newer build added reads as complete and stays as wr
     CHECK(json::parse(document.dump())["conversations"][0]["messages"][0]["state"] == "failed");
 }
 
+TEST_CASE("a message whose role a newer build added is kept as written and not shown", "[project-state][schema]")
+{
+    ProjectStateDocument written;
+    written.initialize_identity("p-1", "l-1", kT);
+    const std::string chat = written.active_conversation_id();
+    ConversationMessage message;
+    message.id    = "m-1";
+    message.role  = MessageRole::User;
+    message.state = MessageState::Complete;
+    message.text  = "Is this ready?";
+    written.append_message(chat, message, kT);
+    message.id   = "m-2";
+    message.role = MessageRole::Assistant;
+    message.text = "It is.";
+    written.append_message(chat, message, kT);
+    json saved = json::parse(written.dump());
+    saved["conversations"][0]["messages"][1]["role"] = "reviewer";
+
+    ProjectStateDocument document;
+    REQUIRE(document.load(saved.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    const std::vector<ConversationMessage> shown = document.messages(chat);
+    REQUIRE(shown.size() == 1);
+    CHECK(shown[0].id == "m-1");
+    CHECK(json::parse(document.dump())["conversations"][0]["messages"][1]["role"] == "reviewer");
+}
+
+TEST_CASE("an action whose action class a newer build added is kept as written and not shown", "[project-state][schema]")
+{
+    ProjectStateDocument written;
+    written.initialize_identity("p-1", "l-1", kT);
+    ToolActivity known;
+    known.action_id = written.allocate_action_id();
+    known.state     = ToolState::Succeeded;
+    written.upsert_activity(known, kT);
+    ToolActivity other = known;
+    other.action_id = written.allocate_action_id();
+    written.upsert_activity(other, kT);
+    json saved = json::parse(written.dump());
+    saved["toolActivities"][1]["actionClass"] = "irreversible";
+
+    ProjectStateDocument document;
+    REQUIRE(document.load(saved.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    const std::vector<ToolActivity> shown = document.activities();
+    REQUIRE(shown.size() == 1);
+    CHECK(shown[0].action_id == known.action_id);
+    CHECK(json::parse(document.dump())["toolActivities"][1]["actionClass"] == "irreversible");
+}
+
+TEST_CASE("a chat record whose item or part kind this build does not know will not read", "[project-state][record]")
+{
+    ProjectStateDocument written;
+    written.initialize_identity("p-1", "l-1", kT);
+    const std::string chat = written.active_conversation_id();
+    RecordItem reply{RecordItem::Kind::Assistant, {}, {}, {}, json::array({json{{"type", "text"}, {"text", "Done."}}})};
+    RecordItem asked{RecordItem::Kind::User, "m-1", {RecordPart{RecordPart::Kind::Text, "Is this ready?"}}};
+    written.append_chat_record(chat, "anthropic", {asked, reply});
+    const json saved = json::parse(written.dump());
+
+    json unknown_item = saved;
+    unknown_item["conversations"][0]["record"]["items"][1]["kind"] = "summary";
+    ProjectStateDocument document;
+    REQUIRE(document.load(unknown_item.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    CHECK_THROWS(document.chat_record(chat));
+
+    json unknown_part = saved;
+    unknown_part["conversations"][0]["record"]["items"][0]["parts"][0]["kind"] = "audio";
+    REQUIRE(document.load(unknown_part.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    CHECK_THROWS(document.chat_record(chat));
+}
+
 TEST_CASE("a G-code destination of a kind a newer build added is kept as written and not shown",
           "[project-state][gcode][schema]")
 {
@@ -1149,12 +1260,12 @@ TEST_CASE("managed import moves semantic state and attachments into the local st
     CHECK(copied.document().messages(conversation).size() == 1);
 }
 
-TEST_CASE("a corrupt state file is preserved for inspection and replaced", "[persistence][recovery]")
+TEST_CASE("a corrupt state file is preserved for inspection, replaced, and stops as unexpected", "[persistence][recovery]")
 {
     Workspace::FakeWorkspace workspace(small_snapshot());
     write_text(fs::path(workspace.auxiliary_data_dir()) / "JusPrin" / "state.json", "{{{ not json");
     ProjectPersistence persistence(workspace, test_config());
-    persistence.attach();
+    CHECK_THROWS_WITH(persistence.attach(), Catch::Matchers::ContainsSubstring("could not be read"));
 
     CHECK(persistence.document().has_identity());
     CHECK(fs::is_regular_file(persistence.state_file_path()));
@@ -1390,13 +1501,54 @@ TEST_CASE("attachment blobs are written under the project and cleaned up", "[per
     ProjectPersistence persistence(workspace, test_config());
     persistence.attach();
 
-    REQUIRE(persistence.write_attachment_blob("attachments/a-1/notes.txt", "hello"));
+    persistence.write_attachment_blob("attachments/a-1/notes.txt", "hello");
     const fs::path blob = fs::path(persistence.jusprin_data_dir()) / "attachments" / "a-1" / "notes.txt";
     REQUIRE(fs::is_regular_file(blob));
     CHECK(read_text(blob) == "hello");
 
     persistence.remove_attachment_dir("attachments/a-1");
     CHECK_FALSE(fs::exists(blob));
+}
+
+TEST_CASE("an attachment blob that cannot be written stops with the file system's error", "[persistence][attachments]")
+{
+    Workspace::FakeWorkspace workspace(small_snapshot());
+    ProjectPersistence persistence(workspace, test_config());
+    persistence.attach();
+    write_text(fs::path(persistence.jusprin_data_dir()) / "attachments", "in the way");
+    CHECK_THROWS(persistence.write_attachment_blob("attachments/a-1/notes.txt", "hello"));
+}
+
+TEST_CASE("an attachment folder that cannot be removed stops with the file system's error", "[persistence][attachments]")
+{
+    Workspace::FakeWorkspace workspace(small_snapshot());
+    ProjectPersistence persistence(workspace, test_config());
+    persistence.attach();
+    persistence.write_attachment_blob("attachments/a-1/notes.txt", "hello");
+    const fs::path folder = fs::path(persistence.jusprin_data_dir()) / "attachments" / "a-1";
+    // A folder whose entries cannot be removed.
+    fs::permissions(folder, fs::perms::owner_read | fs::perms::owner_exec);
+    CHECK_THROWS(persistence.remove_attachment_dir("attachments/a-1"));
+    fs::permissions(folder, fs::perms::owner_all);
+}
+
+TEST_CASE("an attachment blob that is not there cannot be read as empty", "[persistence][attachments]")
+{
+    Workspace::FakeWorkspace workspace(small_snapshot());
+    SECTION("on disk")
+    {
+        ProjectPersistence persistence(workspace, test_config());
+        persistence.attach();
+        CHECK_THROWS(persistence.read_attachment_blob("attachments/a-1/notes.txt"));
+    }
+    SECTION("in memory")
+    {
+        ProjectPersistence::Config config = test_config();
+        config.in_memory = true;
+        ProjectPersistence persistence(workspace, config);
+        persistence.attach();
+        CHECK_THROWS(persistence.read_attachment_blob("attachments/a-1/notes.txt"));
+    }
 }
 
 TEST_CASE("the change log records each edit after the conversation item it follows", "[persistence][changes]")
