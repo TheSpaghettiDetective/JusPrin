@@ -3,8 +3,8 @@
   "checkpoint_id": "01M7KHB69G7PMWN16CJK3G2700",
   "session_id": "2eafdcb2-609e-49c6-bba4-3cf83c8fd46c",
   "strategy": "manual-commit",
-  "created_at": "2026-11-17T01:18:37.262311Z",
-  "branch": "claude/issue-40-any-host",
+  "created_at": "2026-11-17T01:28:48.887024Z",
+  "branch": "jusprin-dev",
   "checkpoints_count": 2,
   "save_step_count": 5,
   "files_touched": [
@@ -25,30 +25,30 @@
   ],
   "agent": "Claude Code",
   "model": "claude-opus-5-5",
-  "turn_id": "33fcded8ca1f",
-  "checkpoint_transcript_start": 2542,
-  "transcript_lines_at_start": 2542,
-  "compact_transcript_start": 314,
+  "turn_id": "2e34cd53d7d6",
+  "checkpoint_transcript_start": 2875,
+  "transcript_lines_at_start": 2875,
+  "compact_transcript_start": 355,
   "token_usage": {
-    "input_tokens": 66,
-    "cache_creation_tokens": 104132,
-    "cache_read_tokens": 9965672,
-    "output_tokens": 14864,
-    "api_call_count": 33
+    "input_tokens": 34,
+    "cache_creation_tokens": 13548,
+    "cache_read_tokens": 2473611,
+    "output_tokens": 6691,
+    "api_call_count": 17
   },
   "session_metrics": {
-    "turn_count": 7
+    "turn_count": 9
   },
   "initial_attribution": {
-    "calculated_at": "2026-11-17T01:18:36.550213Z",
-    "agent_lines": 235,
-    "agent_removed": 45,
-    "human_added": 1,
-    "human_modified": 5,
+    "calculated_at": "2026-11-17T01:28:48.217452Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 193,
+    "human_modified": 60,
     "human_removed": 0,
-    "total_committed": 241,
-    "total_lines_changed": 286,
-    "agent_percentage": 97.9020979020979,
+    "total_committed": 193,
+    "total_lines_changed": 253,
+    "agent_percentage": 0,
     "metric_version": 2
   },
   "prompt_attributions": [
@@ -121,17 +121,10 @@
     },
     {
       "checkpoint_number": 6,
-      "user_lines_added": 385,
+      "user_lines_added": 0,
       "user_lines_removed": 0,
-      "agent_lines_added": 246,
-      "agent_lines_removed": 50,
-      "user_added_per_file": {
-        ".claude/skills/entire-search/SKILL.md": 22,
-        ".claude/skills/figma-agent-design/SKILL.md": 132,
-        ".claude/skills/figma-agent-design/agents/openai.yaml": 4,
-        ".claude/skills/figma-agent-design/references/design-system-governance.md": 103,
-        ".claude/skills/figma-agent-design/references/prompt-and-review.md": 124
-      }
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
     }
   ]
 }
