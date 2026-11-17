@@ -392,6 +392,9 @@ describe('the connection skills', () => {
     expect(host).toContain('passes when that page contains "ELEGOO". It uses no key.');
     expect(host).toContain('with none it sends 123456');
     expect(host).toContain('The form says "API key": for this printer, say it is the printer\'s access code.');
+    expect(host).toContain('OctoEverywhere\'s help page for the Centauri Carbon 2 says the code is shown');
+    expect(host).toContain('a guess from that page, not tried here');
+    expect(host).toContain('ask them what they see before you name a menu');
     expect(host).toContain('That the Neptune 4 runs Klipper with Moonraker is general knowledge, not tried here');
   });
 

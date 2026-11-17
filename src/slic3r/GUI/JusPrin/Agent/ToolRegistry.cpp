@@ -1643,9 +1643,9 @@ std::vector<ToolDefinition> make_definitions()
         {"printer_host_connect",
          "Connect a print host",
          "Connects the printer this conversation is about to the print host at an address, and saves that address and "
-         "type as its connection once the host accepts the test. hostType is how the app reaches it: the type "
-         "printer_connection_status gives for this printer, which its profile set, unless the person's printer runs "
-         "another, as a Klipper printer runs Moonraker. The call returns once the connection has an outcome. "
+         "type as its connection once the host accepts the test. hostType is the program the app talks to at that "
+         "address; printer_connection_status gives the type this printer is saved with. The call returns once the "
+         "connection has an outcome. "
          "It first tests with the API key the app already holds for that address and type, or with none, for at most 30 "
          "seconds. If the host refuses that test (HTTP 401 or 403), the app opens a form in "
          "this chat where the person types an API key themselves, never in chat, and the call waits for them: when they "
