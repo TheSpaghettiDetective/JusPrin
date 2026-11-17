@@ -17,6 +17,35 @@
     // each kept request has a pass of its own, replaying the conversation
     // from the start, and no answer reaches another case's history.
 
+    // Holds back the event that ends a slice (EVT_PROCESS_COMPLETED) while
+    // `holding`. OrcaSlicer marks a run ended only when the plater handles
+    // that event, so until it is let go the run counts as going on however
+    // fast the machine slices, and the point recorded right after a scripted
+    // slice_start gets the same answers every run. Letting go posts the held
+    // events again.
+    struct PromptSliceEndHold : wxEventFilter
+    {
+        bool                                  holding = false;
+        std::vector<std::unique_ptr<wxEvent>> held;
+        PromptSliceEndHold() { wxEvtHandler::AddFilter(this); }
+        ~PromptSliceEndHold() override { wxEvtHandler::RemoveFilter(this); }
+        int FilterEvent(wxEvent& event) override
+        {
+            if (!holding || event.GetEventType() != Slic3r::GUI::EVT_PROCESS_COMPLETED)
+                return Event_Skip;
+            held.emplace_back(event.Clone());
+            return Event_Processed;
+        }
+        void release()
+        {
+            holding = false;
+            for (std::unique_ptr<wxEvent>& event : held)
+                wxQueueEvent(wxGetApp().plater(), event.release());
+            held.clear();
+        }
+    };
+    std::unique_ptr<PromptSliceEndHold> m_prompt_slice_hold;
+
     // A person's edit of one or more print settings, through the print tab.
     void prompt_hand_edit(const nlohmann::json& changes)
     {
@@ -64,6 +93,8 @@
     bool prompt_fixture(const std::string& kind, const std::string& name, const std::string& plate_type)
     {
         using namespace std::chrono_literals;
+        // A pass that stopped early may have left its slice held.
+        m_prompt_slice_hold->release();
         // A slice the last conversation's model started may still be running.
         // When it ends the app starts a turn about it in that conversation;
         // that turn is answered with nothing, so this one starts clean.
@@ -367,12 +398,10 @@
         int  calls   = 0;
         const json kept = request.body.at("input");
         // The turn the reads are made in, named by the message it answers.
-        // The app can end it before the reads run out: the third slice read
-        // answered "busy" (refuse_slice_poll) ends the turn right after its
-        // result is sent (AgentHost::continue_after_tool). Nobody reads the
-        // answer to that request, and the next request belongs to the turn
-        // about the slice's outcome. The reads stop there; the app's answers
-        // up to that point are what the model gets.
+        // Nothing in the app ends a turn while its reads go on, and the hold
+        // keeps a slice the turn started from ending it early. A turn that
+        // ended anyway fails the recording: the answers after it would
+        // belong to another turn.
         const auto open_turn = [this]() -> std::string {
             const Agent::ProjectStateDocument& document = persistence().document();
             for (const Agent::ConversationMessage& message : document.messages(document.active_conversation_id()))
@@ -384,11 +413,10 @@
         check(!turn.empty(), name + "_turn_is_open");
         // One read in the turn; the result as the app gave it, or nothing.
         const auto call = [&](const std::string& tool, const json& arguments) -> std::optional<std::string> {
-            if (open_turn() != turn) {
-                std::cerr << "HARNESS PROMPT " << name << " the app ended the turn before " << tool << " (" << calls
-                          << " reads)\n";
+            const bool open = open_turn() == turn;
+            check(open, name + "_turn_still_open_before_" + tool + "_" + std::to_string(calls));
+            if (!open)
                 return std::nullopt;
-            }
             const std::string call_id = "call_" + name + "_answer_" + std::to_string(++calls);
             prompt_answer(request, json::array({{{"type", "function_call"}, {"call_id", call_id}, {"name", tool},
                                                  {"arguments", arguments.dump()}}}), "");
@@ -417,14 +445,7 @@
             if (result == sent.rend())
                 return std::nullopt;
             const std::string output = result->at("output");
-            const json parsed = json::parse(output);
-            // A slice report, or a read of the slicing section, made while
-            // this point's own slice runs is answered "busy"
-            // (refuse_slice_poll): that is the app's answer at this point, and
-            // the one the model gets.
-            const bool busy_slicing = (tool == "workspace_inspect" || tool == "slice_report") && parsed.value("state", "") == "failed" &&
-                                      parsed.contains("error") && parsed.at("error").value("code", "") == "busy";
-            const bool answered = parsed.value("state", "") == "succeeded" || busy_slicing;
+            const bool answered = json::parse(output).value("state", "") == "succeeded";
             check(answered, name + "_answer_" + tool + "_succeeded");
             return answered ? std::optional<std::string>(output) : std::nullopt;
         };
@@ -647,6 +668,18 @@
                               "Fixture chat");
                 continue;
             }
+            // A scripted slice_start's run is held until the request after
+            // it is answered, its reads included when it is the point kept:
+            // that request is where the model reads that the run goes on.
+            // A slice_start that started no run has nothing to hold.
+            const bool held_for_this = m_prompt_slice_hold->holding;
+            if (held_for_this && !m_plater->is_background_process_slicing())
+                m_prompt_slice_hold->release();
+            // The run's progress shows in the slicing section, so the reads
+            // wait until its work is done and only its end is held: the
+            // percent they see is then the same however fast it got there.
+            if (held_for_this && m_prompt_slice_hold->holding)
+                check(wait_for([this] { return !m_prompt_slice_hold->held.empty(); }, 300s), "prompt_held_slice_finished_its_work");
             const json& input = request.body.at("input");
             // What this request appends to the chat's last one.
             json&             last     = m_prompt_chat_input[request.body.value("prompt_cache_key", "")];
@@ -700,6 +733,7 @@
                           pictures == (pictured ? 1u : 0u),
                       case_name + (wanted.empty() ? "_appends_no_skill" : "_appends_" + wanted));
                 const json recorded_reads = prompt_answers(case_name, std::move(request), reads);
+                m_prompt_slice_hold->release();
                 const json& answers = recorded_reads["reads"];
                 recorded[case_name] = {{"body", kept}, {"answers", answers}, {"sharedWorkspace", recorded_reads["shared"]},
                                        {"appended", appended}};
@@ -727,7 +761,14 @@
                 std::cerr << "HARNESS PROMPT " << name << " call " << reply["call"].get<std::string>() << ' '
                           << output.back()["arguments"].get<std::string>() << '\n';
             }
+            const bool starts_slice = reply.value("call", "") == "slice_start";
+            if (starts_slice) {
+                m_prompt_slice_hold->release();
+                m_prompt_slice_hold->holding = true;
+            }
             prompt_answer(request, output, text);
+            if (held_for_this && !starts_slice)
+                m_prompt_slice_hold->release();
         }
         check(replies.empty(), name + "_every_scripted_output_used");
         return replies.empty() ? 1 : 0;
@@ -737,6 +778,7 @@
     {
         using nlohmann::json;
         m_state->deadline = std::chrono::steady_clock::now() + std::chrono::minutes(30);
+        m_prompt_slice_hold = std::make_unique<PromptSliceEndHold>();
         const auto read = [](const fs::path& path) {
             std::ifstream file(path.string(), std::ios::binary);
             return std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
@@ -800,6 +842,8 @@
                 answer["output"]       = output.dump();
                 answer["settingItems"] = true;
             }
+        m_prompt_slice_hold->release();
+        m_prompt_slice_hold.reset();
         std::ofstream output(m_state->prompt_requests.string(), std::ios::binary);
         output << json{{"settingItems", items}, {"cases", recorded}}.dump(1) << '\n';
         check(output.good(), "prompt_requests_written");

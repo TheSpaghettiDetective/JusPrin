@@ -425,7 +425,7 @@ SETUP_WORDS = re.compile(
 class PreparePetgStrong(Case):
     """"prepare this for PETG, strong" with no history. When to act: "A print
     request: the print's purpose recorded with setup_record, a setup that
-    suits it, checked, and verified by a slice before you call it ready.";
+    suits it, checked.";
     setup_record's description: "purpose is what the person wants the print
     to be or do, in a few words and in their terms ... It is not how to print
     it". Judges the first response: passes when its change is setup_record
@@ -497,20 +497,25 @@ class AfterApply(Readiness):
 
 class AfterSlice(Readiness):
     """The prepare turn after slice_start started a run. Its result says the
-    run goes on in the background, the person watches it in a card below
-    the call, slice_report returns valid: false until it ends, and the app
-    starts a new turn with the outcome when it ends after this turn. A reply
-    that does not claim readiness is what that invites. The recorded reads were
-    taken one after another while the run went on: workspace_inspect shows
-    it still slicing, and slice_report returns valid: false or the finished
-    slice, depending on whether the run had ended when it was recorded.
-    A model that polls workspace_inspect gets that same in-flight answer
-    each time, so it ends unobserved at MAX_READS. The same sentences as after-apply.
-    Passes on slice_report, or a reply that does not claim the print is
-    ready (judged)."""
+    run goes on in the background, its outcome is not known yet, the person
+    watches it in a card below the call, and the outcome comes without a
+    call: in the next tool result's workspace while the turn goes on, or in a
+    new turn the app starts when the run ends. The recorded reads were taken
+    while the run went on, held open by the recorder: slice_report says
+    valid: false and the slicing section says running. Counts the checks: a
+    slice_report, or a workspace_inspect asking for slicing, is answered and
+    the turn goes on; a reply passes unless it claims the print is ready
+    (judged); still checking after MAX_READS answers is unobserved."""
 
     name = "after-slice"
-    expected = "slice_report"
+
+    def check(self, step):
+        if step.reads():
+            return CONTINUE, str(step)
+        if step.tool:
+            return UNOBSERVED, str(step)
+        yes, why = self.judged(step, READY_QUESTION)
+        return (FAIL, "CLAIMS READY: " + why) if yes else (PASS, str(step))
 
 
 # The reads that check a setup against a purpose, as the setup skill names
@@ -1064,8 +1069,11 @@ class CalibrationResult(Case):
     preset> · <printer> calibrated", with the printer named as the person
     named it". Passes on a filament preview setting nozzle_temperature to
     215 with persistAs in that form (CALIBRATED_COPY); fails on any other
-    preview, any change, or a reply without the preview. The apply after
-    the preview is after-preview's to judge: a preview is not answered."""
+    preview, any change, or a reply without the preview. Since OrcaSlicer
+    2.5.0 the filament holds one temperature per nozzle kind, read as
+    "230,230", and a patch must keep that shape (set_setting_value refuses a
+    shorter list), so 215 is "215,215". The apply after the preview is
+    after-preview's to judge: a preview is not answered."""
 
     name = "calibration-result"
 
@@ -1073,7 +1081,8 @@ class CalibrationResult(Case):
         if step.tool == "settings_preview_patch":
             changes = step.arguments.get("changes") or {}
             name = str(step.arguments.get("persistAs", ""))
-            if step.arguments.get("scope") == "filament" and str(changes.get("nozzle_temperature")) == "215" and                     CALIBRATED_COPY.match(name):
+            if step.arguments.get("scope") == "filament" and str(changes.get("nozzle_temperature")) == "215,215" and \
+                    CALIBRATED_COPY.match(name):
                 return PASS, str(step)
             return FAIL, "NOT THE RESULT AS A CALIBRATED COPY: " + str(step)
         if step.reads():
@@ -1111,7 +1120,12 @@ def recorded_answer(name, step):
     """The result the app gave at this point for the read the model asked
     for, or None.
     - workspace_inspect and slice_report: the recording with every section,
-      whichever sections the model named;
+      whichever sections the model named. Recordings made before
+      2026-11-14 answer both "busy" while the turn's own slice runs (the
+      app's refusal then): a busy slice_report answers every plate, and a
+      workspace_inspect that names sections but not slicing gets the
+      recording made without it. Kept so the runner can still replay those
+      recordings;
     - settings_get: each key asked for, in the order asked, taken from the
       recorded reads of the same scope and target -- its item, or the app's
       unknownKeys entry for a name it does not know -- with the rest of the
@@ -1130,6 +1144,9 @@ def recorded_answer(name, step):
       the result is never replayed."""
     answers = [answer for answer in REQUESTS[name]["answers"] if answer["tool"] == step.tool]
     arguments = step.arguments
+    if step.tool == "workspace_inspect" and "slicing" not in arguments.get("sections", ["slicing"]):
+        without = [answer for answer in answers if "slicing" not in answer["arguments"].get("sections", ["slicing"])]
+        answers = without or answers
     if step.tool in ("workspace_inspect", "printer_list"):
         return answers[0]["output"] if answers else None
     if step.tool == "skill_read":
@@ -1150,7 +1167,8 @@ def recorded_answer(name, step):
         return None
     if step.tool == "slice_report":
         for answer in answers:
-            if arguments.get("plateId") in (None, json.loads(answer["output"])["result"].get("plateId")):
+            output = json.loads(answer["output"])
+            if output["state"] != "succeeded" or arguments.get("plateId") in (None, output["result"].get("plateId")):
                 return answer["output"]
         return None
     target = arguments.get("target") or {}

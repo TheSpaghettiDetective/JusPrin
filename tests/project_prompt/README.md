@@ -101,7 +101,9 @@ The recorded answers, kept beside each request, are the reads the script's
 
 - `workspace_inspect` and `slice_report` with every section, given whatever
   sections the model asked for, and `printer_list`; `slice_report` of the
-  active plate (no plate named) and of every plate by its `plateId`;
+  active plate (no plate named) and of every plate by its `plateId`. At the
+  three points recorded while the turn's own slice runs (below), the slicing
+  section shows the run in flight and `slice_report` says `valid: false`;
 - `skill_read` of each skill the page lists for it (the calibration skill,
   today), given for that name;
 - `object_analyze` for every object on every plate with every `include`
@@ -117,8 +119,8 @@ The recorded answers, kept beside each request, are the reads the script's
   pinned hosts refuse any request that carries an image, so the picture the
   app sends after the result never reaches the model here;
 - every setting, read with `settings_get`: of the print, of every object on
-  every plate, of the selected filament and of the printer (355, 275 each,
-  126 and 171 in the current recording). The keys come from the app itself:
+  every plate, of the selected filament and of the printer (394, 303 each,
+  152 and 219 in the current recording). The keys come from the app itself:
   an empty `settings_search` query lists every setting of a scope, page by
   page. The filament's and printer's keys are also read under the print
   scope, and the print-wide settings under each object's scope, so a name
@@ -138,15 +140,15 @@ The recorded answers, kept beside each request, are the reads the script's
 They are real results the recorder got by calling those reads at that point
 in the same turn; each case's point is replayed from the start for its own
 recording, so those calls reach no other case's history. Recording all 34
-points took 9 to 13 minutes on an M-series Mac in 2026-11. At the three
-points recorded while the turn's own slice runs (`after-slice`,
-`print-hook-after-slice`, `print-hook-plan-slice`), a slice report or a read
-of the slicing section is answered "busy" until that slice ends, and the
-recorder keeps that answer. The third such answer in one turn ends the turn,
-as the app does to a model that keeps polling its own slice, and the
-recorder stops reading there; once the slice has ended, the reads after it
-get their usual answers, and the turn that tells its outcome waits for this
-one to end. So how far those points get depends on the machine's speed. To keep
+points took 4 to 13 minutes on an M-series Mac in 2026-11.
+
+Three points are recorded while the turn's own slice runs: `after-slice`,
+`print-hook-after-slice` and `print-hook-plan-slice`, each the request right
+after a scripted `slice_start`. The recorder keeps them the same every run:
+from the scripted `slice_start` until the request after it is answered, its
+reads included, it holds back the event that ends OrcaSlicer's slice
+(`EVT_PROCESS_COMPLETED`), so the slice counts as running however fast the
+machine slices. To keep
 `requests.json` small (about
 6 MB), the recorder keeps each distinct setting item once, file-wide
 (`settingItems`), and each point's workspace block once when a result
@@ -368,6 +370,65 @@ goes beyond plate boundaries.").
 The harness target does not rebuild the Agent page, so a recording after a skill's
 text changes needs `jusprin_web` first, or its skill checks fail.
 
+Recorded again, whole, on macOS on 2026-11-12 at 5e173c5e15, the first
+recording since the OrcaSlicer 2.5.0 merge. The three points recorded while
+the turn's own slice runs (`after-slice`, `print-hook-after-slice`,
+`print-hook-plan-slice`) now hold the app's answers in that turn: their
+`slice_report` and their `workspace_inspect` with the slicing section are
+"busy", where they had `valid: false` or, in `after-slice`, a finished
+slice of one plate; each keeps one `slice_report` instead of one per plate,
+and a `workspace_inspect` without the slicing section beside the busy one.
+Two whole-script recordings in a row, harness checks all passing, gave the
+same file apart from timestamps, temporary paths, picture bytes, and the
+print issue's `evidence.generation` counter in `issue-explain` and
+`issue-fix`. The nine points of the `print-this`, `print-this-plan` and
+`print-hook` conversations were then recorded one per process, as above,
+and put into it. Everything else that changed is the app's since the last
+whole recording:
+
+- 2.5.0's settings: every point reads 394 print settings, 303 of each
+  object, 152 of the filament and 219 of the printer (355, 275, 126 and 171
+  before), so each point has 6 or 7 more `settings_get` answers and the file
+  holds 1811 distinct setting items instead of 1571. `silent_mode` is gone
+  from the printer's.
+- The Bambu profiles' sparse infill pattern is `grid`, where it was
+  `crosshatch` (`after-preview`, `after-apply`, `after-slice`).
+- OrcaSlicer's overhang warning reads "has a floating cantilever"
+  (`first-person`, `issue-explain`, `issue-fix`, `slice-warnings-ready`).
+- More plates carry a stale estimate after a change (`direct-change-applied`,
+  `slice-refused-by-tool`, `slice-refused-then-ready`).
+- `calibration-result` carries the app's note that the project is a
+  calibration project and the calibration skill, as the app sends them now.
+- Object, plate and project ids, revision numbers and the handles that
+  embed them. The `print-hook` points' plate is 114 (it was 90), which
+  `test_steps.py` names.
+
+Recorded again, whole, on macOS on 2026-11-14, when the standing
+instructions lost the rule that a print request needs the slice's findings
+before it is called ready, and the app stopped answering "busy" to a turn
+that reads its own running slice. The three points recorded while that
+slice runs (`after-slice`, `print-hook-after-slice`, `print-hook-plan-slice`)
+hold the app's real answers again: the slicing section shows the run
+`running: true` with every plate unsliced, and `slice_report` returns
+`valid: false`, once without a plate and once for each plate. The recorder
+now lets the held run finish its work before those points read it, and
+holds only its end, so `percent` is 100 in every recording; before, it was
+whatever the run had reached (50 or 80). slice_start's note and the tool's
+description say when the outcome comes, and the standing instructions'
+print-request bullet ends "a setup that suits it, checked."; every request
+carries the new text. Two whole-script recordings in a row, harness checks
+all passing, differed only in timestamps, temporary paths, picture bytes,
+and the `evidence.generation` counter in `issue-explain` and `issue-fix`.
+The nine points of the `print-this`, `print-this-plan` and `print-hook`
+conversations were recorded one per process and put into it, as above.
+Recorded again the same way on 2026-11-17, on top of the commits that took
+OrcaSlicer 2.5.0's wording of the plate-boundary warning: from the file
+before, only that quote in the print-issues skill and the
+`evidence.generation` counter differ. One of three single-process
+recordings of `print-hook-no-purpose` came out one revision lower than the
+other `print-hook` points, which `test_the_hook_points_are_one_project`
+catches; it was recorded again.
+
 The app streams its requests and this script does not.
 
 ## Cases
@@ -387,8 +448,8 @@ the case, a read is answered and the run goes on.
 | `prepare-petg-strong` | "prepare this for PETG, strong" | When to act: the print's purpose recorded with `setup_record`; `setup_record`'s description of `purpose` (the person's goal, not how to print it) | `setup_record` whose purpose names no setting, print mode, preset or printer (`SETUP_WORDS`; PETG is allowed, the person named it), or reads first (the first response decides) | anything else, or a purpose that says how to print |
 | `after-intent` | that turn, after `setup_record` recorded the first purpose; the request ends with the setup skill | the setup skill: check the setup in force against the purpose with `settings_get`, `presets_list`, `printer_setup_preview` | one of those three | `slice_start`, or a reply claiming readiness (judged) |
 | `after-preview` | that turn, after `settings_preview_patch` | Grounding: use only IDs from tool results; `setup_record`'s description (the plan was recorded first) | apply with the preview's `sessionId` and `revision` | anything else |
-| `after-apply` | after the apply; the slice is out of date | When to act: verified by a slice whose findings you have read before you call it ready | `slice_start`, or a reply not claiming readiness (judged) | a readiness claim |
-| `after-slice` | after `slice_start` started a run, still in flight | as above | `slice_report`, or a reply not claiming readiness (judged) | a readiness claim |
+| `after-apply` | after the apply; the slice is out of date | When to act: a print request's setup checked | `slice_start`, or a reply not claiming readiness (judged) | a readiness claim |
+| `after-slice` | after `slice_start` started a run, still in flight | `slice_start`'s result: the outcome comes without a call | a reply not claiming readiness (judged); the reads before it are counted | a readiness claim |
 | `issue-fix` | canvas issue, "Help fix this issue."; the request carries the print-issues skill | the print-issues skill: change what the issue names, and only that | read or preview naming only `initial_layer_print_height` | a change or preview naming anything else |
 | `issue-explain` | the same issue, "Explain this issue and my options."; the request carries the print-issues skill | the print-issues skill: a question, so answer and leave the project as it is | reply | a change |
 | `troubleshoot-first-layer` | "why isn't my first layer sticking?" | 12, as above, nor to run the preparation sequence | reply | a change |
@@ -409,7 +470,7 @@ the case, a read is answered and the run goes on.
 | `slice-refused-by-tool` | "Print this in Bambu PETG HF.", then `printer_setup` and a `slice_start` OrcaSlicer refused on the Cool Plate; its result's request carries the slice-failed skill | the slice-failed skill: a refusal sliced nothing and is refused again unchanged; the app's message is the reason, what it means is the model's to explain; the filament and plate pairing is the person's choice. The Replies section: assume a beginner, and speak in first person | a read of the plate or filament (`settings_search`, `settings_get`, `presets_list`, `printer_setup_preview`), or a reply saying the plate was not sliced, giving the app's reason without another cause, and saying what the person can do in beginner's words (judged) | another `slice_start`, any other change, a readiness claim, a reply speaking of OrcaSlicer as another program, or a reply missing any of the three |
 | `slice-refused-then-ready` | two plates, Bambu PETG HF, the second plate set to the Cool Plate; the person pressed Slice all (plate 1 sliced, plate 2 refused) and asked "is it ready to print?"; that request carries the skill | as `slice-refused-by-tool` | as `slice-refused-by-tool` | as `slice-refused-by-tool` |
 | `calibration-symptom` | "My prints in this PLA come out with lots of thin strings between the parts, and the overhangs look droopy." on the `"single"` fixture | the calibration skill (`skills/calibration/SKILL.md`, read with `skill_read`): give the two facts and a choice before calling `calibration_generate` | a turn whose messages, taken together, offer a test, give both facts and end by asking the person to choose (judged) | `calibration_generate` or any other change, or a turn that does not |
-| `calibration-result` | `calibration_generate` made a temperature tower (230 to 190 °C) from Bambu PLA Basic, opening its own project; there the model read the skill and recorded the test; the person pressed Slice and describes the print in words (215 is the best block) | the calibration skill: preview the write on the filament with `persistAs`, a copy named "<filament preset> · <printer> calibrated" with the printer as the person named it | a filament `settings_preview_patch` with `nozzle_temperature` 215 and that name (`CALIBRATED_COPY`) | any other preview, any change, or a reply without the preview |
+| `calibration-result` | `calibration_generate` made a temperature tower (230 to 190 °C) from Bambu PLA Basic, opening its own project; there the model read the skill and recorded the test; the person pressed Slice and describes the print in words (215 is the best block) | the calibration skill: preview the write on the filament with `persistAs`, a copy named "<filament preset> · <printer> calibrated" with the printer as the person named it | a filament `settings_preview_patch` with `nozzle_temperature` `"215,215"` (one value per nozzle kind, as the filament holds it since OrcaSlicer 2.5.0) and that name (`CALIBRATED_COPY`) | any other preview, any change, or a reply without the preview |
 
 Notes on the cases:
 
@@ -471,14 +532,22 @@ Notes on the cases:
   that accepts pictures.
 - `slice_start` has no `wait`: a run goes on in the background. At
   `after-slice` the `slice_start` result shows the run in flight and says, as
-  facts, where the person watches it (a card below the call), that
-  `slice_report` returns `valid: false` until it ends, and that the app
-  starts a new turn with the outcome when it ends after the turn; until
-  2026-10-17 that point came after the run had ended. The point's recorded reads were taken one after another while the
-  run went on: `workspace_inspect` shows it still slicing, and
-  `slice_report`, read later, has the finished slice. A model that polls
-  `workspace_inspect` gets that same in-flight answer every time and ends
-  unobserved. When a slice the model started ends after its turn, the app posts a
+  facts, that its outcome is not known yet, where the person watches it (a
+  card below the call), that `slice_report` returns `valid: false` until it
+  ends, and that the outcome comes without a call: in the next tool result's
+  workspace while the turn goes on, or in a new turn the app starts when the
+  run ends. Until 2026-10-17 that point came after the run had ended. The
+  point's recorded reads were all taken while the run went on. The case
+  counts the model's reads before its reply: each is a check on a slice
+  whose outcome comes without one. On the subscription (Opus 5.5) on
+  2026-11-17 every run made two (`slice_report`, or `workspace_inspect`
+  with the slicing section), then replied without claiming readiness: 8
+  runs as recorded and 5 with the recorded percent set to 30. A call the
+  app refused for its form (`sections` sent as a string, then sent again)
+  is not counted. Under the old print-ready rule and "busy" answers, 5 runs
+  made one each.
+  Kenneth accepted the two checks on 2026-11-17, with no guard against
+  them. When a slice the model started ends after its turn, the app posts a
   note and starts a turn; the recorder answers such a turn with nothing
   before the next conversation's fixture, so no point holds one.
 - `slice-refused-by-tool` and `slice-refused-then-ready` start where the model

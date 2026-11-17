@@ -5874,9 +5874,10 @@ TEST_CASE("a slice the model started that ends after its turn starts one app tur
     {
         chat.harness->workspace.finish_slice_for_testing(true);
         chat.tick();
+        // The person reads the note in their language; the model reads its own wording.
         REQUIRE(chat.notes() == std::vector<std::string>{"The slice of " + chat.plate_name() + " finished."});
         REQUIRE(chat.app_turns().size() == 1);
-        CHECK(chat.app_turns().front()->note == "The slice of " + chat.plate_name() + " finished.");
+        CHECK(chat.app_turns().front()->note == "The slice you started finished: " + chat.plate_name() + " is sliced.");
         CHECK(chat.app_turns().front()->skills.empty());
     }
 
@@ -5960,37 +5961,6 @@ TEST_CASE("a slice that ends during the model's turn is told when the turn ends,
         CHECK(chat.notes().empty());
         CHECK(chat.app_turns().empty());
     }
-}
-
-TEST_CASE("a model polling the slice its turn started is told to finish, and the third time the turn ends", "[agent][slicing]")
-{
-    ModelSlice chat;
-    chat.agent->then_call  = ToolRequest{"workspace_inspect", R"({"sections":["slicing"]})"};
-    chat.agent->then_times = 5;
-    chat.harness->send_user_message("Slice it.", "c-slice");
-    for (int round = 0; round < 8; ++round) {
-        chat.harness->host.pump_stream();
-        pump_tools_to_completion(*chat.harness);
-    }
-    chat.harness->pump_all();
-
-    // slice_start, then three refused polls; the fourth poll never ran.
-    REQUIRE(chat.agent->results.size() == 4);
-    for (int refused = 1; refused <= 3; ++refused) {
-        const json output = json::parse(chat.agent->results[refused].output_json);
-        CHECK(output["error"]["code"] == "busy");
-        CHECK_THAT(output["error"]["message"].get<std::string>(), Catch::Matchers::ContainsSubstring("Finish your reply."));
-    }
-    CHECK_FALSE(chat.harness->host.stream_active());
-    CHECK(chat.harness->workspace.snapshot().slicing.running);
-
-    // The note turn still runs when the slice ends.
-    CHECK(chat.notes().empty());
-    chat.harness->workspace.finish_slice_for_testing(true);
-    chat.tick();
-    chat.tick();
-    CHECK(chat.notes().size() == 1);
-    CHECK(chat.app_turns().size() == 1);
 }
 
 TEST_CASE("a slice that ends during another turn is told after it", "[agent][slicing]")

@@ -21,10 +21,8 @@ describe('projectInstructions', () => {
     expect(projectInstructions()).toContain('<print_issue>');
   });
 
-  it('folds readiness into the print bullet, with no procedural section', () => {
-    // A slice's findings reach the model in the workspace without a call.
+  it('has no procedural section', () => {
     expect(projectInstructions()).not.toContain('# Preparing');
-    expect(projectInstructions()).toContain('verified by a slice whose findings you have read before you call it ready');
     expect(projectInstructions().split('\n# ').map((section) => section.replace(/^# /, '').split('\n')[0]))
       .toEqual(['Role', 'When to act', 'Grounding', 'Replies']);
   });

@@ -394,6 +394,7 @@
 #include <wx/evtloop.h>
 #include "slic3r/GUI/GUI_ObjectList.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectState.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/PlaterProjectState.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/DialogListeners.hpp"
 #include "slic3r/GUI/GUI_Init.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"

@@ -670,11 +670,6 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
     m_tools.set_saves_need_approval(true);
     m_tools.set_proposal_saved([this](const ToolActivity& apply) { m_saved_proposals.push_back(apply.action_id); });
     m_tools.set_slice_ended([this](const std::string& action_id) { m_ended_slices.push_back(action_id); });
-    m_tools.set_same_turn([this](const std::string& first, const std::string& second) {
-        const std::optional<ConversationMessage> a = find_stored_message(first);
-        const std::optional<ConversationMessage> b = find_stored_message(second);
-        return a && b && a->in_reply_to == b->in_reply_to;
-    });
     m_tool_activity_subscription = m_tools.subscribe([this](const ToolActivity& activity) {
         // A client that calls the app's tools is connected, however it was set up.
         if (activity.source == ToolSource::Mcp && m_mcp_connect.connected)
@@ -1952,7 +1947,7 @@ bool AgentHost::slice_ended(const std::string& action_id)
     if (text.empty() && !sliced)
         return true;
     if (text.empty()) {
-        text  = "The slice of " + name + " finished.";
+        text  = "The slice you started finished: " + name + " is sliced.";
         shown = plate_id.empty() ? translated(L("The slice of every plate finished."))
                                  // TRN %1% is a plate's name.
                                  : Slic3r::format(translated(L("The slice of %1% finished.")), name);
@@ -3410,11 +3405,6 @@ void AgentHost::continue_after_tool(const ToolActivity& activity)
         return;
     }
     begin_tool_followup(continuation);
-    // A model that keeps polling its own slice costs a request each time and
-    // learns nothing. The result is in the record; the turn ends as a Stop
-    // would, and the note turn carries on when the run ends.
-    if (activity.error && activity.error->code == "busy" && m_tools.slice_poll_limit_reached())
-        end_stream(MessageState::Complete, Protocol::kAssistantCompleted);
 }
 
 void AgentHost::begin_tool_followup(const PendingToolContinuation& continuation)

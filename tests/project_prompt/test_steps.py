@@ -423,7 +423,7 @@ class Steps(unittest.TestCase):
         runner.judge = lambda log, question: (said(question), "the judge's reason")
         return self.run_case("print-hook-no-purpose", *outputs)
 
-    SLICE = {"plateId": "90"}
+    SLICE = {"plateId": "114"}
 
     def test_a_hook_slice_is_answered_and_a_question_after_it_passes(self):
         verdict, _, bodies = self.hook_run([call("slice_start", self.SLICE)], [reply("Slicing. What will it hold?")],
@@ -438,7 +438,7 @@ class Steps(unittest.TestCase):
         self.assertEqual(verdict, runner.PASS, detail)
         self.assertEqual(len(bodies), 3)
         items = bodies[2]["input"]
-        self.assertEqual(items[-1], {"content": "The slice of Plate 1 finished.", "role": "developer"})
+        self.assertEqual(items[-1], {"content": "The slice you started finished: Plate 1 is sliced.", "role": "developer"})
         self.assertIn('\\"sliced\\":true', json.dumps(items[-2]))
         self.assertEqual(items[-3]["content"][0]["text"], "Slicing it now.")
         self.assertIn("after slice_start, the slice's end: ", detail)
@@ -499,7 +499,7 @@ class Steps(unittest.TestCase):
             [call("setup_record", self.PLAN)], [call("slice_start", self.SLICE)], [reply("Slicing it now.")],
             [reply("What will it hold?")], said=lambda question: next(answers))
         self.assertEqual(verdict, runner.PASS, detail)
-        self.assertEqual(bodies[3]["input"][-1], {"content": "The slice of Plate 1 finished.", "role": "developer"})
+        self.assertEqual(bodies[3]["input"][-1], {"content": "The slice you started finished: Plate 1 is sliced.", "role": "developer"})
         self.assertIn("after setup_record, slice_start, the slice's end: ", detail)
 
     def test_an_order_with_no_recording_is_unobserved(self):
@@ -531,7 +531,9 @@ class Steps(unittest.TestCase):
         self.assertEqual(verdict, runner.PASS)
         self.assertEqual(len(bodies), 2)
 
-    def test_reads_after_the_slice_see_it_running_and_after_its_end_see_it_done(self):
+    def test_reads_during_the_slice_see_it_running_and_after_its_end_see_it_done(self):
+        """While the turn's own slice runs, a read of the slicing section
+        shows the run in flight; after the slice's end it shows the run over."""
         inspect = {"sections": ["summary", "project", "objects", "plan", "slicing", "printer", "activities"]}
         answers = iter([False, True])
         verdict, detail, bodies = self.hook_run(
