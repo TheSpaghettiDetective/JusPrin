@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7NWH1XW9V636EABRBMNDMBH",
+  "strategy": "manual-commit",
+  "branch": "claude/slice-facts-no-rule",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/project_prompt/README.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 14,
+    "cache_creation_tokens": 6285,
+    "cache_read_tokens": 1515254,
+    "output_tokens": 3399,
+    "api_call_count": 7
+  }
+}
