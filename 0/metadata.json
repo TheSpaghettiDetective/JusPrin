@@ -1,0 +1,53 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7KG675BWMES4ER6QMDTFWMJ",
+  "session_id": "77b16fd1-2dc9-492c-88a4-40e9d08a8e68",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-17T00:58:25.400757Z",
+  "branch": "claude/conversion-funnel-1f5b9e",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Agent/AgentConfiguration.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
+    "src/slic3r/GUI/JusPrin/Updates/LaunchRecord.cpp",
+    "src/slic3r/GUI/JusPrin/Updates/LaunchRecord.hpp",
+    "src/slic3r/GUI/JusPrin/Updates/LaunchReport.cpp",
+    "src/slic3r/GUI/JusPrin/Updates/LaunchReport.hpp",
+    "src/slic3r/GUI/JusPrin/sources.cmake",
+    "tests/jusprin/CMakeLists.txt",
+    "tests/jusprin/test_launch_record.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "2f49eab57e57",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 24,
+    "cache_creation_tokens": 87283,
+    "cache_read_tokens": 1314995,
+    "output_tokens": 12590,
+    "api_call_count": 12
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-17T00:58:25.353104Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 176,
+    "human_modified": 41,
+    "human_removed": 0,
+    "total_committed": 176,
+    "total_lines_changed": 217,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}

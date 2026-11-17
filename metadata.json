@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7KG675BWMES4ER6QMDTFWMJ",
+  "strategy": "manual-commit",
+  "branch": "claude/conversion-funnel-1f5b9e",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Agent/AgentConfiguration.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
+    "src/slic3r/GUI/JusPrin/Updates/LaunchRecord.cpp",
+    "src/slic3r/GUI/JusPrin/Updates/LaunchRecord.hpp",
+    "src/slic3r/GUI/JusPrin/Updates/LaunchReport.cpp",
+    "src/slic3r/GUI/JusPrin/Updates/LaunchReport.hpp",
+    "src/slic3r/GUI/JusPrin/sources.cmake",
+    "tests/jusprin/CMakeLists.txt",
+    "tests/jusprin/test_launch_record.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 24,
+    "cache_creation_tokens": 87283,
+    "cache_read_tokens": 1314995,
+    "output_tokens": 12590,
+    "api_call_count": 12
+  }
+}
