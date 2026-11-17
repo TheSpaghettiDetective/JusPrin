@@ -1,0 +1,34 @@
+delete both older trims. no need to have these sentences be rewritten. they were close enough that we can tweak sentry server settings to meet them. No need to test the rules now. We want to get this feature out ASAP, we will do that later.
+
+---
+
+is the subsession done? if so, check the work
+
+---
+
+What are the gaps that the session can do itself to fill? Have you told it to do so?
+
+---
+
+The five Sentry secrets on GitHub. Only you can add them - can you open the sentry in my crhome to get these? also why do we need sentry auth token? Aren't we supposed to keep it secret?
+
+---
+
+you open sentry in chrome. and tell me what K need to do
+
+---
+
+~/Projects/[www.obico.io](https://www.obico.io)   master ●  gh secret list --repo TheSpaghettiDetective/JusPrin
+NAME                      UPDATED
+APPLE_DEV_ACCOUNT         about 2 years ago
+APP_PWD                   about 2 years ago
+BUILD_CERTIFICATE_BASE64  about 1 month ago
+JUSPRIN_SENTRY_DSN        about 1 minute ago
+KEYCHAIN_PASSWORD         about 2 years ago
+MACOS_CERTIFICATE_ID      about 1 month ago
+P12_PASSWORD              about 1 month ago
+SENTRY_AUTH_TOKEN         less than a minute ago
+SENTRY_ORG                about 2 minutes ago
+SENTRY_PROJECT            about 2 minutes ago
+SENTRY_URL                about 3 minutes ago
+TEAM_ID                   about 2 years ago
