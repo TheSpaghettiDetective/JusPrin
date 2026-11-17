@@ -1570,6 +1570,29 @@ TEST_CASE("printer_host_connect takes an address and printer_bambu_connect a fou
     CHECK_FALSE(checked(code, json{{"deviceId", "01P00A3B"}, {"hostType", "moonraker"}, {"address", "192.168.1.42"}}).valid());
 }
 
+TEST_CASE("printer_host_connect takes every connection type reached at an address, and no online service",
+          "[printer-conversation]")
+{
+    const auto&                  registry = Agent::ToolRegistry::instance();
+    const Agent::ToolDefinition* host     = registry.find("printer_host_connect");
+    REQUIRE(host != nullptr);
+    const auto checked = [&](const std::string& type) {
+        return registry.validate_call(*host, json{{"hostType", type}, {"address", "192.168.1.77"}}.dump()).valid();
+    };
+    // The names OrcaSlicer's settings file stores (PrintConfig.cpp, host_type).
+    const std::vector<std::string> by_address{"moonraker", "octoprint", "prusalink", "prusaconnect", "duet",
+                                              "ultimaker", "flashair",  "astrobox",  "repetier",     "mks",
+                                              "esp3d",     "crealityprint", "flashforge", "elegoolink"};
+    for (const std::string& type : by_address)
+        CHECK(checked(type));
+    // These take a sign-in to an online service, not an address.
+    for (const std::string& type : {"obico", "simplyprint", "3dprinteros"})
+        CHECK_FALSE(checked(type));
+    // What connection() said before every type was taken.
+    CHECK_FALSE(checked("other"));
+    CHECK(host->input_schema.at("properties").at("hostType").at("enum") == json(by_address));
+}
+
 // Runs printer_bambu_connect, then submits the local credential form.
 Agent::ToolExecutionCoordinator::ExtensionResult tap_connect(PrinterConversation& conversation, RecordingPanel&,
                                                               const json& arguments, const std::string& action,
@@ -1621,6 +1644,40 @@ void stopped(PrinterConversation& conversation, const char* tool, const std::str
 void form_answer(PrinterConversation& conversation, const std::string& action, const std::string& answer)
 {
     conversation.handle_page_message("printer_action", json{{"action", answer}, {"actionId", action}});
+}
+
+namespace {
+std::optional<Agent::ToolError> preflight(PrinterConversation& conversation, const char* tool, const json& arguments);
+} // namespace
+
+TEST_CASE("an Elegoo Link printer connects from the chat as its profile saved it, with the key form for a refused code",
+          "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    backend.saved                     = {lab_printer()};
+    backend.connection_info           = PrinterConnectionInfo{"host", "not_configured"};
+    backend.connection_info.host_type = "elegoolink";
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Connect, "Lab Printer");
+    REQUIRE_FALSE(preflight(conversation, "printer_host_connect", json{{"hostType", "elegoolink"}, {"address", "192.168.1.77"}}));
+
+    json arguments           = kHostArguments;
+    arguments["hostType"]    = "elegoolink";
+    arguments["address"]     = "192.168.1.77";
+    arguments["target"]      = "192.168.1.77";
+    const auto result        = host_connect(conversation, "a-1", arguments);
+    REQUIRE_FALSE(result.error.has_value());
+    CHECK(result.pending);
+    CHECK(backend.connects.back() == std::vector<std::string>{"Lab Printer", "elegoolink", "192.168.1.77", ""});
+    REQUIRE(backend.tested);
+
+    // A Centauri Carbon 2 refuses a missing or wrong access code with 401.
+    backend.tested(HostTestOutcome{"needs_credential", "Elegoo Link at 192.168.1.77 refused the test: HTTP 401: Unauthorized. "
+                                                       "The test sent no API key.", "none"});
+    CHECK(conversation.state_json().at("credentialRequest").at("actionId") == "a-1");
+    conversation.handle_page_message("printer_action", json{{"action", "connect"}, {"actionId", "a-1"}, {"credential", "654321"}});
+    CHECK(backend.connects.back() == std::vector<std::string>{"Lab Printer", "elegoolink", "192.168.1.77", "654321"});
 }
 
 TEST_CASE("printer_host_connect tests during the call and ends it with what the test saw", "[printer-conversation]")
@@ -3695,6 +3752,16 @@ TEST_CASE("issue_report_open says when no browser opened, and names a print host
         CHECK_THAT(panel.opened.front(), ContainsSubstring(encoded("\nConnection: Moonraker\n")));
         CHECK_THAT(panel.opened.front(), !ContainsSubstring("192.168"));
     }
+    SECTION("a print host's issue names the type tried, and the one the printer is saved with when they differ") {
+        backend.saved                     = {lab_printer()};
+        backend.connection_info           = PrinterConnectionInfo{"host", "not_configured"};
+        backend.connection_info.host_type = "elegoolink";
+        conversation.start(ConversationMode::Connect, "Lab Printer");
+        REQUIRE_FALSE(preflight(conversation, "printer_host_connect", json{{"hostType", "moonraker"}, {"address", "192.168.1.77:7125"}}));
+        ran(conversation, "issue_report_open", json{{"title", "Stuck"}, {"body", "It does not connect."}});
+        REQUIRE(panel.opened.size() == 1);
+        CHECK_THAT(panel.opened.front(), ContainsSubstring(encoded("\nConnection: Moonraker, saved as elegoolink\n")));
+    }
 }
 
 // The evidence rule: a state gets a line in the skill only after it was made
@@ -3786,8 +3853,11 @@ TEST_CASE("the print host skill names only states seen from a real host", "[prin
         {"failed", "Moonraker, OctoPrint and Mainsail in Docker, 2026-11-02, --print-host-check"},
         {"verified", "Moonraker in Docker and on a Raspberry Pi, OctoPrint in Docker, 2026-11-04, --print-host-check"},
     };
-    const std::set<std::string> names{"printer_host_connect", "printer_connection_status", "issue_report_open", "web_search",
-                                      "trusted_clients", "[authorization]"};
+    std::set<std::string> names{"printer_host_connect", "printer_connection_status", "issue_report_open", "web_search",
+                                "trusted_clients", "[authorization]", "hostType"};
+    // The connection types printer_host_connect takes, as its schema lists them.
+    for (const json& type : Agent::ToolRegistry::instance().find("printer_host_connect")->input_schema.at("properties").at("hostType").at("enum"))
+        names.insert(type.get<std::string>());
     {
         const std::string text = skill_text("connect-print-host");
         std::set<std::string> named;

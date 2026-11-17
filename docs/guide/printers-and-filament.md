@@ -55,7 +55,7 @@ If you skipped choosing a printer the first time JusPrin started, it uses a stan
 
 ## Connect a printer
 
-Connecting a printer lets JusPrin send prints to it and show how it is doing. JusPrin connects Bambu Lab printers, and printers that run Klipper with Moonraker or OctoPrint.
+Connecting a printer lets JusPrin send prints to it and show how it is doing. JusPrin connects Bambu Lab printers, and printers it reaches at an address on your network, such as Klipper printers through Moonraker, OctoPrint, PrusaLink and Elegoo Link.
 
 1. On Home, click **Connect…** on the printer's card, or open the card's menu (**Printer actions**) and choose **Connect…**.
 2. The printer's chat asks for what it needs, such as its address. A Bambu Lab printer also needs its **Access code**, and a print host may need its **API key**. These stay on this computer.

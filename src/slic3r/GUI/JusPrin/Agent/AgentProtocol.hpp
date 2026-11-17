@@ -261,9 +261,9 @@ inline constexpr const char* kCalibrationStarted = "calibration_started";
 // conversation from then on, with issue_report_open offered beside it
 // (PrinterConversation::connection_skill), as it is with kConnectPrintHost.
 inline constexpr const char* kConnectBambu = "connect_bambu";
-// The same for any other printer, which connects through a print host. The
-// app cannot know which kind until the person says, so one skill covers
-// Moonraker and OctoPrint.
+// The same for any other printer, which connects through a print host. Its
+// profile names a connection type, but a printer can run another, so one
+// skill covers every type printer_host_connect takes.
 inline constexpr const char* kConnectPrintHost = "connect_print_host";
 } // namespace SkillTrigger
 

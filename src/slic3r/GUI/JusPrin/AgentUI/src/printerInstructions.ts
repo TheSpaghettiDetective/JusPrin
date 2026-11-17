@@ -213,12 +213,12 @@ export function printerInstructions(session: PrinterSessionPayload): string {
     // Only a connected printer says what it holds; nothing stands in for it.
     text += '\nLoaded, as the printer reports it:';
     if (!printer.connected) text += ' not known, as it is not connected';
-    else if (printer.provider !== 'bambu') text += ' not known, as a Moonraker or OctoPrint connection does not report it';
+    else if (printer.provider !== 'bambu') text += ' not known, as a print host connection does not report it';
     else if (printer.spools.length === 0) text += ' nothing';
     for (const spool of printer.spools)
       text += `\n- ${spool.name || spool.material} (${spool.material}${spool.colour ? `, ${spool.colour}` : ''})`;
     text += `\nConnected to this app: ${printer.connected ? 'yes' : 'no'}\n`;
-    text += `Connects through: ${printer.provider === 'bambu' ? 'Bambu Lab LAN mode' : 'Moonraker or OctoPrint'}\n`;
+    text += `Connects through: ${printer.provider === 'bambu' ? 'Bambu Lab LAN mode' : 'a print host at an address'}\n`;
     if (printer.needsNetworkPlugin)
       text +=
         "Bambu's network plug-in: not loaded, so nothing can reach this printer yet. The app has shown the person how to " +

@@ -3,20 +3,30 @@ name: connect-print-host
 trigger: connect_print_host
 ---
 
-# Connecting a printer through Moonraker or OctoPrint
+# Connecting a printer through a print host
 
 The rules above still apply. The app adds this when a printer that is not a Bambu Lab one is added, and when a chat about one opens, so it does not mean the person wants to connect: many never do. Start connecting only once they say they want to. Right after a printer is added, unless they have already said whether they want it connected, offer it once: end that reply with exactly "Want to connect it so you can send prints straight to it?" and then "Choices: Connect it | Not now". When they have already asked to connect it, go straight on.
 
 Once they want to connect, your job is to guide them until it is connected or they choose to leave it, which they can do at any time. This explains how the connection works, so you can work out what is going on, including in situations it does not mention. Each statement says where it comes from: seen in a real run, a named document, or a guess.
 
-## Moonraker or OctoPrint
+## Which connection type
 
-The app connects to one of two programs that run beside the printer, and printer_host_connect needs to know which:
+printer_host_connect needs to know which program the app talks to, its `hostType`. printer_connection_status gives the type this printer is saved with. Until a connection is saved, that type is only the default in the printer's profile, which the person never chose: an Elegoo printer's profile names Elegoo Link, and a Prusa's names PrusaLink (from the app's printer profiles). Use it unless what the person says shows their printer runs something else.
 
-- **A Klipper printer is reached through Moonraker**, the program beside Klipper that other apps talk to over the network. People usually use it through a web page in a browser, Mainsail or Fluidd. The app talks only to Moonraker.
-- **OctoPrint runs on a computer beside the printer and drives it.** People use it through OctoPrint's own web page. The app talks only to OctoPrint, never to the printer itself.
+- **A Klipper printer is reached through Moonraker** (`moonraker`), the program beside Klipper that other apps talk to over the network. People usually use it through a web page in a browser, Mainsail or Fluidd. The app talks only to Moonraker. A printer whose page is Mainsail or Fluidd runs Moonraker, whatever its profile says.
+- **OctoPrint runs on a computer beside the printer and drives it** (`octoprint`). People use it through OctoPrint's own web page. The app talks only to OctoPrint, never to the printer itself.
+- **Elegoo Link** (`elegoolink`): see below.
+- **Every other type** printer_host_connect lists runs the app's own test for that type, the one the app's printer connection window runs, and has not been tried here against a real printer. Its failures come in that test's words, which may be in the app's language. The app sends an address and one key. From the app's code, these need more, and cannot be finished from this chat: Repetier, which also needs the printer chosen on the host; UltiMaker, which needs a user name and password; and PrusaLink set up with a user name and password instead of a key. The person can finish those in the app's own window for it: View › Switch to classic view…, then the Wi-Fi icon beside "Printer" (seen 2026-11-16).
 
-When the person does not know which they have, ask what the page they open to control the printer is called, or what it shows. A guess is fine, because the first attempt tells the two apart: a test for the wrong one got HTTP 404 both ways (seen 2026-11-02, against both in Docker).
+When the person does not know whether they have Moonraker or OctoPrint, ask what the page they open to control the printer is called, or what it shows. A guess is fine, because the first attempt tells the two apart: a test for the wrong one got HTTP 404 both ways (seen 2026-11-02, against both in Docker).
+
+## Elegoo Link
+
+From the app's code for Elegoo Link (read 2026-11-16). It tells Elegoo printers apart by the model the person picked in the app, not by asking the printer:
+
+- **Centauri Carbon.** The test asks for the printer's own web page at the address, and passes when that page contains "ELEGOO". It uses no key. "ElegooLink not detected" means something answered there, but not with that page. The address is the printer's IP address, with no port.
+- **Centauri Carbon 2.** The test asks the printer for its information with an access code, and with none it sends 123456. A refused code got HTTP 401 or 403, and then the app's form asks for it. The form says "API key": for this printer, say it is the printer's access code. Where the printer shows its code is not in the app's code, so search before you say.
+- **Any other Elegoo printer, such as a Neptune 4.** The app runs OctoPrint's test. That the Neptune 4 runs Klipper with Moonraker is general knowledge, not tried here: when the Elegoo Link test fails on one, Moonraker at port 7125 is the likeliest next try.
 
 ## The address
 
@@ -45,6 +55,7 @@ The result is `verified`, and the app has saved the address as this printer's co
 
 - **Moonraker:** the app asked Moonraker for its server information. That means Moonraker answered, and nothing more: it answered the same way while Klipper could not reach the printer's board, and while Klipper was not running at all. What says whether the printer can print is Klipper's state, which the result gives after "Moonraker reports Klipper's state as". Unless that state is "ready", do not say the printer is ready to print: say Moonraker answered, give the state, and say what it generally means. Only "error" has been seen here, from a Moonraker in Docker whose Klipper could not reach its board ("mcu 'mcu': Unable to connect", 2026-11-04). The rest is general knowledge about Klipper, so say it as such: "ready" is Klipper running and in contact with the board; "startup" is Klipper still starting, so test again in a minute; "shutdown" is Klipper stopped after an error or an emergency stop, and a firmware restart in Mainsail or Fluidd starts it again; "error" is Klipper unable to start, often a mistake in its configuration or a board it cannot reach, and Mainsail or Fluidd shows Klipper's own message; "disconnected" is Moonraker not in contact with Klipper at all.
 - **OctoPrint:** the app asked OctoPrint for its version. That means OctoPrint answered and took the key, and nothing more: it answered the same way with no printer attached to it.
+- **Any other type:** the host answered the app's test the way that test expects, and nothing more. For a Centauri Carbon, that is only its web page naming ELEGOO.
 
 ## What the tools report
 

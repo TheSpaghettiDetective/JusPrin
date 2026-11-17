@@ -7,9 +7,11 @@
 #include "PrinterDiscovery.hpp"
 #include "SetupOptionsLoader.hpp"
 #include "libslic3r/AppConfig.hpp"
+#include "libslic3r/Config.hpp"
 #include "libslic3r/LocalesUtils.hpp"
 #include "libslic3r/Preset.hpp"
 #include "libslic3r/PresetBundle.hpp"
+#include "libslic3r/PrintConfig.hpp"
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/ConfigWizard.hpp"
 #include "slic3r/GUI/DeviceManager.hpp"
@@ -41,7 +43,11 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <future>
+#include <memory>
+#include <regex>
 #include <set>
+#include <stdexcept>
 #include <thread>
 #include <wx/utils.h>
 
@@ -181,6 +187,52 @@ public:
         return answer;
     }
 };
+
+// Every other type runs OrcaSlicer's own test, the one its Physical Printer
+// dialog's Test button runs, unchanged: copying each would be a dozen copies
+// to keep in step. Its request has no upper limit, so the test runs on a
+// thread of its own, and the answer is given up on after kConnectionWait.
+// The thread is left to finish, and its answer is dropped: against a host
+// that holds the connection open and never answers, it waits, with one
+// socket, until the app quits. OrcaSlicer runs these hosts off the GUI
+// thread too, in its upload queue. The status comes back only inside the
+// test's message, where PrintHost::format_error puts it as "HTTP 401: ...".
+HostAnswer upstream_answer(std::shared_ptr<PrintHost> host)
+{
+    std::packaged_task<HostAnswer()> test([host] {
+        wxString   said;
+        HostAnswer answer{host->test(said)};
+        answer.said = one_line(said.ToUTF8().data());
+        std::smatch status;
+        if (!answer.passed && std::regex_search(answer.said, status, std::regex(R"(\bHTTP (\d{3}): )")))
+            answer.status = static_cast<unsigned>(std::stoul(status[1].str()));
+        return answer;
+    });
+    auto answer = test.get_future();
+    std::thread(std::move(test)).detach();
+    if (answer.wait_for(kConnectionWait) == std::future_status::timeout)
+        return {false, 0, {}, true};
+    // An exception from the test is rethrown here, and goes on to the worker.
+    return answer.get();
+}
+
+// The types that go through an online service the person signs in to,
+// whose PrintHost::is_cloud() is true. The chat does not connect these: they
+// need that sign-in, not an address. Asking a PrintHost would construct one,
+// and these constructors read their sign-in files.
+bool online_service(PrintHostType type)
+{
+    return type == htObico || type == htSimplyPrint || type == ht3DPrinterOS;
+}
+
+// A connection type as OrcaSlicer's printer settings label it ("Elegoo
+// Link"), from the name its settings file stores ("elegoolink").
+std::string host_label(const std::string& type)
+{
+    const ConfigOptionDef* types = print_config_def.get("host_type");
+    const auto             found = std::find(types->enum_values.begin(), types->enum_values.end(), type);
+    return found == types->enum_values.end() ? type : types->enum_labels[found - types->enum_values.begin()];
+}
 
 } // namespace
 
@@ -570,21 +622,19 @@ PrinterConnectionInfo OrcaPrinterBackend::connection(const std::string& name)
             throw std::logic_error("A saved printer has no preset");
         const auto type = preset->config.opt_enum<PrintHostType>("host_type");
         info.address = preset->config.opt_string("print_host");
-        info.host_type = type == htMoonraker ? "moonraker" : type == htOctoPrint ? "octoprint" : "other";
+        // As OrcaSlicer's settings file stores it, which printer_host_connect takes.
+        info.host_type = preset->config.option("host_type")->serialize();
         info.provider = "host";
         info.state = info.address.empty() ? "not_configured" : "unknown";
         if (info.state == "unknown")
             info.message = "A connection is saved. Test it to check access; live printer status is not available here.";
-        if (info.host_type == "other") {
-            // The type the printer is saved with, as OrcaSlicer labels it.
-            const ConfigOptionDef* types = preset->config.def()->get("host_type");
-            const std::string      saved = preset->config.option("host_type")->serialize();
-            const auto             found = std::find(types->enum_values.begin(), types->enum_values.end(), saved);
-            const std::string      label = found == types->enum_values.end() ? saved :
-                                                                                types->enum_labels[found - types->enum_values.begin()];
+        // A printer with no address saved has never been connected: its type
+        // is only its profile's default, so any type can be tried.
+        if (!info.address.empty() && online_service(type)) {
             info.state   = "unavailable";
-            info.message = "This printer is saved with the " + label + " connection type, which this chat does not connect: it "
-                           "connects Moonraker and OctoPrint. You can still prepare prints and export a file.";
+            info.message = "This printer is saved with the " + host_label(info.host_type) + " connection type, an online "
+                           "service the person signs in to, which this chat does not connect. You can still prepare prints "
+                           "and export a file.";
         }
         if (m_host_attempt && m_host_attempt->name == name) {
             auto& attempt = *m_host_attempt;
@@ -821,8 +871,9 @@ std::string OrcaPrinterBackend::connect_host(const std::string& name, const std:
     const auto info = connection(name);
     if (info.provider != "host" || info.state == "unavailable")
         return info.message;
-    if (host_type != "moonraker" && host_type != "octoprint")
-        return "Choose Moonraker or OctoPrint.";
+    PrintHostType type;
+    if (!ConfigOptionEnum<PrintHostType>::from_string(host_type, type) || online_service(type))
+        return "hostType " + host_type + " is not a connection type this chat connects.";
     if (address.empty() || address.find_first_of("\r\n\t @") != std::string::npos)
         return "Enter the printer's host name, IP address or HTTP URL without credentials.";
     if (address.find("://") != std::string::npos && address.rfind("http://", 0) != 0 && address.rfind("https://", 0) != 0)
@@ -839,14 +890,16 @@ std::string OrcaPrinterBackend::connect_host(const std::string& name, const std:
     // Tested on a copy: the printer's own settings change only once the host
     // has accepted the test.
     DynamicPrintConfig config = preset->config;
-    config.set_key_value("host_type", new ConfigOptionEnum<PrintHostType>(host_type == "moonraker" ? htMoonraker : htOctoPrint));
+    config.set_key_value("host_type", new ConfigOptionEnum<PrintHostType>(type));
     config.set_key_value("print_host", new ConfigOptionString(address));
     config.set_key_value("printhost_apikey", new ConfigOptionString(key));
     std::function<HostAnswer()> test;
-    if (host_type == "moonraker")
+    if (type == htMoonraker)
         test = [host = std::make_shared<MoonrakerTest>(&config)] { return host->answer(); };
-    else
+    else if (type == htOctoPrint)
         test = [host = std::make_shared<OctoPrintTest>(&config)] { return host->answer(); };
+    else
+        test = [host = std::shared_ptr<PrintHost>(PrintHost::get_print_host(&config))] { return upstream_answer(host); };
 
     // The test blocks until the host answers or kConnectionWait passes, so it
     // runs on a worker of its own: the plater's is shared with arrange and
@@ -883,15 +936,18 @@ std::string OrcaPrinterBackend::connect_host(const std::string& name, const std:
 
 HostTestOutcome OrcaPrinterBackend::settle(const HostAnswer& answer, const std::string& key_sent)
 {
-    HostAttempt&      attempt = *m_host_attempt;
-    const std::string host    = attempt.host_type == "moonraker" ? "Moonraker" : "OctoPrint";
+    HostAttempt&  attempt = *m_host_attempt;
+    PrintHostType type;
+    if (!ConfigOptionEnum<PrintHostType>::from_string(attempt.host_type, type))
+        throw std::logic_error("A print host attempt holds a type connect_host refuses: " + attempt.host_type);
+    const std::string host = type == htMoonraker ? "Moonraker" : type == htOctoPrint ? "OctoPrint" : host_label(attempt.host_type);
     const std::string key     = key_sent == "typed" ? "The test sent the API key typed in the form." :
                                 key_sent == "saved" ? "The test sent the API key saved for this printer." :
                                                       "The test sent no API key.";
     HostTestOutcome   outcome{"failed", {}, key_sent};
     if (answer.passed) {
         const wxString problem = Printers::configure_named_printer_host(
-            attempt.name, attempt.host_type == "moonraker" ? htMoonraker : htOctoPrint, attempt.address, attempt.api_key);
+            attempt.name, type, attempt.address, attempt.api_key);
         if (problem.empty()) {
             // The test's answer is Home's first word on this host.
             Printers::note_host_answered(attempt.name);
@@ -899,15 +955,19 @@ HostTestOutcome OrcaPrinterBackend::settle(const HostAnswer& answer, const std::
             outcome.message = host + " at " + attempt.address + " accepted the test, and this printer now connects there. " + key;
             // Moonraker answers while Klipper is shut down or in error, so a
             // pass says what state it reported.
-            if (attempt.host_type == "moonraker")
+            if (type == htMoonraker)
                 outcome.message += " Moonraker reports Klipper's state as " + answer.said + ".";
         } else
             outcome.message = host + " at " + attempt.address + " accepted the test, but the app could not save it as this "
                               "printer's connection: " + problem.ToStdString();
-    } else if (answer.status == (attempt.host_type == "moonraker" ? 401u : 403u)) {
+    } else if (type == htMoonraker   ? answer.status == 401u :
+               type == htOctoPrint   ? answer.status == 403u :
+                                       answer.status == 401u || answer.status == 403u) {
+        // Moonraker refuses a missing or wrong key with 401, OctoPrint with
+        // 403; the other types' tests were not seen refusing one, so either.
         outcome.state   = "needs_credential";
         outcome.message = host + " at " + attempt.address + " refused the test: " + answer.said + " " + key;
-    } else if (answer.status == 0 && boost::starts_with(answer.said, "curl:Timeout was reached")) {
+    } else if (answer.gave_up || (answer.status == 0 && boost::starts_with(answer.said, "curl:Timeout was reached"))) {
         // What the app saw, without a cause: a name this computer cannot look
         // up can wait here as long as a host that never answers.
         outcome.message = "The print host test had no answer from " + attempt.address + " within " +

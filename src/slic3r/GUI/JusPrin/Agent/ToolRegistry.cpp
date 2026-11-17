@@ -6,7 +6,9 @@
 #include <charconv>
 #include <set>
 #include <stdexcept>
+#include <string>
 #include <utility>
+#include <vector>
 
 namespace Slic3r::GUI::JusPrin::Agent {
 
@@ -70,6 +72,19 @@ json printer_connection_schema()
              {"hostType", string_schema()},
              {"nozzleMismatch", boolean_schema()}},
         json::array({"provider", "state", "message", "candidates", "seen", "search", "address", "hostType", "nozzleMismatch"}));
+}
+
+// The connection types printer_host_connect takes, as OrcaSlicer's settings
+// file stores them (PrintConfig.cpp, host_type): every type except the
+// online services the person signs in to (obico, simplyprint, 3dprinteros),
+// which take that sign-in, not an address. A type OrcaSlicer adds later is
+// refused until it is listed here.
+const std::vector<std::string>& host_types()
+{
+    static const std::vector<std::string> types{"moonraker", "octoprint", "prusalink", "prusaconnect", "duet",
+                                                "ultimaker", "flashair",  "astrobox",  "repetier",     "mks",
+                                                "esp3d",     "crealityprint", "flashforge", "elegoolink"};
+    return types;
 }
 
 bool has_only(const json& value, std::initializer_list<std::string_view> allowed)
@@ -645,7 +660,8 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
     };
     if (definition.handler == ToolHandler::PrinterHostConnect)
         return has_only(arguments, {"hostType", "address"}) && optional_text(arguments, "address") && given("address") &&
-               arguments.contains("hostType") && (arguments["hostType"] == "moonraker" || arguments["hostType"] == "octoprint");
+               arguments.contains("hostType") && arguments["hostType"].is_string() &&
+               std::count(host_types().begin(), host_types().end(), arguments["hostType"].get<std::string>()) == 1;
     if (definition.handler == ToolHandler::PrinterBambuConnect)
         return has_only(arguments, {"deviceId"}) && optional_text(arguments, "deviceId") && given("deviceId");
 
@@ -1626,17 +1642,19 @@ std::vector<ToolDefinition> make_definitions()
          ToolHandler::PrinterConnectionStatus},
         {"printer_host_connect",
          "Connect a print host",
-         "Connects the printer this conversation is about to the Moonraker or OctoPrint at an address, and saves that "
-         "address as its connection once the host accepts the test. The call returns once the connection has an outcome. "
+         "Connects the printer this conversation is about to the print host at an address, and saves that address and "
+         "type as its connection once the host accepts the test. hostType is how the app reaches it: the type "
+         "printer_connection_status gives for this printer, which its profile set, unless the person's printer runs "
+         "another, as a Klipper printer runs Moonraker. The call returns once the connection has an outcome. "
          "It first tests with the API key the app already holds for that address and type, or with none, for at most 30 "
-         "seconds. If the host refuses that test (Moonraker with HTTP 401, OctoPrint with HTTP 403), the app opens a form in "
+         "seconds. If the host refuses that test (HTTP 401 or 403), the app opens a form in "
          "this chat where the person types an API key themselves, never in chat, and the call waits for them: when they "
          "submit it, the app tests again with that key. The result is verified (connected and saved; for Moonraker it gives "
          "Klipper's state, which Moonraker reports whether or not Klipper can reach the printer's board), failed (with the "
          "host's or the network's own words), help_requested (the person tapped \"Help me find the key\" in the form and wants help finding it) or dismissed "
          "(they closed the form). It says what each host answered and which API key each test sent. Pass hostType and the "
          "address with its port when it has one. For a Bambu Lab printer use printer_bambu_connect instead.",
-         object_schema(json{{"hostType", {{"type", "string"}, {"enum", json::array({"moonraker", "octoprint"})}}},
+         object_schema(json{{"hostType", {{"type", "string"}, {"enum", host_types()}}},
                             {"address", {{"type", "string"}, {"maxLength", 256},
                                          {"description", "The print host's address, an IP address or a name, with its port when it has one."}}}},
                        json::array({"hostType", "address"})),
@@ -1655,7 +1673,7 @@ std::vector<ToolDefinition> make_definitions()
          "plug-in reported), saying whether a code was typed or the one the app already holds was used; help_requested (the "
          "person tapped \"Help me find the code\" in the form and wants help finding it); or dismissed (they closed the form). Pass the deviceId of a "
          "printer in printer_connection_status's candidates; one in cloud mode cannot be connected, because LAN Only is off "
-         "on it. For Moonraker or OctoPrint use printer_host_connect instead.",
+         "on it. For any other printer use printer_host_connect instead.",
          object_schema(json{{"deviceId", {{"type", "string"}, {"description", "From printer_connection_status's candidates."}}}},
                        json::array({"deviceId"})),
          object_schema(json{{"state", {{"type", "string"}, {"enum", json::array({"verified", "failed", "help_requested", "dismissed"})}}},

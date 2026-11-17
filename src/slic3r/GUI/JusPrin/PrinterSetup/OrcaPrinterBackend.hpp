@@ -19,12 +19,14 @@ namespace Slic3r::GUI::JusPrin::PrinterSetup {
 
 // What a print host's test saw: whether it passed, the HTTP status it was
 // answered with (0 for none), and what the host or curl said, or on a
-// Moonraker pass Klipper's state.
+// Moonraker pass Klipper's state. `gave_up` is the app having stopped
+// waiting for a test that had not ended after kConnectionWait.
 struct HostAnswer
 {
     bool        passed{false};
     unsigned    status{0};
     std::string said;
+    bool        gave_up{false};
 };
 
 class OrcaPrinterBackend : public IPrinterBackend

@@ -378,6 +378,23 @@ describe('the connection skills', () => {
     expect(host).toContain('a test for the wrong one got HTTP 404 both ways');
   });
 
+  it('start from the type the printer is saved with, and say its profile chose it', () => {
+    expect(host).toContain('printer_connection_status gives the type this printer is saved with');
+    expect(host).toContain('that type is only the default in the printer\'s profile, which the person never chose');
+    expect(host).toContain('A printer whose page is Mainsail or Fluidd runs Moonraker, whatever its profile says.');
+    // What the app sends cannot finish these; the person can, in the app's window.
+    expect(host).toContain('Repetier, which also needs the printer chosen on the host');
+    expect(host).toContain('View › Switch to classic view…, then the Wi-Fi icon beside "Printer" (seen 2026-11-16)');
+  });
+
+  it('explain Elegoo Link from the app\'s own test, model by model', () => {
+    expect(host).toContain('From the app\'s code for Elegoo Link (read 2026-11-16)');
+    expect(host).toContain('passes when that page contains "ELEGOO". It uses no key.');
+    expect(host).toContain('with none it sends 123456');
+    expect(host).toContain('The form says "API key": for this printer, say it is the printer\'s access code.');
+    expect(host).toContain('That the Neptune 4 runs Klipper with Moonraker is general knowledge, not tried here');
+  });
+
   it('tell a person with no key what helps, labelled by where it comes from', () => {
     expect(host).toContain('A first try without a key is fine: the answer says whether one is needed');
     expect(host).toContain('after a 401 do not ask them to type one');

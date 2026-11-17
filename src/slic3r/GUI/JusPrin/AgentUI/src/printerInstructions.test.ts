@@ -86,7 +86,7 @@ describe('the instructions', () => {
   it('do not say a connected print host has nothing loaded, as it never reports it', () => {
     const host = session({ ...change, context: { printer: { ...change.context.printer!, spools: [], provider: 'host' } } });
     const text = printerInstructions(host);
-    expect(text).toContain('Loaded, as the printer reports it: not known, as a Moonraker or OctoPrint connection does not report it\n');
+    expect(text).toContain('Loaded, as the printer reports it: not known, as a print host connection does not report it\n');
     expect(text).not.toContain('reports it: nothing');
   });
 

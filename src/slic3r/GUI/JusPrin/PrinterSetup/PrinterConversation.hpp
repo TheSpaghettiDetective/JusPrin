@@ -280,7 +280,7 @@ private:
         std::chrono::steady_clock::time_point until;
     };
     std::optional<StatusCall> m_status_call;
-    // A print host's kind, "moonraker" or "octoprint", once the saved
+    // A print host's type, as "moonraker" or "elegoolink", once the saved
     // connection or a connection attempt names one; a report names it.
     std::string m_host_type;
     int  m_failed_connections{0};

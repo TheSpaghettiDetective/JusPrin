@@ -585,7 +585,7 @@ std::optional<ToolError> PrinterConversation::preflight_tool(ToolHandler handler
         arguments["target"]   = found->name;
     } else if (info.provider == "host") {
         if (handler == ToolHandler::PrinterBambuConnect)
-            return ToolError{"address_needed", "This printer connects through Moonraker or OctoPrint, not as a Bambu Lab device: "
+            return ToolError{"address_needed", "This printer connects through a print host at an address, not as a Bambu Lab device: "
                                                "call printer_host_connect with hostType and the print host's address."};
         m_host_type = arguments["hostType"].get<std::string>();
         activity.title      = "Checking " + arguments["address"].get<std::string>();
@@ -1076,8 +1076,14 @@ Result PrinterConversation::open_issue(const json& arguments)
     // The app's own facts, which the model may have wrong or left out. A
     // print host is named once the chat or its saved connection says which
     // program it is.
+    const auto named = [](const std::string& type) -> std::string {
+        return type == "moonraker" ? "Moonraker" : type == "octoprint" ? "OctoPrint" : type;
+    };
     const std::string& type = m_host_type.empty() ? info.host_type : m_host_type;
-    const std::string  host = type == "moonraker" ? "Moonraker" : type == "octoprint" ? "OctoPrint" : "print host";
+    std::string        host = type.empty() ? "print host" : named(type);
+    // The type tried, and the one the printer is saved with when it differs.
+    if (!m_host_type.empty() && !info.host_type.empty() && m_host_type != info.host_type)
+        host += ", saved as " + named(info.host_type);
     const std::string footer = "\n\n---\nApp version: " + m_host.app_version() +
                                "\nConnection: " + (bambu ? "Bambu Lab, LAN mode" : host) + "\nPrinter: " + printer.model;
     const IssueLink link = issue_link(for_public(arguments.at("title").get<std::string>(), known),
