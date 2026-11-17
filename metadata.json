@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7N15822EK44EW5PZQR4DC95",
   "strategy": "manual-commit",
   "branch": "claude/release-skill",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": null,
   "sessions": [
     {
@@ -19,13 +19,20 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 24,
-    "cache_creation_tokens": 82352,
-    "cache_read_tokens": 1661435,
-    "output_tokens": 6599,
-    "api_call_count": 12
+    "input_tokens": 108,
+    "cache_creation_tokens": 226208,
+    "cache_read_tokens": 7637044,
+    "output_tokens": 30602,
+    "api_call_count": 54
   }
 }
