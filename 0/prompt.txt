@@ -1,0 +1,7 @@
+<cross-session-message from="local_2f043874-c641-4fae-8477-5282d359bfa7" from-name="btw: status?">
+Kenneth is upset: this session went idle at 22:05 UTC without telling him anything, while the Mac test run 44408066976 is still going. That run's Intel Mac job has failed and its Apple Silicon job is still building. Please do three things now:
+1. Tell Kenneth in plain words where things stand: what failed in test runs 44407198348 and 44408066976, what you changed, and what is running now.
+2. Read why the Intel (x86_64) job in 44408066976 failed, and fix it.
+3. Keep working until the permanent Mac setup is proven, without going idle. Wait on runs with a background `gh run watch`, which wakes you when the run ends. When you are waiting on something, or need a decision from him, say so to Kenneth first.
+Also, the jusprin-dev nightly runs (44387166178, and 44404740734 started 21:45) failed both Mac jobs. Check whether they ran on his Mac with the old workflow, and if so say what to do about it.
+</cross-session-message>
