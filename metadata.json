@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7PFKWBH0HAXBNQSWNZ3K0W5",
   "strategy": "manual-commit",
   "branch": "claude/release-skill-trim",
-  "checkpoints_count": 5,
+  "checkpoints_count": 6,
   "files_touched": [
     "AGENTS.md",
     "scripts/deps_current.sh"
@@ -35,6 +35,13 @@
       "transcript": "/3/full.jsonl",
       "compact_transcript": "/3/transcript.jsonl",
       "content_hash": "/3/content_hash.txt",
+      "prompt": ""
+    },
+    {
+      "metadata": "/4/metadata.json",
+      "transcript": "/4/full.jsonl",
+      "compact_transcript": "/4/transcript.jsonl",
+      "content_hash": "/4/content_hash.txt",
       "prompt": ""
     }
   ],
