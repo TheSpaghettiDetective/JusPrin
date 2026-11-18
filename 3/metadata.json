@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7PFKWBH0HAXBNQSWNZ3K0W5",
   "session_id": "c2adecd8-a1fc-4e82-9512-79ed47bbae43",
   "strategy": "manual-commit",
-  "created_at": "2026-11-18T04:46:15.29142Z",
+  "created_at": "2026-11-18T05:37:00.732541Z",
   "branch": "claude/release-skill-trim",
   "checkpoints_count": 1,
   "files_touched": [
@@ -24,15 +24,15 @@
     "api_call_count": 0
   },
   "initial_attribution": {
-    "calculated_at": "2026-11-18T04:46:13.936502Z",
+    "calculated_at": "2026-11-18T05:36:59.365134Z",
     "agent_lines": 67,
     "agent_removed": 0,
-    "human_added": 186,
+    "human_added": 191,
     "human_modified": 0,
     "human_removed": 0,
-    "total_committed": 253,
-    "total_lines_changed": 542,
-    "agent_percentage": 12.361623616236162,
+    "total_committed": 258,
+    "total_lines_changed": 547,
+    "agent_percentage": 12.248628884826324,
     "metric_version": 2
   }
 }
