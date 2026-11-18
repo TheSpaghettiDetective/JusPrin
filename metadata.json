@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7PFKWBH0HAXBNQSWNZ3K0W5",
   "strategy": "manual-commit",
   "branch": "claude/release-skill-trim",
-  "checkpoints_count": 6,
+  "checkpoints_count": 9,
   "files_touched": [
     "AGENTS.md",
     "scripts/deps_current.sh"
@@ -46,10 +46,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 34,
-    "cache_creation_tokens": 78699,
-    "cache_read_tokens": 4132182,
-    "output_tokens": 14832,
-    "api_call_count": 17
+    "input_tokens": 38,
+    "cache_creation_tokens": 21524,
+    "cache_read_tokens": 3690916,
+    "output_tokens": 8588,
+    "api_call_count": 19
   }
 }
