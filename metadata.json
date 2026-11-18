@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7P9M5W6F9QRW24XQYSBNY8A",
   "strategy": "manual-commit",
   "branch": "claude/windows-permission-tests",
-  "checkpoints_count": 11,
+  "checkpoints_count": 12,
   "files_touched": [
     "tests/agent/test_agent_bridge.cpp",
     "tests/agent/test_print_history.cpp",
@@ -37,6 +37,13 @@
       "compact_transcript": "/3/transcript.jsonl",
       "content_hash": "/3/content_hash.txt",
       "prompt": "/3/prompt.txt"
+    },
+    {
+      "metadata": "/4/metadata.json",
+      "transcript": "/4/full.jsonl",
+      "compact_transcript": "/4/transcript.jsonl",
+      "content_hash": "/4/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
