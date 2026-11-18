@@ -1,0 +1,7 @@
+Delete it
+
+---
+
+create a task chip to do release 2.0.1. Don't give it too much context so that we can check if a code agent can successfully finish a release just by following the skill.
+
+Also, does the skill say that we need to test on 3 platforms first? If not, we want to amend the skill again to say that. The test on Mac should run on the current computer, and we have two GCP VMs to run Windows and Linux
