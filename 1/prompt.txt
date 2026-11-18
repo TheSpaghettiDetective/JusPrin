@@ -1,0 +1,15 @@
+> The paid AI check is still unanswered. It asked you three times and correctly didn’t run it. But its “ready to land” message says every check was run again, and leaves this out.
+
+I don't remember being asked about this, not even once. Was the question buried in a wall of text?
+
+---
+
+paid ai check can use claude subscription, right? If so, tell the session to do so
+
+---
+
+what's the purpose of this test?
+
+---
+
+So it's just a smoke testing to make sure the clouds worked as we expected? If it's a smoke testing, why would it cost a lot more than the prompt testing, which is supposed to be a lot more thorough?
