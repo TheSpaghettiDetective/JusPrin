@@ -1,0 +1,49 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7P15ZSWZHD6Q7FPFJY0J8X7",
+  "session_id": "0279318d-c84f-486b-846b-d09dd4bf0aa5",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-18T00:33:52.982744Z",
+  "branch": "jusprin-dev",
+  "checkpoints_count": 2,
+  "files_touched": [
+    ".claude/skills/jusprin-release/SKILL.md"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "b89321ca73db",
+  "checkpoint_transcript_start": 841,
+  "transcript_lines_at_start": 841,
+  "compact_transcript_start": 120,
+  "token_usage": {
+    "input_tokens": 44,
+    "cache_creation_tokens": 28313,
+    "cache_read_tokens": 5375287,
+    "output_tokens": 13144,
+    "api_call_count": 22
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-18T00:33:52.862063Z",
+    "agent_lines": 111,
+    "agent_removed": 58,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 111,
+    "total_lines_changed": 169,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
