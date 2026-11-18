@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7PFC1GE7ABB7HRHGHFP2C33",
   "strategy": "manual-commit",
   "branch": "claude/release-skill-trim",
-  "checkpoints_count": 4,
+  "checkpoints_count": 5,
   "files_touched": [
     ".claude/skills/jusprin-release/SKILL.md"
   ],
@@ -34,6 +34,13 @@
       "transcript": "/3/full.jsonl",
       "compact_transcript": "/3/transcript.jsonl",
       "content_hash": "/3/content_hash.txt",
+      "prompt": ""
+    },
+    {
+      "metadata": "/4/metadata.json",
+      "transcript": "/4/full.jsonl",
+      "compact_transcript": "/4/transcript.jsonl",
+      "content_hash": "/4/content_hash.txt",
       "prompt": ""
     }
   ],
