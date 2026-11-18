@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7RA826W37707JR2NFAKMWD7",
+  "strategy": "manual-commit",
+  "branch": "claude/mac-runner-test",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/jusprin_build_all.yml",
+    ".github/workflows/jusprin_release_build.yml",
+    ".github/workflows/tmp_mac_runner_test.yml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4,
+    "cache_creation_tokens": 2232,
+    "cache_read_tokens": 343767,
+    "output_tokens": 1564,
+    "api_call_count": 2
+  }
+}
