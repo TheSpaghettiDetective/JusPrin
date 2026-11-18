@@ -1519,6 +1519,8 @@ TEST_CASE("an attachment blob that cannot be written stops with the file system'
     CHECK_THROWS(persistence.write_attachment_blob("attachments/a-1/notes.txt", "hello"));
 }
 
+// Windows ignores these permissions, so a folder cannot be made unremovable this way there.
+#ifndef _WIN32
 TEST_CASE("an attachment folder that cannot be removed stops with the file system's error", "[persistence][attachments]")
 {
     Workspace::FakeWorkspace workspace(small_snapshot());
@@ -1531,6 +1533,7 @@ TEST_CASE("an attachment folder that cannot be removed stops with the file syste
     CHECK_THROWS(persistence.remove_attachment_dir("attachments/a-1"));
     fs::permissions(folder, fs::perms::owner_all);
 }
+#endif
 
 TEST_CASE("an attachment blob that is not there cannot be read as empty", "[persistence][attachments]")
 {

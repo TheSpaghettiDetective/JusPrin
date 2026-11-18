@@ -4585,6 +4585,8 @@ TEST_CASE("mcp_preview shows the client file's refusal and lets other failures g
         REQUIRE(status != nullptr);
         CHECK((*status)["payload"]["error"]["code"] == "write_failed");
     }
+#ifndef _WIN32
+    // Windows ignores these permissions, so a file cannot be made unreadable this way there.
     SECTION("a file the app cannot read")
     {
         { std::ofstream(cursor_config) << "{}\n"; }
@@ -4593,6 +4595,7 @@ TEST_CASE("mcp_preview shows the client file's refusal and lets other failures g
         CHECK(harness.last_of_type("mcp_status") == nullptr);
         std::filesystem::permissions(cursor_config, std::filesystem::perms::owner_all);
     }
+#endif
 }
 
 TEST_CASE("reveal_path resolves a tool id to the host's own config path", "[agent][mcp_setup]")

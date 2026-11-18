@@ -358,15 +358,19 @@ TEST_CASE("an exported file that is gone is missing, one that cannot be read is 
     const fs::path folder = fs::temp_directory_path() / ("jusprin-export-check-" + std::to_string(std::random_device{}()));
     fs::create_directories(folder);
     const fs::path file = folder / "plate.gcode";
-    std::ofstream(file) << "G1 X0\n";
+    // Binary, so Windows writes "\n" as one byte, not "\r\n".
+    std::ofstream(file, std::ios::binary) << "G1 X0\n";
 
     REQUIRE(exported_file(file));
     CHECK(exported_file(file)->size == 6);
     CHECK_FALSE(exported_file(folder / "gone.gcode"));
     CHECK_FALSE(exported_file(folder / "no-drive" / "plate.gcode"));
 
+#ifndef _WIN32
+    // Windows ignores these permissions, so a folder cannot be made unreadable this way there.
     fs::permissions(folder, fs::perms::none);
     CHECK_THROWS_AS(exported_file(file), fs::filesystem_error);
     fs::permissions(folder, fs::perms::owner_all);
+#endif
     fs::remove_all(folder);
 }
