@@ -1,0 +1,15 @@
+diff --git a/external/crashpad/util/mac/mac_util.cc b/external/crashpad/util/mac/mac_util.cc
+index 6b2666c..03cdfa2 100644
+--- a/external/crashpad/util/mac/mac_util.cc
++++ b/external/crashpad/util/mac/mac_util.cc
+@@ -250,7 +250,9 @@ bool MacOSVersionComponents(int* major,
+ 
+ void MacModelAndBoard(std::string* model, std::string* board_id) {
+   base::mac::ScopedIOObject<io_service_t> platform_expert(
+-      IOServiceGetMatchingService(kIOMainPortDefault,
++      // JusPrin: MACH_PORT_NULL is the default main port on every macOS;
++      // kIOMainPortDefault, its macOS 12 name, fails a 10.15 build.
++      IOServiceGetMatchingService(MACH_PORT_NULL,
+                                   IOServiceMatching("IOPlatformExpertDevice")));
+   if (platform_expert) {
+     model->assign(IORegistryEntryDataPropertyAsString(platform_expert.get(),
