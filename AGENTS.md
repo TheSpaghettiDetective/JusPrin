@@ -98,6 +98,7 @@ Several agent sessions build on the same Mac at once. Without a limit, ninja run
 - Stopping a build means stopping ninja. `pkill -f "cmake --build …"` kills only the cmake wrapper, and ninja keeps compiling. Start long builds in their own process group (`perl -e 'setpgrp(0,0); exec @ARGV' cmake --build …`) and stop them with `kill -- -<pgid>`. Then confirm with `pgrep -fl ninja` before building again.
 - When a build is slow, count your own compile processes before blaming the load on other sessions.
 - Reuse an existing build where the task allows. Ask before configuring a fresh full-app build the task does not require.
+- Before building against a dependency folder built earlier, such as the main checkout's `deps/build/arm64`, run `scripts/deps_current.sh <folder>`. It rebuilds the libraries whose `deps/` recipe changed since that folder was built.
 
 ## Testing
 
