@@ -1,0 +1,30 @@
+Background (from the session that started this one):
+JusPrin is a fork of OrcaSlicer: a C++ desktop slicer with wxWidgets, plus two web pages built with Vite and React. `jusprin-dev` is the development branch. `main` is the stable and release branch, and is never force-pushed. The last published release is 2.0.0, tagged `jusprin/v2.0.0`. Kenneth owns the project. He alone may start the release workflow, deploy the server, approve pushes and publish. The `jusprin-release` skill lists every step a release needs, including those the release workflow does not enforce. That includes server readiness, catalog freshness, the error-handling audit, test suites on all three platforms, Sentry checks on the draft's files, and after-publish steps. An earlier review found gaps, and they were fixed in commit `7dee738e40` on local `jusprin-dev`, which is not pushed. This second review uses a reader who has never seen the skill, to confirm it is now complete and unambiguous before anyone uses it for a real release.
+
+Task:
+Review the `jusprin-release` skill (`.claude/skills/jusprin-release/SKILL.md`) as a cold reader. Judge whether an agent that has only this skill and the repository could make a new JusPrin release without missing a step or getting confused.
+
+This is a read-only review. Do not run any step of the skill. That means no builds, no version bumps, no commits, no pushes, no workflow runs, no catalog updates, and no requests to servers. Read-only `git` and `gh` queries are fine. Edit no files in this checkout. It is the main checkout, holding `jusprin-dev`, and other sessions use it.
+
+Check the skill against what it relies on:
+- `AGENTS.md`, mainly "Releasing", "Branches", "Error handling", "Building on a shared machine", "Testing" and "Localization & translations"
+- `.github/workflows/jusprin_release.yml`, `jusprin_release_build.yml`, `jusprin_build_all.yml` and `winget_updater.yml`
+- `src/slic3r/GUI/JusPrin/Packaging/` (`release.mjs`, `sentry_debug_files.sh`, `sentry_page_maps.sh`, `release-notes/`)
+- `docs/guide/README.md` and `scripts/check_guide.py`
+- `src/slic3r/GUI/JusPrin/Localization/README.md`
+- the `error-handling` skill
+- `tests/project_prompt/README.md`
+- `build_win.bat` and `build_linux.sh`
+- the code that builds server addresses (`src/slic3r/GUI/JusPrin/Agent/CloudAccount.cpp`, `AgentConfiguration.cpp`, `ModelCatalog.cpp`)
+
+Look for these kinds of problems:
+- Steps that are missing, or steps in the wrong order.
+- Commands, paths, targets, flags or labels that are wrong or don't exist. Verify each by reading the file or with `git grep`, not from memory.
+- Places where an agent would have to guess, including what to do when a step fails.
+- Claims about what a workflow enforces that are false.
+- Anything that would make the agent act without Kenneth's yes where he must approve.
+- Text that is unclear to someone with no other context.
+
+Done looks like a report in your final message, under about 600 words. List each finding most serious first. For each one, give the skill's line, what goes wrong for the agent following it, and a suggested rewording. Mark each finding as verified (you read the file that proves it) or inferred. If you find nothing serious, say so plainly. End with what you could not check without running something.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_55a7089d-34d6-4d0c-bc2e-c3745b488d0d
