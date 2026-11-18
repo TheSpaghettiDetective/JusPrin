@@ -1,0 +1,13 @@
+Tell me what things do you think need to happen before we can push a new release version to github
+
+---
+
+how about l18n translation? also Check to see if there's a guide on how error handling should be performed and if so, it's probably a good idea to use that before each release.
+
+---
+
+remove the release-2.0.1 worktree. create a new task chip to do a cold read on the skill to see if it can successfully do a new release without missing any steps or getting confused.
+
+---
+
+check with the subsession to see if the skill is ok

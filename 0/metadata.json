@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7P0EA1KJ11Z4ZP47HM8PGV8",
+  "session_id": "0279318d-c84f-486b-846b-d09dd4bf0aa5",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-18T00:20:56.460907Z",
+  "branch": "jusprin-dev",
+  "checkpoints_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "31182bea03fb",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 176,
+    "cache_creation_tokens": 380996,
+    "cache_read_tokens": 14260470,
+    "output_tokens": 55736,
+    "api_call_count": 88
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
