@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b3v2u05dv</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/ddef347c-0a0b-4acd-ba3b-58cafacec07a/tasks/b3v2u05dv.output</output-file>
+<status>completed</status>
+<summary>Background command "Check the shipped 2.0.0 app for Homebrew links" completed (exit code 0)</summary>
+</task-notification>
