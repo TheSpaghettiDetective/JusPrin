@@ -1,0 +1,14 @@
+<cross-session-message from="local_4eaba8c0-80ca-40c3-bb54-c2e8369ba2d8" from-name="btw: Explain this in plain English.">
+Kenneth approved a fix for the out-of-date shared library folder; please carry it out after 2.0.1 has landed on jusprin-dev and main.
+
+The problem: the release session's build failed because the main checkout's compiled outside libraries (`deps/build/arm64`, built 2026-11-08) predate the Sentry library that commit a14e9d762f added to the `deps/` recipe. The session worked around it by building Sentry into a scratch folder and passing `-Dsentry_DIR`. Kenneth called that hacky and asked for the right way.
+
+The right way, which he approved ("Okay, turn the main session to do it the right way."), copies what CI already does. `jusprin_release_build.yml` keys its library cache on `hashFiles('deps/**')`, so any recipe change forces a rebuild. Locally:
+1. When the shared library folder is built, save a fingerprint of the `deps/` recipe inside it.
+2. Add a small script that compares that saved fingerprint with the current recipe's before a build. If they differ, it says the folder is out of date and runs the library build to update it. The jusprin-release skill's build step calls this script first, in place of any workaround. Other agents' builds can call it too.
+3. Bring `deps/build/arm64` up to date once now, for Sentry. Measure whether the library build recompiles only the changed library or everything, and report how long it took.
+
+Also fix the other skill gap the audit found. Production answers 409 for `/ent/jusprin/v2/auth/code/confirm`, but the skill's list of answers meaning "the address is there" omits 409. Make it say any 4xx except 404.
+
+Don't commit to jusprin-dev while the release session (local_2074156d-1076-46e0-82da-c2a72b758caa) has yet to land 2.0.1: an unpushed commit in the main checkout would make its landing step's pull refuse. Ask Kenneth before pushing. He also wants as few commits as possible.
+</cross-session-message>
