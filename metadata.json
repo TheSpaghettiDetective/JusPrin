@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7QGBYEVD92TGPW8PGZQWRPD",
   "strategy": "manual-commit",
   "branch": "claude/fix-sentry-release-builds",
-  "checkpoints_count": 3,
+  "checkpoints_count": 4,
   "files_touched": [
     ".github/workflows/jusprin_release_build.yml",
     "src/slic3r/GUI/JusPrin/Packaging/sentry_debug_files.sh"
@@ -21,6 +21,13 @@
       "transcript": "/1/full.jsonl",
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
+      "prompt": ""
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
       "prompt": ""
     }
   ],
