@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7P15ZSWZHD6Q7FPFJY0J8X7",
   "strategy": "manual-commit",
   "branch": "jusprin-dev",
-  "checkpoints_count": 3,
+  "checkpoints_count": 4,
   "files_touched": [
     ".claude/skills/jusprin-release/SKILL.md"
   ],
@@ -21,13 +21,20 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 44,
-    "cache_creation_tokens": 28313,
-    "cache_read_tokens": 5375287,
-    "output_tokens": 13144,
-    "api_call_count": 22
+    "input_tokens": 74,
+    "cache_creation_tokens": 51931,
+    "cache_read_tokens": 9667653,
+    "output_tokens": 25500,
+    "api_call_count": 37
   }
 }
