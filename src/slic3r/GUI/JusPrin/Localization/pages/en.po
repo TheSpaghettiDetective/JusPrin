@@ -3493,10 +3493,6 @@ msgstr "This is an internal connection inside JusPrin, not a network service. Th
 msgid "This JusPrin build cannot list the settings."
 msgstr "This JusPrin build cannot list the settings."
 
-#: src/components/AgentConnection.tsx
-msgid "This key works now, but JusPrin couldn’t save it."
-msgstr "This key works now, but JusPrin couldn’t save it."
-
 #: src/components/SetupLocalTool.tsx
 msgid "This tool isn’t installed."
 msgstr "This tool isn’t installed."
@@ -3789,10 +3785,6 @@ msgstr "You have {current}"
 #: src/components/SetupLocalTool.tsx
 msgid "You won’t need to set this up again after a normal JusPrin restart."
 msgstr "You won’t need to set this up again after a normal JusPrin restart."
-
-#: src/components/AgentConnection.tsx
-msgid "You’ll need to add it again after JusPrin restarts."
-msgstr "You’ll need to add it again after JusPrin restarts."
 
 #: src/components/AgentConnection.tsx
 msgid "Your account and AI setup stay intact. Your own key or AI tool still works meanwhile."

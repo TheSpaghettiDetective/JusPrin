@@ -4329,11 +4329,6 @@ msgid "This JusPrin build cannot list the settings."
 msgstr "Den här JusPrin-versionen kan inte lista inställningarna."
 
 # AI Translated
-#: src/components/AgentConnection.tsx
-msgid "This key works now, but JusPrin couldn’t save it."
-msgstr "Nyckeln fungerar nu, men JusPrin kunde inte spara den."
-
-# AI Translated
 #: src/components/SetupLocalTool.tsx
 msgid "This tool isn’t installed."
 msgstr "Verktyget är inte installerat."
@@ -4694,11 +4689,6 @@ msgstr "Du har {current}"
 #: src/components/SetupLocalTool.tsx
 msgid "You won’t need to set this up again after a normal JusPrin restart."
 msgstr "Du behöver inte konfigurera detta igen efter en vanlig omstart av JusPrin."
-
-# AI Translated
-#: src/components/AgentConnection.tsx
-msgid "You’ll need to add it again after JusPrin restarts."
-msgstr "Du måste lägga till den igen när JusPrin har startat om."
 
 # AI Translated
 #: src/components/AgentConnection.tsx

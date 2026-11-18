@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15 18:58-0800\n"
+"POT-Creation-Date: 2026-11-17 17:55-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,6 +17,9 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+msgid "Something went wrong on our side"
+msgstr ""
 
 msgid "Project chat is blocked until restoration is recovered."
 msgstr ""
@@ -40,9 +43,6 @@ msgid "This file type can't be read by AI."
 msgstr ""
 
 msgid "This file is not readable UTF-8 text."
-msgstr ""
-
-msgid "The attachment could not be stored."
 msgstr ""
 
 msgid "Photo or image"
@@ -124,15 +124,6 @@ msgstr ""
 msgid "Finish or resolve pending work before creating a chat."
 msgstr ""
 
-msgid "The current chat could not be saved."
-msgstr ""
-
-msgid "The new chat could not be saved."
-msgstr ""
-
-msgid "The selected chat could not be saved."
-msgstr ""
-
 msgid "The project or selected chat changed. Review it again."
 msgstr ""
 
@@ -145,12 +136,6 @@ msgstr ""
 msgid "JusPrin can't find the project version this chat was working on."
 msgstr ""
 
-msgid "The current project could not be saved before restoration."
-msgstr ""
-
-msgid "JusPrin couldn't put the project back."
-msgstr ""
-
 msgid "Restored this chat's saved project setup. Check the current printer and material before printing."
 msgstr ""
 
@@ -161,9 +146,6 @@ msgid "This chat is still working. Stop it or let it finish, then delete it."
 msgstr ""
 
 msgid "This chat no longer exists."
-msgstr ""
-
-msgid "The replacement chat could not be saved."
 msgstr ""
 
 msgid "Historical chats cannot edit the current draft."
@@ -203,12 +185,6 @@ msgid "There is no JusPrin account on this computer to check."
 msgstr ""
 
 msgid "JusPrin couldn't sign you in. Try again."
-msgstr ""
-
-msgid "This sign-in could not be saved, so you will have to sign in again next time JusPrin starts."
-msgstr ""
-
-msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
 msgstr ""
 
 msgid "The AI service is not available."
@@ -310,27 +286,15 @@ msgstr ""
 msgid "Bridge traffic: %1% sent / %2% received"
 msgstr ""
 
-msgid "The AI service returned an unreadable streaming response."
-msgstr ""
-
-msgid "The AI service streamed a delta for a block it never opened."
-msgstr ""
-
-msgid "The AI service sent a tool call whose arguments are not JSON."
-msgstr ""
-
-msgid "The AI service could not complete the response."
-msgstr ""
-
 #. TRN %1% is the AI service's own reason, in English, such as "cyber".
 #, boost-format
 msgid "The AI service declined to answer (%1%)."
 msgstr ""
 
-msgid "The AI service ended its response for a reason this build does not know."
+msgid "This version of JusPrin can no longer connect to JusPrin accounts. Get the new version to keep using your account."
 msgstr ""
 
-msgid "This version of JusPrin can no longer connect to JusPrin accounts. Get the new version to keep using your account."
+msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
 msgstr ""
 
 msgid "Signing in didn't finish. Nothing was saved. Try again."
@@ -352,46 +316,9 @@ msgstr ""
 msgid "Attachment"
 msgstr ""
 
-msgid "The AI service stopped before finishing its response."
-msgstr ""
-
-msgid "The AI service kept pausing its response."
-msgstr ""
-
-msgid "AI could not be asked to continue its response."
-msgstr ""
-
-msgid "AI could not be told the results of its tool calls."
-msgstr ""
-
-msgid "AI returned an invalid tool call."
-msgstr ""
-
-msgid "The AI service ended before a complete response arrived."
-msgstr ""
-
-msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
-msgstr ""
-
-msgid "That photo could not be read."
-msgstr ""
-
-#. TRN The print report form, about a photo over the server's limit of 20 MB.
-msgid "That photo is larger than 20 MB. Choose a smaller photo, then send the report again."
-msgstr ""
-
-#, boost-format
-msgid "This message needs %1% credit; you have %2%."
-msgid_plural "This message needs %1% credits; you have %2%."
-msgstr[0] ""
-msgstr[1] ""
-
-msgid "You're out of credits."
-msgstr ""
-
 #. TRN %1% is an AI provider, such as OpenAI.
 #, boost-format
-msgid "The %1% API key was rejected. Update the AI configuration and try again."
+msgid "The %1% service is rate limited. Try again shortly."
 msgstr ""
 
 #. TRN %1% is an AI provider, such as OpenAI.
@@ -401,28 +328,18 @@ msgstr ""
 
 #. TRN %1% is an AI provider, such as OpenAI.
 #, boost-format
-msgid "The %1% service is rate limited. Try again shortly."
-msgstr ""
-
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The %1% service is overloaded. Try again shortly."
-msgstr ""
-
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The %1% service is temporarily unavailable."
-msgstr ""
-
-msgid "The AI request timed out."
-msgstr ""
-
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
 msgid "The AI request could not reach the %1% service."
 msgstr ""
 
-msgid "The AI service response did not contain valid output."
+#, boost-format
+msgid "This message needs %1% credit; you have %2%."
+msgid_plural "This message needs %1% credits; you have %2%."
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% API key was rejected. Update the AI configuration and try again."
 msgstr ""
 
 #. TRN A button that asks the AI to choose another block of a calibration test.
@@ -629,13 +546,6 @@ msgid "Photos"
 msgstr ""
 
 #, c-format, boost-format
-msgid "%s couldn't be opened. Try opening it with Open… instead."
-msgstr ""
-
-msgid "Couldn't open file"
-msgstr ""
-
-#, c-format, boost-format
 msgid "Import from %s"
 msgstr ""
 
@@ -696,19 +606,26 @@ msgstr ""
 msgid "JusPrin found no %1% printers in that folder. If %1% keeps its settings somewhere else, choose that folder."
 msgstr ""
 
+#. TRN The print report form, about a photo over the server's limit of 20 MB.
+msgid "That photo is larger than 20 MB. Choose a smaller photo, then send the report again."
+msgstr ""
+
+msgid "That photo could not be read."
+msgstr ""
+
 msgid "The printer's page didn't load"
 msgstr ""
 
 msgid "Try again"
 msgstr ""
 
-#, c-format, boost-format
-msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
-msgstr ""
-
 #. TRN %s is the printer's address without its scheme, such as 192.168.1.42:7125. Printer settings is the printer's settings window.
 #, c-format, boost-format
 msgid "The printer at %s answered, but JusPrin couldn't check its secure connection. If the printer's address starts with https://, change it to http:// in Printer settings, then try again."
+msgstr ""
+
+#, c-format, boost-format
+msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
 msgstr ""
 
 msgid "Client configuration is a symbolic link. Use Copy and update its target manually."
@@ -1188,9 +1105,6 @@ msgstr ""
 msgid "Switch to JusPrin view"
 msgstr ""
 
-msgid "Something went wrong on our side"
-msgstr ""
-
 msgid "You can report this to the JusPrin team so they can fix it. The report is anonymous: it has no chat messages, no files and nothing that says who you are."
 msgstr ""
 
@@ -1498,6 +1412,9 @@ msgid "Assembly guide"
 msgstr ""
 
 msgid "Attachments"
+msgstr ""
+
+msgid "Couldn't open file"
 msgstr ""
 
 msgid "The file couldn't be opened."

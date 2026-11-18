@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15 18:58-0800\n"
+"POT-Creation-Date: 2026-11-17 17:55-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,6 +16,10 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
+
+# AI Translated
+msgid "Something went wrong on our side"
+msgstr "저희 쪽에서 문제가 발생했습니다"
 
 # AI Translated
 msgid "Project chat is blocked until restoration is recovered."
@@ -48,10 +52,6 @@ msgstr "AI가 읽을 수 없는 파일 형식입니다."
 # AI Translated
 msgid "This file is not readable UTF-8 text."
 msgstr "이 파일은 읽을 수 있는 UTF-8 텍스트가 아닙니다."
-
-# AI Translated
-msgid "The attachment could not be stored."
-msgstr "첨부 파일을 저장할 수 없습니다."
 
 # AI Translated
 msgid "Photo or image"
@@ -154,18 +154,6 @@ msgid "Finish or resolve pending work before creating a chat."
 msgstr "채팅을 만들기 전에 대기 중인 작업을 완료하거나 해결하세요."
 
 # AI Translated
-msgid "The current chat could not be saved."
-msgstr "현재 채팅을 저장할 수 없습니다."
-
-# AI Translated
-msgid "The new chat could not be saved."
-msgstr "새 채팅을 저장할 수 없습니다."
-
-# AI Translated
-msgid "The selected chat could not be saved."
-msgstr "선택한 채팅을 저장할 수 없습니다."
-
-# AI Translated
 msgid "The project or selected chat changed. Review it again."
 msgstr "프로젝트나 선택한 채팅이 변경되었습니다. 다시 검토하세요."
 
@@ -182,14 +170,6 @@ msgid "JusPrin can't find the project version this chat was working on."
 msgstr "JusPrin에서 이 채팅이 작업하던 프로젝트 버전을 찾을 수 없습니다."
 
 # AI Translated
-msgid "The current project could not be saved before restoration."
-msgstr "복원 전에 현재 프로젝트를 저장할 수 없습니다."
-
-# AI Translated
-msgid "JusPrin couldn't put the project back."
-msgstr "JusPrin에서 프로젝트를 되돌리지 못했습니다."
-
-# AI Translated
 msgid "Restored this chat's saved project setup. Check the current printer and material before printing."
 msgstr "이 채팅에 저장된 프로젝트 설정을 복원했습니다. 출력하기 전에 현재 프린터와 재료를 확인하세요."
 
@@ -204,10 +184,6 @@ msgstr "이 채팅은 아직 작업 중입니다. 중지하거나 완료될 때�
 # AI Translated
 msgid "This chat no longer exists."
 msgstr "이 채팅은 더 이상 존재하지 않습니다."
-
-# AI Translated
-msgid "The replacement chat could not be saved."
-msgstr "대체 채팅을 저장할 수 없습니다."
 
 # AI Translated
 msgid "Historical chats cannot edit the current draft."
@@ -260,14 +236,6 @@ msgstr "이 컴퓨터에는 확인할 JusPrin 계정이 없습니다."
 # AI Translated
 msgid "JusPrin couldn't sign you in. Try again."
 msgstr "JusPrin에서 로그인하지 못했습니다. 다시 시도하세요."
-
-# AI Translated
-msgid "This sign-in could not be saved, so you will have to sign in again next time JusPrin starts."
-msgstr "이 로그인 정보를 저장할 수 없어 다음에 JusPrin을 시작할 때 다시 로그인해야 합니다."
-
-# AI Translated
-msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
-msgstr "이 키를 저장할 수 없어 다음에 JusPrin을 시작할 때 다시 입력해야 합니다."
 
 # AI Translated
 msgid "The AI service is not available."
@@ -398,34 +366,18 @@ msgid "Bridge traffic: %1% sent / %2% received"
 msgstr "브리지 트래픽: 보냄 %1% / 받음 %2%"
 
 # AI Translated
-msgid "The AI service returned an unreadable streaming response."
-msgstr "AI 서비스가 읽을 수 없는 스트리밍 응답을 반환했습니다."
-
-# AI Translated
-msgid "The AI service streamed a delta for a block it never opened."
-msgstr "AI 서비스가 열지 않은 블록에 대한 델타를 스트리밍했습니다."
-
-# AI Translated
-msgid "The AI service sent a tool call whose arguments are not JSON."
-msgstr "AI 서비스가 인수가 JSON이 아닌 도구 호출을 보냈습니다."
-
-# AI Translated
-msgid "The AI service could not complete the response."
-msgstr "AI 서비스가 응답을 완료하지 못했습니다."
-
-# AI Translated
 #. TRN %1% is the AI service's own reason, in English, such as "cyber".
 #, boost-format
 msgid "The AI service declined to answer (%1%)."
 msgstr "AI 서비스가 응답을 거부했습니다(%1%)."
 
 # AI Translated
-msgid "The AI service ended its response for a reason this build does not know."
-msgstr "AI 서비스가 이 빌드에서 알 수 없는 이유로 응답을 종료했습니다."
-
-# AI Translated
 msgid "This version of JusPrin can no longer connect to JusPrin accounts. Get the new version to keep using your account."
 msgstr "이 버전의 JusPrin은 더 이상 JusPrin 계정에 연결할 수 없습니다. 계정을 계속 사용하려면 새 버전을 받으세요."
+
+# AI Translated
+msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
+msgstr "JusPrin 로그인이 만료되었습니다. 기본 설정에서 다시 로그인한 후 다시 시도하세요."
 
 # AI Translated
 msgid "Signing in didn't finish. Nothing was saved. Try again."
@@ -453,57 +405,10 @@ msgid "Attachment"
 msgstr "첨부 파일"
 
 # AI Translated
-msgid "The AI service stopped before finishing its response."
-msgstr "AI 서비스가 응답을 완료하기 전에 중지되었습니다."
-
-# AI Translated
-msgid "The AI service kept pausing its response."
-msgstr "AI 서비스가 응답 중에 계속 멈췄습니다."
-
-# AI Translated
-msgid "AI could not be asked to continue its response."
-msgstr "AI에게 응답을 계속하도록 요청할 수 없습니다."
-
-# AI Translated
-msgid "AI could not be told the results of its tool calls."
-msgstr "AI에게 도구 호출 결과를 전달할 수 없습니다."
-
-# AI Translated
-msgid "AI returned an invalid tool call."
-msgstr "AI가 잘못된 도구 호출을 반환했습니다."
-
-# AI Translated
-msgid "The AI service ended before a complete response arrived."
-msgstr "완전한 응답을 받기 전에 AI 서비스가 종료되었습니다."
-
-# AI Translated
-msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
-msgstr "JusPrin 로그인이 만료되었습니다. 기본 설정에서 다시 로그인한 후 다시 시도하세요."
-
-# AI Translated
-msgid "That photo could not be read."
-msgstr "이 사진을 읽을 수 없습니다."
-
-# AI Translated
-#. TRN The print report form, about a photo over the server's limit of 20 MB.
-msgid "That photo is larger than 20 MB. Choose a smaller photo, then send the report again."
-msgstr "이 사진은 20MB보다 큽니다. 더 작은 사진을 선택한 후 보고서를 다시 보내세요."
-
-# AI Translated
-#, boost-format
-msgid "This message needs %1% credit; you have %2%."
-msgid_plural "This message needs %1% credits; you have %2%."
-msgstr[0] "이 메시지에는 %1% 크레딧이 필요합니다. 보유 크레딧은 %2%입니다."
-
-# AI Translated
-msgid "You're out of credits."
-msgstr "크레딧이 모두 소진되었습니다."
-
-# AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.
 #, boost-format
-msgid "The %1% API key was rejected. Update the AI configuration and try again."
-msgstr "%1% API 키가 거부되었습니다. AI 구성을 업데이트하고 다시 시도하세요."
+msgid "The %1% service is rate limited. Try again shortly."
+msgstr "%1% 서비스의 요청 한도에 도달했습니다. 잠시 후 다시 시도하세요."
 
 # AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.
@@ -514,34 +419,20 @@ msgstr "%1% 서비스에 보내기에는 요청이 너무 큽니다."
 # AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.
 #, boost-format
-msgid "The %1% service is rate limited. Try again shortly."
-msgstr "%1% 서비스의 요청 한도에 도달했습니다. 잠시 후 다시 시도하세요."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The %1% service is overloaded. Try again shortly."
-msgstr "%1% 서비스가 과부하 상태입니다. 잠시 후 다시 시도하세요."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The %1% service is temporarily unavailable."
-msgstr "%1% 서비스를 일시적으로 사용할 수 없습니다."
-
-# AI Translated
-msgid "The AI request timed out."
-msgstr "AI 요청 시간이 초과되었습니다."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
 msgid "The AI request could not reach the %1% service."
 msgstr "AI 요청이 %1% 서비스에 연결하지 못했습니다."
 
 # AI Translated
-msgid "The AI service response did not contain valid output."
-msgstr "AI 서비스 응답에 유효한 출력이 없습니다."
+#, boost-format
+msgid "This message needs %1% credit; you have %2%."
+msgid_plural "This message needs %1% credits; you have %2%."
+msgstr[0] "이 메시지에는 %1% 크레딧이 필요합니다. 보유 크레딧은 %2%입니다."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% API key was rejected. Update the AI configuration and try again."
+msgstr "%1% API 키가 거부되었습니다. AI 구성을 업데이트하고 다시 시도하세요."
 
 # AI Translated
 #. TRN A button that asks the AI to choose another block of a calibration test.
@@ -802,15 +693,6 @@ msgstr "사진"
 
 # AI Translated
 #, c-format, boost-format
-msgid "%s couldn't be opened. Try opening it with Open… instead."
-msgstr "%s을(를) 열 수 없습니다. 대신 열기…로 열어 보세요."
-
-# AI Translated
-msgid "Couldn't open file"
-msgstr "파일을 열 수 없음"
-
-# AI Translated
-#, c-format, boost-format
 msgid "Import from %s"
 msgstr "%s에서 가져오기"
 
@@ -886,6 +768,15 @@ msgid "JusPrin found no %1% printers in that folder. If %1% keeps its settings s
 msgstr "JusPrin에서 해당 폴더에 %1% 프린터를 찾지 못했습니다. %1%이(가) 설정을 다른 곳에 보관한다면 그 폴더를 선택하세요."
 
 # AI Translated
+#. TRN The print report form, about a photo over the server's limit of 20 MB.
+msgid "That photo is larger than 20 MB. Choose a smaller photo, then send the report again."
+msgstr "이 사진은 20MB보다 큽니다. 더 작은 사진을 선택한 후 보고서를 다시 보내세요."
+
+# AI Translated
+msgid "That photo could not be read."
+msgstr "이 사진을 읽을 수 없습니다."
+
+# AI Translated
 msgid "The printer's page didn't load"
 msgstr "프린터 페이지를 불러오지 못했습니다"
 
@@ -894,15 +785,15 @@ msgid "Try again"
 msgstr "다시 시도"
 
 # AI Translated
-#, c-format, boost-format
-msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
-msgstr "%s에서 응답이 없습니다. 프린터가 켜져 있고 이 컴퓨터와 같은 네트워크에 있는지 확인한 후 다시 시도하세요."
-
-# AI Translated
 #. TRN %s is the printer's address without its scheme, such as 192.168.1.42:7125. Printer settings is the printer's settings window.
 #, c-format, boost-format
 msgid "The printer at %s answered, but JusPrin couldn't check its secure connection. If the printer's address starts with https://, change it to http:// in Printer settings, then try again."
 msgstr "%s의 프린터가 응답했지만 JusPrin이 보안 연결을 확인할 수 없습니다. 프린터 주소가 https://로 시작하면 프린터 설정에서 http://로 변경한 후 다시 시도하세요."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
+msgstr "%s에서 응답이 없습니다. 프린터가 켜져 있고 이 컴퓨터와 같은 네트워크에 있는지 확인한 후 다시 시도하세요."
 
 # AI Translated
 msgid "Client configuration is a symbolic link. Use Copy and update its target manually."
@@ -1513,10 +1404,6 @@ msgid "Switch to JusPrin view"
 msgstr "JusPrin 보기로 전환"
 
 # AI Translated
-msgid "Something went wrong on our side"
-msgstr "저희 쪽에서 문제가 발생했습니다"
-
-# AI Translated
 msgid "You can report this to the JusPrin team so they can fix it. The report is anonymous: it has no chat messages, no files and nothing that says who you are."
 msgstr "JusPrin 팀에 보고하면 팀에서 문제를 고칠 수 있습니다. 보고서는 익명이며 채팅 메시지, 파일, 사용자를 식별할 수 있는 정보는 포함되지 않습니다."
 
@@ -1911,6 +1798,10 @@ msgstr "조립 가이드"
 # AI Translated
 msgid "Attachments"
 msgstr "첨부 파일"
+
+# AI Translated
+msgid "Couldn't open file"
+msgstr "파일을 열 수 없음"
 
 # AI Translated
 msgid "The file couldn't be opened."
@@ -2344,6 +2235,113 @@ msgstr "이 프로젝트는 최신 버전의 JusPrin에서 저장되었습니다
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "프로젝트를 열 수 없습니다. 다시 시도하세요."
+
+# AI Translated
+#~ msgid "The attachment could not be stored."
+#~ msgstr "첨부 파일을 저장할 수 없습니다."
+
+# AI Translated
+#~ msgid "The current chat could not be saved."
+#~ msgstr "현재 채팅을 저장할 수 없습니다."
+
+# AI Translated
+#~ msgid "The new chat could not be saved."
+#~ msgstr "새 채팅을 저장할 수 없습니다."
+
+# AI Translated
+#~ msgid "The selected chat could not be saved."
+#~ msgstr "선택한 채팅을 저장할 수 없습니다."
+
+# AI Translated
+#~ msgid "The current project could not be saved before restoration."
+#~ msgstr "복원 전에 현재 프로젝트를 저장할 수 없습니다."
+
+# AI Translated
+#~ msgid "JusPrin couldn't put the project back."
+#~ msgstr "JusPrin에서 프로젝트를 되돌리지 못했습니다."
+
+# AI Translated
+#~ msgid "The replacement chat could not be saved."
+#~ msgstr "대체 채팅을 저장할 수 없습니다."
+
+# AI Translated
+#~ msgid "This sign-in could not be saved, so you will have to sign in again next time JusPrin starts."
+#~ msgstr "이 로그인 정보를 저장할 수 없어 다음에 JusPrin을 시작할 때 다시 로그인해야 합니다."
+
+# AI Translated
+#~ msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
+#~ msgstr "이 키를 저장할 수 없어 다음에 JusPrin을 시작할 때 다시 입력해야 합니다."
+
+# AI Translated
+#~ msgid "The AI service returned an unreadable streaming response."
+#~ msgstr "AI 서비스가 읽을 수 없는 스트리밍 응답을 반환했습니다."
+
+# AI Translated
+#~ msgid "The AI service streamed a delta for a block it never opened."
+#~ msgstr "AI 서비스가 열지 않은 블록에 대한 델타를 스트리밍했습니다."
+
+# AI Translated
+#~ msgid "The AI service sent a tool call whose arguments are not JSON."
+#~ msgstr "AI 서비스가 인수가 JSON이 아닌 도구 호출을 보냈습니다."
+
+# AI Translated
+#~ msgid "The AI service could not complete the response."
+#~ msgstr "AI 서비스가 응답을 완료하지 못했습니다."
+
+# AI Translated
+#~ msgid "The AI service ended its response for a reason this build does not know."
+#~ msgstr "AI 서비스가 이 빌드에서 알 수 없는 이유로 응답을 종료했습니다."
+
+# AI Translated
+#~ msgid "The AI service stopped before finishing its response."
+#~ msgstr "AI 서비스가 응답을 완료하기 전에 중지되었습니다."
+
+# AI Translated
+#~ msgid "The AI service kept pausing its response."
+#~ msgstr "AI 서비스가 응답 중에 계속 멈췄습니다."
+
+# AI Translated
+#~ msgid "AI could not be asked to continue its response."
+#~ msgstr "AI에게 응답을 계속하도록 요청할 수 없습니다."
+
+# AI Translated
+#~ msgid "AI could not be told the results of its tool calls."
+#~ msgstr "AI에게 도구 호출 결과를 전달할 수 없습니다."
+
+# AI Translated
+#~ msgid "AI returned an invalid tool call."
+#~ msgstr "AI가 잘못된 도구 호출을 반환했습니다."
+
+# AI Translated
+#~ msgid "The AI service ended before a complete response arrived."
+#~ msgstr "완전한 응답을 받기 전에 AI 서비스가 종료되었습니다."
+
+# AI Translated
+#~ msgid "You're out of credits."
+#~ msgstr "크레딧이 모두 소진되었습니다."
+
+# AI Translated
+#, boost-format
+#~ msgid "The %1% service is overloaded. Try again shortly."
+#~ msgstr "%1% 서비스가 과부하 상태입니다. 잠시 후 다시 시도하세요."
+
+# AI Translated
+#, boost-format
+#~ msgid "The %1% service is temporarily unavailable."
+#~ msgstr "%1% 서비스를 일시적으로 사용할 수 없습니다."
+
+# AI Translated
+#~ msgid "The AI request timed out."
+#~ msgstr "AI 요청 시간이 초과되었습니다."
+
+# AI Translated
+#~ msgid "The AI service response did not contain valid output."
+#~ msgstr "AI 서비스 응답에 유효한 출력이 없습니다."
+
+# AI Translated
+#, c-format, boost-format
+#~ msgid "%s couldn't be opened. Try opening it with Open… instead."
+#~ msgstr "%s을(를) 열 수 없습니다. 대신 열기…로 열어 보세요."
 
 # AI Translated
 #~ msgid "The file could not be read."

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15 18:58-0800\n"
+"POT-Creation-Date: 2026-11-17 17:55-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,6 +16,10 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+# AI Translated
+msgid "Something went wrong on our side"
+msgstr "Algo ha fallado por nuestra parte"
 
 # AI Translated
 # Needs human review: "restoration is recovered" is unclear in the English; check what state this describes.
@@ -49,10 +53,6 @@ msgstr "La IA no puede leer este tipo de archivo."
 # AI Translated
 msgid "This file is not readable UTF-8 text."
 msgstr "Este archivo no es texto UTF-8 legible."
-
-# AI Translated
-msgid "The attachment could not be stored."
-msgstr "No se ha podido guardar el archivo adjunto."
 
 # AI Translated
 msgid "Photo or image"
@@ -157,18 +157,6 @@ msgid "Finish or resolve pending work before creating a chat."
 msgstr "Termine o resuelva el trabajo pendiente antes de crear un chat."
 
 # AI Translated
-msgid "The current chat could not be saved."
-msgstr "No se ha podido guardar el chat actual."
-
-# AI Translated
-msgid "The new chat could not be saved."
-msgstr "No se ha podido guardar el chat nuevo."
-
-# AI Translated
-msgid "The selected chat could not be saved."
-msgstr "No se ha podido guardar el chat seleccionado."
-
-# AI Translated
 msgid "The project or selected chat changed. Review it again."
 msgstr "El proyecto o el chat seleccionado han cambiado. Revíselo de nuevo."
 
@@ -185,14 +173,6 @@ msgid "JusPrin can't find the project version this chat was working on."
 msgstr "JusPrin no encuentra la versión del proyecto con la que trabajaba este chat."
 
 # AI Translated
-msgid "The current project could not be saved before restoration."
-msgstr "No se ha podido guardar el proyecto actual antes de la restauración."
-
-# AI Translated
-msgid "JusPrin couldn't put the project back."
-msgstr "JusPrin no ha podido restaurar el proyecto."
-
-# AI Translated
 msgid "Restored this chat's saved project setup. Check the current printer and material before printing."
 msgstr "Se ha restaurado la configuración del proyecto guardada en este chat. Compruebe la impresora y el material actuales antes de imprimir."
 
@@ -207,10 +187,6 @@ msgstr "Este chat sigue trabajando. Deténgalo o deje que termine y luego elimí
 # AI Translated
 msgid "This chat no longer exists."
 msgstr "Este chat ya no existe."
-
-# AI Translated
-msgid "The replacement chat could not be saved."
-msgstr "No se ha podido guardar el chat de reemplazo."
 
 # AI Translated
 msgid "Historical chats cannot edit the current draft."
@@ -263,14 +239,6 @@ msgstr "No hay ninguna cuenta de JusPrin en este ordenador que comprobar."
 # AI Translated
 msgid "JusPrin couldn't sign you in. Try again."
 msgstr "JusPrin no ha podido iniciar su sesión. Inténtelo de nuevo."
-
-# AI Translated
-msgid "This sign-in could not be saved, so you will have to sign in again next time JusPrin starts."
-msgstr "No se ha podido guardar este inicio de sesión, así que tendrá que volver a iniciar sesión la próxima vez que se abra JusPrin."
-
-# AI Translated
-msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
-msgstr "No se ha podido guardar esta clave, así que tendrá que volver a introducirla la próxima vez que se abra JusPrin."
 
 # AI Translated
 msgid "The AI service is not available."
@@ -401,34 +369,18 @@ msgid "Bridge traffic: %1% sent / %2% received"
 msgstr "Tráfico del puente: %1% enviados / %2% recibidos"
 
 # AI Translated
-msgid "The AI service returned an unreadable streaming response."
-msgstr "El servicio de IA ha devuelto una respuesta en streaming ilegible."
-
-# AI Translated
-msgid "The AI service streamed a delta for a block it never opened."
-msgstr "El servicio de IA ha transmitido un fragmento de un bloque que nunca abrió."
-
-# AI Translated
-msgid "The AI service sent a tool call whose arguments are not JSON."
-msgstr "El servicio de IA ha enviado una llamada a herramienta cuyos argumentos no son JSON."
-
-# AI Translated
-msgid "The AI service could not complete the response."
-msgstr "El servicio de IA no ha podido completar la respuesta."
-
-# AI Translated
 #. TRN %1% is the AI service's own reason, in English, such as "cyber".
 #, boost-format
 msgid "The AI service declined to answer (%1%)."
 msgstr "El servicio de IA se ha negado a responder (%1%)."
 
 # AI Translated
-msgid "The AI service ended its response for a reason this build does not know."
-msgstr "El servicio de IA ha terminado su respuesta por un motivo que esta versión no conoce."
-
-# AI Translated
 msgid "This version of JusPrin can no longer connect to JusPrin accounts. Get the new version to keep using your account."
 msgstr "Esta versión de JusPrin ya no puede conectarse a las cuentas de JusPrin. Descargue la nueva versión para seguir usando su cuenta."
+
+# AI Translated
+msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
+msgstr "Su sesión de JusPrin ha caducado. Vuelva a iniciar sesión en Preferencias e inténtelo de nuevo."
 
 # AI Translated
 msgid "Signing in didn't finish. Nothing was saved. Try again."
@@ -456,58 +408,10 @@ msgid "Attachment"
 msgstr "Archivo adjunto"
 
 # AI Translated
-msgid "The AI service stopped before finishing its response."
-msgstr "El servicio de IA se ha detenido antes de terminar su respuesta."
-
-# AI Translated
-msgid "The AI service kept pausing its response."
-msgstr "El servicio de IA ha pausado su respuesta repetidamente."
-
-# AI Translated
-msgid "AI could not be asked to continue its response."
-msgstr "No se ha podido pedir a la IA que continúe su respuesta."
-
-# AI Translated
-msgid "AI could not be told the results of its tool calls."
-msgstr "No se ha podido comunicar a la IA los resultados de sus llamadas a herramientas."
-
-# AI Translated
-msgid "AI returned an invalid tool call."
-msgstr "La IA ha devuelto una llamada a herramienta no válida."
-
-# AI Translated
-msgid "The AI service ended before a complete response arrived."
-msgstr "El servicio de IA ha terminado antes de que llegara una respuesta completa."
-
-# AI Translated
-msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
-msgstr "Su sesión de JusPrin ha caducado. Vuelva a iniciar sesión en Preferencias e inténtelo de nuevo."
-
-# AI Translated
-msgid "That photo could not be read."
-msgstr "No se pudo leer esa foto."
-
-# AI Translated
-#. TRN The print report form, about a photo over the server's limit of 20 MB.
-msgid "That photo is larger than 20 MB. Choose a smaller photo, then send the report again."
-msgstr "Esa foto ocupa más de 20 MB. Elija una foto más pequeña y vuelva a enviar el informe."
-
-# AI Translated
-#, boost-format
-msgid "This message needs %1% credit; you have %2%."
-msgid_plural "This message needs %1% credits; you have %2%."
-msgstr[0] "Este mensaje necesita %1% crédito; tiene %2%."
-msgstr[1] "Este mensaje necesita %1% créditos; tiene %2%."
-
-# AI Translated
-msgid "You're out of credits."
-msgstr "Se ha quedado sin créditos."
-
-# AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.
 #, boost-format
-msgid "The %1% API key was rejected. Update the AI configuration and try again."
-msgstr "Se ha rechazado la clave API de %1%. Actualice la configuración de la IA e inténtelo de nuevo."
+msgid "The %1% service is rate limited. Try again shortly."
+msgstr "El servicio de %1% ha limitado las solicitudes. Inténtelo de nuevo en breve."
 
 # AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.
@@ -518,34 +422,21 @@ msgstr "La solicitud era demasiado grande para el servicio de %1%."
 # AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.
 #, boost-format
-msgid "The %1% service is rate limited. Try again shortly."
-msgstr "El servicio de %1% ha limitado las solicitudes. Inténtelo de nuevo en breve."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The %1% service is overloaded. Try again shortly."
-msgstr "El servicio de %1% está sobrecargado. Inténtelo de nuevo en breve."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The %1% service is temporarily unavailable."
-msgstr "El servicio de %1% no está disponible temporalmente."
-
-# AI Translated
-msgid "The AI request timed out."
-msgstr "Se ha agotado el tiempo de espera de la solicitud a la IA."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
 msgid "The AI request could not reach the %1% service."
 msgstr "La solicitud a la IA no ha podido llegar al servicio de %1%."
 
 # AI Translated
-msgid "The AI service response did not contain valid output."
-msgstr "La respuesta del servicio de IA no contenía una salida válida."
+#, boost-format
+msgid "This message needs %1% credit; you have %2%."
+msgid_plural "This message needs %1% credits; you have %2%."
+msgstr[0] "Este mensaje necesita %1% crédito; tiene %2%."
+msgstr[1] "Este mensaje necesita %1% créditos; tiene %2%."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% API key was rejected. Update the AI configuration and try again."
+msgstr "Se ha rechazado la clave API de %1%. Actualice la configuración de la IA e inténtelo de nuevo."
 
 # AI Translated
 #. TRN A button that asks the AI to choose another block of a calibration test.
@@ -806,15 +697,6 @@ msgstr "Fotos"
 
 # AI Translated
 #, c-format, boost-format
-msgid "%s couldn't be opened. Try opening it with Open… instead."
-msgstr "No se ha podido abrir %s. Pruebe a abrirlo con Abrir… en su lugar."
-
-# AI Translated
-msgid "Couldn't open file"
-msgstr "No se ha podido abrir el archivo"
-
-# AI Translated
-#, c-format, boost-format
 msgid "Import from %s"
 msgstr "Importar desde %s"
 
@@ -890,6 +772,15 @@ msgid "JusPrin found no %1% printers in that folder. If %1% keeps its settings s
 msgstr "JusPrin no ha encontrado impresoras de %1% en esa carpeta. Si %1% guarda sus ajustes en otro lugar, elija esa carpeta."
 
 # AI Translated
+#. TRN The print report form, about a photo over the server's limit of 20 MB.
+msgid "That photo is larger than 20 MB. Choose a smaller photo, then send the report again."
+msgstr "Esa foto ocupa más de 20 MB. Elija una foto más pequeña y vuelva a enviar el informe."
+
+# AI Translated
+msgid "That photo could not be read."
+msgstr "No se pudo leer esa foto."
+
+# AI Translated
 msgid "The printer's page didn't load"
 msgstr "La página de la impresora no se ha cargado"
 
@@ -898,15 +789,15 @@ msgid "Try again"
 msgstr "Inténtelo de nuevo"
 
 # AI Translated
-#, c-format, boost-format
-msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
-msgstr "Nada ha respondido en %s. Compruebe que la impresora está encendida y en la misma red que este ordenador e inténtelo de nuevo."
-
-# AI Translated
 #. TRN %s is the printer's address without its scheme, such as 192.168.1.42:7125. Printer settings is the printer's settings window.
 #, c-format, boost-format
 msgid "The printer at %s answered, but JusPrin couldn't check its secure connection. If the printer's address starts with https://, change it to http:// in Printer settings, then try again."
 msgstr "La impresora en %s respondió, pero JusPrin no pudo comprobar su conexión segura. Si la dirección de la impresora empieza por https://, cámbiela a http:// en Ajustes de la impresora e inténtelo de nuevo."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
+msgstr "Nada ha respondido en %s. Compruebe que la impresora está encendida y en la misma red que este ordenador e inténtelo de nuevo."
 
 # AI Translated
 msgid "Client configuration is a symbolic link. Use Copy and update its target manually."
@@ -1527,10 +1418,6 @@ msgid "Switch to JusPrin view"
 msgstr "Cambiar a la vista de JusPrin"
 
 # AI Translated
-msgid "Something went wrong on our side"
-msgstr "Algo ha fallado por nuestra parte"
-
-# AI Translated
 msgid "You can report this to the JusPrin team so they can fix it. The report is anonymous: it has no chat messages, no files and nothing that says who you are."
 msgstr "Puede informar de esto al equipo de JusPrin para que lo corrija. El informe es anónimo: no contiene mensajes del chat, ni archivos, ni nada que indique quién es usted."
 
@@ -1932,6 +1819,10 @@ msgstr "Guía de montaje"
 # AI Translated
 msgid "Attachments"
 msgstr "Archivos adjuntos"
+
+# AI Translated
+msgid "Couldn't open file"
+msgstr "No se ha podido abrir el archivo"
 
 # AI Translated
 msgid "The file couldn't be opened."
@@ -2375,6 +2266,113 @@ msgstr "Este proyecto se guardó con una versión más reciente de JusPrin. Desc
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "No se ha podido abrir el proyecto. Inténtelo de nuevo."
+
+# AI Translated
+#~ msgid "The attachment could not be stored."
+#~ msgstr "No se ha podido guardar el archivo adjunto."
+
+# AI Translated
+#~ msgid "The current chat could not be saved."
+#~ msgstr "No se ha podido guardar el chat actual."
+
+# AI Translated
+#~ msgid "The new chat could not be saved."
+#~ msgstr "No se ha podido guardar el chat nuevo."
+
+# AI Translated
+#~ msgid "The selected chat could not be saved."
+#~ msgstr "No se ha podido guardar el chat seleccionado."
+
+# AI Translated
+#~ msgid "The current project could not be saved before restoration."
+#~ msgstr "No se ha podido guardar el proyecto actual antes de la restauración."
+
+# AI Translated
+#~ msgid "JusPrin couldn't put the project back."
+#~ msgstr "JusPrin no ha podido restaurar el proyecto."
+
+# AI Translated
+#~ msgid "The replacement chat could not be saved."
+#~ msgstr "No se ha podido guardar el chat de reemplazo."
+
+# AI Translated
+#~ msgid "This sign-in could not be saved, so you will have to sign in again next time JusPrin starts."
+#~ msgstr "No se ha podido guardar este inicio de sesión, así que tendrá que volver a iniciar sesión la próxima vez que se abra JusPrin."
+
+# AI Translated
+#~ msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
+#~ msgstr "No se ha podido guardar esta clave, así que tendrá que volver a introducirla la próxima vez que se abra JusPrin."
+
+# AI Translated
+#~ msgid "The AI service returned an unreadable streaming response."
+#~ msgstr "El servicio de IA ha devuelto una respuesta en streaming ilegible."
+
+# AI Translated
+#~ msgid "The AI service streamed a delta for a block it never opened."
+#~ msgstr "El servicio de IA ha transmitido un fragmento de un bloque que nunca abrió."
+
+# AI Translated
+#~ msgid "The AI service sent a tool call whose arguments are not JSON."
+#~ msgstr "El servicio de IA ha enviado una llamada a herramienta cuyos argumentos no son JSON."
+
+# AI Translated
+#~ msgid "The AI service could not complete the response."
+#~ msgstr "El servicio de IA no ha podido completar la respuesta."
+
+# AI Translated
+#~ msgid "The AI service ended its response for a reason this build does not know."
+#~ msgstr "El servicio de IA ha terminado su respuesta por un motivo que esta versión no conoce."
+
+# AI Translated
+#~ msgid "The AI service stopped before finishing its response."
+#~ msgstr "El servicio de IA se ha detenido antes de terminar su respuesta."
+
+# AI Translated
+#~ msgid "The AI service kept pausing its response."
+#~ msgstr "El servicio de IA ha pausado su respuesta repetidamente."
+
+# AI Translated
+#~ msgid "AI could not be asked to continue its response."
+#~ msgstr "No se ha podido pedir a la IA que continúe su respuesta."
+
+# AI Translated
+#~ msgid "AI could not be told the results of its tool calls."
+#~ msgstr "No se ha podido comunicar a la IA los resultados de sus llamadas a herramientas."
+
+# AI Translated
+#~ msgid "AI returned an invalid tool call."
+#~ msgstr "La IA ha devuelto una llamada a herramienta no válida."
+
+# AI Translated
+#~ msgid "The AI service ended before a complete response arrived."
+#~ msgstr "El servicio de IA ha terminado antes de que llegara una respuesta completa."
+
+# AI Translated
+#~ msgid "You're out of credits."
+#~ msgstr "Se ha quedado sin créditos."
+
+# AI Translated
+#, boost-format
+#~ msgid "The %1% service is overloaded. Try again shortly."
+#~ msgstr "El servicio de %1% está sobrecargado. Inténtelo de nuevo en breve."
+
+# AI Translated
+#, boost-format
+#~ msgid "The %1% service is temporarily unavailable."
+#~ msgstr "El servicio de %1% no está disponible temporalmente."
+
+# AI Translated
+#~ msgid "The AI request timed out."
+#~ msgstr "Se ha agotado el tiempo de espera de la solicitud a la IA."
+
+# AI Translated
+#~ msgid "The AI service response did not contain valid output."
+#~ msgstr "La respuesta del servicio de IA no contenía una salida válida."
+
+# AI Translated
+#, c-format, boost-format
+#~ msgid "%s couldn't be opened. Try opening it with Open… instead."
+#~ msgstr "No se ha podido abrir %s. Pruebe a abrirlo con Abrir… en su lugar."
 
 # AI Translated
 #~ msgid "The file could not be read."

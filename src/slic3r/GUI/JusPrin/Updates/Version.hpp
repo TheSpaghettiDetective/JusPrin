@@ -11,7 +11,7 @@ namespace Slic3r::GUI::JusPrin::Updates {
 // from SoftFever_VERSION, OrcaSlicer's version, which this build keeps
 // because 3MF projects, profile updates, the user_backup-v<version> folder
 // and AppConfig's upgrade logic all read it.
-inline constexpr char kVersion[] = "2.0.0";
+inline constexpr char kVersion[] = "2.0.1";
 
 // The version a problem report or a saved chat names: JusPrin's and the
 // OrcaSlicer release it is built on, as "JusPrin 2.0.0 (OrcaSlicer 2.5.0)".

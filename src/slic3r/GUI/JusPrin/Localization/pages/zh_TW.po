@@ -4339,11 +4339,6 @@ msgid "This JusPrin build cannot list the settings."
 msgstr "此版本的 JusPrin 無法列出設定。"
 
 # AI Translated
-#: src/components/AgentConnection.tsx
-msgid "This key works now, but JusPrin couldn’t save it."
-msgstr "此金鑰目前可以使用，但 JusPrin 無法儲存它。"
-
-# AI Translated
 #: src/components/SetupLocalTool.tsx
 msgid "This tool isn’t installed."
 msgstr "尚未安裝此工具。"
@@ -4706,11 +4701,6 @@ msgstr "您目前的版本為 {current}"
 #: src/components/SetupLocalTool.tsx
 msgid "You won’t need to set this up again after a normal JusPrin restart."
 msgstr "一般重新啟動 JusPrin 後，不需要再次設定。"
-
-# AI Translated
-#: src/components/AgentConnection.tsx
-msgid "You’ll need to add it again after JusPrin restarts."
-msgstr "JusPrin 重新啟動後，您需要再次新增。"
 
 # AI Translated
 #: src/components/AgentConnection.tsx

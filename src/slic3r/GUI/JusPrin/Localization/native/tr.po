@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15 18:58-0800\n"
+"POT-Creation-Date: 2026-11-17 17:55-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,6 +16,10 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n==1) ? 0 : 1;\n"
+
+# AI Translated
+msgid "Something went wrong on our side"
+msgstr "Bizim tarafımızda bir sorun oluştu"
 
 # AI Translated
 msgid "Project chat is blocked until restoration is recovered."
@@ -48,10 +52,6 @@ msgstr "Bu dosya türü yapay zeka tarafından okunamıyor."
 # AI Translated
 msgid "This file is not readable UTF-8 text."
 msgstr "Bu dosya okunabilir bir UTF-8 metni değil."
-
-# AI Translated
-msgid "The attachment could not be stored."
-msgstr "Ek saklanamadı."
 
 # AI Translated
 msgid "Photo or image"
@@ -156,18 +156,6 @@ msgid "Finish or resolve pending work before creating a chat."
 msgstr "Sohbet oluşturmadan önce bekleyen işleri bitirin veya çözün."
 
 # AI Translated
-msgid "The current chat could not be saved."
-msgstr "Geçerli sohbet kaydedilemedi."
-
-# AI Translated
-msgid "The new chat could not be saved."
-msgstr "Yeni sohbet kaydedilemedi."
-
-# AI Translated
-msgid "The selected chat could not be saved."
-msgstr "Seçilen sohbet kaydedilemedi."
-
-# AI Translated
 msgid "The project or selected chat changed. Review it again."
 msgstr "Proje veya seçilen sohbet değişti. Yeniden gözden geçirin."
 
@@ -184,14 +172,6 @@ msgid "JusPrin can't find the project version this chat was working on."
 msgstr "JusPrin bu sohbetin üzerinde çalıştığı proje sürümünü bulamıyor."
 
 # AI Translated
-msgid "The current project could not be saved before restoration."
-msgstr "Geri yüklemeden önce geçerli proje kaydedilemedi."
-
-# AI Translated
-msgid "JusPrin couldn't put the project back."
-msgstr "JusPrin projeyi geri getiremedi."
-
-# AI Translated
 msgid "Restored this chat's saved project setup. Check the current printer and material before printing."
 msgstr "Bu sohbetin kayıtlı proje kurulumu geri yüklendi. Yazdırmadan önce geçerli yazıcıyı ve malzemeyi kontrol edin."
 
@@ -206,10 +186,6 @@ msgstr "Bu sohbet hâlâ çalışıyor. Durdurun veya bitmesini bekleyin, sonra 
 # AI Translated
 msgid "This chat no longer exists."
 msgstr "Bu sohbet artık mevcut değil."
-
-# AI Translated
-msgid "The replacement chat could not be saved."
-msgstr "Yerine geçecek sohbet kaydedilemedi."
 
 # AI Translated
 msgid "Historical chats cannot edit the current draft."
@@ -262,14 +238,6 @@ msgstr "Bu bilgisayarda denetlenecek bir JusPrin hesabı yok."
 # AI Translated
 msgid "JusPrin couldn't sign you in. Try again."
 msgstr "JusPrin oturumunuzu açamadı. Yeniden deneyin."
-
-# AI Translated
-msgid "This sign-in could not be saved, so you will have to sign in again next time JusPrin starts."
-msgstr "Bu oturum kaydedilemedi; JusPrin bir sonraki başlatıldığında yeniden oturum açmanız gerekecek."
-
-# AI Translated
-msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
-msgstr "Bu anahtar kaydedilemedi; JusPrin bir sonraki başlatıldığında anahtarı yeniden girmeniz gerekecek."
 
 # AI Translated
 msgid "The AI service is not available."
@@ -400,34 +368,18 @@ msgid "Bridge traffic: %1% sent / %2% received"
 msgstr "Köprü trafiği: %1% gönderildi / %2% alındı"
 
 # AI Translated
-msgid "The AI service returned an unreadable streaming response."
-msgstr "Yapay zeka hizmeti okunamayan bir akış yanıtı döndürdü."
-
-# AI Translated
-msgid "The AI service streamed a delta for a block it never opened."
-msgstr "Yapay zeka hizmeti hiç açmadığı bir blok için delta gönderdi."
-
-# AI Translated
-msgid "The AI service sent a tool call whose arguments are not JSON."
-msgstr "Yapay zeka hizmeti, bağımsız değişkenleri JSON olmayan bir araç çağrısı gönderdi."
-
-# AI Translated
-msgid "The AI service could not complete the response."
-msgstr "Yapay zeka hizmeti yanıtı tamamlayamadı."
-
-# AI Translated
 #. TRN %1% is the AI service's own reason, in English, such as "cyber".
 #, boost-format
 msgid "The AI service declined to answer (%1%)."
 msgstr "Yapay zeka hizmeti yanıt vermeyi reddetti (%1%)."
 
 # AI Translated
-msgid "The AI service ended its response for a reason this build does not know."
-msgstr "Yapay zeka hizmeti, yanıtını bu derlemenin bilmediği bir nedenle sonlandırdı."
-
-# AI Translated
 msgid "This version of JusPrin can no longer connect to JusPrin accounts. Get the new version to keep using your account."
 msgstr "JusPrin'in bu sürümü artık JusPrin hesaplarına bağlanamıyor. Hesabınızı kullanmaya devam etmek için yeni sürümü edinin."
+
+# AI Translated
+msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
+msgstr "JusPrin oturumunuz sona erdi. Tercihler'de yeniden oturum açın, sonra yeniden deneyin."
 
 # AI Translated
 msgid "Signing in didn't finish. Nothing was saved. Try again."
@@ -455,58 +407,10 @@ msgid "Attachment"
 msgstr "Ek"
 
 # AI Translated
-msgid "The AI service stopped before finishing its response."
-msgstr "Yapay zeka hizmeti yanıtını bitirmeden durdu."
-
-# AI Translated
-msgid "The AI service kept pausing its response."
-msgstr "Yapay zeka hizmeti yanıtını sürekli duraklattı."
-
-# AI Translated
-msgid "AI could not be asked to continue its response."
-msgstr "Yapay zekadan yanıtına devam etmesi istenemedi."
-
-# AI Translated
-msgid "AI could not be told the results of its tool calls."
-msgstr "Yapay zekaya araç çağrılarının sonuçları iletilemedi."
-
-# AI Translated
-msgid "AI returned an invalid tool call."
-msgstr "Yapay zeka geçersiz bir araç çağrısı döndürdü."
-
-# AI Translated
-msgid "The AI service ended before a complete response arrived."
-msgstr "Yapay zeka hizmeti, tam bir yanıt gelmeden sonlandı."
-
-# AI Translated
-msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
-msgstr "JusPrin oturumunuz sona erdi. Tercihler'de yeniden oturum açın, sonra yeniden deneyin."
-
-# AI Translated
-msgid "That photo could not be read."
-msgstr "Bu fotoğraf okunamadı."
-
-# AI Translated
-#. TRN The print report form, about a photo over the server's limit of 20 MB.
-msgid "That photo is larger than 20 MB. Choose a smaller photo, then send the report again."
-msgstr "Bu fotoğraf 20 MB'tan büyük. Daha küçük bir fotoğraf seçin, sonra raporu yeniden gönderin."
-
-# AI Translated
-#, boost-format
-msgid "This message needs %1% credit; you have %2%."
-msgid_plural "This message needs %1% credits; you have %2%."
-msgstr[0] "Bu mesaj için %1% kredi gerekiyor; %2% krediniz var."
-msgstr[1] "Bu mesaj için %1% kredi gerekiyor; %2% krediniz var."
-
-# AI Translated
-msgid "You're out of credits."
-msgstr "Krediniz bitti."
-
-# AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.
 #, boost-format
-msgid "The %1% API key was rejected. Update the AI configuration and try again."
-msgstr "%1% API anahtarı reddedildi. Yapay zeka yapılandırmasını güncelleyip yeniden deneyin."
+msgid "The %1% service is rate limited. Try again shortly."
+msgstr "%1% hizmeti istek sınırına ulaştı. Biraz sonra yeniden deneyin."
 
 # AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.
@@ -517,34 +421,21 @@ msgstr "İstek, %1% hizmeti için çok büyüktü."
 # AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.
 #, boost-format
-msgid "The %1% service is rate limited. Try again shortly."
-msgstr "%1% hizmeti istek sınırına ulaştı. Biraz sonra yeniden deneyin."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The %1% service is overloaded. Try again shortly."
-msgstr "%1% hizmeti aşırı yüklü. Biraz sonra yeniden deneyin."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The %1% service is temporarily unavailable."
-msgstr "%1% hizmeti geçici olarak kullanılamıyor."
-
-# AI Translated
-msgid "The AI request timed out."
-msgstr "Yapay zeka isteği zaman aşımına uğradı."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
 msgid "The AI request could not reach the %1% service."
 msgstr "Yapay zeka isteği %1% hizmetine ulaşamadı."
 
 # AI Translated
-msgid "The AI service response did not contain valid output."
-msgstr "Yapay zeka hizmetinin yanıtı geçerli bir çıktı içermiyordu."
+#, boost-format
+msgid "This message needs %1% credit; you have %2%."
+msgid_plural "This message needs %1% credits; you have %2%."
+msgstr[0] "Bu mesaj için %1% kredi gerekiyor; %2% krediniz var."
+msgstr[1] "Bu mesaj için %1% kredi gerekiyor; %2% krediniz var."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% API key was rejected. Update the AI configuration and try again."
+msgstr "%1% API anahtarı reddedildi. Yapay zeka yapılandırmasını güncelleyip yeniden deneyin."
 
 # AI Translated
 #. TRN A button that asks the AI to choose another block of a calibration test.
@@ -805,15 +696,6 @@ msgstr "Fotoğraflar"
 
 # AI Translated
 #, c-format, boost-format
-msgid "%s couldn't be opened. Try opening it with Open… instead."
-msgstr "%s açılamadı. Bunun yerine Aç… ile açmayı deneyin."
-
-# AI Translated
-msgid "Couldn't open file"
-msgstr "Dosya açılamadı"
-
-# AI Translated
-#, c-format, boost-format
 msgid "Import from %s"
 msgstr "%s üzerinden içe aktar"
 
@@ -889,6 +771,15 @@ msgid "JusPrin found no %1% printers in that folder. If %1% keeps its settings s
 msgstr "JusPrin o klasörde %1% yazıcısı bulamadı. %1% ayarlarını başka bir yerde tutuyorsa o klasörü seçin."
 
 # AI Translated
+#. TRN The print report form, about a photo over the server's limit of 20 MB.
+msgid "That photo is larger than 20 MB. Choose a smaller photo, then send the report again."
+msgstr "Bu fotoğraf 20 MB'tan büyük. Daha küçük bir fotoğraf seçin, sonra raporu yeniden gönderin."
+
+# AI Translated
+msgid "That photo could not be read."
+msgstr "Bu fotoğraf okunamadı."
+
+# AI Translated
 msgid "The printer's page didn't load"
 msgstr "Yazıcının sayfası yüklenmedi"
 
@@ -897,15 +788,15 @@ msgid "Try again"
 msgstr "Yeniden dene"
 
 # AI Translated
-#, c-format, boost-format
-msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
-msgstr "%s adresinden yanıt gelmedi. Yazıcının açık olduğunu ve bu bilgisayarla aynı ağda olduğunu kontrol edip yeniden deneyin."
-
-# AI Translated
 #. TRN %s is the printer's address without its scheme, such as 192.168.1.42:7125. Printer settings is the printer's settings window.
 #, c-format, boost-format
 msgid "The printer at %s answered, but JusPrin couldn't check its secure connection. If the printer's address starts with https://, change it to http:// in Printer settings, then try again."
 msgstr "%s adresindeki yazıcı yanıt verdi, ancak JusPrin güvenli bağlantısını doğrulayamadı. Yazıcının adresi https:// ile başlıyorsa Yazıcı Ayarları'nda http:// olarak değiştirin, sonra yeniden deneyin."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
+msgstr "%s adresinden yanıt gelmedi. Yazıcının açık olduğunu ve bu bilgisayarla aynı ağda olduğunu kontrol edip yeniden deneyin."
 
 # AI Translated
 msgid "Client configuration is a symbolic link. Use Copy and update its target manually."
@@ -1523,10 +1414,6 @@ msgid "Switch to JusPrin view"
 msgstr "JusPrin görünümüne geç"
 
 # AI Translated
-msgid "Something went wrong on our side"
-msgstr "Bizim tarafımızda bir sorun oluştu"
-
-# AI Translated
 msgid "You can report this to the JusPrin team so they can fix it. The report is anonymous: it has no chat messages, no files and nothing that says who you are."
 msgstr "JusPrin ekibinin düzeltebilmesi için bunu onlara bildirebilirsiniz. Rapor anonimdir: sohbet mesajı, dosya veya kim olduğunuzu gösteren hiçbir şey içermez."
 
@@ -1927,6 +1814,10 @@ msgstr "Montaj kılavuzu"
 # AI Translated
 msgid "Attachments"
 msgstr "Ekler"
+
+# AI Translated
+msgid "Couldn't open file"
+msgstr "Dosya açılamadı"
 
 # AI Translated
 msgid "The file couldn't be opened."
@@ -2365,6 +2256,113 @@ msgstr "Bu proje JusPrin'in daha yeni bir sürümüyle kaydedildi. Açmak için 
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "Proje açılamadı. Yeniden deneyin."
+
+# AI Translated
+#~ msgid "The attachment could not be stored."
+#~ msgstr "Ek saklanamadı."
+
+# AI Translated
+#~ msgid "The current chat could not be saved."
+#~ msgstr "Geçerli sohbet kaydedilemedi."
+
+# AI Translated
+#~ msgid "The new chat could not be saved."
+#~ msgstr "Yeni sohbet kaydedilemedi."
+
+# AI Translated
+#~ msgid "The selected chat could not be saved."
+#~ msgstr "Seçilen sohbet kaydedilemedi."
+
+# AI Translated
+#~ msgid "The current project could not be saved before restoration."
+#~ msgstr "Geri yüklemeden önce geçerli proje kaydedilemedi."
+
+# AI Translated
+#~ msgid "JusPrin couldn't put the project back."
+#~ msgstr "JusPrin projeyi geri getiremedi."
+
+# AI Translated
+#~ msgid "The replacement chat could not be saved."
+#~ msgstr "Yerine geçecek sohbet kaydedilemedi."
+
+# AI Translated
+#~ msgid "This sign-in could not be saved, so you will have to sign in again next time JusPrin starts."
+#~ msgstr "Bu oturum kaydedilemedi; JusPrin bir sonraki başlatıldığında yeniden oturum açmanız gerekecek."
+
+# AI Translated
+#~ msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
+#~ msgstr "Bu anahtar kaydedilemedi; JusPrin bir sonraki başlatıldığında anahtarı yeniden girmeniz gerekecek."
+
+# AI Translated
+#~ msgid "The AI service returned an unreadable streaming response."
+#~ msgstr "Yapay zeka hizmeti okunamayan bir akış yanıtı döndürdü."
+
+# AI Translated
+#~ msgid "The AI service streamed a delta for a block it never opened."
+#~ msgstr "Yapay zeka hizmeti hiç açmadığı bir blok için delta gönderdi."
+
+# AI Translated
+#~ msgid "The AI service sent a tool call whose arguments are not JSON."
+#~ msgstr "Yapay zeka hizmeti, bağımsız değişkenleri JSON olmayan bir araç çağrısı gönderdi."
+
+# AI Translated
+#~ msgid "The AI service could not complete the response."
+#~ msgstr "Yapay zeka hizmeti yanıtı tamamlayamadı."
+
+# AI Translated
+#~ msgid "The AI service ended its response for a reason this build does not know."
+#~ msgstr "Yapay zeka hizmeti, yanıtını bu derlemenin bilmediği bir nedenle sonlandırdı."
+
+# AI Translated
+#~ msgid "The AI service stopped before finishing its response."
+#~ msgstr "Yapay zeka hizmeti yanıtını bitirmeden durdu."
+
+# AI Translated
+#~ msgid "The AI service kept pausing its response."
+#~ msgstr "Yapay zeka hizmeti yanıtını sürekli duraklattı."
+
+# AI Translated
+#~ msgid "AI could not be asked to continue its response."
+#~ msgstr "Yapay zekadan yanıtına devam etmesi istenemedi."
+
+# AI Translated
+#~ msgid "AI could not be told the results of its tool calls."
+#~ msgstr "Yapay zekaya araç çağrılarının sonuçları iletilemedi."
+
+# AI Translated
+#~ msgid "AI returned an invalid tool call."
+#~ msgstr "Yapay zeka geçersiz bir araç çağrısı döndürdü."
+
+# AI Translated
+#~ msgid "The AI service ended before a complete response arrived."
+#~ msgstr "Yapay zeka hizmeti, tam bir yanıt gelmeden sonlandı."
+
+# AI Translated
+#~ msgid "You're out of credits."
+#~ msgstr "Krediniz bitti."
+
+# AI Translated
+#, boost-format
+#~ msgid "The %1% service is overloaded. Try again shortly."
+#~ msgstr "%1% hizmeti aşırı yüklü. Biraz sonra yeniden deneyin."
+
+# AI Translated
+#, boost-format
+#~ msgid "The %1% service is temporarily unavailable."
+#~ msgstr "%1% hizmeti geçici olarak kullanılamıyor."
+
+# AI Translated
+#~ msgid "The AI request timed out."
+#~ msgstr "Yapay zeka isteği zaman aşımına uğradı."
+
+# AI Translated
+#~ msgid "The AI service response did not contain valid output."
+#~ msgstr "Yapay zeka hizmetinin yanıtı geçerli bir çıktı içermiyordu."
+
+# AI Translated
+#, c-format, boost-format
+#~ msgid "%s couldn't be opened. Try opening it with Open… instead."
+#~ msgstr "%s açılamadı. Bunun yerine Aç… ile açmayı deneyin."
 
 # AI Translated
 #~ msgid "The file could not be read."

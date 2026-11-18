@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15 18:58-0800\n"
+"POT-Creation-Date: 2026-11-17 17:55-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,6 +16,10 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n%10==1 && (n%100<11 || n%100>19) ? 0 : n%10>=2 && n%10<=9 && (n%100<11 || n%100>19) ? 1 : 2);\n"
+
+# AI Translated
+msgid "Something went wrong on our side"
+msgstr "Mūsų pusėje įvyko klaida"
 
 # AI Translated
 msgid "Project chat is blocked until restoration is recovered."
@@ -48,10 +52,6 @@ msgstr "DI negali perskaityti šio tipo failų."
 # AI Translated
 msgid "This file is not readable UTF-8 text."
 msgstr "Šis failas nėra perskaitomas UTF-8 tekstas."
-
-# AI Translated
-msgid "The attachment could not be stored."
-msgstr "Nepavyko išsaugoti priedo."
 
 # AI Translated
 msgid "Photo or image"
@@ -155,18 +155,6 @@ msgid "Finish or resolve pending work before creating a chat."
 msgstr "Prieš kurdami pokalbį, užbaikite arba išspręskite laukiančius darbus."
 
 # AI Translated
-msgid "The current chat could not be saved."
-msgstr "Nepavyko išsaugoti dabartinio pokalbio."
-
-# AI Translated
-msgid "The new chat could not be saved."
-msgstr "Nepavyko išsaugoti naujo pokalbio."
-
-# AI Translated
-msgid "The selected chat could not be saved."
-msgstr "Nepavyko išsaugoti pasirinkto pokalbio."
-
-# AI Translated
 msgid "The project or selected chat changed. Review it again."
 msgstr "Projektas arba pasirinktas pokalbis pasikeitė. Peržiūrėkite dar kartą."
 
@@ -183,14 +171,6 @@ msgid "JusPrin can't find the project version this chat was working on."
 msgstr "JusPrin neranda projekto versijos, su kuria dirbo šis pokalbis."
 
 # AI Translated
-msgid "The current project could not be saved before restoration."
-msgstr "Prieš atkūrimą nepavyko išsaugoti dabartinio projekto."
-
-# AI Translated
-msgid "JusPrin couldn't put the project back."
-msgstr "JusPrin nepavyko grąžinti projekto."
-
-# AI Translated
 msgid "Restored this chat's saved project setup. Check the current printer and material before printing."
 msgstr "Atkurta šio pokalbio išsaugota projekto sąranka. Prieš spausdindami patikrinkite dabartinį spausdintuvą ir medžiagą."
 
@@ -205,10 +185,6 @@ msgstr "Šis pokalbis dar vykdomas. Sustabdykite jį arba palaukite, kol baigsis
 # AI Translated
 msgid "This chat no longer exists."
 msgstr "Šio pokalbio nebėra."
-
-# AI Translated
-msgid "The replacement chat could not be saved."
-msgstr "Nepavyko išsaugoti pakaitinio pokalbio."
 
 # AI Translated
 msgid "Historical chats cannot edit the current draft."
@@ -261,14 +237,6 @@ msgstr "Šiame kompiuteryje nėra JusPrin paskyros, kurią būtų galima patikri
 # AI Translated
 msgid "JusPrin couldn't sign you in. Try again."
 msgstr "JusPrin nepavyko jūsų prijungti. Bandykite dar kartą."
-
-# AI Translated
-msgid "This sign-in could not be saved, so you will have to sign in again next time JusPrin starts."
-msgstr "Nepavyko išsaugoti šio prisijungimo, todėl kitą kartą paleidę JusPrin turėsite prisijungti iš naujo."
-
-# AI Translated
-msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
-msgstr "Nepavyko išsaugoti šio rakto, todėl kitą kartą paleidus JusPrin jį reikės įvesti iš naujo."
 
 # AI Translated
 msgid "The AI service is not available."
@@ -400,34 +368,18 @@ msgid "Bridge traffic: %1% sent / %2% received"
 msgstr "Ryšio srautas: išsiųsta %1% / gauta %2%"
 
 # AI Translated
-msgid "The AI service returned an unreadable streaming response."
-msgstr "DI paslauga grąžino neįskaitomą srautinį atsakymą."
-
-# AI Translated
-msgid "The AI service streamed a delta for a block it never opened."
-msgstr "DI paslauga atsiuntė pokytį blokui, kurio niekada neatvėrė."
-
-# AI Translated
-msgid "The AI service sent a tool call whose arguments are not JSON."
-msgstr "DI paslauga atsiuntė įrankio iškvietimą, kurio argumentai nėra JSON."
-
-# AI Translated
-msgid "The AI service could not complete the response."
-msgstr "DI paslauga negalėjo užbaigti atsakymo."
-
-# AI Translated
 #. TRN %1% is the AI service's own reason, in English, such as "cyber".
 #, boost-format
 msgid "The AI service declined to answer (%1%)."
 msgstr "DI paslauga atsisakė atsakyti (%1%)."
 
 # AI Translated
-msgid "The AI service ended its response for a reason this build does not know."
-msgstr "DI paslauga baigė atsakymą dėl priežasties, kurios ši programos versija nežino."
-
-# AI Translated
 msgid "This version of JusPrin can no longer connect to JusPrin accounts. Get the new version to keep using your account."
 msgstr "Ši JusPrin versija nebegali prisijungti prie JusPrin paskyrų. Įdiekite naują versiją, kad galėtumėte toliau naudotis paskyra."
+
+# AI Translated
+msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
+msgstr "Jūsų JusPrin prisijungimas baigėsi. Prisijunkite iš naujo skiltyje „Parinktys“, tada bandykite dar kartą."
 
 # AI Translated
 msgid "Signing in didn't finish. Nothing was saved. Try again."
@@ -455,59 +407,10 @@ msgid "Attachment"
 msgstr "Priedas"
 
 # AI Translated
-msgid "The AI service stopped before finishing its response."
-msgstr "DI paslauga sustojo nebaigusi atsakymo."
-
-# AI Translated
-msgid "The AI service kept pausing its response."
-msgstr "DI paslauga vis pristabdydavo savo atsakymą."
-
-# AI Translated
-msgid "AI could not be asked to continue its response."
-msgstr "Nepavyko paprašyti DI tęsti atsakymą."
-
-# AI Translated
-msgid "AI could not be told the results of its tool calls."
-msgstr "Nepavyko perduoti DI jo įrankių iškvietimų rezultatų."
-
-# AI Translated
-msgid "AI returned an invalid tool call."
-msgstr "DI grąžino netinkamą įrankio iškvietimą."
-
-# AI Translated
-msgid "The AI service ended before a complete response arrived."
-msgstr "DI paslaugos ryšys baigėsi dar negavus viso atsakymo."
-
-# AI Translated
-msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
-msgstr "Jūsų JusPrin prisijungimas baigėsi. Prisijunkite iš naujo skiltyje „Parinktys“, tada bandykite dar kartą."
-
-# AI Translated
-msgid "That photo could not be read."
-msgstr "Šios nuotraukos nepavyko nuskaityti."
-
-# AI Translated
-#. TRN The print report form, about a photo over the server's limit of 20 MB.
-msgid "That photo is larger than 20 MB. Choose a smaller photo, then send the report again."
-msgstr "Ši nuotrauka didesnė nei 20 MB. Pasirinkite mažesnę nuotrauką, tada siųskite ataskaitą dar kartą."
-
-# AI Translated
-#, boost-format
-msgid "This message needs %1% credit; you have %2%."
-msgid_plural "This message needs %1% credits; you have %2%."
-msgstr[0] "Šiai žinutei reikia %1% kredito; jūs turite %2%."
-msgstr[1] "Šiai žinutei reikia %1% kreditų; jūs turite %2%."
-msgstr[2] "Šiai žinutei reikia %1% kreditų; jūs turite %2%."
-
-# AI Translated
-msgid "You're out of credits."
-msgstr "Jūsų kreditai baigėsi."
-
-# AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.
 #, boost-format
-msgid "The %1% API key was rejected. Update the AI configuration and try again."
-msgstr "%1% API raktas atmestas. Atnaujinkite DI konfigūraciją ir bandykite dar kartą."
+msgid "The %1% service is rate limited. Try again shortly."
+msgstr "Viršytas %1% paslaugos užklausų limitas. Netrukus bandykite dar kartą."
 
 # AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.
@@ -518,34 +421,22 @@ msgstr "Užklausa per didelė %1% paslaugai."
 # AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.
 #, boost-format
-msgid "The %1% service is rate limited. Try again shortly."
-msgstr "Viršytas %1% paslaugos užklausų limitas. Netrukus bandykite dar kartą."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The %1% service is overloaded. Try again shortly."
-msgstr "%1% paslauga perkrauta. Netrukus bandykite dar kartą."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The %1% service is temporarily unavailable."
-msgstr "%1% paslauga laikinai nepasiekiama."
-
-# AI Translated
-msgid "The AI request timed out."
-msgstr "Baigėsi DI užklausos laukimo laikas."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
 msgid "The AI request could not reach the %1% service."
 msgstr "DI užklausa nepasiekė %1% paslaugos."
 
 # AI Translated
-msgid "The AI service response did not contain valid output."
-msgstr "DI paslaugos atsakyme nebuvo tinkamo turinio."
+#, boost-format
+msgid "This message needs %1% credit; you have %2%."
+msgid_plural "This message needs %1% credits; you have %2%."
+msgstr[0] "Šiai žinutei reikia %1% kredito; jūs turite %2%."
+msgstr[1] "Šiai žinutei reikia %1% kreditų; jūs turite %2%."
+msgstr[2] "Šiai žinutei reikia %1% kreditų; jūs turite %2%."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% API key was rejected. Update the AI configuration and try again."
+msgstr "%1% API raktas atmestas. Atnaujinkite DI konfigūraciją ir bandykite dar kartą."
 
 # AI Translated
 #. TRN A button that asks the AI to choose another block of a calibration test.
@@ -806,15 +697,6 @@ msgstr "Nuotraukos"
 
 # AI Translated
 #, c-format, boost-format
-msgid "%s couldn't be opened. Try opening it with Open… instead."
-msgstr "Nepavyko atverti %s. Pabandykite jį atverti per „Atverti…“."
-
-# AI Translated
-msgid "Couldn't open file"
-msgstr "Nepavyko atverti failo"
-
-# AI Translated
-#, c-format, boost-format
 msgid "Import from %s"
 msgstr "Importuoti iš %s"
 
@@ -891,6 +773,15 @@ msgid "JusPrin found no %1% printers in that folder. If %1% keeps its settings s
 msgstr "JusPrin tame aplanke nerado %1% spausdintuvų. Jei %1% nustatymus laiko kitur, pasirinkite tą aplanką."
 
 # AI Translated
+#. TRN The print report form, about a photo over the server's limit of 20 MB.
+msgid "That photo is larger than 20 MB. Choose a smaller photo, then send the report again."
+msgstr "Ši nuotrauka didesnė nei 20 MB. Pasirinkite mažesnę nuotrauką, tada siųskite ataskaitą dar kartą."
+
+# AI Translated
+msgid "That photo could not be read."
+msgstr "Šios nuotraukos nepavyko nuskaityti."
+
+# AI Translated
 msgid "The printer's page didn't load"
 msgstr "Spausdintuvo puslapis neįsikėlė"
 
@@ -899,15 +790,15 @@ msgid "Try again"
 msgstr "Bandyti dar kartą"
 
 # AI Translated
-#, c-format, boost-format
-msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
-msgstr "Adresu %s niekas neatsakė. Patikrinkite, ar spausdintuvas įjungtas ir prijungtas prie to paties tinklo kaip šis kompiuteris, tada bandykite dar kartą."
-
-# AI Translated
 #. TRN %s is the printer's address without its scheme, such as 192.168.1.42:7125. Printer settings is the printer's settings window.
 #, c-format, boost-format
 msgid "The printer at %s answered, but JusPrin couldn't check its secure connection. If the printer's address starts with https://, change it to http:// in Printer settings, then try again."
 msgstr "Spausdintuvas adresu %s atsakė, bet JusPrin nepavyko patikrinti jo saugaus ryšio. Jei spausdintuvo adresas prasideda https://, pakeiskite jį į http:// skiltyje „Spausdintuvo nustatymai“, tada bandykite dar kartą."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
+msgstr "Adresu %s niekas neatsakė. Patikrinkite, ar spausdintuvas įjungtas ir prijungtas prie to paties tinklo kaip šis kompiuteris, tada bandykite dar kartą."
 
 # AI Translated
 msgid "Client configuration is a symbolic link. Use Copy and update its target manually."
@@ -1538,10 +1429,6 @@ msgid "Switch to JusPrin view"
 msgstr "Perjungti į JusPrin vaizdą"
 
 # AI Translated
-msgid "Something went wrong on our side"
-msgstr "Mūsų pusėje įvyko klaida"
-
-# AI Translated
 msgid "You can report this to the JusPrin team so they can fix it. The report is anonymous: it has no chat messages, no files and nothing that says who you are."
 msgstr "Apie tai galite pranešti JusPrin komandai, kad ji galėtų tai ištaisyti. Ataskaita anoniminė: joje nėra pokalbių žinučių, failų ir nieko, kas parodytų, kas esate."
 
@@ -1948,6 +1835,10 @@ msgstr "Surinkimo instrukcija"
 # AI Translated
 msgid "Attachments"
 msgstr "Priedai"
+
+# AI Translated
+msgid "Couldn't open file"
+msgstr "Nepavyko atverti failo"
 
 # AI Translated
 msgid "The file couldn't be opened."
@@ -2393,6 +2284,113 @@ msgstr "Šis projektas išsaugotas naujesne JusPrin versija. Kad jį atvertumėt
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "Nepavyko atverti projekto. Bandykite dar kartą."
+
+# AI Translated
+#~ msgid "The attachment could not be stored."
+#~ msgstr "Nepavyko išsaugoti priedo."
+
+# AI Translated
+#~ msgid "The current chat could not be saved."
+#~ msgstr "Nepavyko išsaugoti dabartinio pokalbio."
+
+# AI Translated
+#~ msgid "The new chat could not be saved."
+#~ msgstr "Nepavyko išsaugoti naujo pokalbio."
+
+# AI Translated
+#~ msgid "The selected chat could not be saved."
+#~ msgstr "Nepavyko išsaugoti pasirinkto pokalbio."
+
+# AI Translated
+#~ msgid "The current project could not be saved before restoration."
+#~ msgstr "Prieš atkūrimą nepavyko išsaugoti dabartinio projekto."
+
+# AI Translated
+#~ msgid "JusPrin couldn't put the project back."
+#~ msgstr "JusPrin nepavyko grąžinti projekto."
+
+# AI Translated
+#~ msgid "The replacement chat could not be saved."
+#~ msgstr "Nepavyko išsaugoti pakaitinio pokalbio."
+
+# AI Translated
+#~ msgid "This sign-in could not be saved, so you will have to sign in again next time JusPrin starts."
+#~ msgstr "Nepavyko išsaugoti šio prisijungimo, todėl kitą kartą paleidę JusPrin turėsite prisijungti iš naujo."
+
+# AI Translated
+#~ msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
+#~ msgstr "Nepavyko išsaugoti šio rakto, todėl kitą kartą paleidus JusPrin jį reikės įvesti iš naujo."
+
+# AI Translated
+#~ msgid "The AI service returned an unreadable streaming response."
+#~ msgstr "DI paslauga grąžino neįskaitomą srautinį atsakymą."
+
+# AI Translated
+#~ msgid "The AI service streamed a delta for a block it never opened."
+#~ msgstr "DI paslauga atsiuntė pokytį blokui, kurio niekada neatvėrė."
+
+# AI Translated
+#~ msgid "The AI service sent a tool call whose arguments are not JSON."
+#~ msgstr "DI paslauga atsiuntė įrankio iškvietimą, kurio argumentai nėra JSON."
+
+# AI Translated
+#~ msgid "The AI service could not complete the response."
+#~ msgstr "DI paslauga negalėjo užbaigti atsakymo."
+
+# AI Translated
+#~ msgid "The AI service ended its response for a reason this build does not know."
+#~ msgstr "DI paslauga baigė atsakymą dėl priežasties, kurios ši programos versija nežino."
+
+# AI Translated
+#~ msgid "The AI service stopped before finishing its response."
+#~ msgstr "DI paslauga sustojo nebaigusi atsakymo."
+
+# AI Translated
+#~ msgid "The AI service kept pausing its response."
+#~ msgstr "DI paslauga vis pristabdydavo savo atsakymą."
+
+# AI Translated
+#~ msgid "AI could not be asked to continue its response."
+#~ msgstr "Nepavyko paprašyti DI tęsti atsakymą."
+
+# AI Translated
+#~ msgid "AI could not be told the results of its tool calls."
+#~ msgstr "Nepavyko perduoti DI jo įrankių iškvietimų rezultatų."
+
+# AI Translated
+#~ msgid "AI returned an invalid tool call."
+#~ msgstr "DI grąžino netinkamą įrankio iškvietimą."
+
+# AI Translated
+#~ msgid "The AI service ended before a complete response arrived."
+#~ msgstr "DI paslaugos ryšys baigėsi dar negavus viso atsakymo."
+
+# AI Translated
+#~ msgid "You're out of credits."
+#~ msgstr "Jūsų kreditai baigėsi."
+
+# AI Translated
+#, boost-format
+#~ msgid "The %1% service is overloaded. Try again shortly."
+#~ msgstr "%1% paslauga perkrauta. Netrukus bandykite dar kartą."
+
+# AI Translated
+#, boost-format
+#~ msgid "The %1% service is temporarily unavailable."
+#~ msgstr "%1% paslauga laikinai nepasiekiama."
+
+# AI Translated
+#~ msgid "The AI request timed out."
+#~ msgstr "Baigėsi DI užklausos laukimo laikas."
+
+# AI Translated
+#~ msgid "The AI service response did not contain valid output."
+#~ msgstr "DI paslaugos atsakyme nebuvo tinkamo turinio."
+
+# AI Translated
+#, c-format, boost-format
+#~ msgid "%s couldn't be opened. Try opening it with Open… instead."
+#~ msgstr "Nepavyko atverti %s. Pabandykite jį atverti per „Atverti…“."
 
 # AI Translated
 #~ msgid "The file could not be read."

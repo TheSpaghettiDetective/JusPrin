@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15 18:58-0800\n"
+"POT-Creation-Date: 2026-11-17 17:55-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,6 +16,10 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+# AI Translated
+msgid "Something went wrong on our side"
+msgstr "Alguna cosa ha fallat per part nostra"
 
 # AI Translated
 # Needs human review: “restoration is recovered” is unclear in the English; check what state this describes.
@@ -49,10 +53,6 @@ msgstr "La IA no pot llegir aquest tipus de fitxer."
 # AI Translated
 msgid "This file is not readable UTF-8 text."
 msgstr "Aquest fitxer no és text UTF-8 llegible."
-
-# AI Translated
-msgid "The attachment could not be stored."
-msgstr "No s'ha pogut desar el fitxer adjunt."
 
 # AI Translated
 msgid "Photo or image"
@@ -155,18 +155,6 @@ msgid "Finish or resolve pending work before creating a chat."
 msgstr "Acabeu o resoleu la feina pendent abans de crear un xat."
 
 # AI Translated
-msgid "The current chat could not be saved."
-msgstr "No s'ha pogut desar el xat actual."
-
-# AI Translated
-msgid "The new chat could not be saved."
-msgstr "No s'ha pogut desar el xat nou."
-
-# AI Translated
-msgid "The selected chat could not be saved."
-msgstr "No s'ha pogut desar el xat seleccionat."
-
-# AI Translated
 msgid "The project or selected chat changed. Review it again."
 msgstr "El projecte o el xat seleccionat ha canviat. Reviseu-lo de nou."
 
@@ -183,14 +171,6 @@ msgid "JusPrin can't find the project version this chat was working on."
 msgstr "JusPrin no troba la versió del projecte amb què treballava aquest xat."
 
 # AI Translated
-msgid "The current project could not be saved before restoration."
-msgstr "No s'ha pogut desar el projecte actual abans de la restauració."
-
-# AI Translated
-msgid "JusPrin couldn't put the project back."
-msgstr "JusPrin no ha pogut restaurar el projecte."
-
-# AI Translated
 msgid "Restored this chat's saved project setup. Check the current printer and material before printing."
 msgstr "S'ha restaurat la configuració del projecte desada d'aquest xat. Comproveu la impressora i el material actuals abans d'imprimir."
 
@@ -205,10 +185,6 @@ msgstr "Aquest xat encara està treballant. Atureu-lo o deixeu que acabi i despr
 # AI Translated
 msgid "This chat no longer exists."
 msgstr "Aquest xat ja no existeix."
-
-# AI Translated
-msgid "The replacement chat could not be saved."
-msgstr "No s'ha pogut desar el xat de substitució."
 
 # AI Translated
 msgid "Historical chats cannot edit the current draft."
@@ -261,14 +237,6 @@ msgstr "No hi ha cap compte de JusPrin en aquest ordinador per comprovar."
 # AI Translated
 msgid "JusPrin couldn't sign you in. Try again."
 msgstr "JusPrin no ha pogut iniciar la vostra sessió. Torneu-ho a provar."
-
-# AI Translated
-msgid "This sign-in could not be saved, so you will have to sign in again next time JusPrin starts."
-msgstr "No s'ha pogut desar aquest inici de sessió; haureu de tornar a iniciar sessió la propera vegada que s'iniciï JusPrin."
-
-# AI Translated
-msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
-msgstr "No s'ha pogut desar aquesta clau; caldrà tornar-la a introduir la propera vegada que s'iniciï JusPrin."
 
 # AI Translated
 msgid "The AI service is not available."
@@ -399,36 +367,18 @@ msgid "Bridge traffic: %1% sent / %2% received"
 msgstr "Trànsit del pont: %1% enviats / %2% rebuts"
 
 # AI Translated
-# Needs human review: “streaming response” rendered as “resposta en temps real”; check it reads right for a developer-facing error.
-msgid "The AI service returned an unreadable streaming response."
-msgstr "El servei d'IA ha retornat una resposta en temps real il·legible."
-
-# AI Translated
-# Needs human review: “delta” rendered as “fragment”; check the technical wording.
-msgid "The AI service streamed a delta for a block it never opened."
-msgstr "El servei d'IA ha enviat un fragment per a un bloc que no havia obert mai."
-
-# AI Translated
-msgid "The AI service sent a tool call whose arguments are not JSON."
-msgstr "El servei d'IA ha enviat una crida d'eina amb arguments que no són JSON."
-
-# AI Translated
-msgid "The AI service could not complete the response."
-msgstr "El servei d'IA no ha pogut completar la resposta."
-
-# AI Translated
 #. TRN %1% is the AI service's own reason, in English, such as "cyber".
 #, boost-format
 msgid "The AI service declined to answer (%1%)."
 msgstr "El servei d'IA s'ha negat a respondre (%1%)."
 
 # AI Translated
-msgid "The AI service ended its response for a reason this build does not know."
-msgstr "El servei d'IA ha acabat la resposta per un motiu que aquesta compilació no coneix."
-
-# AI Translated
 msgid "This version of JusPrin can no longer connect to JusPrin accounts. Get the new version to keep using your account."
 msgstr "Aquesta versió de JusPrin ja no es pot connectar als comptes de JusPrin. Obteniu la versió nova per continuar fent servir el vostre compte."
+
+# AI Translated
+msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
+msgstr "La vostra sessió de JusPrin ha caducat. Torneu a iniciar sessió a Preferències i torneu-ho a provar."
 
 # AI Translated
 msgid "Signing in didn't finish. Nothing was saved. Try again."
@@ -456,58 +406,10 @@ msgid "Attachment"
 msgstr "Fitxer adjunt"
 
 # AI Translated
-msgid "The AI service stopped before finishing its response."
-msgstr "El servei d'IA s'ha aturat abans d'acabar la resposta."
-
-# AI Translated
-msgid "The AI service kept pausing its response."
-msgstr "El servei d'IA no parava d'interrompre la resposta."
-
-# AI Translated
-msgid "AI could not be asked to continue its response."
-msgstr "No s'ha pogut demanar a la IA que continués la resposta."
-
-# AI Translated
-msgid "AI could not be told the results of its tool calls."
-msgstr "No s'han pogut comunicar a la IA els resultats de les seves crides d'eines."
-
-# AI Translated
-msgid "AI returned an invalid tool call."
-msgstr "La IA ha retornat una crida d'eina no vàlida."
-
-# AI Translated
-msgid "The AI service ended before a complete response arrived."
-msgstr "El servei d'IA ha acabat abans que arribés una resposta completa."
-
-# AI Translated
-msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
-msgstr "La vostra sessió de JusPrin ha caducat. Torneu a iniciar sessió a Preferències i torneu-ho a provar."
-
-# AI Translated
-msgid "That photo could not be read."
-msgstr "No s'ha pogut llegir aquesta foto."
-
-# AI Translated
-#. TRN The print report form, about a photo over the server's limit of 20 MB.
-msgid "That photo is larger than 20 MB. Choose a smaller photo, then send the report again."
-msgstr "Aquesta foto fa més de 20 MB. Trieu una foto més petita i torneu a enviar l'informe."
-
-# AI Translated
-#, boost-format
-msgid "This message needs %1% credit; you have %2%."
-msgid_plural "This message needs %1% credits; you have %2%."
-msgstr[0] "Aquest missatge necessita %1% crèdit; en teniu %2%."
-msgstr[1] "Aquest missatge necessita %1% crèdits; en teniu %2%."
-
-# AI Translated
-msgid "You're out of credits."
-msgstr "No us queden crèdits."
-
-# AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.
 #, boost-format
-msgid "The %1% API key was rejected. Update the AI configuration and try again."
-msgstr "S'ha rebutjat la clau d'API de %1%. Actualitzeu la configuració de la IA i torneu-ho a provar."
+msgid "The %1% service is rate limited. Try again shortly."
+msgstr "El servei de %1% té un límit de sol·licituds. Torneu-ho a provar d'aquí a poc."
 
 # AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.
@@ -518,34 +420,21 @@ msgstr "La sol·licitud era massa gran per al servei de %1%."
 # AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.
 #, boost-format
-msgid "The %1% service is rate limited. Try again shortly."
-msgstr "El servei de %1% té un límit de sol·licituds. Torneu-ho a provar d'aquí a poc."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The %1% service is overloaded. Try again shortly."
-msgstr "El servei de %1% està sobrecarregat. Torneu-ho a provar d'aquí a poc."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The %1% service is temporarily unavailable."
-msgstr "El servei de %1% no està disponible temporalment."
-
-# AI Translated
-msgid "The AI request timed out."
-msgstr "S'ha esgotat el temps d'espera de la sol·licitud a la IA."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
 msgid "The AI request could not reach the %1% service."
 msgstr "La sol·licitud a la IA no ha pogut arribar al servei de %1%."
 
 # AI Translated
-msgid "The AI service response did not contain valid output."
-msgstr "La resposta del servei d'IA no contenia una sortida vàlida."
+#, boost-format
+msgid "This message needs %1% credit; you have %2%."
+msgid_plural "This message needs %1% credits; you have %2%."
+msgstr[0] "Aquest missatge necessita %1% crèdit; en teniu %2%."
+msgstr[1] "Aquest missatge necessita %1% crèdits; en teniu %2%."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% API key was rejected. Update the AI configuration and try again."
+msgstr "S'ha rebutjat la clau d'API de %1%. Actualitzeu la configuració de la IA i torneu-ho a provar."
 
 # AI Translated
 #. TRN A button that asks the AI to choose another block of a calibration test.
@@ -807,15 +696,6 @@ msgstr "Fotos"
 
 # AI Translated
 #, c-format, boost-format
-msgid "%s couldn't be opened. Try opening it with Open… instead."
-msgstr "No s'ha pogut obrir %s. Proveu d'obrir-lo amb Obrir… en lloc d'això."
-
-# AI Translated
-msgid "Couldn't open file"
-msgstr "No s'ha pogut obrir el fitxer"
-
-# AI Translated
-#, c-format, boost-format
 msgid "Import from %s"
 msgstr "Importar des de %s"
 
@@ -891,6 +771,15 @@ msgid "JusPrin found no %1% printers in that folder. If %1% keeps its settings s
 msgstr "JusPrin no ha trobat cap impressora de %1% en aquesta carpeta. Si %1% desa la configuració en un altre lloc, trieu aquella carpeta."
 
 # AI Translated
+#. TRN The print report form, about a photo over the server's limit of 20 MB.
+msgid "That photo is larger than 20 MB. Choose a smaller photo, then send the report again."
+msgstr "Aquesta foto fa més de 20 MB. Trieu una foto més petita i torneu a enviar l'informe."
+
+# AI Translated
+msgid "That photo could not be read."
+msgstr "No s'ha pogut llegir aquesta foto."
+
+# AI Translated
 msgid "The printer's page didn't load"
 msgstr "La pàgina de la impressora no s'ha carregat"
 
@@ -899,15 +788,15 @@ msgid "Try again"
 msgstr "Tornar-ho a provar"
 
 # AI Translated
-#, c-format, boost-format
-msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
-msgstr "No ha respost res a %s. Comproveu que la impressora estigui engegada i a la mateixa xarxa que aquest ordinador i torneu-ho a provar."
-
-# AI Translated
 #. TRN %s is the printer's address without its scheme, such as 192.168.1.42:7125. Printer settings is the printer's settings window.
 #, c-format, boost-format
 msgid "The printer at %s answered, but JusPrin couldn't check its secure connection. If the printer's address starts with https://, change it to http:// in Printer settings, then try again."
 msgstr "La impressora a %s ha respost, però JusPrin no n'ha pogut comprovar la connexió segura. Si l'adreça de la impressora comença per https://, canvieu-la a http:// a Configuració de la Impressora i torneu-ho a provar."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
+msgstr "No ha respost res a %s. Comproveu que la impressora estigui engegada i a la mateixa xarxa que aquest ordinador i torneu-ho a provar."
 
 # AI Translated
 msgid "Client configuration is a symbolic link. Use Copy and update its target manually."
@@ -1527,10 +1416,6 @@ msgid "Switch to JusPrin view"
 msgstr "Canviar a la vista de JusPrin"
 
 # AI Translated
-msgid "Something went wrong on our side"
-msgstr "Alguna cosa ha fallat per part nostra"
-
-# AI Translated
 msgid "You can report this to the JusPrin team so they can fix it. The report is anonymous: it has no chat messages, no files and nothing that says who you are."
 msgstr "Podeu informar-ne l'equip de JusPrin perquè ho pugui corregir. L'informe és anònim: no conté missatges del xat, ni fitxers, ni res que digui qui sou."
 
@@ -1931,6 +1816,10 @@ msgstr "Guia de muntatge"
 # AI Translated
 msgid "Attachments"
 msgstr "Fitxers adjunts"
+
+# AI Translated
+msgid "Couldn't open file"
+msgstr "No s'ha pogut obrir el fitxer"
 
 # AI Translated
 msgid "The file couldn't be opened."
@@ -2372,6 +2261,115 @@ msgstr "Aquest projecte s'ha desat amb una versió més nova de JusPrin. Obteniu
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "No s'ha pogut obrir el projecte. Torneu-ho a provar."
+
+# AI Translated
+#~ msgid "The attachment could not be stored."
+#~ msgstr "No s'ha pogut desar el fitxer adjunt."
+
+# AI Translated
+#~ msgid "The current chat could not be saved."
+#~ msgstr "No s'ha pogut desar el xat actual."
+
+# AI Translated
+#~ msgid "The new chat could not be saved."
+#~ msgstr "No s'ha pogut desar el xat nou."
+
+# AI Translated
+#~ msgid "The selected chat could not be saved."
+#~ msgstr "No s'ha pogut desar el xat seleccionat."
+
+# AI Translated
+#~ msgid "The current project could not be saved before restoration."
+#~ msgstr "No s'ha pogut desar el projecte actual abans de la restauració."
+
+# AI Translated
+#~ msgid "JusPrin couldn't put the project back."
+#~ msgstr "JusPrin no ha pogut restaurar el projecte."
+
+# AI Translated
+#~ msgid "The replacement chat could not be saved."
+#~ msgstr "No s'ha pogut desar el xat de substitució."
+
+# AI Translated
+#~ msgid "This sign-in could not be saved, so you will have to sign in again next time JusPrin starts."
+#~ msgstr "No s'ha pogut desar aquest inici de sessió; haureu de tornar a iniciar sessió la propera vegada que s'iniciï JusPrin."
+
+# AI Translated
+#~ msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
+#~ msgstr "No s'ha pogut desar aquesta clau; caldrà tornar-la a introduir la propera vegada que s'iniciï JusPrin."
+
+# AI Translated
+# Needs human review: “streaming response” rendered as “resposta en temps real”; check it reads right for a developer-facing error.
+#~ msgid "The AI service returned an unreadable streaming response."
+#~ msgstr "El servei d'IA ha retornat una resposta en temps real il·legible."
+
+# AI Translated
+# Needs human review: “delta” rendered as “fragment”; check the technical wording.
+#~ msgid "The AI service streamed a delta for a block it never opened."
+#~ msgstr "El servei d'IA ha enviat un fragment per a un bloc que no havia obert mai."
+
+# AI Translated
+#~ msgid "The AI service sent a tool call whose arguments are not JSON."
+#~ msgstr "El servei d'IA ha enviat una crida d'eina amb arguments que no són JSON."
+
+# AI Translated
+#~ msgid "The AI service could not complete the response."
+#~ msgstr "El servei d'IA no ha pogut completar la resposta."
+
+# AI Translated
+#~ msgid "The AI service ended its response for a reason this build does not know."
+#~ msgstr "El servei d'IA ha acabat la resposta per un motiu que aquesta compilació no coneix."
+
+# AI Translated
+#~ msgid "The AI service stopped before finishing its response."
+#~ msgstr "El servei d'IA s'ha aturat abans d'acabar la resposta."
+
+# AI Translated
+#~ msgid "The AI service kept pausing its response."
+#~ msgstr "El servei d'IA no parava d'interrompre la resposta."
+
+# AI Translated
+#~ msgid "AI could not be asked to continue its response."
+#~ msgstr "No s'ha pogut demanar a la IA que continués la resposta."
+
+# AI Translated
+#~ msgid "AI could not be told the results of its tool calls."
+#~ msgstr "No s'han pogut comunicar a la IA els resultats de les seves crides d'eines."
+
+# AI Translated
+#~ msgid "AI returned an invalid tool call."
+#~ msgstr "La IA ha retornat una crida d'eina no vàlida."
+
+# AI Translated
+#~ msgid "The AI service ended before a complete response arrived."
+#~ msgstr "El servei d'IA ha acabat abans que arribés una resposta completa."
+
+# AI Translated
+#~ msgid "You're out of credits."
+#~ msgstr "No us queden crèdits."
+
+# AI Translated
+#, boost-format
+#~ msgid "The %1% service is overloaded. Try again shortly."
+#~ msgstr "El servei de %1% està sobrecarregat. Torneu-ho a provar d'aquí a poc."
+
+# AI Translated
+#, boost-format
+#~ msgid "The %1% service is temporarily unavailable."
+#~ msgstr "El servei de %1% no està disponible temporalment."
+
+# AI Translated
+#~ msgid "The AI request timed out."
+#~ msgstr "S'ha esgotat el temps d'espera de la sol·licitud a la IA."
+
+# AI Translated
+#~ msgid "The AI service response did not contain valid output."
+#~ msgstr "La resposta del servei d'IA no contenia una sortida vàlida."
+
+# AI Translated
+#, c-format, boost-format
+#~ msgid "%s couldn't be opened. Try opening it with Open… instead."
+#~ msgstr "No s'ha pogut obrir %s. Proveu d'obrir-lo amb Obrir… en lloc d'això."
 
 # AI Translated
 #~ msgid "The file could not be read."

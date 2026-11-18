@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15 18:58-0800\n"
+"POT-Creation-Date: 2026-11-17 17:55-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,6 +16,10 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
+
+# AI Translated
+msgid "Something went wrong on our side"
+msgstr "เกิดข้อผิดพลาดจากฝั่งเรา"
 
 # AI Translated
 # Needs human review: meaning of 'until restoration is recovered': chat is blocked after a failed project restore; check the wording fits
@@ -49,10 +53,6 @@ msgstr "AI อ่านไฟล์ประเภทนี้ไม่ได้
 # AI Translated
 msgid "This file is not readable UTF-8 text."
 msgstr "ไฟล์นี้ไม่ใช่ข้อความ UTF-8 ที่อ่านได้"
-
-# AI Translated
-msgid "The attachment could not be stored."
-msgstr "จัดเก็บไฟล์แนบไม่ได้"
 
 # AI Translated
 msgid "Photo or image"
@@ -155,18 +155,6 @@ msgid "Finish or resolve pending work before creating a chat."
 msgstr "ทำงานที่ค้างอยู่ให้เสร็จหรือแก้ไขให้เรียบร้อยก่อนสร้างแชท"
 
 # AI Translated
-msgid "The current chat could not be saved."
-msgstr "บันทึกแชทปัจจุบันไม่ได้"
-
-# AI Translated
-msgid "The new chat could not be saved."
-msgstr "บันทึกแชทใหม่ไม่ได้"
-
-# AI Translated
-msgid "The selected chat could not be saved."
-msgstr "บันทึกแชทที่เลือกไม่ได้"
-
-# AI Translated
 msgid "The project or selected chat changed. Review it again."
 msgstr "โปรเจกต์หรือแชทที่เลือกมีการเปลี่ยนแปลง โปรดตรวจสอบอีกครั้ง"
 
@@ -183,14 +171,6 @@ msgid "JusPrin can't find the project version this chat was working on."
 msgstr "JusPrin ไม่พบเวอร์ชันของโปรเจกต์ที่แชทนี้ทำงานอยู่"
 
 # AI Translated
-msgid "The current project could not be saved before restoration."
-msgstr "บันทึกโปรเจกต์ปัจจุบันก่อนกู้คืนไม่ได้"
-
-# AI Translated
-msgid "JusPrin couldn't put the project back."
-msgstr "JusPrin นำโปรเจกต์กลับคืนมาไม่ได้"
-
-# AI Translated
 msgid "Restored this chat's saved project setup. Check the current printer and material before printing."
 msgstr "กู้คืนการตั้งค่าโปรเจกต์ที่บันทึกไว้ของแชทนี้แล้ว โปรดตรวจสอบเครื่องพิมพ์และวัสดุปัจจุบันก่อนพิมพ์"
 
@@ -205,10 +185,6 @@ msgstr "แชทนี้ยังทำงานอยู่ โปรดห�
 # AI Translated
 msgid "This chat no longer exists."
 msgstr "แชทนี้ไม่มีอยู่แล้ว"
-
-# AI Translated
-msgid "The replacement chat could not be saved."
-msgstr "บันทึกแชทที่ใช้แทนไม่ได้"
 
 # AI Translated
 msgid "Historical chats cannot edit the current draft."
@@ -261,14 +237,6 @@ msgstr "ไม่มีบัญชี JusPrin บนคอมพิวเตอ
 # AI Translated
 msgid "JusPrin couldn't sign you in. Try again."
 msgstr "JusPrin เข้าสู่ระบบให้คุณไม่สำเร็จ โปรดลองอีกครั้ง"
-
-# AI Translated
-msgid "This sign-in could not be saved, so you will have to sign in again next time JusPrin starts."
-msgstr "บันทึกการเข้าสู่ระบบนี้ไม่ได้ คุณจึงต้องเข้าสู่ระบบอีกครั้งเมื่อเปิด JusPrin ครั้งถัดไป"
-
-# AI Translated
-msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
-msgstr "บันทึกคีย์นี้ไม่ได้ จึงต้องป้อนคีย์อีกครั้งเมื่อเปิด JusPrin ครั้งถัดไป"
 
 # AI Translated
 msgid "The AI service is not available."
@@ -400,34 +368,18 @@ msgid "Bridge traffic: %1% sent / %2% received"
 msgstr "ข้อความผ่านบริดจ์: ส่ง %1% / รับ %2%"
 
 # AI Translated
-msgid "The AI service returned an unreadable streaming response."
-msgstr "บริการ AI ส่งการตอบกลับแบบสตรีมที่อ่านไม่ได้"
-
-# AI Translated
-msgid "The AI service streamed a delta for a block it never opened."
-msgstr "บริการ AI สตรีมส่วนเพิ่ม (delta) ของบล็อกที่ไม่เคยเปิด"
-
-# AI Translated
-msgid "The AI service sent a tool call whose arguments are not JSON."
-msgstr "บริการ AI ส่งการเรียกใช้เครื่องมือที่อาร์กิวเมนต์ไม่ใช่ JSON"
-
-# AI Translated
-msgid "The AI service could not complete the response."
-msgstr "บริการ AI ตอบกลับให้เสร็จไม่ได้"
-
-# AI Translated
 #. TRN %1% is the AI service's own reason, in English, such as "cyber".
 #, boost-format
 msgid "The AI service declined to answer (%1%)."
 msgstr "บริการ AI ปฏิเสธที่จะตอบ (%1%)"
 
 # AI Translated
-msgid "The AI service ended its response for a reason this build does not know."
-msgstr "บริการ AI จบการตอบกลับด้วยเหตุผลที่บิลด์นี้ไม่รู้จัก"
-
-# AI Translated
 msgid "This version of JusPrin can no longer connect to JusPrin accounts. Get the new version to keep using your account."
 msgstr "JusPrin เวอร์ชันนี้เชื่อมต่อกับบัญชี JusPrin ไม่ได้อีกต่อไป โปรดรับเวอร์ชันใหม่เพื่อใช้บัญชีของคุณต่อ"
+
+# AI Translated
+msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
+msgstr "การเข้าสู่ระบบ JusPrin ของคุณหมดอายุแล้ว โปรดเข้าสู่ระบบอีกครั้งในการตั้งค่า แล้วลองอีกครั้ง"
 
 # AI Translated
 msgid "Signing in didn't finish. Nothing was saved. Try again."
@@ -455,57 +407,10 @@ msgid "Attachment"
 msgstr "ไฟล์แนบ"
 
 # AI Translated
-msgid "The AI service stopped before finishing its response."
-msgstr "บริการ AI หยุดก่อนตอบกลับเสร็จ"
-
-# AI Translated
-msgid "The AI service kept pausing its response."
-msgstr "บริการ AI หยุดชะงักระหว่างตอบกลับอยู่เรื่อยๆ"
-
-# AI Translated
-msgid "AI could not be asked to continue its response."
-msgstr "ขอให้ AI ตอบต่อไม่ได้"
-
-# AI Translated
-msgid "AI could not be told the results of its tool calls."
-msgstr "แจ้งผลการเรียกใช้เครื่องมือให้ AI ทราบไม่ได้"
-
-# AI Translated
-msgid "AI returned an invalid tool call."
-msgstr "AI ส่งการเรียกใช้เครื่องมือที่ไม่ถูกต้อง"
-
-# AI Translated
-msgid "The AI service ended before a complete response arrived."
-msgstr "บริการ AI สิ้นสุดก่อนได้รับการตอบกลับที่สมบูรณ์"
-
-# AI Translated
-msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
-msgstr "การเข้าสู่ระบบ JusPrin ของคุณหมดอายุแล้ว โปรดเข้าสู่ระบบอีกครั้งในการตั้งค่า แล้วลองอีกครั้ง"
-
-# AI Translated
-msgid "That photo could not be read."
-msgstr "ไม่สามารถอ่านรูปภาพนั้นได้"
-
-# AI Translated
-#. TRN The print report form, about a photo over the server's limit of 20 MB.
-msgid "That photo is larger than 20 MB. Choose a smaller photo, then send the report again."
-msgstr "รูปภาพนั้นมีขนาดใหญ่กว่า 20 MB โปรดเลือกรูปภาพที่เล็กกว่า แล้วส่งรายงานอีกครั้ง"
-
-# AI Translated
-#, boost-format
-msgid "This message needs %1% credit; you have %2%."
-msgid_plural "This message needs %1% credits; you have %2%."
-msgstr[0] "ข้อความนี้ต้องใช้ %1% เครดิต คุณมี %2% เครดิต"
-
-# AI Translated
-msgid "You're out of credits."
-msgstr "เครดิตของคุณหมดแล้ว"
-
-# AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.
 #, boost-format
-msgid "The %1% API key was rejected. Update the AI configuration and try again."
-msgstr "คีย์ API ของ %1% ถูกปฏิเสธ โปรดอัปเดตการตั้งค่า AI แล้วลองอีกครั้ง"
+msgid "The %1% service is rate limited. Try again shortly."
+msgstr "บริการ %1% จำกัดอัตราการใช้งานอยู่ โปรดลองอีกครั้งในอีกสักครู่"
 
 # AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.
@@ -516,34 +421,20 @@ msgstr "คำขอมีขนาดใหญ่เกินไปสำหร
 # AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.
 #, boost-format
-msgid "The %1% service is rate limited. Try again shortly."
-msgstr "บริการ %1% จำกัดอัตราการใช้งานอยู่ โปรดลองอีกครั้งในอีกสักครู่"
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The %1% service is overloaded. Try again shortly."
-msgstr "บริการ %1% มีภาระงานมากเกินไป โปรดลองอีกครั้งในอีกสักครู่"
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The %1% service is temporarily unavailable."
-msgstr "บริการ %1% ไม่พร้อมใช้งานชั่วคราว"
-
-# AI Translated
-msgid "The AI request timed out."
-msgstr "คำขอ AI หมดเวลา"
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
 msgid "The AI request could not reach the %1% service."
 msgstr "คำขอ AI ติดต่อบริการ %1% ไม่ได้"
 
 # AI Translated
-msgid "The AI service response did not contain valid output."
-msgstr "การตอบกลับของบริการ AI ไม่มีผลลัพธ์ที่ถูกต้อง"
+#, boost-format
+msgid "This message needs %1% credit; you have %2%."
+msgid_plural "This message needs %1% credits; you have %2%."
+msgstr[0] "ข้อความนี้ต้องใช้ %1% เครดิต คุณมี %2% เครดิต"
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% API key was rejected. Update the AI configuration and try again."
+msgstr "คีย์ API ของ %1% ถูกปฏิเสธ โปรดอัปเดตการตั้งค่า AI แล้วลองอีกครั้ง"
 
 # AI Translated
 #. TRN A button that asks the AI to choose another block of a calibration test.
@@ -805,15 +696,6 @@ msgstr "รูปถ่าย"
 
 # AI Translated
 #, c-format, boost-format
-msgid "%s couldn't be opened. Try opening it with Open… instead."
-msgstr "เปิด %s ไม่ได้ โปรดลองเปิดด้วย เปิด… แทน"
-
-# AI Translated
-msgid "Couldn't open file"
-msgstr "เปิดไฟล์ไม่ได้"
-
-# AI Translated
-#, c-format, boost-format
 msgid "Import from %s"
 msgstr "นำเข้าจาก %s"
 
@@ -889,6 +771,15 @@ msgid "JusPrin found no %1% printers in that folder. If %1% keeps its settings s
 msgstr "JusPrin ไม่พบเครื่องพิมพ์ของ %1% ในโฟลเดอร์นั้น หาก %1% เก็บการตั้งค่าไว้ที่อื่น โปรดเลือกโฟลเดอร์นั้น"
 
 # AI Translated
+#. TRN The print report form, about a photo over the server's limit of 20 MB.
+msgid "That photo is larger than 20 MB. Choose a smaller photo, then send the report again."
+msgstr "รูปภาพนั้นมีขนาดใหญ่กว่า 20 MB โปรดเลือกรูปภาพที่เล็กกว่า แล้วส่งรายงานอีกครั้ง"
+
+# AI Translated
+msgid "That photo could not be read."
+msgstr "ไม่สามารถอ่านรูปภาพนั้นได้"
+
+# AI Translated
 msgid "The printer's page didn't load"
 msgstr "หน้าของเครื่องพิมพ์โหลดไม่สำเร็จ"
 
@@ -897,15 +788,15 @@ msgid "Try again"
 msgstr "ลองอีกครั้ง"
 
 # AI Translated
-#, c-format, boost-format
-msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
-msgstr "ไม่มีการตอบสนองที่ %s ตรวจสอบว่าเครื่องพิมพ์เปิดอยู่และอยู่ในเครือข่ายเดียวกันกับคอมพิวเตอร์เครื่องนี้ แล้วลองอีกครั้ง"
-
-# AI Translated
 #. TRN %s is the printer's address without its scheme, such as 192.168.1.42:7125. Printer settings is the printer's settings window.
 #, c-format, boost-format
 msgid "The printer at %s answered, but JusPrin couldn't check its secure connection. If the printer's address starts with https://, change it to http:// in Printer settings, then try again."
 msgstr "เครื่องพิมพ์ที่ %s ตอบสนองแล้ว แต่ JusPrin ไม่สามารถตรวจสอบการเชื่อมต่อที่ปลอดภัยของเครื่องพิมพ์ได้ หากที่อยู่ของเครื่องพิมพ์ขึ้นต้นด้วย https:// ให้เปลี่ยนเป็น http:// ในการตั้งค่าเครื่องพิมพ์ แล้วลองอีกครั้ง"
+
+# AI Translated
+#, c-format, boost-format
+msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
+msgstr "ไม่มีการตอบสนองที่ %s ตรวจสอบว่าเครื่องพิมพ์เปิดอยู่และอยู่ในเครือข่ายเดียวกันกับคอมพิวเตอร์เครื่องนี้ แล้วลองอีกครั้ง"
 
 # AI Translated
 msgid "Client configuration is a symbolic link. Use Copy and update its target manually."
@@ -1518,10 +1409,6 @@ msgid "Switch to JusPrin view"
 msgstr "สลับไปมุมมอง JusPrin"
 
 # AI Translated
-msgid "Something went wrong on our side"
-msgstr "เกิดข้อผิดพลาดจากฝั่งเรา"
-
-# AI Translated
 msgid "You can report this to the JusPrin team so they can fix it. The report is anonymous: it has no chat messages, no files and nothing that says who you are."
 msgstr "คุณสามารถรายงานเรื่องนี้ให้ทีม JusPrin ทราบเพื่อให้ทีมแก้ไขได้ รายงานนี้ไม่ระบุตัวตน: ไม่มีข้อความแชท ไม่มีไฟล์ และไม่มีสิ่งใดที่บอกว่าคุณเป็นใคร"
 
@@ -1917,6 +1804,10 @@ msgstr "คู่มือการประกอบ"
 # AI Translated
 msgid "Attachments"
 msgstr "ไฟล์แนบ"
+
+# AI Translated
+msgid "Couldn't open file"
+msgstr "เปิดไฟล์ไม่ได้"
 
 # AI Translated
 msgid "The file couldn't be opened."
@@ -2352,6 +2243,113 @@ msgstr "โปรเจกต์นี้บันทึกด้วย JusPrin 
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "เปิดโปรเจกต์ไม่ได้ โปรดลองอีกครั้ง"
+
+# AI Translated
+#~ msgid "The attachment could not be stored."
+#~ msgstr "จัดเก็บไฟล์แนบไม่ได้"
+
+# AI Translated
+#~ msgid "The current chat could not be saved."
+#~ msgstr "บันทึกแชทปัจจุบันไม่ได้"
+
+# AI Translated
+#~ msgid "The new chat could not be saved."
+#~ msgstr "บันทึกแชทใหม่ไม่ได้"
+
+# AI Translated
+#~ msgid "The selected chat could not be saved."
+#~ msgstr "บันทึกแชทที่เลือกไม่ได้"
+
+# AI Translated
+#~ msgid "The current project could not be saved before restoration."
+#~ msgstr "บันทึกโปรเจกต์ปัจจุบันก่อนกู้คืนไม่ได้"
+
+# AI Translated
+#~ msgid "JusPrin couldn't put the project back."
+#~ msgstr "JusPrin นำโปรเจกต์กลับคืนมาไม่ได้"
+
+# AI Translated
+#~ msgid "The replacement chat could not be saved."
+#~ msgstr "บันทึกแชทที่ใช้แทนไม่ได้"
+
+# AI Translated
+#~ msgid "This sign-in could not be saved, so you will have to sign in again next time JusPrin starts."
+#~ msgstr "บันทึกการเข้าสู่ระบบนี้ไม่ได้ คุณจึงต้องเข้าสู่ระบบอีกครั้งเมื่อเปิด JusPrin ครั้งถัดไป"
+
+# AI Translated
+#~ msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
+#~ msgstr "บันทึกคีย์นี้ไม่ได้ จึงต้องป้อนคีย์อีกครั้งเมื่อเปิด JusPrin ครั้งถัดไป"
+
+# AI Translated
+#~ msgid "The AI service returned an unreadable streaming response."
+#~ msgstr "บริการ AI ส่งการตอบกลับแบบสตรีมที่อ่านไม่ได้"
+
+# AI Translated
+#~ msgid "The AI service streamed a delta for a block it never opened."
+#~ msgstr "บริการ AI สตรีมส่วนเพิ่ม (delta) ของบล็อกที่ไม่เคยเปิด"
+
+# AI Translated
+#~ msgid "The AI service sent a tool call whose arguments are not JSON."
+#~ msgstr "บริการ AI ส่งการเรียกใช้เครื่องมือที่อาร์กิวเมนต์ไม่ใช่ JSON"
+
+# AI Translated
+#~ msgid "The AI service could not complete the response."
+#~ msgstr "บริการ AI ตอบกลับให้เสร็จไม่ได้"
+
+# AI Translated
+#~ msgid "The AI service ended its response for a reason this build does not know."
+#~ msgstr "บริการ AI จบการตอบกลับด้วยเหตุผลที่บิลด์นี้ไม่รู้จัก"
+
+# AI Translated
+#~ msgid "The AI service stopped before finishing its response."
+#~ msgstr "บริการ AI หยุดก่อนตอบกลับเสร็จ"
+
+# AI Translated
+#~ msgid "The AI service kept pausing its response."
+#~ msgstr "บริการ AI หยุดชะงักระหว่างตอบกลับอยู่เรื่อยๆ"
+
+# AI Translated
+#~ msgid "AI could not be asked to continue its response."
+#~ msgstr "ขอให้ AI ตอบต่อไม่ได้"
+
+# AI Translated
+#~ msgid "AI could not be told the results of its tool calls."
+#~ msgstr "แจ้งผลการเรียกใช้เครื่องมือให้ AI ทราบไม่ได้"
+
+# AI Translated
+#~ msgid "AI returned an invalid tool call."
+#~ msgstr "AI ส่งการเรียกใช้เครื่องมือที่ไม่ถูกต้อง"
+
+# AI Translated
+#~ msgid "The AI service ended before a complete response arrived."
+#~ msgstr "บริการ AI สิ้นสุดก่อนได้รับการตอบกลับที่สมบูรณ์"
+
+# AI Translated
+#~ msgid "You're out of credits."
+#~ msgstr "เครดิตของคุณหมดแล้ว"
+
+# AI Translated
+#, boost-format
+#~ msgid "The %1% service is overloaded. Try again shortly."
+#~ msgstr "บริการ %1% มีภาระงานมากเกินไป โปรดลองอีกครั้งในอีกสักครู่"
+
+# AI Translated
+#, boost-format
+#~ msgid "The %1% service is temporarily unavailable."
+#~ msgstr "บริการ %1% ไม่พร้อมใช้งานชั่วคราว"
+
+# AI Translated
+#~ msgid "The AI request timed out."
+#~ msgstr "คำขอ AI หมดเวลา"
+
+# AI Translated
+#~ msgid "The AI service response did not contain valid output."
+#~ msgstr "การตอบกลับของบริการ AI ไม่มีผลลัพธ์ที่ถูกต้อง"
+
+# AI Translated
+#, c-format, boost-format
+#~ msgid "%s couldn't be opened. Try opening it with Open… instead."
+#~ msgstr "เปิด %s ไม่ได้ โปรดลองเปิดด้วย เปิด… แทน"
 
 # AI Translated
 #~ msgid "The file could not be read."

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15 18:58-0800\n"
+"POT-Creation-Date: 2026-11-17 17:55-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,6 +16,10 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
+
+# AI Translated
+msgid "Something went wrong on our side"
+msgstr "Đã xảy ra lỗi từ phía chúng tôi"
 
 # AI Translated
 msgid "Project chat is blocked until restoration is recovered."
@@ -48,10 +52,6 @@ msgstr "AI không thể đọc loại file này."
 # AI Translated
 msgid "This file is not readable UTF-8 text."
 msgstr "File này không phải văn bản UTF-8 đọc được."
-
-# AI Translated
-msgid "The attachment could not be stored."
-msgstr "Không thể lưu tệp đính kèm."
 
 # AI Translated
 msgid "Photo or image"
@@ -154,18 +154,6 @@ msgid "Finish or resolve pending work before creating a chat."
 msgstr "Hãy hoàn tất hoặc giải quyết công việc đang chờ trước khi tạo cuộc trò chuyện."
 
 # AI Translated
-msgid "The current chat could not be saved."
-msgstr "Không thể lưu cuộc trò chuyện hiện tại."
-
-# AI Translated
-msgid "The new chat could not be saved."
-msgstr "Không thể lưu cuộc trò chuyện mới."
-
-# AI Translated
-msgid "The selected chat could not be saved."
-msgstr "Không thể lưu cuộc trò chuyện đã chọn."
-
-# AI Translated
 msgid "The project or selected chat changed. Review it again."
 msgstr "Dự án hoặc cuộc trò chuyện đã chọn đã thay đổi. Hãy xem lại."
 
@@ -182,14 +170,6 @@ msgid "JusPrin can't find the project version this chat was working on."
 msgstr "JusPrin không tìm thấy phiên bản dự án mà cuộc trò chuyện này đang làm việc."
 
 # AI Translated
-msgid "The current project could not be saved before restoration."
-msgstr "Không thể lưu dự án hiện tại trước khi khôi phục."
-
-# AI Translated
-msgid "JusPrin couldn't put the project back."
-msgstr "JusPrin không thể khôi phục dự án."
-
-# AI Translated
 msgid "Restored this chat's saved project setup. Check the current printer and material before printing."
 msgstr "Đã khôi phục thiết lập dự án đã lưu của cuộc trò chuyện này. Hãy kiểm tra máy in và vật liệu hiện tại trước khi in."
 
@@ -204,10 +184,6 @@ msgstr "Cuộc trò chuyện này vẫn đang chạy. Hãy dừng hoặc chờ n
 # AI Translated
 msgid "This chat no longer exists."
 msgstr "Cuộc trò chuyện này không còn tồn tại."
-
-# AI Translated
-msgid "The replacement chat could not be saved."
-msgstr "Không thể lưu cuộc trò chuyện thay thế."
 
 # AI Translated
 msgid "Historical chats cannot edit the current draft."
@@ -260,14 +236,6 @@ msgstr "Máy tính này không có tài khoản JusPrin nào để kiểm tra."
 # AI Translated
 msgid "JusPrin couldn't sign you in. Try again."
 msgstr "JusPrin không thể đăng nhập cho bạn. Hãy thử lại."
-
-# AI Translated
-msgid "This sign-in could not be saved, so you will have to sign in again next time JusPrin starts."
-msgstr "Không thể lưu lần đăng nhập này, nên bạn sẽ phải đăng nhập lại vào lần khởi động JusPrin tiếp theo."
-
-# AI Translated
-msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
-msgstr "Không thể lưu khóa này, nên sẽ phải nhập lại vào lần khởi động JusPrin tiếp theo."
 
 # AI Translated
 msgid "The AI service is not available."
@@ -399,34 +367,18 @@ msgid "Bridge traffic: %1% sent / %2% received"
 msgstr "Lưu lượng cầu nối: đã gửi %1% / đã nhận %2%"
 
 # AI Translated
-msgid "The AI service returned an unreadable streaming response."
-msgstr "Dịch vụ AI trả về phản hồi truyền trực tiếp không đọc được."
-
-# AI Translated
-msgid "The AI service streamed a delta for a block it never opened."
-msgstr "Dịch vụ AI truyền một phần dữ liệu cho một khối mà nó chưa từng mở."
-
-# AI Translated
-msgid "The AI service sent a tool call whose arguments are not JSON."
-msgstr "Dịch vụ AI gửi một lệnh gọi công cụ có tham số không phải JSON."
-
-# AI Translated
-msgid "The AI service could not complete the response."
-msgstr "Dịch vụ AI không thể hoàn tất phản hồi."
-
-# AI Translated
 #. TRN %1% is the AI service's own reason, in English, such as "cyber".
 #, boost-format
 msgid "The AI service declined to answer (%1%)."
 msgstr "Dịch vụ AI từ chối trả lời (%1%)."
 
 # AI Translated
-msgid "The AI service ended its response for a reason this build does not know."
-msgstr "Dịch vụ AI kết thúc phản hồi vì một lý do mà bản dựng này không biết."
-
-# AI Translated
 msgid "This version of JusPrin can no longer connect to JusPrin accounts. Get the new version to keep using your account."
 msgstr "Phiên bản JusPrin này không còn kết nối được với tài khoản JusPrin. Hãy tải phiên bản mới để tiếp tục dùng tài khoản của bạn."
+
+# AI Translated
+msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
+msgstr "Phiên đăng nhập JusPrin của bạn đã hết hạn. Hãy đăng nhập lại trong Tùy chọn rồi thử lại."
 
 # AI Translated
 msgid "Signing in didn't finish. Nothing was saved. Try again."
@@ -454,58 +406,10 @@ msgid "Attachment"
 msgstr "Tệp đính kèm"
 
 # AI Translated
-msgid "The AI service stopped before finishing its response."
-msgstr "Dịch vụ AI đã dừng trước khi hoàn tất phản hồi."
-
-# AI Translated
-msgid "The AI service kept pausing its response."
-msgstr "Dịch vụ AI liên tục tạm dừng phản hồi."
-
-# AI Translated
-msgid "AI could not be asked to continue its response."
-msgstr "Không thể yêu cầu AI tiếp tục phản hồi."
-
-# AI Translated
-msgid "AI could not be told the results of its tool calls."
-msgstr "Không thể gửi cho AI kết quả các lệnh gọi công cụ."
-
-# AI Translated
-msgid "AI returned an invalid tool call."
-msgstr "AI trả về một lệnh gọi công cụ không hợp lệ."
-
-# AI Translated
-msgid "The AI service ended before a complete response arrived."
-msgstr "Dịch vụ AI đã kết thúc trước khi nhận được phản hồi đầy đủ."
-
-# AI Translated
-msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
-msgstr "Phiên đăng nhập JusPrin của bạn đã hết hạn. Hãy đăng nhập lại trong Tùy chọn rồi thử lại."
-
-# AI Translated
-msgid "That photo could not be read."
-msgstr "Không thể đọc ảnh đó."
-
-# AI Translated
-#. TRN The print report form, about a photo over the server's limit of 20 MB.
-msgid "That photo is larger than 20 MB. Choose a smaller photo, then send the report again."
-msgstr "Ảnh đó lớn hơn 20 MB. Hãy chọn ảnh nhỏ hơn rồi gửi lại báo cáo."
-
-# AI Translated
-#, boost-format
-msgid "This message needs %1% credit; you have %2%."
-msgid_plural "This message needs %1% credits; you have %2%."
-msgstr[0] "Tin nhắn này cần %1% tín dụng; bạn có %2%."
-
-# AI Translated
-# Needs human review: "credits" rendered as "tín dụng"; check it matches the wording on the account and pricing pages.
-msgid "You're out of credits."
-msgstr "Bạn đã hết tín dụng."
-
-# AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.
 #, boost-format
-msgid "The %1% API key was rejected. Update the AI configuration and try again."
-msgstr "Khóa API %1% đã bị từ chối. Hãy cập nhật cấu hình AI rồi thử lại."
+msgid "The %1% service is rate limited. Try again shortly."
+msgstr "Dịch vụ %1% đang giới hạn tần suất. Hãy thử lại sau ít phút."
 
 # AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.
@@ -516,34 +420,20 @@ msgstr "Yêu cầu quá lớn đối với dịch vụ %1%."
 # AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.
 #, boost-format
-msgid "The %1% service is rate limited. Try again shortly."
-msgstr "Dịch vụ %1% đang giới hạn tần suất. Hãy thử lại sau ít phút."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The %1% service is overloaded. Try again shortly."
-msgstr "Dịch vụ %1% đang quá tải. Hãy thử lại sau ít phút."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The %1% service is temporarily unavailable."
-msgstr "Dịch vụ %1% tạm thời không khả dụng."
-
-# AI Translated
-msgid "The AI request timed out."
-msgstr "Yêu cầu AI đã hết thời gian chờ."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
 msgid "The AI request could not reach the %1% service."
 msgstr "Yêu cầu AI không thể kết nối tới dịch vụ %1%."
 
 # AI Translated
-msgid "The AI service response did not contain valid output."
-msgstr "Phản hồi của dịch vụ AI không chứa kết quả hợp lệ."
+#, boost-format
+msgid "This message needs %1% credit; you have %2%."
+msgid_plural "This message needs %1% credits; you have %2%."
+msgstr[0] "Tin nhắn này cần %1% tín dụng; bạn có %2%."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% API key was rejected. Update the AI configuration and try again."
+msgstr "Khóa API %1% đã bị từ chối. Hãy cập nhật cấu hình AI rồi thử lại."
 
 # AI Translated
 #. TRN A button that asks the AI to choose another block of a calibration test.
@@ -804,15 +694,6 @@ msgstr "Ảnh"
 
 # AI Translated
 #, c-format, boost-format
-msgid "%s couldn't be opened. Try opening it with Open… instead."
-msgstr "Không thể mở %s. Hãy thử mở bằng Mở… thay thế."
-
-# AI Translated
-msgid "Couldn't open file"
-msgstr "Không thể mở file"
-
-# AI Translated
-#, c-format, boost-format
 msgid "Import from %s"
 msgstr "Nhập từ %s"
 
@@ -888,6 +769,15 @@ msgid "JusPrin found no %1% printers in that folder. If %1% keeps its settings s
 msgstr "JusPrin không tìm thấy máy in %1% nào trong thư mục đó. Nếu %1% lưu cài đặt ở nơi khác, hãy chọn thư mục đó."
 
 # AI Translated
+#. TRN The print report form, about a photo over the server's limit of 20 MB.
+msgid "That photo is larger than 20 MB. Choose a smaller photo, then send the report again."
+msgstr "Ảnh đó lớn hơn 20 MB. Hãy chọn ảnh nhỏ hơn rồi gửi lại báo cáo."
+
+# AI Translated
+msgid "That photo could not be read."
+msgstr "Không thể đọc ảnh đó."
+
+# AI Translated
 msgid "The printer's page didn't load"
 msgstr "Không tải được trang của máy in"
 
@@ -896,15 +786,15 @@ msgid "Try again"
 msgstr "Thử lại"
 
 # AI Translated
-#, c-format, boost-format
-msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
-msgstr "Không có phản hồi tại %s. Hãy kiểm tra máy in đã bật và cùng mạng với máy tính này, rồi thử lại."
-
-# AI Translated
 #. TRN %s is the printer's address without its scheme, such as 192.168.1.42:7125. Printer settings is the printer's settings window.
 #, c-format, boost-format
 msgid "The printer at %s answered, but JusPrin couldn't check its secure connection. If the printer's address starts with https://, change it to http:// in Printer settings, then try again."
 msgstr "Máy in tại %s đã phản hồi, nhưng JusPrin không thể kiểm tra kết nối bảo mật của máy in. Nếu địa chỉ máy in bắt đầu bằng https://, hãy đổi thành http:// trong Cài đặt máy in rồi thử lại."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
+msgstr "Không có phản hồi tại %s. Hãy kiểm tra máy in đã bật và cùng mạng với máy tính này, rồi thử lại."
 
 # AI Translated
 msgid "Client configuration is a symbolic link. Use Copy and update its target manually."
@@ -1513,10 +1403,6 @@ msgid "Switch to JusPrin view"
 msgstr "Chuyển sang giao diện JusPrin"
 
 # AI Translated
-msgid "Something went wrong on our side"
-msgstr "Đã xảy ra lỗi từ phía chúng tôi"
-
-# AI Translated
 msgid "You can report this to the JusPrin team so they can fix it. The report is anonymous: it has no chat messages, no files and nothing that says who you are."
 msgstr "Bạn có thể báo cáo lỗi này cho nhóm JusPrin để họ khắc phục. Báo cáo là ẩn danh: không có tin nhắn trò chuyện, không có file và không có gì cho biết bạn là ai."
 
@@ -1911,6 +1797,10 @@ msgstr "Hướng dẫn lắp ráp"
 # AI Translated
 msgid "Attachments"
 msgstr "Tệp đính kèm"
+
+# AI Translated
+msgid "Couldn't open file"
+msgstr "Không thể mở file"
 
 # AI Translated
 msgid "The file couldn't be opened."
@@ -2345,6 +2235,114 @@ msgstr "Dự án này được lưu bằng phiên bản JusPrin mới hơn. Hãy
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "Không thể mở dự án. Hãy thử lại."
+
+# AI Translated
+#~ msgid "The attachment could not be stored."
+#~ msgstr "Không thể lưu tệp đính kèm."
+
+# AI Translated
+#~ msgid "The current chat could not be saved."
+#~ msgstr "Không thể lưu cuộc trò chuyện hiện tại."
+
+# AI Translated
+#~ msgid "The new chat could not be saved."
+#~ msgstr "Không thể lưu cuộc trò chuyện mới."
+
+# AI Translated
+#~ msgid "The selected chat could not be saved."
+#~ msgstr "Không thể lưu cuộc trò chuyện đã chọn."
+
+# AI Translated
+#~ msgid "The current project could not be saved before restoration."
+#~ msgstr "Không thể lưu dự án hiện tại trước khi khôi phục."
+
+# AI Translated
+#~ msgid "JusPrin couldn't put the project back."
+#~ msgstr "JusPrin không thể khôi phục dự án."
+
+# AI Translated
+#~ msgid "The replacement chat could not be saved."
+#~ msgstr "Không thể lưu cuộc trò chuyện thay thế."
+
+# AI Translated
+#~ msgid "This sign-in could not be saved, so you will have to sign in again next time JusPrin starts."
+#~ msgstr "Không thể lưu lần đăng nhập này, nên bạn sẽ phải đăng nhập lại vào lần khởi động JusPrin tiếp theo."
+
+# AI Translated
+#~ msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
+#~ msgstr "Không thể lưu khóa này, nên sẽ phải nhập lại vào lần khởi động JusPrin tiếp theo."
+
+# AI Translated
+#~ msgid "The AI service returned an unreadable streaming response."
+#~ msgstr "Dịch vụ AI trả về phản hồi truyền trực tiếp không đọc được."
+
+# AI Translated
+#~ msgid "The AI service streamed a delta for a block it never opened."
+#~ msgstr "Dịch vụ AI truyền một phần dữ liệu cho một khối mà nó chưa từng mở."
+
+# AI Translated
+#~ msgid "The AI service sent a tool call whose arguments are not JSON."
+#~ msgstr "Dịch vụ AI gửi một lệnh gọi công cụ có tham số không phải JSON."
+
+# AI Translated
+#~ msgid "The AI service could not complete the response."
+#~ msgstr "Dịch vụ AI không thể hoàn tất phản hồi."
+
+# AI Translated
+#~ msgid "The AI service ended its response for a reason this build does not know."
+#~ msgstr "Dịch vụ AI kết thúc phản hồi vì một lý do mà bản dựng này không biết."
+
+# AI Translated
+#~ msgid "The AI service stopped before finishing its response."
+#~ msgstr "Dịch vụ AI đã dừng trước khi hoàn tất phản hồi."
+
+# AI Translated
+#~ msgid "The AI service kept pausing its response."
+#~ msgstr "Dịch vụ AI liên tục tạm dừng phản hồi."
+
+# AI Translated
+#~ msgid "AI could not be asked to continue its response."
+#~ msgstr "Không thể yêu cầu AI tiếp tục phản hồi."
+
+# AI Translated
+#~ msgid "AI could not be told the results of its tool calls."
+#~ msgstr "Không thể gửi cho AI kết quả các lệnh gọi công cụ."
+
+# AI Translated
+#~ msgid "AI returned an invalid tool call."
+#~ msgstr "AI trả về một lệnh gọi công cụ không hợp lệ."
+
+# AI Translated
+#~ msgid "The AI service ended before a complete response arrived."
+#~ msgstr "Dịch vụ AI đã kết thúc trước khi nhận được phản hồi đầy đủ."
+
+# AI Translated
+# Needs human review: "credits" rendered as "tín dụng"; check it matches the wording on the account and pricing pages.
+#~ msgid "You're out of credits."
+#~ msgstr "Bạn đã hết tín dụng."
+
+# AI Translated
+#, boost-format
+#~ msgid "The %1% service is overloaded. Try again shortly."
+#~ msgstr "Dịch vụ %1% đang quá tải. Hãy thử lại sau ít phút."
+
+# AI Translated
+#, boost-format
+#~ msgid "The %1% service is temporarily unavailable."
+#~ msgstr "Dịch vụ %1% tạm thời không khả dụng."
+
+# AI Translated
+#~ msgid "The AI request timed out."
+#~ msgstr "Yêu cầu AI đã hết thời gian chờ."
+
+# AI Translated
+#~ msgid "The AI service response did not contain valid output."
+#~ msgstr "Phản hồi của dịch vụ AI không chứa kết quả hợp lệ."
+
+# AI Translated
+#, c-format, boost-format
+#~ msgid "%s couldn't be opened. Try opening it with Open… instead."
+#~ msgstr "Không thể mở %s. Hãy thử mở bằng Mở… thay thế."
 
 # AI Translated
 #~ msgid "The file could not be read."

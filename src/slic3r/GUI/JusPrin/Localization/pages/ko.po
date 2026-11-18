@@ -4311,11 +4311,6 @@ msgid "This JusPrin build cannot list the settings."
 msgstr "이 JusPrin 빌드에서는 설정 목록을 표시할 수 없습니다."
 
 # AI Translated
-#: src/components/AgentConnection.tsx
-msgid "This key works now, but JusPrin couldn’t save it."
-msgstr "이 키는 지금 작동하지만 JusPrin에서 저장하지 못했습니다."
-
-# AI Translated
 #: src/components/SetupLocalTool.tsx
 msgid "This tool isn’t installed."
 msgstr "이 도구가 설치되어 있지 않습니다."
@@ -4676,11 +4671,6 @@ msgstr "현재 버전 {current}"
 #: src/components/SetupLocalTool.tsx
 msgid "You won’t need to set this up again after a normal JusPrin restart."
 msgstr "일반적으로 JusPrin을 다시 시작한 후에는 다시 설정할 필요가 없습니다."
-
-# AI Translated
-#: src/components/AgentConnection.tsx
-msgid "You’ll need to add it again after JusPrin restarts."
-msgstr "JusPrin을 다시 시작한 후 다시 추가해야 합니다."
 
 # AI Translated
 #: src/components/AgentConnection.tsx

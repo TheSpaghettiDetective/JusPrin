@@ -65,6 +65,7 @@ Untick **New JusPrin versions** to stop the daily check. The printer and filamen
 
 ## Report a problem or get help
 
+- When something goes wrong that you can't fix yourself, JusPrin shows **Something went wrong on our side**. **See what the report contains** shows the report, **Report to JusPrin team** sends it, and **Cancel** sends nothing. Tick **From now on, report errors like this automatically** to send later ones without asking. To change that later, open **Updates** in Preferences and tick or untick **Report errors to the JusPrin team automatically**, under **Error reports**. It is off until you turn it on.
 - **Report a problem…** in the **Help** menu opens a new issue on JusPrin's GitHub page in your browser, with the app's version and your system already filled in. Nothing is sent until you submit it there.
 - **JusPrin guide…** in the **Help** menu opens this guide inside the app, with a search box.
 - **Ask AI…** in the **Help** menu opens the AI panel.

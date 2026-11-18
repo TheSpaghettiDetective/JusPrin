@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-15 18:58-0800\n"
+"POT-Creation-Date: 2026-11-17 17:55-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,6 +16,10 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+# AI Translated
+msgid "Something went wrong on our side"
+msgstr "Zerbait gaizki atera da gure aldetik"
 
 # AI Translated
 msgid "Project chat is blocked until restoration is recovered."
@@ -48,10 +52,6 @@ msgstr "AAk ezin du mota honetako fitxategirik irakurri."
 # AI Translated
 msgid "This file is not readable UTF-8 text."
 msgstr "Fitxategi hau ez da UTF-8 testu irakurgarria."
-
-# AI Translated
-msgid "The attachment could not be stored."
-msgstr "Ezin izan da eranskina gorde."
 
 # AI Translated
 msgid "Photo or image"
@@ -154,18 +154,6 @@ msgid "Finish or resolve pending work before creating a chat."
 msgstr "Amaitu edo ebatzi zain dauden lanak txat bat sortu aurretik."
 
 # AI Translated
-msgid "The current chat could not be saved."
-msgstr "Ezin izan da uneko txata gorde."
-
-# AI Translated
-msgid "The new chat could not be saved."
-msgstr "Ezin izan da txat berria gorde."
-
-# AI Translated
-msgid "The selected chat could not be saved."
-msgstr "Ezin izan da hautatutako txata gorde."
-
-# AI Translated
 msgid "The project or selected chat changed. Review it again."
 msgstr "Proiektua edo hautatutako txata aldatu egin da. Berrikusi berriro."
 
@@ -182,14 +170,6 @@ msgid "JusPrin can't find the project version this chat was working on."
 msgstr "JusPrin-ek ez du aurkitzen txat honek erabiltzen zuen proiektuaren bertsioa."
 
 # AI Translated
-msgid "The current project could not be saved before restoration."
-msgstr "Ezin izan da uneko proiektua gorde leheneratu aurretik."
-
-# AI Translated
-msgid "JusPrin couldn't put the project back."
-msgstr "JusPrin-ek ezin izan du proiektua leheneratu."
-
-# AI Translated
 msgid "Restored this chat's saved project setup. Check the current printer and material before printing."
 msgstr "Txat honen proiektuaren konfigurazio gordea leheneratu da. Egiaztatu uneko inprimagailua eta materiala inprimatu aurretik."
 
@@ -204,10 +184,6 @@ msgstr "Txat hau oraindik lanean ari da. Gelditu edo utzi amaitzen, eta ezabatu 
 # AI Translated
 msgid "This chat no longer exists."
 msgstr "Txat hau ez dago jada."
-
-# AI Translated
-msgid "The replacement chat could not be saved."
-msgstr "Ezin izan da ordezko txata gorde."
 
 # AI Translated
 msgid "Historical chats cannot edit the current draft."
@@ -260,14 +236,6 @@ msgstr "Ez dago JusPrin konturik ordenagailu honetan egiaztatzeko."
 # AI Translated
 msgid "JusPrin couldn't sign you in. Try again."
 msgstr "JusPrin-ek ezin izan dizu saioa hasi. Saiatu berriro."
-
-# AI Translated
-msgid "This sign-in could not be saved, so you will have to sign in again next time JusPrin starts."
-msgstr "Ezin izan da saio hau gorde; beraz, JusPrin abiarazten den hurrengo aldian saioa berriro hasi beharko duzu."
-
-# AI Translated
-msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
-msgstr "Ezin izan da gako hau gorde; beraz, JusPrin abiarazten den hurrengo aldian berriro sartu beharko da."
 
 # AI Translated
 msgid "The AI service is not available."
@@ -398,34 +366,18 @@ msgid "Bridge traffic: %1% sent / %2% received"
 msgstr "Zubiko trafikoa: %1% bidalita / %2% jasota"
 
 # AI Translated
-msgid "The AI service returned an unreadable streaming response."
-msgstr "AA zerbitzuak streaming erantzun irakurrezin bat itzuli du."
-
-# AI Translated
-msgid "The AI service streamed a delta for a block it never opened."
-msgstr "AA zerbitzuak inoiz ireki ez zuen bloke baterako delta bat bidali du."
-
-# AI Translated
-msgid "The AI service sent a tool call whose arguments are not JSON."
-msgstr "AA zerbitzuak JSON ez diren argumentuak dituen tresna-dei bat bidali du."
-
-# AI Translated
-msgid "The AI service could not complete the response."
-msgstr "AA zerbitzuak ezin izan du erantzuna osatu."
-
-# AI Translated
 #. TRN %1% is the AI service's own reason, in English, such as "cyber".
 #, boost-format
 msgid "The AI service declined to answer (%1%)."
 msgstr "AA zerbitzuak erantzuteari uko egin dio (%1%)."
 
 # AI Translated
-msgid "The AI service ended its response for a reason this build does not know."
-msgstr "AA zerbitzuak konpilazio honek ezagutzen ez duen arrazoi batengatik amaitu du erantzuna."
-
-# AI Translated
 msgid "This version of JusPrin can no longer connect to JusPrin accounts. Get the new version to keep using your account."
 msgstr "JusPrin-en bertsio honek ezin du jada JusPrin kontuetara konektatu. Lortu bertsio berria zure kontua erabiltzen jarraitzeko."
+
+# AI Translated
+msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
+msgstr "Zure JusPrin saioa amaitu da. Hasi saioa berriro Hobespenetan, eta saiatu berriro."
 
 # AI Translated
 msgid "Signing in didn't finish. Nothing was saved. Try again."
@@ -453,58 +405,10 @@ msgid "Attachment"
 msgstr "Eranskina"
 
 # AI Translated
-msgid "The AI service stopped before finishing its response."
-msgstr "AA zerbitzua gelditu egin da erantzuna amaitu aurretik."
-
-# AI Translated
-msgid "The AI service kept pausing its response."
-msgstr "AA zerbitzuak behin eta berriz pausatu du erantzuna."
-
-# AI Translated
-msgid "AI could not be asked to continue its response."
-msgstr "Ezin izan zaio AAri eskatu erantzunarekin jarraitzeko."
-
-# AI Translated
-msgid "AI could not be told the results of its tool calls."
-msgstr "Ezin izan zaizkio AAri jakinarazi bere tresna-deien emaitzak."
-
-# AI Translated
-msgid "AI returned an invalid tool call."
-msgstr "AAk tresna-dei baliogabe bat itzuli du."
-
-# AI Translated
-msgid "The AI service ended before a complete response arrived."
-msgstr "AA zerbitzua amaitu egin da erantzun osoa iritsi aurretik."
-
-# AI Translated
-msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
-msgstr "Zure JusPrin saioa amaitu da. Hasi saioa berriro Hobespenetan, eta saiatu berriro."
-
-# AI Translated
-msgid "That photo could not be read."
-msgstr "Ezin izan da argazki hori irakurri."
-
-# AI Translated
-#. TRN The print report form, about a photo over the server's limit of 20 MB.
-msgid "That photo is larger than 20 MB. Choose a smaller photo, then send the report again."
-msgstr "Argazki hori 20 MB baino handiagoa da. Aukeratu argazki txikiagoa, eta bidali txostena berriro."
-
-# AI Translated
-#, boost-format
-msgid "This message needs %1% credit; you have %2%."
-msgid_plural "This message needs %1% credits; you have %2%."
-msgstr[0] "Mezu honek kreditu %1% behar du; %2% dituzu."
-msgstr[1] "Mezu honek %1% kreditu behar ditu; %2% dituzu."
-
-# AI Translated
-msgid "You're out of credits."
-msgstr "Kreditu gabe geratu zara."
-
-# AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.
 #, boost-format
-msgid "The %1% API key was rejected. Update the AI configuration and try again."
-msgstr "%1% API gakoa baztertu egin da. Eguneratu AAren konfigurazioa eta saiatu berriro."
+msgid "The %1% service is rate limited. Try again shortly."
+msgstr "%1% zerbitzuak eskaerak mugatu ditu. Saiatu berriro laster."
 
 # AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.
@@ -515,34 +419,21 @@ msgstr "Eskaera handiegia zen %1% zerbitzurako."
 # AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.
 #, boost-format
-msgid "The %1% service is rate limited. Try again shortly."
-msgstr "%1% zerbitzuak eskaerak mugatu ditu. Saiatu berriro laster."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The %1% service is overloaded. Try again shortly."
-msgstr "%1% zerbitzua gainkargatuta dago. Saiatu berriro laster."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The %1% service is temporarily unavailable."
-msgstr "%1% zerbitzua ez dago erabilgarri aldi baterako."
-
-# AI Translated
-msgid "The AI request timed out."
-msgstr "AA eskaeraren denbora-muga gainditu da."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
 msgid "The AI request could not reach the %1% service."
 msgstr "AA eskaerak ezin izan du %1% zerbitzura iritsi."
 
 # AI Translated
-msgid "The AI service response did not contain valid output."
-msgstr "AA zerbitzuaren erantzunak ez du irteera baliozkorik."
+#, boost-format
+msgid "This message needs %1% credit; you have %2%."
+msgid_plural "This message needs %1% credits; you have %2%."
+msgstr[0] "Mezu honek kreditu %1% behar du; %2% dituzu."
+msgstr[1] "Mezu honek %1% kreditu behar ditu; %2% dituzu."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI.
+#, boost-format
+msgid "The %1% API key was rejected. Update the AI configuration and try again."
+msgstr "%1% API gakoa baztertu egin da. Eguneratu AAren konfigurazioa eta saiatu berriro."
 
 # AI Translated
 #. TRN A button that asks the AI to choose another block of a calibration test.
@@ -802,15 +693,6 @@ msgstr "Argazkiak"
 
 # AI Translated
 #, c-format, boost-format
-msgid "%s couldn't be opened. Try opening it with Open… instead."
-msgstr "Ezin izan da %s ireki. Saiatu Ireki… erabiliz irekitzen."
-
-# AI Translated
-msgid "Couldn't open file"
-msgstr "Ezin izan da fitxategia ireki"
-
-# AI Translated
-#, c-format, boost-format
 msgid "Import from %s"
 msgstr "Inportatu hemendik: %s"
 
@@ -886,6 +768,15 @@ msgid "JusPrin found no %1% printers in that folder. If %1% keeps its settings s
 msgstr "JusPrin-ek ez du %1% inprimagailurik aurkitu karpeta horretan. %1% aplikazioak ezarpenak beste nonbait gordetzen baditu, aukeratu karpeta hori."
 
 # AI Translated
+#. TRN The print report form, about a photo over the server's limit of 20 MB.
+msgid "That photo is larger than 20 MB. Choose a smaller photo, then send the report again."
+msgstr "Argazki hori 20 MB baino handiagoa da. Aukeratu argazki txikiagoa, eta bidali txostena berriro."
+
+# AI Translated
+msgid "That photo could not be read."
+msgstr "Ezin izan da argazki hori irakurri."
+
+# AI Translated
 msgid "The printer's page didn't load"
 msgstr "Inprimagailuaren orria ez da kargatu"
 
@@ -894,15 +785,15 @@ msgid "Try again"
 msgstr "Saiatu berriro"
 
 # AI Translated
-#, c-format, boost-format
-msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
-msgstr "Ezerk ez du erantzun hemen: %s. Egiaztatu inprimagailua piztuta dagoela eta ordenagailu honen sare berean dagoela, eta saiatu berriro."
-
-# AI Translated
 #. TRN %s is the printer's address without its scheme, such as 192.168.1.42:7125. Printer settings is the printer's settings window.
 #, c-format, boost-format
 msgid "The printer at %s answered, but JusPrin couldn't check its secure connection. If the printer's address starts with https://, change it to http:// in Printer settings, then try again."
 msgstr "Hemengo inprimagailuak erantzun du: %s, baina JusPrin-ek ezin izan du haren konexio segurua egiaztatu. Inprimagailuaren helbidea https:// hasten bada, aldatu http:// gisa Inprimagailuaren ezarpenak atalean, eta saiatu berriro."
+
+# AI Translated
+#, c-format, boost-format
+msgid "Nothing answered at %s. Check that the printer is turned on and on the same network as this computer, then try again."
+msgstr "Ezerk ez du erantzun hemen: %s. Egiaztatu inprimagailua piztuta dagoela eta ordenagailu honen sare berean dagoela, eta saiatu berriro."
 
 # AI Translated
 msgid "Client configuration is a symbolic link. Use Copy and update its target manually."
@@ -1520,10 +1411,6 @@ msgid "Switch to JusPrin view"
 msgstr "Aldatu JusPrin ikuspegira"
 
 # AI Translated
-msgid "Something went wrong on our side"
-msgstr "Zerbait gaizki atera da gure aldetik"
-
-# AI Translated
 msgid "You can report this to the JusPrin team so they can fix it. The report is anonymous: it has no chat messages, no files and nothing that says who you are."
 msgstr "JusPrin taldeari jakinarazi diezaiokezu, konpon dezan. Txostena anonimoa da: ez du txat-mezurik, ez fitxategirik, ez zu nor zaren adierazten duen ezer."
 
@@ -1925,6 +1812,10 @@ msgstr "Muntatze-gida"
 # AI Translated
 msgid "Attachments"
 msgstr "Eranskinak"
+
+# AI Translated
+msgid "Couldn't open file"
+msgstr "Ezin izan da fitxategia ireki"
 
 # AI Translated
 msgid "The file couldn't be opened."
@@ -2363,6 +2254,113 @@ msgstr "Proiektu hau JusPrin-en bertsio berriago batek gorde zuen. Lortu bertsio
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "Ezin izan da proiektua ireki. Saiatu berriro."
+
+# AI Translated
+#~ msgid "The attachment could not be stored."
+#~ msgstr "Ezin izan da eranskina gorde."
+
+# AI Translated
+#~ msgid "The current chat could not be saved."
+#~ msgstr "Ezin izan da uneko txata gorde."
+
+# AI Translated
+#~ msgid "The new chat could not be saved."
+#~ msgstr "Ezin izan da txat berria gorde."
+
+# AI Translated
+#~ msgid "The selected chat could not be saved."
+#~ msgstr "Ezin izan da hautatutako txata gorde."
+
+# AI Translated
+#~ msgid "The current project could not be saved before restoration."
+#~ msgstr "Ezin izan da uneko proiektua gorde leheneratu aurretik."
+
+# AI Translated
+#~ msgid "JusPrin couldn't put the project back."
+#~ msgstr "JusPrin-ek ezin izan du proiektua leheneratu."
+
+# AI Translated
+#~ msgid "The replacement chat could not be saved."
+#~ msgstr "Ezin izan da ordezko txata gorde."
+
+# AI Translated
+#~ msgid "This sign-in could not be saved, so you will have to sign in again next time JusPrin starts."
+#~ msgstr "Ezin izan da saio hau gorde; beraz, JusPrin abiarazten den hurrengo aldian saioa berriro hasi beharko duzu."
+
+# AI Translated
+#~ msgid "This key could not be saved, so it will have to be entered again next time JusPrin starts."
+#~ msgstr "Ezin izan da gako hau gorde; beraz, JusPrin abiarazten den hurrengo aldian berriro sartu beharko da."
+
+# AI Translated
+#~ msgid "The AI service returned an unreadable streaming response."
+#~ msgstr "AA zerbitzuak streaming erantzun irakurrezin bat itzuli du."
+
+# AI Translated
+#~ msgid "The AI service streamed a delta for a block it never opened."
+#~ msgstr "AA zerbitzuak inoiz ireki ez zuen bloke baterako delta bat bidali du."
+
+# AI Translated
+#~ msgid "The AI service sent a tool call whose arguments are not JSON."
+#~ msgstr "AA zerbitzuak JSON ez diren argumentuak dituen tresna-dei bat bidali du."
+
+# AI Translated
+#~ msgid "The AI service could not complete the response."
+#~ msgstr "AA zerbitzuak ezin izan du erantzuna osatu."
+
+# AI Translated
+#~ msgid "The AI service ended its response for a reason this build does not know."
+#~ msgstr "AA zerbitzuak konpilazio honek ezagutzen ez duen arrazoi batengatik amaitu du erantzuna."
+
+# AI Translated
+#~ msgid "The AI service stopped before finishing its response."
+#~ msgstr "AA zerbitzua gelditu egin da erantzuna amaitu aurretik."
+
+# AI Translated
+#~ msgid "The AI service kept pausing its response."
+#~ msgstr "AA zerbitzuak behin eta berriz pausatu du erantzuna."
+
+# AI Translated
+#~ msgid "AI could not be asked to continue its response."
+#~ msgstr "Ezin izan zaio AAri eskatu erantzunarekin jarraitzeko."
+
+# AI Translated
+#~ msgid "AI could not be told the results of its tool calls."
+#~ msgstr "Ezin izan zaizkio AAri jakinarazi bere tresna-deien emaitzak."
+
+# AI Translated
+#~ msgid "AI returned an invalid tool call."
+#~ msgstr "AAk tresna-dei baliogabe bat itzuli du."
+
+# AI Translated
+#~ msgid "The AI service ended before a complete response arrived."
+#~ msgstr "AA zerbitzua amaitu egin da erantzun osoa iritsi aurretik."
+
+# AI Translated
+#~ msgid "You're out of credits."
+#~ msgstr "Kreditu gabe geratu zara."
+
+# AI Translated
+#, boost-format
+#~ msgid "The %1% service is overloaded. Try again shortly."
+#~ msgstr "%1% zerbitzua gainkargatuta dago. Saiatu berriro laster."
+
+# AI Translated
+#, boost-format
+#~ msgid "The %1% service is temporarily unavailable."
+#~ msgstr "%1% zerbitzua ez dago erabilgarri aldi baterako."
+
+# AI Translated
+#~ msgid "The AI request timed out."
+#~ msgstr "AA eskaeraren denbora-muga gainditu da."
+
+# AI Translated
+#~ msgid "The AI service response did not contain valid output."
+#~ msgstr "AA zerbitzuaren erantzunak ez du irteera baliozkorik."
+
+# AI Translated
+#, c-format, boost-format
+#~ msgid "%s couldn't be opened. Try opening it with Open… instead."
+#~ msgstr "Ezin izan da %s ireki. Saiatu Ireki… erabiliz irekitzen."
 
 # AI Translated
 #~ msgid "The file could not be read."
