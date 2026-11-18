@@ -1,0 +1,5 @@
+Raise the server limit
+
+---
+
+Convert to Breakpad
