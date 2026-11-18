@@ -3,25 +3,25 @@
   "checkpoint_id": "01M7PFKWBH0HAXBNQSWNZ3K0W5",
   "session_id": "0279318d-c84f-486b-846b-d09dd4bf0aa5",
   "strategy": "manual-commit",
-  "created_at": "2026-11-18T05:39:25.11851Z",
+  "created_at": "2026-11-18T05:43:58.761564Z",
   "branch": "claude/release-skill-trim",
-  "checkpoints_count": 4,
+  "checkpoints_count": 2,
   "files_touched": [],
   "agent": "Claude Code",
   "model": "claude-opus-5-5",
-  "turn_id": "eb5db89ba925",
-  "checkpoint_transcript_start": 2022,
-  "transcript_lines_at_start": 2022,
-  "compact_transcript_start": 280,
+  "turn_id": "c69e577b5a81",
+  "checkpoint_transcript_start": 2227,
+  "transcript_lines_at_start": 2227,
+  "compact_transcript_start": 304,
   "token_usage": {
-    "input_tokens": 28,
-    "cache_creation_tokens": 26741,
-    "cache_read_tokens": 2195633,
-    "output_tokens": 8312,
-    "api_call_count": 14
+    "input_tokens": 4,
+    "cache_creation_tokens": 2156,
+    "cache_read_tokens": 356892,
+    "output_tokens": 1181,
+    "api_call_count": 2
   },
   "session_metrics": {
-    "turn_count": 5
+    "turn_count": 7
   },
   "prompt_attributions": [
     {
