@@ -1,0 +1,5 @@
+squash all of your skill commits into one. You have polluted git log by too much.
+
+---
+
+All six, force-push
