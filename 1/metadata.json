@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7P9M5W6F9QRW24XQYSBNY8A",
+  "session_id": "c2adecd8-a1fc-4e82-9512-79ed47bbae43",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-18T03:01:29.215434Z",
+  "branch": "claude/windows-permission-tests",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/agent/test_agent_bridge.cpp",
+    "tests/agent/test_print_history.cpp",
+    "tests/agent/test_project_state.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "4e1e187f5493",
+  "checkpoint_transcript_start": 4971,
+  "transcript_lines_at_start": 4971,
+  "compact_transcript_start": 657,
+  "token_usage": {
+    "input_tokens": 178,
+    "cache_creation_tokens": 166094,
+    "cache_read_tokens": 26697384,
+    "output_tokens": 56109,
+    "api_call_count": 89
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-18T03:01:27.825679Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 10,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 10,
+    "total_lines_changed": 11,
+    "agent_percentage": 0,
+    "metric_version": 2
+  }
+}
