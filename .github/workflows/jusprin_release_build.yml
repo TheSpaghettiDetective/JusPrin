@@ -89,7 +89,11 @@ jobs:
     name: Build JusPrin
     needs: [cache, deps]
     if: ${{ !cancelled() && needs.cache.result == 'success' && (needs.deps.result == 'success' || needs.deps.result == 'skipped') }}
-    runs-on: ${{ inputs.os }}
+    # The repository variable JUSPRIN_MAC_RUNNER, when set, sends the Mac
+    # builds to a self-hosted runner with that label instead of GitHub's
+    # macos-15, whose queue can cancel a job that waits too long for a
+    # machine. inputs.os stays macos-15, so the deps cache keeps its key.
+    runs-on: ${{ startsWith(inputs.os, 'macos-') && vars.JUSPRIN_MAC_RUNNER && fromJSON(format('["self-hosted","{0}"]', vars.JUSPRIN_MAC_RUNNER)) || inputs.os }}
     env:
       VERSION: ${{ inputs.version }}
       # The Sentry project the app's error reports go to, read by
@@ -165,10 +169,13 @@ jobs:
           brew install libtool
           mkdir -p "${{ github.workspace }}/deps/build/${{ inputs.arch }}"
           # As OrcaSlicer's build_orca.yml does, for disk space: keep only the
-          # selected Xcode.
-          xcode=$(basename "$(cd "$(xcode-select -p)/../.." && pwd -P)")
-          sudo find /Applications -maxdepth 1 -type d -name "Xcode_*.app" ! -name "$xcode" -exec rm -rf {} +
-          sudo rm -rf ~/Library/Developer/CoreSimulator/Caches/*
+          # selected Xcode. Only on GitHub's machines: a self-hosted Mac is
+          # someone's own computer.
+          if [ "$RUNNER_ENVIRONMENT" = github-hosted ]; then
+            xcode=$(basename "$(cd "$(xcode-select -p)/../.." && pwd -P)")
+            sudo find /Applications -maxdepth 1 -type d -name "Xcode_*.app" ! -name "$xcode" -exec rm -rf {} +
+            sudo rm -rf ~/Library/Developer/CoreSimulator/Caches/*
+          fi
 
       - name: Build
         if: runner.os == 'macOS'

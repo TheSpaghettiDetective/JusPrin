@@ -52,7 +52,8 @@ jobs:
   macos:
     name: macOS universal
     needs: build
-    runs-on: macos-15
+    # A self-hosted Mac when JUSPRIN_MAC_RUNNER is set, as in jusprin_release_build.yml.
+    runs-on: ${{ vars.JUSPRIN_MAC_RUNNER && fromJSON(format('["self-hosted","{0}"]', vars.JUSPRIN_MAC_RUNNER)) || 'macos-15' }}
     env:
       VERSION: ${{ inputs.version }}
       SIGN: ${{ inputs.sign_macos && '1' || '0' }}
@@ -92,6 +93,10 @@ jobs:
         run: |
           certificate="$RUNNER_TEMP/build_certificate.p12"
           keychain="$RUNNER_TEMP/app-signing.keychain-db"
+          # What the steps below replace, for the last step to put back: on a
+          # self-hosted Mac these are its owner's own keychain settings.
+          security default-keychain -d user | xargs > "$RUNNER_TEMP/default-keychain"
+          security list-keychains -d user | xargs > "$RUNNER_TEMP/keychain-list"
           echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode --output "$certificate"
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
           security set-keychain-settings -lut 21600 "$keychain"
@@ -111,6 +116,18 @@ jobs:
         run: |
           ./src/slic3r/GUI/JusPrin/Packaging/macos_package.sh \
             build/universal/OrcaSlicer/OrcaSlicer.app "$VERSION" dist
+
+      # Puts back the user's default keychain and keychain list, and deletes
+      # the signing keychain, even when an earlier step failed.
+      - name: Restore the keychains
+        if: always() && env.SIGN == '1'
+        run: |
+          [ -s "$RUNNER_TEMP/keychain-list" ] || exit 0
+          read -r -a keychains < "$RUNNER_TEMP/keychain-list"
+          security list-keychains -d user -s "${keychains[@]}"
+          security default-keychain -d user -s "$(cat "$RUNNER_TEMP/default-keychain")"
+          keychain="$RUNNER_TEMP/app-signing.keychain-db"
+          [ ! -e "$keychain" ] || security delete-keychain "$keychain"
 
       - uses: actions/upload-artifact@v7
         with:
