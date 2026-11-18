@@ -13,7 +13,7 @@
 #       released copy of the app.
 #
 # <main file> is the file that holds the app's own code: OrcaSlicer.dll on
-# Windows (its PDB has the same build id), the app's executable on macOS (its
+# Windows (the Breakpad file made from its PDB has the same build id), the app's executable on macOS (its
 # dSYM) and Linux (its split .debug file). Reads SENTRY_AUTH_TOKEN, SENTRY_URL, SENTRY_ORG and SENTRY_PROJECT,
 # and fails without any of them.
 set -euo pipefail

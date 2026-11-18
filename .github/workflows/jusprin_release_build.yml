@@ -228,11 +228,32 @@ jobs:
           ./src/slic3r/GUI/JusPrin/Packaging/appimage.sh build/package "$VERSION" \
             "dist/JusPrin_Linux_AppImage_Ubuntu2404_V${VERSION}${{ inputs.arch && format('_{0}', inputs.arch) || '' }}.AppImage"
 
+      # OrcaSlicer.pdb is over 2 GiB, and JusPrin's Sentry (self-hosted 23.1.1)
+      # stores no file larger than that: its file table keeps offsets in a
+      # 32-bit integer. Mozilla's dump_syms turns the PDB into a Breakpad
+      # symbol file, about a quarter of its size, with the same build id and
+      # each function's file and line; Sentry shows no inlined frames from it.
+      - name: Convert the app's PDB to Breakpad for Sentry
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $zip = "$env:RUNNER_TEMP\dump_syms.zip"
+          Invoke-WebRequest -UseBasicParsing -OutFile $zip `
+            https://github.com/mozilla/dump_syms/releases/download/v2.3.9/dump_syms-x86_64-pc-windows-msvc.zip
+          if ((Get-FileHash $zip -Algorithm SHA256).Hash -ne 'BDF48486220708808A3E00AEC78856EE1CCE096189D47A1E2CB1C635F93BACC7') {
+            throw "dump_syms-x86_64-pc-windows-msvc.zip does not have the checksum of dump_syms 2.3.9."
+          }
+          Expand-Archive $zip "$env:RUNNER_TEMP\dump_syms"
+          New-Item -ItemType Directory -Force build\sentry-breakpad | Out-Null
+          & "$env:RUNNER_TEMP\dump_syms\dump_syms.exe" build\src\Release\OrcaSlicer.pdb -o build\sentry-breakpad\OrcaSlicer.sym
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       # What lets Sentry name the functions in a crash or a report's stack: each
-      # executable and library the app ships, with its PDB on Windows, filed by
-      # its build id, and the debug information split off above. The build
-      # fails unless Sentry then holds the app's own code's debug information,
-      # with file and line (Packaging/sentry_debug_files.sh). Sentry's address and
+      # executable and library the app ships, filed by its build id, and the
+      # debug information split off above (on Windows, the Breakpad file made
+      # from OrcaSlicer.pdb and the launcher's own small PDB). The build fails
+      # unless Sentry then holds the app's own code's debug information, with
+      # file and line (Packaging/sentry_debug_files.sh). Sentry's address and
       # the token that may upload stay in the repository's secrets.
       - name: Upload debug files to Sentry
         shell: bash
@@ -243,7 +264,7 @@ jobs:
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
         run: |
           case "$RUNNER_OS" in
-            Windows) main=build/src/Release/OrcaSlicer.dll; paths=(build/OrcaSlicer build/src/Release) ;;
+            Windows) main=build/src/Release/OrcaSlicer.dll; paths=(build/OrcaSlicer build/src/Release/orca-slicer.pdb build/sentry-breakpad) ;;
             macOS)
               app="build/${{ inputs.arch }}/OrcaSlicer/OrcaSlicer.app"
               main="$app/Contents/MacOS/OrcaSlicer"; paths=("$app/Contents" "build/${{ inputs.arch }}/OrcaSlicer.dSYM") ;;
