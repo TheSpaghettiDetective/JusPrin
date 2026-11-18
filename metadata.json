@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7PY8TZTXTDSVQMEPW18VG56",
   "strategy": "manual-commit",
   "branch": "claude/fix-sentry-release-builds",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     "deps/Sentry/0001-crashpad-default-main-port-before-macos-12.patch",
     "deps/Sentry/Sentry.cmake"
@@ -14,6 +14,13 @@
       "transcript": "/0/full.jsonl",
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
       "prompt": ""
     }
   ],
