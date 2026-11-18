@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7P9M5W6F9QRW24XQYSBNY8A",
   "strategy": "manual-commit",
   "branch": "claude/windows-permission-tests",
-  "checkpoints_count": 3,
+  "checkpoints_count": 11,
   "files_touched": [
     "tests/agent/test_agent_bridge.cpp",
     "tests/agent/test_print_history.cpp",
@@ -30,13 +30,27 @@
       "compact_transcript": "/2/transcript.jsonl",
       "content_hash": "/2/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/3/metadata.json",
+      "transcript": "/3/full.jsonl",
+      "compact_transcript": "/3/transcript.jsonl",
+      "content_hash": "/3/content_hash.txt",
+      "prompt": "/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 178,
-    "cache_creation_tokens": 166094,
-    "cache_read_tokens": 26697384,
-    "output_tokens": 56109,
-    "api_call_count": 89
+    "input_tokens": 500,
+    "cache_creation_tokens": 458079,
+    "cache_read_tokens": 63924896,
+    "output_tokens": 136218,
+    "api_call_count": 250,
+    "subagent_tokens": {
+      "input_tokens": 322,
+      "cache_creation_tokens": 747498,
+      "cache_read_tokens": 25058856,
+      "output_tokens": 95065,
+      "api_call_count": 159
+    }
   }
 }
