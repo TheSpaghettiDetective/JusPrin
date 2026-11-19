@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7T9EZTEKB9SYKTS1FA9VSKV",
   "strategy": "manual-commit",
   "branch": "claude/mac-self-hosted-rcodesign",
-  "checkpoints_count": 16,
+  "checkpoints_count": 17,
   "files_touched": [
     ".github/workflows/jusprin_build_all.yml",
     "src/slic3r/GUI/JusPrin/Packaging/macos_package.sh"
@@ -92,13 +92,20 @@
       "compact_transcript": "/11/transcript.jsonl",
       "content_hash": "/11/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/12/metadata.json",
+      "transcript": "/12/full.jsonl",
+      "compact_transcript": "/12/transcript.jsonl",
+      "content_hash": "/12/content_hash.txt",
+      "prompt": "/12/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 20,
-    "cache_creation_tokens": 129267,
-    "cache_read_tokens": 1410743,
-    "output_tokens": 3186,
-    "api_call_count": 10
+    "input_tokens": 1726,
+    "cache_creation_tokens": 3253827,
+    "cache_read_tokens": 195820070,
+    "output_tokens": 486576,
+    "api_call_count": 862
   }
 }
