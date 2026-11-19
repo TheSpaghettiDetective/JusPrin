@@ -1,0 +1,14 @@
+> Two things in the email itself are also different and could be contributing a bit. Batch 4 was short and personal and had a video link, which was its most clicked link. Batch 5 was a longer introduction for people who don’t know the product, and it had no video. But I don’t think these explain a five-to-one gap, because all four batch 5 versions landed in the same low range no matter how we changed the subject, the sender or the wording.
+
+exclude video link from the stats and do the comparison again. Keep the comparison the same format as the last one so that I can compare.
+
+---
+
+<!-- reply 1 -->
+> The practical takeaway is simpler than before: the video pulls people in, and batch 5 didn’t have one. The test is the same, batch 4’s email with the video to a fresh group of Obico users, but now it answers two things at once: whether that audience clicks at all, and whether the video keeps drawing clicks when the readers don’t already know JusPrin.
+
+Did they write the wrong reason? Batch 5. In batch 5, the video is displayed as a attachments in Gmail. And I suspect the video actually got more views in batch 4 because the video attachment is probably more trustworthy than a link
+
+---
+
+Yes, check YouTube
