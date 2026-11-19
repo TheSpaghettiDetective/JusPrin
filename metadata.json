@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7RXW0XDHS2TRSHCABJMEM1W",
+  "strategy": "manual-commit",
+  "branch": "claude/self-hosted-mac-kept-deps",
+  "checkpoints_count": 2,
+  "files_touched": [
+    ".github/workflows/jusprin_release_build.yml",
+    "src/slic3r/GUI/JusPrin/Packaging/mac_outside_links.sh",
+    "src/slic3r/GUI/JusPrin/Packaging/mac_self_hosted.cmake"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 30,
+    "cache_creation_tokens": 26723,
+    "cache_read_tokens": 5164879,
+    "output_tokens": 16418,
+    "api_call_count": 15
+  }
+}
