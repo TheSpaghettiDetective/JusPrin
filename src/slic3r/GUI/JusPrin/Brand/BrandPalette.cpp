@@ -10,6 +10,7 @@
 
 #include <boost/filesystem.hpp>
 #include <boost/log/trivial.hpp>
+#include <wx/string.h>
 
 #include <map>
 #include <string>
@@ -34,7 +35,7 @@ const ShellTheme* brand_theme()
 
 namespace {
 
-std::string hex(const wxColour& color) { return color.GetAsString(wxC2S_HTML_SYNTAX).ToStdString(); }
+std::string hex(const wxColour& color) { return std::string(color.GetAsString(wxC2S_HTML_SYNTAX).ToUTF8()); }
 
 // OrcaSlicer color literals that carry brand or surface meaning, paired with
 // the JusPrin token that takes their place. Keys are the light-mode literals

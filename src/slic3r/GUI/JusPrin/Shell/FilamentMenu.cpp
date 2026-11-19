@@ -12,10 +12,12 @@
 #include <wx/graphics.h>
 #include <wx/sizer.h>
 #include <wx/stattext.h>
+#include <wx/string.h>
 #include <wx/weakref.h>
 
 #include <algorithm>
 #include <functional>
+#include <string>
 
 namespace Slic3r::GUI::JusPrin {
 
@@ -477,7 +479,7 @@ void FilamentMenu::show_slot(const Ptr& self, std::size_t slot, bool from_list)
 
     HeaderMenuItem ask;
     ask.label  = _L("Ask AI about filament settings…");
-    ask.invoke = [slot, preset = current.filament.preset_name, shown = current.filament.alias.ToStdString()] {
+    ask.invoke = [slot, preset = current.filament.preset_name, shown = std::string(current.filament.alias.ToUTF8())] {
         if (ShellController* shell = installed_shell())
             shell->open_filament_help(slot, preset, shown);
     };

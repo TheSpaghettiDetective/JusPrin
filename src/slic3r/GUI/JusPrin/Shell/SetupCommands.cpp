@@ -19,12 +19,15 @@
 #include "slic3r/GUI/Tab.hpp"
 #include "slic3r/Utils/ColorSpaceConvert.hpp"
 
+#include <wx/string.h>
+
 #include <algorithm>
 #include <cmath>
 #include <functional>
 #include <map>
 #include <optional>
 #include <set>
+#include <string>
 
 namespace Slic3r::GUI::JusPrin::SetupCommands {
 
@@ -419,7 +422,7 @@ void set_filament_colour(Plater& plater, std::size_t slot, const wxColour& colou
         option->values[slot] = value;
         return option;
     };
-    const std::string hex = colour.GetAsString(wxC2S_HTML_SYNTAX).ToStdString();
+    const std::string hex(colour.GetAsString(wxC2S_HTML_SYNTAX).ToUTF8());
 
     DynamicPrintConfig updated = project;
     updated.set_key_value("filament_multi_colour", patch("filament_multi_colour", hex));

@@ -7,6 +7,23 @@ add_subdirectory(Mcp/Bridge)
 set(SLIC3R_PACKAGE_EXTRA_SCRIPT "${SLIC3R_PACKAGE_EXTRA_SCRIPT}" PARENT_SCOPE)
 add_subdirectory(Web)
 
+# No wxString::ToStdString() in JusPrin's code: CheckWxStringConversions.cmake
+# says why. It runs before the GUI library compiles, and again whenever a file
+# here changes or is added.
+file(GLOB_RECURSE jusprin_checked_sources CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.h" "${CMAKE_CURRENT_SOURCE_DIR}/*.mm")
+list(FILTER jusprin_checked_sources EXCLUDE REGEX "/node_modules/")
+set(jusprin_conversion_stamp "${CMAKE_CURRENT_BINARY_DIR}/wxstring_conversions.checked")
+add_custom_command(OUTPUT "${jusprin_conversion_stamp}"
+    COMMAND ${CMAKE_COMMAND} -DJUSPRIN_DIR=${CMAKE_CURRENT_SOURCE_DIR} -DSTAMP=${jusprin_conversion_stamp}
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/CheckWxStringConversions.cmake"
+    DEPENDS ${jusprin_checked_sources} "${CMAKE_CURRENT_SOURCE_DIR}/CheckWxStringConversions.cmake"
+    COMMENT "Checking JusPrin's wxString conversions"
+    VERBATIM)
+add_custom_target(jusprin-wxstring-conversions DEPENDS "${jusprin_conversion_stamp}")
+add_dependencies(libslic3r_gui jusprin-wxstring-conversions)
+
 # Sentry's native SDK (deps/Sentry), which Support/SentryClient.cpp starts:
 # the GUI library links it, and crashpad_handler, the process that writes and
 # uploads a crash's minidump, sits beside the app's executable, where

@@ -47,7 +47,9 @@
 #include <regex>
 #include <set>
 #include <stdexcept>
+#include <string>
 #include <thread>
+#include <wx/string.h>
 #include <wx/utils.h>
 
 #ifndef _WIN32
@@ -494,7 +496,7 @@ std::string OrcaPrinterBackend::change_printer(const ChangePrinterRequest& reque
                                           "The app has no " + found->model + " preset with that nozzle size.";
         const wxString problem = Printers::change_named_printer_nozzle(m_plater, request.name, variant->preset_name, discarded);
         if (!problem.empty())
-            return problem.ToStdString();
+            return std::string(problem.ToUTF8());
     }
 
     for (const SavedPrinter& saved : saved_printers())
@@ -782,7 +784,7 @@ std::string OrcaPrinterBackend::connect_printer(const std::string& name, const s
     }
     const wxString problem = Printers::link_named_printer(name, device_id);
     if (!problem.empty())
-        return problem.ToStdString();
+        return std::string(problem.ToUTF8());
     prepare_connection(name);
     if (machine->is_lan_mode_printer() && !access_code.empty())
         machine->set_access_code(access_code);
@@ -903,7 +905,7 @@ HostTestOutcome OrcaPrinterBackend::settle(const HostAnswer& answer, const std::
                 outcome.message += " Moonraker reports Klipper's state as " + answer.said + ".";
         } else
             outcome.message = host + " at " + attempt.address + " accepted the test, but the app could not save it as this "
-                              "printer's connection: " + problem.ToStdString();
+                              "printer's connection: " + std::string(problem.ToUTF8());
     } else if (type == htMoonraker   ? answer.status == 401u :
                type == htOctoPrint   ? answer.status == 403u :
                                        answer.status == 401u || answer.status == 403u) {

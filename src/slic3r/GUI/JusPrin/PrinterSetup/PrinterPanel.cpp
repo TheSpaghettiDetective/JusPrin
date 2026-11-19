@@ -22,11 +22,13 @@
 #include <boost/log/trivial.hpp>
 
 #include <wx/sizer.h>
+#include <wx/string.h>
 #include <wx/timer.h>
 #include <wx/utils.h>
 
 #include <memory>
 #include <optional>
+#include <string>
 #include <utility>
 
 namespace Slic3r::GUI::JusPrin::PrinterSetup {
@@ -122,7 +124,7 @@ void PrinterPanel::build_runtime()
         host.set_session_profile(filament_profile());
         host.set_session_state_provider([this] { return filament_session_json(); });
         host.set_navigation_state_provider([this] {
-            return nlohmann::json{{"focused", true}, {"returnLabel", m_return_label.ToStdString()}};
+            return nlohmann::json{{"focused", true}, {"returnLabel", std::string(m_return_label.ToUTF8())}};
         });
         host.set_page_message_handler([this](const std::string& type, const nlohmann::json& payload) {
             return handle_filament_page_message(type, payload);

@@ -12,10 +12,12 @@
 
 #include <wx/display.h>
 #include <wx/sizer.h>
+#include <wx/string.h>
 #include <wx/timer.h>
 
 #include <algorithm>
 #include <stdexcept>
+#include <string>
 
 namespace Slic3r { namespace GUI { namespace JusPrin { namespace Home {
 
@@ -79,7 +81,7 @@ MonitorWindow::MonitorWindow(const std::string& device_id)
     // list, is the printer this window watches from then on. Bound
     // after the panel's own handler, so this one runs first.
     m_panel->Bind(wxEVT_COMMAND_CHOICE_SELECTED, [this](wxCommandEvent& event) {
-        watch(event.GetString().ToStdString());
+        watch(std::string(event.GetString().ToUTF8()));
         event.Skip();
     });
     Bind(wxEVT_TIMER, reported("checking the monitored printer", [this](wxTimerEvent&) { check_machine(); }), m_check_timer.GetId());

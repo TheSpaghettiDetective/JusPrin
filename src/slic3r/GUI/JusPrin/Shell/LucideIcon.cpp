@@ -36,7 +36,7 @@ const wxBitmap& lucide_bitmap(const char* name, int size_px, const wxColour& col
     boost::nowide::ifstream file(path.string());
     if (!file.is_open()) throw std::runtime_error("Lucide icon is missing: " + path.string());
     std::string svg((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-    const std::string hex = wxString::Format("#%02X%02X%02X", color.Red(), color.Green(), color.Blue()).ToStdString();
+    const std::string hex(wxString::Format("#%02X%02X%02X", color.Red(), color.Green(), color.Blue()).ToUTF8());
     boost::replace_all(svg, "currentColor", hex);
     std::unique_ptr<NSVGimage, decltype(&nsvgDelete)> parsed(nsvgParse(svg.data(), "px", 96.f), nsvgDelete);
     if (!parsed || parsed->width <= 0.f || parsed->height <= 0.f)
