@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7V028P83WJ0Y4ATB9208REK",
+  "strategy": "manual-commit",
+  "branch": "error-sites",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/AgentUI/src/App.test.tsx",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 146,
+    "cache_creation_tokens": 86087,
+    "cache_read_tokens": 11943758,
+    "output_tokens": 31407,
+    "api_call_count": 73
+  }
+}
