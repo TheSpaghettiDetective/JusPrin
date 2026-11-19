@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7V033MRHXV48MK1RRKD73PJ",
   "strategy": "manual-commit",
   "branch": "error-sites",
-  "checkpoints_count": 4,
+  "checkpoints_count": 8,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/Localization/native/JusPrin.pot",
     "src/slic3r/GUI/JusPrin/Localization/native/ca.po",
@@ -28,6 +28,7 @@
     "src/slic3r/GUI/JusPrin/Localization/native/vi.po",
     "src/slic3r/GUI/JusPrin/Localization/native/zh_CN.po",
     "src/slic3r/GUI/JusPrin/Localization/native/zh_TW.po",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
     "tests/shell/shell_harness.cpp"
   ],
   "sessions": [
@@ -37,13 +38,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": "/0/prompt.txt"
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 4,
-    "cache_creation_tokens": 701,
-    "cache_read_tokens": 417846,
-    "output_tokens": 829,
-    "api_call_count": 2
+    "input_tokens": 6,
+    "cache_creation_tokens": 2744,
+    "cache_read_tokens": 600549,
+    "output_tokens": 4376,
+    "api_call_count": 3
   }
 }
