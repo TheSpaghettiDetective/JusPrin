@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7TQ5HHCT4ZVQ1Z50MMBW78B",
   "strategy": "manual-commit",
   "branch": "proto/win-install-restart-from-2.0.0",
-  "checkpoints_count": 6,
+  "checkpoints_count": 7,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/Packaging/installer.nsh"
   ],
@@ -20,6 +20,13 @@
       "transcript": "/1/full.jsonl",
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
+      "prompt": ""
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
       "prompt": ""
     }
   ],
