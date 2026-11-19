@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7TK6HNBKV108M36ZA1RPDDD",
   "strategy": "manual-commit",
   "branch": "claude/mac-release-test",
-  "checkpoints_count": 8,
+  "checkpoints_count": 9,
   "files_touched": [
     ".github/workflows/jusprin_build_all.yml",
     ".github/workflows/tmp_mac_release_test_self_hosted.yml"
@@ -35,6 +35,13 @@
       "transcript": "/3/full.jsonl",
       "compact_transcript": "/3/transcript.jsonl",
       "content_hash": "/3/content_hash.txt",
+      "prompt": ""
+    },
+    {
+      "metadata": "/4/metadata.json",
+      "transcript": "/4/full.jsonl",
+      "compact_transcript": "/4/transcript.jsonl",
+      "content_hash": "/4/content_hash.txt",
       "prompt": ""
     }
   ],
