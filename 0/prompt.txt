@@ -1,0 +1,229 @@
+Background (from the session that started this one):
+JusPrin is a long-lived fork of OrcaSlicer (C++17, wxWidgets). In the JusPrin view, OrcaSlicer's own dialogs must not open where JusPrin should speak. Earlier fixes each handled one path. On 2026-11-18 a design was prototyped and run, and Kenneth (the owner) said "Yes" to building on it. The design: OrcaSlicer's message is taken at the last point where its reason is still known. For a box OrcaSlicer opens at once, that is JusPrin's existing wxModalDialogHook (`src/slic3r/GUI/JusPrin/Workspace/DialogListeners.cpp`), because the code that asked is still running and JusPrin's note of what is being handled (a "cause": kind, printer, detail) is still set. For a message OrcaSlicer puts off, it is one line inside each function that puts it off: `GUI::show_error`, `GUI_App::show_dialog`, `GUI_App::push_notification`, plus one line in `GUI_App::process_network_msg` that notes the cause. Pickers, questions, windows, and any box while another window is open still open as OrcaSlicer's. `UnsavedChangesDialog` ("Transfer or discard changes") is answered at the hook after a version is saved, and a notebook page switch to a hidden page is vetoed. A prototype exists as a patch and a harness scenario; 13 cases passed with it off (today's windows reproduced) and on. Kenneth's decisions and the defaults he has not agreed to are written in the handover document, with his words. The printer error popup opened with `Show()` and plug-in messages carrying no printer are accepted as they are. The two held commits `311a313801` and `64f9168a21` on `claude/no-preset-prompt-on-chip-switch` are to be ditched; only their harness checks are ported. Never commit handover or planning documents.
+
+Task:
+Turn the prototype of "JusPrin takes OrcaSlicer's messages" into finished, tested code on your own branch from `jusprin-dev`.
+
+Start by reading the handover document in full; it is the brief:
+`/Users/kenneth/Library/Application Support/Claude/side-session-notes/local_6f8f9f68-d842-4d09-b3e4-f862f94f8fe5/dialog-routing-implementation-handover.md`
+
+It names the other things to read: the proposal page https://claude.ai/artifact/4H6ESUFpruXkp5wA2uvLEt (Artifact tool, action "read"), `dialog-routing-proposal.md` beside it, the prototype in `dialog-routing-prototype/` beside it (`prototype.patch`, `orca_messages_scenario.inc`, `runs/`), and in the repository `AGENTS.md`, `agent-docs/jusprin/fork-stewardship.md`, `agent-docs/jusprin/orca-integration-guide.md`, `tests/AGENTS.md` and `CONTRIBUTING.md`.
+
+What to build, as the handover's "What to build" section lists in ten points:
+1. Give the prototype's code a home of its own under `src/slic3r/GUI/JusPrin/`, listed in `src/slic3r/GUI/JusPrin/sources.cmake`, with the PROTOTYPE markers and the `JUSPRIN_ORCA_MESSAGES` switch gone or made test-only.
+2. The hand-over lines in OrcaSlicer's files: three new lines in `src/slic3r/GUI/GUI_App.cpp` (`show_dialog`, `push_notification`, `process_network_msg`) and the changed line in `src/slic3r/GUI/GUI.cpp` (`show_error`), each one neutral line marked `// JusPrin:`, with the rebase evidence `fork-stewardship.md` requires.
+3. Where a taken message goes: one that names a printer becomes an entry in the chat through the existing `AgentHost::begin_work` / `finish_work` path (Kenneth asked to reuse it); slice and upload failures are not shown twice; a message with no cause keeps the prototype's canvas confirmation.
+4. The rule at the modal hook, including pickers and the ZIP chooser shown during a person's file open.
+5. `UnsavedChangesDialog` answered after a version is saved, on every path the handover lists, with the copy-between-nozzles use left as a question and run on a two-nozzle printer.
+6. The page guard on `wxEVT_BOOKCTRL_PAGE_CHANGING`.
+7. One way for JusPrin's own boxes to open that marks them as its own.
+8. A harness check that fails on a miss, the `--orca-messages` mode kept, and the two existing checks that expect the taken boxes updated.
+9. The harness checks ported from `311a313801` and `64f9168a21`.
+10. The docs.
+
+Three things are defaults Kenneth has NOT agreed to; build them as the handover says and call each out in your report: setting changes are dropped after a version is saved on a printer or filament switch (no carry-over); a switch to OrcaSlicer's Device page is only refused; a message with no cause goes to the canvas confirmation.
+
+Out of scope: the printer error popup and other windows opened with `Show()`, a list of OrcaSlicer's keys, carry-over, opening anything in place of a refused page, rewording OrcaSlicer's messages. Do not touch the branch `claude/no-preset-prompt-on-chip-switch` or any other session's worktree.
+
+Build and test rules are in `AGENTS.md`: Release build, `-- -j4`, check `uptime` and `pgrep -fl ninja` first, one build per folder, `scripts/deps_current.sh /Users/kenneth/Projects/JusPrin/deps/build/arm64` before building, long builds in the background. Reproduce each behaviour before changing it: the prototype's switch-off run is how today's windows were reproduced.
+
+Done means: every `--orca-messages` case and the new cases pass; the existing shell harness modes named in the handover pass, with any flake backed by repeat counts; the work is committed on your branch and not merged into `jusprin-dev` or pushed without Kenneth's word; and your report keeps apart what is built and run, what is an unagreed default, and what is still open, with pictures of where a taken message appears.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_12d59087-ff61-4160-bc55-ec2a878865f9
+
+---
+
+<task-notification>
+<task-id>bf6rxskpm</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-orca-messages-c67fbe/957f4d29-c627-4dec-b167-0ba8fef2d8b7/tasks/bf6rxskpm.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-orca-messages-c67fbe/957f4d29-c627-4dec-b167-0ba8fef2d8b7/scratchpad; until ! pgrep -f "build/arm64 --config Release --target jusprin_web" &gt;/dev/null; do sleep 5; done; tail -2 $S/build3.log; grep -n ' error:' $S/build3.log | head -40" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bnkkrh2zy</task-id>
+<tool-use-id>toolu_015EShFsb7KYDnDGPmY5johu</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-orca-messages-c67fbe/957f4d29-c627-4dec-b167-0ba8fef2d8b7/tasks/bnkkrh2zy.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-orca-messages-c67fbe/957f4d29-c627-4dec-b167-0ba8fef2d8b7/scratchpad; H=/Users/kenneth/Projects/JusPrin/.claude/worktrees/orca-messages-c67fbe/build/arm64/tests/shell/Release/JusPrinShellHarness.app/Contents/MacOS/JusPrinShellHarness; mkdir -p $S/om1; cd $S; (time timeout 900 $H --orca-messages $S/om1 &gt; $S/om1.log 2&gt;&amp;1; echo exit=$? &gt;&gt; $S/om1.log) 2&gt;&gt; $S/om1.log; tail -3 $S/om1.log; grep -c 'HARNESS CHECK.*FAIL\|FAILED' $S/om1.log" completed (exit code 1: No matches found)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b3uza56jm</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-orca-messages-c67fbe/957f4d29-c627-4dec-b167-0ba8fef2d8b7/tasks/b3uza56jm.output</output-file>
+<status>completed</status>
+<summary>Background command "W=/Users/kenneth/Projects/JusPrin/.claude/worktrees/orca-messages-c67fbe; cd $W; python3 - &lt;&lt;'EOF'
+p='tests/shell/orca_messages_scenario.inc'
+s=open(p).read()
+old='''        steps.push_back({"om_home_card_fixture", [self] {
+            self-&gt;m_om_named = Printers::add_named_printer(*self-&gt;m_plater, "Messages Spare", {});'''
+assert old in s
+s=s.replace(old,'''        steps.push_back({"om_home_card_fixture", [self] {
+            // A named printer is made from the selected syst
+
+... [1433 characters truncated] ...
+
+cmake --build $W/build/arm64 --config Release --target shell_integration_harness -- -j4 &gt; $S/build4.log 2&gt;&amp;1 &amp;&amp; cd $S &amp;&amp; timeout 900 $H --orca-messages $S/om1 &gt; $S/om2.log 2&gt;&amp;1; echo exit=$?; grep -n ' error:' $S/build4.log | head; grep -n 'FAIL\|threw' $S/om2.log | head -20" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b1uld7ied</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-orca-messages-c67fbe/957f4d29-c627-4dec-b167-0ba8fef2d8b7/tasks/b1uld7ied.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-orca-messages-c67fbe/957f4d29-c627-4dec-b167-0ba8fef2d8b7/scratchpad; until grep -q 'HARNESS ATEXIT\|HARNESS MAIN RETURNING' $S/om2.log 2&gt;/dev/null; do sleep 5; done; grep -n 'FAIL\|threw\|MISSED' $S/om2.log | head -20" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>byt3o0z8a</task-id>
+<tool-use-id>toolu_01KsbSyNTrfT1MXoXtgn8UfW</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-orca-messages-c67fbe/957f4d29-c627-4dec-b167-0ba8fef2d8b7/tasks/byt3o0z8a.output</output-file>
+<status>completed</status>
+<summary>Background command "/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-orca-messages-c67fbe/957f4d29-c627-4dec-b167-0ba8fef2d8b7/scratchpad/run_modes.sh; cat /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-orca-messages-c67fbe/957f4d29-c627-4dec-b167-0ba8fef2d8b7/scratchpad/modes/summary.txt" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bdx16fcjt</task-id>
+<tool-use-id>toolu_012MGca64HxdMwt3n1RtYTde</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-orca-messages-c67fbe/957f4d29-c627-4dec-b167-0ba8fef2d8b7/tasks/bdx16fcjt.output</output-file>
+<status>completed</status>
+<summary>Background command "W=/Users/kenneth/Projects/JusPrin/.claude/worktrees/orca-messages-c67fbe; S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-orca-messages-c67fbe/957f4d29-c627-4dec-b167-0ba8fef2d8b7/scratchpad; H=$W/build/arm64/tests/shell/Release/JusPrinShellHarness.app/Contents/MacOS/JusPrinShellHarness; mkdir -p $S/repeats; : &gt; $S/repeats/summary.txt
+for i in 1 2 3 4 5; do $H --print-issues $S/repeats/pi$i &gt; $S/repeats/pi$i.log 2&gt;&amp;1; echo "print-issues $i e
+
+... [211 characters truncated] ...
+
+'HARNESS RESULT' $S/repeats/om$i.log)" &gt;&gt; $S/repeats/summary.txt; done
+for i in 1 2; do $H --dialog-routing &gt; $S/repeats/dr$i.log 2&gt;&amp;1; echo "dialog-routing $i exit $? $(grep -a 'HARNESS RESULT' $S/repeats/dr$i.log)" &gt;&gt; $S/repeats/summary.txt; done
+cat $S/repeats/summary.txt" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bb8smj52o</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-orca-messages-c67fbe/957f4d29-c627-4dec-b167-0ba8fef2d8b7/tasks/bb8smj52o.output</output-file>
+<status>completed</status>
+<summary>Background command "cd /Users/kenneth/Projects/JusPrin/.claude/worktrees/orca-messages-c67fbe; git add -N docs/HLSD/orca-messages.md src/slic3r/GUI/JusPrin/OrcaMessages tests/shell/orca_messages_scenario.inc; uptime; S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-orca-messages-c67fbe/957f4d29-c627-4dec-b167-0ba8fef2d8b7/scratchpad; ls -d build-tidy 2&gt;/dev/null; perl -e 'setpgrp(0,0); exec @ARGV' scripts/run_clang_tidy.sh -b HEAD --no-fetch -j 4 -d /Users/kenneth/Projects/JusPrin/deps/build/arm64 -y &gt; $S/tidy.log 2&gt;&amp;1; echo exit $?; tail -30 $S/tidy.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<cross-session-message from="local_0556d7f7-94a8-41cf-a840-aa76d6268545" from-name="btw: So these are the settings changed to the printer or filame…">
+Change to your brief, approved by Kenneth on 2026-11-18 ("send it now"): closing a project and switching a profile are one rule and must share one piece of JusPrin code.
+The rule: whenever OrcaSlicer is about to drop setting changes that sit on top of a profile, JusPrin saves a version first, then lets it go ahead with no question. If the version cannot be saved, the close or the switch does not happen, and the failure is reported like any other unexpected error (the Error handling section of `AGENTS.md`; one handler, `report_unexpected_error`).
+What this changes in the handover (`dialog-routing-implementation-handover.md`, "What to build" point 5):
+1. The existing close hook (`set_before_project_release`, set up in `src/slic3r/GUI/JusPrin/Shell/ShellController.cpp` around line 593) and the new answer to `UnsavedChangesDialog` at the modal hook both call the same JusPrin function. Do not leave them as two pieces of code that happen to do the same thing.
+2. A failed save is now decided, not yours to choose: refuse, as the close hook already does. The prototype's behaviour on a failed save, letting OrcaSlicer's "Transfer or discard changes" dialog show, must go; it breaks the rule that JusPrin never asks.
+3. Add a process profile switch to the cases you run, beside printer and filament. OrcaSlicer runs the same check for it (`Tab.cpp:7560`), and a printer switch can also raise it for process changes when the current process profile does not fit the new printer (`Tab.cpp:7620`). `SetupCommands::select_process_preset` is JusPrin's own call that switches it; find what calls it.
+Unchanged: whether the changes are dropped or carried over is still not agreed by Kenneth. Keep building "dropped" and keep calling it out as an unagreed default in your report.
+If you have already built the switch separately, fold it into the shared function rather than keeping both.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>b4gv5711v</task-id>
+<tool-use-id>toolu_016RLMdGg1LRZv4EVrbM4Nog</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-orca-messages-c67fbe/957f4d29-c627-4dec-b167-0ba8fef2d8b7/tasks/b4gv5711v.output</output-file>
+<status>failed</status>
+<summary>Background command "cd /Users/kenneth/Projects/JusPrin/.claude/worktrees/orca-messages-c67fbe; S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-orca-messages-c67fbe/957f4d29-c627-4dec-b167-0ba8fef2d8b7/scratchpad; H=$PWD/build/arm64/tests/shell/Release/JusPrinShellHarness.app/Contents/MacOS/JusPrinShellHarness; M=$S/modes2; rm -rf $M; mkdir -p $M
+run() { n=$1; shift; t0=$(date +%s); "$H" "$@" &gt; $M/$n.log 2&gt;&amp;1; rc=$?; echo "$n rc=$rc secs=$(( $(date +%s)-t0 )) $(
+
+... [237 characters truncated] ...
+
+-print-issues $M/pi2
+run print_issue_readers --print-issue-readers
+run printer_menu --printer-menu
+run task_chat --task-chat
+run check_print --check-print
+run reopen_prompt --reopen-prompt
+run printer_setup --printer-setup
+echo ALLDONE &gt;&gt; $M/summary.txt; cat $M/summary.txt" failed with exit code 144</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bxi7ka7gg</task-id>
+<tool-use-id>toolu_01D1DPpZMh1jxP7du3Woou5p</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-orca-messages-c67fbe/957f4d29-c627-4dec-b167-0ba8fef2d8b7/tasks/bxi7ka7gg.output</output-file>
+<status>completed</status>
+<summary>Background command "cd /Users/kenneth/Projects/JusPrin/.claude/worktrees/orca-messages-c67fbe; S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-orca-messages-c67fbe/957f4d29-c627-4dec-b167-0ba8fef2d8b7/scratchpad; H=$PWD/build/arm64/tests/shell/Release/JusPrinShellHarness.app/Contents/MacOS/JusPrinShellHarness; M=$S/modes3; rm -rf $M; mkdir -p $M
+run() { n=$1; shift; t0=$(date +%s); timeout 900 "$H" "$@" &gt; $M/$n.log 2&gt;&amp;1; rc=$?; echo "$n rc=$rc secs=$(( $(date +
+
+... [347 characters truncated] ...
+
+ --print-issues $M/pi2
+run print_issue_readers --print-issue-readers
+run printer_menu --printer-menu
+run task_chat --task-chat
+run check_print --check-print
+run reopen_prompt --reopen-prompt
+run printer_setup --printer-setup
+echo ALLDONE &gt;&gt; $M/summary.txt; cat $M/summary.txt" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<cross-session-message from="local_0556d7f7-94a8-41cf-a840-aa76d6268545" from-name="btw: So these are the settings changed to the printer or filame…">
+Correction to my earlier message: dropping setting changes on a profile switch is agreed by Kenneth, not an unagreed default. Remove it from the "not agreed" part of your report.
+
+Reason, in Kenneth's words today (2026-11-18): he approved "One rule, one piece of JusPrin code, for closing and switching", and then said "we already have a rule for closing, right?" Closing a project saves a version and then drops the changes with no question, so switching a printer, filament or process profile does the same. Carry-over of changes to the new profile is not to be built and is no longer an open question.
+
+What this changes for you:
+- In your report, list "on a switch, a version is saved and the changes are dropped" under what Kenneth agreed to, with the quote above.
+- The line in the handover document under "Not agreed" about a switch of printer or filament with setting changes is superseded by this message. The other two items there (a refused switch to OrcaSlicer's Device page; where a message with no cause is shown) are still unagreed defaults.
+- Nothing changes in what you build: one shared function for the close hook and the answer to "Transfer or discard changes", a failed save refuses and is reported as an unexpected error, and process profile switches are among the cases run.
+</cross-session-message>
+
+---
+
+Yes, reword them
+
+---
+
+<cross-session-message from="local_0556d7f7-94a8-41cf-a840-aa76d6268545" from-name="btw: So these are the settings changed to the printer or filame…">
+Kenneth has decided where a taken OrcaSlicer message with no known cause is shown: in the chat, the same as a printer's message. This replaces the notice over the 3D view.
+
+His words (2026-11-18): "If there is an active chat, put that in the active chat, otherwise put that in the empty chat panel. We already have a way to do that." He had said the same earlier today, and I wrongly narrowed it to messages that name a printer. It applies to every message JusPrin takes from OrcaSlicer, for example the "object could not be split" box.
+
+What this changes for you:
+- Do not build or keep the path that pushes OrcaSlicer's `CustomNotification` over the 3D view for no-cause messages. Send them through the same chat entry path as printer messages (`AgentHost::begin_work` / `finish_work`, or whatever you settled on for those).
+- Slice and upload failures are unchanged: JusPrin already shows them, so no second copy.
+- In your report this is agreed, not a default. Still show Kenneth pictures: with an active chat, with the empty chat panel, and on Home where the chat pane is collapsed. If the Home case has no obvious answer, say so plainly in the report instead of inventing one.
+
+One item is still open and Kenneth is answering it now: what opens in place of a refused switch to one of OrcaSlicer's hidden pages. Do not build anything there beyond the refusal until I or Kenneth tell you.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>bkd3998wi</task-id>
+<tool-use-id>toolu_018CtoyKj8mNEMRfTAKMoMR1</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-orca-messages-c67fbe/957f4d29-c627-4dec-b167-0ba8fef2d8b7/tasks/bkd3998wi.output</output-file>
+<status>completed</status>
+<summary>Background command "cd /Users/kenneth/Projects/JusPrin/.claude/worktrees/orca-messages-c67fbe; S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-orca-messages-c67fbe/957f4d29-c627-4dec-b167-0ba8fef2d8b7/scratchpad; pgrep -fl "ninja" ; nohup perl -e 'setpgrp(0,0); exec @ARGV' cmake --build build/arm64 --config Release --target JusPrinShellHarness -- -j4 &gt; $S/build3.log 2&gt;&amp;1; echo rc=$? ; tail -5 $S/build3.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b467a2192</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-orca-messages-c67fbe/957f4d29-c627-4dec-b167-0ba8fef2d8b7/tasks/b467a2192.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-orca-messages-c67fbe/957f4d29-c627-4dec-b167-0ba8fef2d8b7/scratchpad; rm -rf $S/modes $S/witness; zsh $S/run_modes.sh; cat $S/modes/summary.txt" completed (exit code 0)</summary>
+</task-notification>
