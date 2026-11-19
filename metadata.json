@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7T9EHQRM1B3KVAT24T1TS13",
   "strategy": "manual-commit",
   "branch": "claude/mac-builds-without-homebrew",
-  "checkpoints_count": 8,
+  "checkpoints_count": 9,
   "files_touched": [
     "deps/CMakeLists.txt",
     "deps/python3/python3.cmake",
@@ -37,6 +37,13 @@
       "compact_transcript": "/3/transcript.jsonl",
       "content_hash": "/3/content_hash.txt",
       "prompt": "/3/prompt.txt"
+    },
+    {
+      "metadata": "/4/metadata.json",
+      "transcript": "/4/full.jsonl",
+      "compact_transcript": "/4/transcript.jsonl",
+      "content_hash": "/4/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {

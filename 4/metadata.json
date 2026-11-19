@@ -1,0 +1,113 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7T9EHQRM1B3KVAT24T1TS13",
+  "session_id": "54e23403-adc1-4803-a0ef-2460f2fb2c73",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-19T16:15:26.394826Z",
+  "branch": "claude/mac-builds-without-homebrew",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "deps/CMakeLists.txt",
+    "deps/python3/python3.cmake",
+    "deps/xz/xz.cmake"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-5-5",
+  "turn_id": "1957464bf310",
+  "checkpoint_transcript_start": 565,
+  "transcript_lines_at_start": 565,
+  "compact_transcript_start": 62,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01Rmi1Sd5y3MaceDqJQZd785",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "claude-api"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "1957464bf310",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 138,
+        "end": 139,
+        "entry_ids": [
+          "89b800e5-3909-47ce-a923-5c1e1898134b"
+        ],
+        "tool_use_id": "toolu_01Rmi1Sd5y3MaceDqJQZd785"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01Rmi1Sd5y3MaceDqJQZd785"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: claude-api",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_0173dcuUdV1Xdyrm5kkerZaq",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "anthropic-skills:chrome-browser"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "1957464bf310",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 195,
+        "end": 196,
+        "entry_ids": [
+          "1e773ad0-4166-484a-a24d-35a6d6255c78"
+        ],
+        "tool_use_id": "toolu_0173dcuUdV1Xdyrm5kkerZaq"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_0173dcuUdV1Xdyrm5kkerZaq"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: anthropic-skills:chrome-browser",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "initial_attribution": {
+    "calculated_at": "2026-11-19T16:15:26.246968Z",
+    "agent_lines": 30,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 30,
+    "total_lines_changed": 30,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
