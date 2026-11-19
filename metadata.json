@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7TG4P2SXMP7CYH74HF3T2JJ",
   "strategy": "manual-commit",
   "branch": "tostdstring-utf8",
-  "checkpoints_count": 7,
+  "checkpoints_count": 8,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/Brand/BrandPalette.cpp",
     "src/slic3r/GUI/JusPrin/CMakeLists.txt",
@@ -29,6 +29,13 @@
       "transcript": "/1/full.jsonl",
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
+      "prompt": ""
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
       "prompt": ""
     }
   ],
