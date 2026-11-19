@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7T9EZTEKB9SYKTS1FA9VSKV",
   "session_id": "23681df5-5890-4d46-9312-b5e1ef31c2b9",
   "strategy": "manual-commit",
-  "created_at": "2026-11-19T16:15:35.257059Z",
+  "created_at": "2026-11-19T19:08:10.334641Z",
   "branch": "claude/mac-builds-without-homebrew",
   "checkpoints_count": 5,
   "files_touched": [
@@ -61,7 +61,7 @@
     "turn_count": 5
   },
   "initial_attribution": {
-    "calculated_at": "2026-11-19T16:15:34.490509Z",
+    "calculated_at": "2026-11-19T19:08:09.342976Z",
     "agent_lines": 46,
     "agent_removed": 40,
     "human_added": 0,
