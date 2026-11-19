@@ -3,14 +3,26 @@
   "checkpoint_id": "01M7T9HDQ5NCV4V9HC4DYXK66C",
   "strategy": "manual-commit",
   "branch": "claude/mac-release-test",
-  "checkpoints_count": 1,
-  "files_touched": null,
+  "checkpoints_count": 2,
+  "files_touched": [
+    ".github/workflows/jusprin_build_all.yml",
+    ".github/workflows/jusprin_release_build.yml",
+    ".github/workflows/tmp_mac_release_test_hosted.yml",
+    ".github/workflows/tmp_mac_release_test_self_hosted.yml"
+  ],
   "sessions": [
     {
       "metadata": "/0/metadata.json",
       "transcript": "/0/full.jsonl",
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
       "prompt": ""
     }
   ],
