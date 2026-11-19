@@ -1,0 +1,88 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7S4EFGE2BF37JTJS3K9JMD0",
+  "session_id": "ddef347c-0a0b-4acd-ba3b-58cafacec07a",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-19T05:28:41.524445Z",
+  "branch": "claude/self-hosted-mac-kept-deps",
+  "checkpoints_count": 5,
+  "files_touched": [
+    ".github/workflows/jusprin_build_all.yml"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "5e7a62766570",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 1304,
+    "cache_creation_tokens": 2647620,
+    "cache_read_tokens": 149666861,
+    "output_tokens": 402947,
+    "api_call_count": 652
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01FDGsihVwanH1jwUWKLZiaH",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "jusprin-release"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "5e7a62766570",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 39,
+        "end": 40,
+        "entry_ids": [
+          "479a04b1-411c-4e9d-9580-01124ce7c84e"
+        ],
+        "tool_use_id": "toolu_01FDGsihVwanH1jwUWKLZiaH"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01FDGsihVwanH1jwUWKLZiaH"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: jusprin-release",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 5
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-19T05:28:40.916146Z",
+    "agent_lines": 11,
+    "agent_removed": 1,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 11,
+    "total_lines_changed": 12,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 385,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".claude/skills/figma-agent-design/SKILL.md": 132,
+        ".claude/skills/figma-agent-design/agents/openai.yaml": 4,
+        ".claude/skills/figma-agent-design/references/design-system-governance.md": 103,
+        ".claude/skills/figma-agent-design/references/prompt-and-review.md": 124
+      }
+    }
+  ]
+}
