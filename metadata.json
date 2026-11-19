@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7TXGX6ZNJCYQPD80TMS85M0",
+  "strategy": "manual-commit",
+  "branch": "claude/magical-moore-c0fa18",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/shell/shell_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 74,
+    "cache_creation_tokens": 112651,
+    "cache_read_tokens": 4947194,
+    "output_tokens": 18032,
+    "api_call_count": 37
+  }
+}
