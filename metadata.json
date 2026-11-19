@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7V033MRHXV48MK1RRKD73PJ",
   "strategy": "manual-commit",
   "branch": "error-sites",
-  "checkpoints_count": 8,
+  "checkpoints_count": 9,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/Localization/native/JusPrin.pot",
     "src/slic3r/GUI/JusPrin/Localization/native/ca.po",
@@ -44,6 +44,13 @@
       "transcript": "/1/full.jsonl",
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
+      "prompt": ""
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
       "prompt": ""
     }
   ],
