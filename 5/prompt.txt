@@ -1,0 +1,3 @@
+New with the translations: the printer chat’s first line, “Which printer do you have? Tell me the brand and model…”, stays in English when the app is in another language. The text is a plain string in printerWords.ts that isn’t marked for translation. The rest of that screen is translated.
+
+check how many strings are missed in i18n the same way
