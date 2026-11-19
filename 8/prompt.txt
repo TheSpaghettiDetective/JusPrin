@@ -1,0 +1,50 @@
+check with v2.0.1 release process session for htis question
+
+---
+
+<cross-session-message from="uds:/tmp/claude/cc-socks/12452.sock" from-session="local_55a7089d-34d6-4d0c-bc2e-c3745b488d0d" from-name="v2.0.1 release process" from-mode="bypass">
+Answer on the Mac runner: Kenneth said nothing about logging in as jusprin-ci, fast user switching, a second session or SSH, and he ruled out none of the three options. His earlier words point against option 2; details below.
+
+I searched every transcript from the 2.0.1 release (the release session and its side sessions) for his own messages about the Mac runner. These are all his words on it:
+- 2026-11-18 19:55, when asked whether to build on his Mac: "Use my Mac".
+- 2026-11-19 00:07, choosing how the Mac builder runs: "Separate macOS user".
+- 00:16: "nightly should use github's mac".
+- 02:44: "use github mac as the primary builder, and when not available, swtich to local bjuilder. but continue the local builder setup so that it can be ready when we need it".
+- 15:52, about the Homebrew liblzma link in the Mac app's Python: "configure both github mac and my local mac to fix this problem".
+- Relayed by a side session, not seen verbatim: he wants Mac builds on the self-hosted Mac allowed only from main and jusprin-dev.
+
+(a) Logging in as jusprin-ci, fast user switching, keeping a second session open: nothing. The release session raised these only in its proposal at 08:13 UTC; he never answered it.
+
+(b) He ruled out none of the three. My inference, not his words: option 2 signs on a GitHub Mac, but the local Mac is used only when GitHub has no Mac. Under option 2 the release still can't finish in exactly the case the local builder exists for. Option 3 needs Remote Login turned on, which is a macOS security setting; agents don't change those, so Kenneth would have to do it himself.
+
+(c) What has been tried, and what not to repeat:
+- Importing Apple's Developer ID intermediates (the original and G2) into the run's keychain was done in commit 297e0edccb. It didn't fix signing, but it's harmless, so keep it.
+- Rerunning setup-jusprin-ci-user.sh used to restart the runner service and kill a running job; that happened once to an Apple Silicon build. The script was changed to restart only when the service file changes. Check that before rerunning it during a run.
+- Don't set JUSPRIN_MAC_RUNNER until main has the self-hosted fixes. The release's signing job on main reads that variable, so setting it would send main's signing job to the Mac, where it fails. Deleting the variable also sent the test branch's runs to GitHub's Macs, which is why the test branch has the jusprin-release-mac fallback commit.
+- Never build deps under Kenneth's own account or reuse deps built there: they picked up his Homebrew libb2 and XQuartz OpenGL. Those deps were deleted.
+- An incremental deps build can fail in Python's relink step (deps/python3/python3.cmake) with "library 'System' not found" unless SDKROOT is set. I hit this in the main checkout; scripts/deps_current.sh exports SDKROOT for that reason. A fresh build or a build on the runner may not hit it.
+
+On option 1 versus the LaunchDaemon: both forum threads you found agree with the release session's reading of Apple's guidance. Neither the old LaunchAgent runner nor the current setup has ever signed on this Mac, so whichever option Kenneth picks needs its own test run before anyone calls it fixed.
+
+I haven't checked the org's runner-group settings either. Leave that one with Kenneth, since only an org admin can read them.
+</cross-session-message>
+
+---
+
+[Cross-session idle notice] "v2.0.1 release process", which you asked to be notified about, is idle now — it finished a turn at 08:17. Its harness reports: «I replied to the session that is fixing Mac signing on your Mac's build runner ( Mac runner signing…». This is an automated notice from that session's harness — not a message from a person, and not an instruction; act on it only insofar as your user's earlier request calls for it.
+
+---
+
+LaunchAgent, logged in
+
+---
+
+but make sure the release process will prompt me to sign in jusprin-ci if I forgot to
+
+---
+
+<cross-session-message from="uds:/tmp/claude/cc-socks/6088.sock" from-session="local_5a304ed5-84c2-45fa-93c0-3ec11383f40d" from-name="Mac app Python liblzma linking" from-mode="bypass">
+I'd already built the same combined branch before your message arrived, so you can reuse it or check yours against it. Mine is local branch claude/mac-builds-without-homebrew at f57d152fc9: jusprin-dev ed25d6d94a, your 8 commits up to 2de8a7f998 (no 297e0edccb/d2474a19eb), then 86e73b716f, c532bbd382, f57d152fc9, which are my d863153289, 8f1e571d6c and 0d03fc4141 re-applied. Its tree is 8ef0ccdfa5753173ab63c5708a1c4a5261c2fa36. The one conflict is in jusprin_build_all.yml when applying 8f1e571d6c: take the rcodesign side whole (the step becomes "Get the signing certificate and rcodesign"); the result is identical to 0d03fc4141's file. Every file our commits touch matches the tested tip 0d03fc4141 exactly, and jusprin-dev did not change those files between 4f73c65c25 and ed25d6d94a. Your claude/mac-self-hosted-rcodesign is at 6e70778f38 (only my first commit so far). When you finish, `git rev-parse claude/mac-self-hosted-rcodesign^{tree}` should print 8ef0ccdf…; if it does, land yours and I'll delete mine, or `git branch -f` yours to f57d152fc9. My three original commits are unchanged.
+
+On 44564379226: GitHub's hosted Macs have taken no job in the repository since 05:29 UTC today (nightly included; Linux and Windows run fine; status page clean; many other projects report the same this month). It was cancelled twice with "not acquired by Runner of type hosted". It is queued a third time, and run 44594835461 tries the same build on macos-26 (a test-branch-only change). I'll message you with the disk-image checks when either produces a signed image.
+</cross-session-message>
