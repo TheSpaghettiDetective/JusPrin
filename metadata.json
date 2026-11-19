@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7TXGX6ZNJCYQPD80TMS85M0",
   "strategy": "manual-commit",
   "branch": "claude/magical-moore-c0fa18",
-  "checkpoints_count": 6,
+  "checkpoints_count": 7,
   "files_touched": [
     "tests/shell/shell_harness.cpp"
   ],
@@ -27,6 +27,13 @@
       "transcript": "/2/full.jsonl",
       "compact_transcript": "/2/transcript.jsonl",
       "content_hash": "/2/content_hash.txt",
+      "prompt": ""
+    },
+    {
+      "metadata": "/3/metadata.json",
+      "transcript": "/3/full.jsonl",
+      "compact_transcript": "/3/transcript.jsonl",
+      "content_hash": "/3/content_hash.txt",
       "prompt": ""
     }
   ],
