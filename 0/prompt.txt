@@ -1,0 +1,34 @@
+did the switch post into the chat as a developer's message? If so, what was the message that posted into the chat? This is a genuine question. Do not make changes.
+
+---
+
+<!-- reply 1 -->
+> Filament is now Generic PLA. Heat and cooling follow PLA; walls and infill unchanged. Slice again when ready.
+
+I assume printers which had a similar text. If that's the case, we should just change the text to make it clear that the previous change was not carried over, right? I believe there's a document documenting where we should put where are the appropriate places where we give AI model the information, and I believe that this is the appropriate place for such info, but I could be wrong. Check the docs to understand what I'm talking about.
+
+---
+
+<!-- reply 2 -->
+> nozzle temperature is back to 220 °C.”
+
+Are you going to list all the settings that got dropped? Otherwise, how do you produce? How does the app produce this part?
+
+<!-- reply -->
+> The app has to keep the list itself. OrcaSlicer can list which settings were unsaved (PresetCollection::current_dirty_options), but only before the switch drops them. The note is built after the menu closes, so the switch has to keep that list.
+
+I think you are over-engineering. You can just say the edits were dropped and now it's the settings has gone back to the preset of the newly selected filamental printer.
+
+---
+
+no need for design board and cold reader. go bnuild it and test it again
+
+---
+
+<task-notification>
+<task-id>bb89dklp2</task-id>
+<tool-use-id>toolu_014DbMEnZYS4gpTAPPZtnUUL</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-orca-messages-c67fbe/959d84f5-a142-4147-a8a9-d28eca59b310/tasks/bb89dklp2.output</output-file>
+<status>completed</status>
+<summary>Background command "/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-orca-messages-c67fbe/959d84f5-a142-4147-a8a9-d28eca59b310/scratchpad/run_modes.sh" completed (exit code 0)</summary>
+</task-notification>
