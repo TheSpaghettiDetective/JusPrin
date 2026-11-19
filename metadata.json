@@ -1,0 +1,49 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7V033MRHXV48MK1RRKD73PJ",
+  "strategy": "manual-commit",
+  "branch": "error-sites",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Localization/native/JusPrin.pot",
+    "src/slic3r/GUI/JusPrin/Localization/native/ca.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/cs.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/de.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/es.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/eu.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/fr.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/hu.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/it.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/ja.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/ko.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/lt.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/nl.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/pl.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/pt_BR.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/ru.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/sv.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/th.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/tr.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/uk.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/vi.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/zh_CN.po",
+    "src/slic3r/GUI/JusPrin/Localization/native/zh_TW.po",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4,
+    "cache_creation_tokens": 701,
+    "cache_read_tokens": 417846,
+    "output_tokens": 829,
+    "api_call_count": 2
+  }
+}
