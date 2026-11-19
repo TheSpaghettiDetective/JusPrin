@@ -1,0 +1,17 @@
+Background (from the session that started this one):
+JusPrin is a fork of OrcaSlicer. The JusPrin view replaces OrcaSlicer's tabs with its own shell (Home, Prepare, the project page). Another session, working on error messages on branch `error-sites`, ran `--left-pane` and found these two failures. They also happen on the old code, and the veto added on 2026-11-18 explains them, so they are not from that work. That session hasn't changed this area.
+
+Task:
+The shell harness mode `--left-pane` (`tests/shell/shell_harness.cpp`, around the comment "Check print is not touched") fails two checks on jusprin-dev: `left_pane_is_absent_on_check_print` and `left_resize_handle_is_absent_on_check_print`. The step calls `m_frame->select_tab(TAB_ID_PREVIEW)`, but the notebook stays on "prepare". The likely cause is commit `ed25d6d94a` (2026-11-18, "JusPrin view takes OrcaSlicer's message windows and puts them in the chat"). It added `ShellController::on_notebook_page_changing` in `src/slic3r/GUI/JusPrin/Shell/ShellController.cpp`, which vetoes a switch to any page other than Home, Prepare and the project page while `OrcaMessages::taking()`. Confirm that with a run on unchanged jusprin-dev, then decide which side is wrong. Either the harness step is stale (the JusPrin view no longer shows OrcaSlicer's Preview page, so the step should test what the person can now reach), or the veto refuses a page the JusPrin view must still reach (Check print). Read the commit message of `ed25d6d94a` and `agent-docs/jusprin/README.md` for what the JusPrin view shows. Fix whichever is wrong, with a test that fails first, and leave `--left-pane` passing. Follow AGENTS.md: build with `-- -j4` after checking `uptime` and `pgrep -fl ninja`, use the harness's own scratch data folder, and do not push.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_647dbdf8-60a5-4353-a06d-753fd4e03756
+
+---
+
+<task-notification>
+<task-id>bb0d86hdz</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-magical-moore-c0fa18/29688fc2-6752-4110-8673-6b764e3620a0/tasks/bb0d86hdz.output</output-file>
+<status>completed</status>
+<summary>Background command "P=$(pgrep -f "ninja -f build-Release.ninja -j4 shell_integration_harness" | head -1); echo $P; while kill -0 $P 2&gt;/dev/null; do sleep 30; done; tail -5 /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-magical-moore-c0fa18/29688fc2-6752-4110-8673-6b764e3620a0/scratchpad/build1.log" completed (exit code 0)</summary>
+</task-notification>
