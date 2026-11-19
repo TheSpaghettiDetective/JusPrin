@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7TH9113QG4KDM3QDYTKBPTK",
+  "strategy": "manual-commit",
+  "branch": "proto/win-install-restart-from-2.0.0",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Preferences/PreferencesWindow.cpp",
+    "src/slic3r/GUI/JusPrin/Preferences/PreferencesWindow.hpp",
+    "src/slic3r/GUI/JusPrin/Updates/InstallRestartPrototype.cpp",
+    "src/slic3r/GUI/JusPrin/Updates/InstallRestartPrototype.hpp",
+    "src/slic3r/GUI/JusPrin/sources.cmake"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4,
+    "cache_creation_tokens": 1674,
+    "cache_read_tokens": 325932,
+    "output_tokens": 711,
+    "api_call_count": 2
+  }
+}
