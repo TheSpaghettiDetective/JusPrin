@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7TNJFXHYH3BQT8PV80DGHN0",
   "strategy": "manual-commit",
   "branch": "proto/win-install-restart-from-2.0.0",
-  "checkpoints_count": 11,
+  "checkpoints_count": 12,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/Packaging/installer.nsh",
     "src/slic3r/GUI/JusPrin/Packaging/packaging.cmake"
@@ -49,6 +49,13 @@
       "transcript": "/5/full.jsonl",
       "compact_transcript": "/5/transcript.jsonl",
       "content_hash": "/5/content_hash.txt",
+      "prompt": ""
+    },
+    {
+      "metadata": "/6/metadata.json",
+      "transcript": "/6/full.jsonl",
+      "compact_transcript": "/6/transcript.jsonl",
+      "content_hash": "/6/content_hash.txt",
       "prompt": ""
     }
   ],
