@@ -114,6 +114,8 @@ jobs:
     with:
       version: ${{ needs.prepare.outputs.version }}
       sign_macos: ${{ inputs.sign_macos }}
+      # The nightly builds on GitHub's Macs, never on the self-hosted Mac.
+      mac_runner: false
     secrets: inherit
 
   publish:

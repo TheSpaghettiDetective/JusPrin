@@ -34,6 +34,15 @@ name: JusPrin release
 #   that is not signed and notarised. A release started by pushing a branch
 #   is never signed. Windows builds are unsigned. An unsigned draft says so
 #   in its title.
+# - The Mac builds run on GitHub's macos-15. GitHub sometimes has no Mac
+#   machine for this repo: the Mac jobs then end "cancelled" 15 minutes after
+#   they were queued, with no runner. Start the release again with "Build the
+#   Mac jobs on the self-hosted Mac" ticked, and they go to the self-hosted
+#   runner whose label the repo variable JUSPRIN_MAC_RUNNER names. That only
+#   happens for runs from main or jusprin-dev. That Mac keeps the built deps
+#   in its runner's tool cache (jusprin_release_build.yml). The repo requires
+#   approval before any outside contributor's workflow runs, so a pull
+#   request cannot reach it.
 #
 # Start it from Actions > JusPrin release > Run workflow (the file must also
 # be on the default branch for that button), or by pushing a branch named
@@ -48,6 +57,10 @@ on:
         default: true
       skip_guide_check:
         description: 'Release without the guide check'
+        type: boolean
+        default: false
+      self_hosted_mac:
+        description: 'Build the Mac jobs on the self-hosted Mac (when GitHub had no Mac machine)'
         type: boolean
         default: false
   push:
@@ -157,6 +170,7 @@ jobs:
     with:
       version: ${{ needs.prepare.outputs.version }}
       sign_macos: ${{ github.event_name == 'workflow_dispatch' && inputs.sign_macos || false }}
+      mac_runner: ${{ github.event_name == 'workflow_dispatch' && inputs.self_hosted_mac || false }}
     secrets: inherit
 
   draft:

@@ -222,6 +222,11 @@ elseif(APPLE)
     # on older systems, where os.pipe() then segfaults -- in `make install`
     # (compileall, ensurepip) and in the shipped app alike. Every configure below
     # keeps the pipe()/dup2() fallbacks (python/cpython#153711).
+    # JusPrin: configure takes optional libraries from whatever pkg-config
+    # finds, such as Homebrew's liblzma and libb2, which a Mac without Homebrew
+    # lacks. pkg-config may only look in the deps, which provide liblzma
+    # (xz/xz.cmake); _blake2 then uses CPython's own BLAKE2 code.
+    set(_python_pkg_config_libdir "${DESTDIR}/lib/pkgconfig:${DESTDIR}/share/pkgconfig")
     if(IS_CROSS_COMPILE)
         set(_python_build_tgt --build=${_python_build_arch}-apple-darwin --host=${_python_host_arch}-apple-darwin)
         set(_python_build_arch_flags "-arch ${_python_build_arch_flag} -mmacosx-version-min=${CMAKE_OSX_DEPLOYMENT_TARGET}")
@@ -256,6 +261,7 @@ elseif(APPLE)
                CXXFLAGS='${_python_arch_flags}' \
                LDFLAGS='${_python_ldflags}' \
                MACOSX_DEPLOYMENT_TARGET='${CMAKE_OSX_DEPLOYMENT_TARGET}' \
+               PKG_CONFIG_LIBDIR='${_python_pkg_config_libdir}' \
                ./configure \
                  --prefix='${DESTDIR}/libpython' \
                  --enable-shared \
@@ -278,6 +284,7 @@ elseif(APPLE)
             "CXXFLAGS=${_python_arch_flags}"
             "LDFLAGS=${_python_ldflags}"
             "MACOSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}"
+            "PKG_CONFIG_LIBDIR=${_python_pkg_config_libdir}"
             ./configure
             --prefix=${DESTDIR}/libpython
             --enable-shared
@@ -363,6 +370,9 @@ if(TARGET dep_OpenSSL)
 endif()
 if(TARGET dep_ZLIB)
     add_dependencies(dep_python3 dep_ZLIB)
+endif()
+if(TARGET dep_xz) # JusPrin
+    add_dependencies(dep_python3 dep_xz)
 endif()
 
 if (NOT WIN32)

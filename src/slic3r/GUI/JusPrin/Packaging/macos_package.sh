@@ -8,10 +8,14 @@
 # JusPrin.app and sets JusPrin's identity before anything is signed, because
 # editing Info.plist afterwards would break the signature.
 #
-# Signing: with JUSPRIN_SIGN=1 the app and the disk image are signed with the
-# Developer ID certificate in MACOS_CERTIFICATE_ID (already in the keychain)
-# and notarised with APPLE_DEV_ACCOUNT, TEAM_ID and APP_PWD. Otherwise the app
-# gets an ad-hoc signature, which keeps the edited bundle consistent but which
+# Signing: with JUSPRIN_SIGN=1 the app and the disk image are signed by
+# rcodesign (RCODESIGN) with the Developer ID certificate and key in the .p12
+# file MACOS_P12_FILE, whose password is in the file MACOS_P12_PASSWORD_FILE,
+# and notarised with APPLE_DEV_ACCOUNT, TEAM_ID and APP_PWD. rcodesign reads
+# the certificate itself, so no keychain is involved: Apple's codesign cannot
+# use a keychain from a launchd daemon, such as the self-hosted Mac's runner,
+# and fails there with errSecInternalComponent. Otherwise the app gets an
+# ad-hoc signature, which keeps the edited bundle consistent but which
 # Gatekeeper rejects for a download: that build is for testing only.
 set -euo pipefail
 
@@ -54,9 +58,12 @@ if [ "${JUSPRIN_SIGN:-0}" = "1" ]; then
     # The main executable is left to the bundle's signature: signed on its
     # own, codesign checks the jusprin-mcp beside it, which the universal
     # join left unsigned, and fails with "code object is not signed at all".
+    # --for-notarization turns on the hardened runtime and Apple's time stamp.
+    # Signing the bundle signs each file in it again, keeping the entitlements
+    # each one was signed with.
     sign() {
-        codesign --force --options runtime --timestamp --entitlements "${entitlements}" \
-            --sign "${MACOS_CERTIFICATE_ID}" "$@"
+        "${RCODESIGN}" sign --for-notarization --entitlements-xml-file "${entitlements}" \
+            --p12-file "${MACOS_P12_FILE}" --p12-password-file "${MACOS_P12_PASSWORD_FILE}" "$1"
     }
     main_executable="${app}/Contents/MacOS/$("${buddy}" -c "Print :CFBundleExecutable" "${plist}")"
     machos=()
@@ -69,8 +76,8 @@ if [ "${JUSPRIN_SIGN:-0}" = "1" ]; then
             grep -vxF "${main_executable}"
     )
     echo "signing ${#machos[@]} Mach-O files in ${app}"
-    sign "${machos[@]}"
-    sign --verbose "${app}"
+    for f in "${machos[@]}"; do sign "$f"; done
+    sign "${app}"
 else
     codesign --deep --force --sign - "${app}"
 fi
@@ -80,7 +87,8 @@ ln -sfn /Applications "${stage}/Applications"
 retry hdiutil create -volname "JusPrin" -srcfolder "${stage}" -ov -format UDZO "${dmg}"
 
 if [ "${JUSPRIN_SIGN:-0}" = "1" ]; then
-    codesign --force --verbose --timestamp --sign "${MACOS_CERTIFICATE_ID}" "${dmg}"
+    "${RCODESIGN}" sign --p12-file "${MACOS_P12_FILE}" --p12-password-file "${MACOS_P12_PASSWORD_FILE}" "${dmg}"
+    codesign --verify --verbose=2 "${dmg}"
     notary=(--apple-id "${APPLE_DEV_ACCOUNT}" --team-id "${TEAM_ID}" --password "${APP_PWD}")
     # notarytool exits 0 when Apple rejects the image, so read the status and
     # print Apple's report, which names each file it rejected.

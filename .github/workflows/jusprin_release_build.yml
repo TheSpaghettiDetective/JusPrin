@@ -24,6 +24,15 @@ on:
       version:
         required: true
         type: string
+      # Build the Mac architectures on the self-hosted Mac that the repository
+      # variable JUSPRIN_MAC_RUNNER names (its runner label), instead of
+      # GitHub's macos-15, whose queue can cancel a job that waits too long
+      # for a machine. Only for runs from main or jusprin-dev, so a commit on
+      # any other branch never runs on that computer.
+      mac_runner:
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   cache:
@@ -36,6 +45,8 @@ jobs:
       key: ${{ steps.key.outputs.key }}
       path: ${{ steps.key.outputs.path }}
       hit: ${{ steps.lookup.outputs.cache-hit }}
+      # The self-hosted Mac's runner label when this build runs there, else empty.
+      mac_runner: ${{ inputs.mac_runner && startsWith(inputs.os, 'macos-') && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/jusprin-dev') && vars.JUSPRIN_MAC_RUNNER || '' }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -71,7 +82,8 @@ jobs:
   deps:
     name: Build deps
     needs: cache
-    if: ${{ needs.cache.outputs.hit != 'true' }}
+    # A self-hosted Mac builds and keeps its own deps (the build job below).
+    if: ${{ needs.cache.outputs.hit != 'true' && !needs.cache.outputs.mac_runner }}
     uses: ./.github/workflows/build_deps.yml
     with:
       cache-key: ${{ needs.cache.outputs.key }}
@@ -89,11 +101,8 @@ jobs:
     name: Build JusPrin
     needs: [cache, deps]
     if: ${{ !cancelled() && needs.cache.result == 'success' && (needs.deps.result == 'success' || needs.deps.result == 'skipped') }}
-    # The repository variable JUSPRIN_MAC_RUNNER, when set, sends the Mac
-    # builds to a self-hosted runner with that label instead of GitHub's
-    # macos-15, whose queue can cancel a job that waits too long for a
-    # machine. inputs.os stays macos-15, so the deps cache keeps its key.
-    runs-on: ${{ startsWith(inputs.os, 'macos-') && vars.JUSPRIN_MAC_RUNNER && fromJSON(format('["self-hosted","{0}"]', vars.JUSPRIN_MAC_RUNNER)) || inputs.os }}
+    # The self-hosted Mac when inputs.mac_runner sends the build there.
+    runs-on: ${{ needs.cache.outputs.mac_runner && fromJSON(format('["self-hosted","{0}"]', needs.cache.outputs.mac_runner)) || inputs.os }}
     env:
       VERSION: ${{ inputs.version }}
       # The Sentry project the app's error reports go to, read by
@@ -117,7 +126,11 @@ jobs:
         with:
           lfs: 'false'
 
+      # actions/cache matches the folder's full path, and a self-hosted Mac's
+      # workspace is not a hosted one's, so a self-hosted Mac uses the deps it
+      # keeps instead (Use the deps kept on this Mac, below).
       - name: Load the deps
+        if: ${{ !needs.cache.outputs.mac_runner }}
         uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/${{ needs.cache.outputs.path }}
@@ -166,24 +179,96 @@ jobs:
       - name: Prepare the Mac
         if: runner.os == 'macOS'
         run: |
-          brew install libtool
           mkdir -p "${{ github.workspace }}/deps/build/${{ inputs.arch }}"
-          # As OrcaSlicer's build_orca.yml does, for disk space: keep only the
-          # selected Xcode. Only on GitHub's machines: a self-hosted Mac is
-          # someone's own computer.
-          if [ "$RUNNER_ENVIRONMENT" = github-hosted ]; then
+          # A self-hosted Mac is someone's own computer: brew install would
+          # also upgrade other formulae there, so it only checks for the
+          # tools build_deps.yml installs on GitHub's Macs (yasm and nasm are
+          # for the x86_64 FFmpeg) and for gettext, which GitHub's Macs come
+          # with and build_release_macos.sh's translation check runs.
+          if [ "$RUNNER_ENVIRONMENT" != github-hosted ]; then
+            missing=""
+            for tool in automake:automake makeinfo:texinfo glibtoolize:libtool pkg-config:pkgconf yasm:yasm nasm:nasm msgfmt:gettext; do
+              command -v "${tool%%:*}" >/dev/null || missing="$missing ${tool#*:}"
+            done
+            if [ -n "$missing" ]; then
+              echo "::error::This Mac needs:$missing. Install them with: brew install$missing"
+              exit 1
+            fi
+          else
+            brew install libtool
+            # As OrcaSlicer's build_orca.yml does, for disk space: keep only
+            # the selected Xcode.
             xcode=$(basename "$(cd "$(xcode-select -p)/../.." && pwd -P)")
             sudo find /Applications -maxdepth 1 -type d -name "Xcode_*.app" ! -name "$xcode" -exec rm -rf {} +
             sudo rm -rf ~/Library/Developer/CoreSimulator/Caches/*
           fi
 
+      # The self-hosted Mac builds the deps once for each deps/ recipe (the
+      # cache key names it) and keeps them in its tool cache, outside the
+      # workspace that checkout cleans. They are built in place, as on GitHub's
+      # machines, and only OrcaSlicer_dep is kept, as build_deps.yml keeps it.
+      # Each run clones the kept copy back, which costs no disk space on APFS.
+      # The workspace path never changes on one runner, so the paths written
+      # into the deps stay right.
+      # That Mac also has its owner's Homebrew and maybe XQuartz. Homebrew's
+      # pkg-config hands their libraries to the deps' autotools builds
+      # (Python, FFmpeg), so it may only look in the deps' own folder, and
+      # mac_self_hosted.cmake keeps CMake from taking them (and XQuartz's
+      # OpenGL). Deps that still link a library from outside macOS are never
+      # kept or used.
+      - name: Use the deps kept on this Mac
+        if: ${{ needs.cache.outputs.mac_runner }}
+        env:
+          ARCH: ${{ inputs.arch }}
+          KEY: ${{ needs.cache.outputs.key }}
+        run: |
+          store="$RUNNER_TOOL_CACHE/jusprin-deps/$ARCH"
+          kept="$store/$KEY"
+          deps="$GITHUB_WORKSPACE/deps/build/$ARCH"
+          check=src/slic3r/GUI/JusPrin/Packaging/mac_outside_links.sh
+          export PKG_CONFIG_LIBDIR="$deps/OrcaSlicer_dep/usr/local/lib/pkgconfig:$deps/OrcaSlicer_dep/usr/local/share/pkgconfig"
+          export CMAKE_TOOLCHAIN_FILE="$GITHUB_WORKSPACE/src/slic3r/GUI/JusPrin/Packaging/mac_self_hosted.cmake"
+          if [ -f "$kept/complete" ] && "$check" "$kept/OrcaSlicer_dep" "$deps/OrcaSlicer_dep" > /dev/null; then
+            rm -rf "$deps/OrcaSlicer_dep"
+            cp -cR "$kept/OrcaSlicer_dep" "$deps/"
+          else
+            ./build_release_macos.sh -d -x -j 4 -a "$ARCH" -t 10.15
+            if ! "$check" "$deps/OrcaSlicer_dep" "$deps/OrcaSlicer_dep"; then
+              echo "::error::The deps link the libraries above from this Mac, which other Macs do not have."
+              exit 1
+            fi
+            find "$deps" -mindepth 1 -maxdepth 1 ! -name OrcaSlicer_dep -exec rm -rf {} +
+            # Also drops the deps of older recipes.
+            rm -rf "$store"
+            mkdir -p "$kept"
+            cp -cR "$deps/OrcaSlicer_dep" "$kept/"
+            touch "$kept/complete"
+          fi
+
+      # Line tables (-gline-tables-only) let Sentry give the file and line of
+      # each frame; they go into the dSYM below, not into the app.
+      # On the self-hosted Mac, pkg-config only looks in the deps, and CMake
+      # ignores Homebrew and XQuartz (mac_self_hosted.cmake). On every Mac the
+      # app must then load no library from outside macOS and itself: GitHub's
+      # Macs have Homebrew too, and 2.0.0 and 2.0.1 shipped a Python that
+      # loaded Homebrew's liblzma.
       - name: Build
         if: runner.os == 'macOS'
-        # Line tables (-gline-tables-only) let Sentry give the file and line
-        # of each frame; they go into the dSYM below, not into the app.
-        run: >-
-          ./build_release_macos.sh -s -n -x -j 3 -a ${{ inputs.arch }} -t 10.15 --
-          -DCMAKE_C_FLAGS=-gline-tables-only -DCMAKE_CXX_FLAGS=-gline-tables-only
+        env:
+          MAC_RUNNER: ${{ needs.cache.outputs.mac_runner }}
+          ARCH: ${{ inputs.arch }}
+        run: |
+          if [ -n "$MAC_RUNNER" ]; then
+            deps="$GITHUB_WORKSPACE/deps/build/$ARCH/OrcaSlicer_dep/usr/local"
+            export PKG_CONFIG_LIBDIR="$deps/lib/pkgconfig:$deps/share/pkgconfig"
+            export CMAKE_TOOLCHAIN_FILE="$GITHUB_WORKSPACE/src/slic3r/GUI/JusPrin/Packaging/mac_self_hosted.cmake"
+          fi
+          ./build_release_macos.sh -s -n -x -j 3 -a "$ARCH" -t 10.15 -- \
+            -DCMAKE_C_FLAGS=-gline-tables-only -DCMAKE_CXX_FLAGS=-gline-tables-only
+          if ! src/slic3r/GUI/JusPrin/Packaging/mac_outside_links.sh "build/$ARCH/OrcaSlicer/OrcaSlicer.app"; then
+            echo "::error::The app loads the libraries above from this Mac, which other Macs do not have."
+            exit 1
+          fi
 
       # The line tables stay in the build's object files; dsymutil gathers
       # them into a dSYM for Sentry, and strip -S then drops the executable's

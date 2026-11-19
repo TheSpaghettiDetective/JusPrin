@@ -456,6 +456,9 @@ endif ()
 
 include(OCCT/OCCT.cmake)
 include(OpenCV/OpenCV.cmake)
+if (APPLE)
+    include(xz/xz.cmake) # JusPrin: the bundled Python's liblzma
+endif ()
 include(python3/python3.cmake)
 include(wxInspector/wxInspector.cmake)
 include(Sentry/Sentry.cmake) # JusPrin: error reports and crashes

@@ -227,6 +227,15 @@ release" job waits for an approval (the `release` environment can require
 one), tell Kenneth. A failed run is reported with its log, never worked
 around with a skip box.
 
+The Mac jobs build on GitHub's Macs. If GitHub has no Mac machine for the
+repo, they end "cancelled" 15 minutes after they were queued, with no runner
+and no steps. Tell Kenneth. With his yes, start the run again on Kenneth's
+own Mac (the self-hosted runner, user `jusprin-ci`):
+
+```bash
+gh workflow run jusprin_release.yml --ref main -f sign_macos=true -f self_hosted_mac=true
+```
+
 ## 10. Test the draft
 
 Test the draft's own files: the Mac disk image on this computer, the Windows
