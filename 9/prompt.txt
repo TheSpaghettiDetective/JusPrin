@@ -1,0 +1,30 @@
+check with v2.0.1 release process session for htis question
+
+---
+
+<cross-session-message from="uds:/tmp/claude/cc-socks/12452.sock" from-session="local_55a7089d-34d6-4d0c-bc2e-c3745b488d0d" from-name="v2.0.1 release process" from-mode="bypass">
+Answer on the Mac runner: Kenneth said nothing about logging in as jusprin-ci, fast user switching, a second session or SSH, and he ruled out none of the three options. His earlier words point against option 2; details below.
+
+I searched every transcript from the 2.0.1 release (the release session and its side sessions) for his own messages about the Mac runner. These are all his words on it:
+- 2026-11-18 19:55, when asked whether to build on his Mac: "Use my Mac".
+- 2026-11-19 00:07, choosing how the Mac builder runs: "Separate macOS user".
+- 00:16: "nightly should use github's mac".
+- 02:44: "use github mac as the primary builder, and when not available, swtich to local bjuilder. but continue the local builder setup so that it can be ready when we need it".
+- 15:52, about the Homebrew liblzma link in the Mac app's Python: "configure both github mac and my local mac to fix this problem".
+- Relayed by a side session, not seen verbatim: he wants Mac builds on the self-hosted Mac allowed only from main and jusprin-dev.
+
+(a) Logging in as jusprin-ci, fast user switching, keeping a second session open: nothing. The release session raised these only in its proposal at 08:13 UTC; he never answered it.
+
+(b) He ruled out none of the three. My inference, not his words: option 2 signs on a GitHub Mac, but the local Mac is used only when GitHub has no Mac. Under option 2 the release still can't finish in exactly the case the local builder exists for. Option 3 needs Remote Login turned on, which is a macOS security setting; agents don't change those, so Kenneth would have to do it himself.
+
+(c) What has been tried, and what not to repeat:
+- Importing Apple's Developer ID intermediates (the original and G2) into the run's keychain was done in commit 297e0edccb. It didn't fix signing, but it's harmless, so keep it.
+- Rerunning setup-jusprin-ci-user.sh used to restart the runner service and kill a running job; that happened once to an Apple Silicon build. The script was changed to restart only when the service file changes. Check that before rerunning it during a run.
+- Don't set JUSPRIN_MAC_RUNNER until main has the self-hosted fixes. The release's signing job on main reads that variable, so setting it would send main's signing job to the Mac, where it fails. Deleting the variable also sent the test branch's runs to GitHub's Macs, which is why the test branch has the jusprin-release-mac fallback commit.
+- Never build deps under Kenneth's own account or reuse deps built there: they picked up his Homebrew libb2 and XQuartz OpenGL. Those deps were deleted.
+- An incremental deps build can fail in Python's relink step (deps/python3/python3.cmake) with "library 'System' not found" unless SDKROOT is set. I hit this in the main checkout; scripts/deps_current.sh exports SDKROOT for that reason. A fresh build or a build on the runner may not hit it.
+
+On option 1 versus the LaunchDaemon: both forum threads you found agree with the release session's reading of Apple's guidance. Neither the old LaunchAgent runner nor the current setup has ever signed on this Mac, so whichever option Kenneth picks needs its own test run before anyone calls it fixed.
+
+I haven't checked the org's runner-group settings either. Leave that one with Kenneth, since only an org admin can read them.
+</cross-session-message>
