@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7TK6HNBKV108M36ZA1RPDDD",
   "strategy": "manual-commit",
   "branch": "claude/mac-release-test",
-  "checkpoints_count": 7,
+  "checkpoints_count": 8,
   "files_touched": [
     ".github/workflows/jusprin_build_all.yml",
     ".github/workflows/tmp_mac_release_test_self_hosted.yml"
@@ -29,13 +29,20 @@
       "compact_transcript": "/2/transcript.jsonl",
       "content_hash": "/2/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/3/metadata.json",
+      "transcript": "/3/full.jsonl",
+      "compact_transcript": "/3/transcript.jsonl",
+      "content_hash": "/3/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 144,
+    "cache_creation_tokens": 257870,
+    "cache_read_tokens": 12227248,
+    "output_tokens": 39744,
+    "api_call_count": 72
   }
 }
