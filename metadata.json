@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7TH9113QG4KDM3QDYTKBPTK",
   "strategy": "manual-commit",
   "branch": "proto/win-install-restart-from-2.0.0",
-  "checkpoints_count": 12,
+  "checkpoints_count": 13,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/Preferences/PreferencesWindow.cpp",
     "src/slic3r/GUI/JusPrin/Preferences/PreferencesWindow.hpp",
@@ -53,13 +53,20 @@
       "compact_transcript": "/5/transcript.jsonl",
       "content_hash": "/5/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/6/metadata.json",
+      "transcript": "/6/full.jsonl",
+      "compact_transcript": "/6/transcript.jsonl",
+      "content_hash": "/6/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 410,
-    "cache_creation_tokens": 408918,
-    "cache_read_tokens": 45683757,
-    "output_tokens": 141286,
-    "api_call_count": 205
+    "input_tokens": 418,
+    "cache_creation_tokens": 419565,
+    "cache_read_tokens": 46466066,
+    "output_tokens": 144060,
+    "api_call_count": 209
   }
 }

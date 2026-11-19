@@ -1,0 +1,87 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7TH9113QG4KDM3QDYTKBPTK",
+  "session_id": "e1ccfc09-a5d5-4c2a-85ff-c7407d1f5490",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-19T18:32:18.29826Z",
+  "branch": "proto/win-install-restart-from-2.0.0",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Preferences/PreferencesWindow.cpp",
+    "src/slic3r/GUI/JusPrin/Preferences/PreferencesWindow.hpp",
+    "src/slic3r/GUI/JusPrin/Updates/InstallRestartPrototype.cpp",
+    "src/slic3r/GUI/JusPrin/Updates/InstallRestartPrototype.hpp",
+    "src/slic3r/GUI/JusPrin/sources.cmake"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-2",
+  "turn_id": "e3a5f5ab80de",
+  "checkpoint_transcript_start": 1404,
+  "transcript_lines_at_start": 1404,
+  "compact_transcript_start": 152,
+  "token_usage": {
+    "input_tokens": 8,
+    "cache_creation_tokens": 10647,
+    "cache_read_tokens": 782309,
+    "output_tokens": 2774,
+    "api_call_count": 4
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01UAjJatUU6BeNcqk6wT7gcP",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "obico-gmail"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "e3a5f5ab80de",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 1413,
+        "end": 1414,
+        "entry_ids": [
+          "4cd967b7-c979-403d-b457-aecb89c1bc8d"
+        ],
+        "tool_use_id": "toolu_01UAjJatUU6BeNcqk6wT7gcP"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01UAjJatUU6BeNcqk6wT7gcP"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: obico-gmail",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-19T18:32:18.026292Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 167,
+    "human_modified": 69,
+    "human_removed": 0,
+    "total_committed": 167,
+    "total_lines_changed": 236,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
