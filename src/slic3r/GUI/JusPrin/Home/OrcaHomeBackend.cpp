@@ -1,6 +1,7 @@
 // First: slic3r/GUI/I18N.hpp defines _L only while the _ macro is still
 // undefined, so it has to precede any header that brings one in.
 #include "slic3r/GUI/I18N.hpp"
+#include "slic3r/GUI/JusPrin/OrcaMessages/OwnDialogs.hpp"
 
 #include "OrcaHomeBackend.hpp"
 
@@ -48,6 +49,7 @@
 #include <boost/filesystem/operations.hpp>
 #include <boost/log/trivial.hpp>
 #include <wx/datetime.h>
+#include <wx/defs.h>
 #include <wx/filedlg.h>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/nowide/fstream.hpp>
@@ -1292,9 +1294,8 @@ void OrcaHomeBackend::export_gcode(const std::string& project_id, const std::str
     if (recorder == nullptr)
         return;
     if (recorder->kept_copy(project_id, hash).empty()) {
-        MessageDialog(&m_frame, _L("JusPrin no longer keeps this G-code. Slice the project again to export it."),
-                      _L("Couldn't export G-code"), wxOK | wxICON_WARNING)
-            .ShowModal();
+        OrcaMessages::show_own_message(&m_frame, _L("JusPrin no longer keeps this G-code. Slice the project again to export it."),
+                                       _L("Couldn't export G-code"), wxOK | wxICON_WARNING);
         return;
     }
     std::filesystem::path target;

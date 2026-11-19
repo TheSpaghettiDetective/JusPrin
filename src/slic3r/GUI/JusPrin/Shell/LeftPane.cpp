@@ -1,4 +1,6 @@
 #include "LeftPane.hpp"
+
+#include "slic3r/GUI/JusPrin/OrcaMessages/OwnDialogs.hpp"
 #include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 #include "SetupCommands.hpp"
 
@@ -207,7 +209,7 @@ void LeftPane::run_command(const CommandResult& result, const char* what) const
     if (result.succeeded() || result.error == WorkspaceError::NoChange)
         return;
     BOOST_LOG_TRIVIAL(error) << "Plates pane: " << what << " failed: " << result.message;
-    wxMessageBox(wxString::FromUTF8(result.message), _L("Couldn't do that"), wxOK | wxICON_ERROR);
+    OrcaMessages::show_own_message(nullptr, wxString::FromUTF8(result.message), _L("Couldn't do that"));
 }
 
 void LeftPane::activate_row(const PaneRow& row)
@@ -796,10 +798,10 @@ wxRect LeftPane::action_rect(const wxString& label) const
     return wxRect();
 }
 
-bool LeftPane::press_action(const wxString& label)
+bool LeftPane::press_action(const wxString& label, std::size_t occurrence)
 {
     for (const Hit& hit : m_hits)
-        if (hit.kind == Hit::Kind::Action && hit.label == label) {
+        if (hit.kind == Hit::Kind::Action && hit.label == label && occurrence-- == 0) {
             const std::function<void()> invoke = hit.invoke;
             invoke();
             return true;

@@ -1,6 +1,7 @@
 // First: slic3r/GUI/I18N.hpp defines _L only while the _ macro is still
 // undefined, so it has to precede any header that brings one in.
 #include "slic3r/GUI/I18N.hpp"
+#include "slic3r/GUI/JusPrin/OrcaMessages/OwnDialogs.hpp"
 #include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 
 #include "GuideWindow.hpp"
@@ -102,7 +103,7 @@ bool GuideWindow::on_page_message(const std::string& type, const json& payload)
         return false;
     CallAfter(reported("opening the guide in the browser", [this, url] {
         if (!wxLaunchDefaultBrowser(wxString::FromUTF8(url)))
-            MessageDialog(this, _L("The app couldn't open your browser."), _L("JusPrin guide"), wxOK | wxICON_WARNING).ShowModal();
+            OrcaMessages::show_own_message(this, _L("The app couldn't open your browser."), _L("JusPrin guide"), wxOK | wxICON_WARNING);
     }));
     return true;
 }

@@ -296,6 +296,66 @@ notifications" in the architecture guide). What was learned about it:
   what puts a path outside.
 - **OrcaSlicer validates only the active plate.**
 
+### OrcaSlicer's message windows are taken where their reason is still known
+
+OrcaSlicer opens message windows from hundreds of call sites. The JusPrin
+view takes them (`docs/HLSD/orca-messages.md`). What was learned:
+
+- **A window put off has lost its reason by the time it opens.**
+  `GUI::show_error`, `GUI_App::show_dialog` and `GUI_App::push_notification`
+  queue the window with `CallAfter` and return. The modal hook then sees a box
+  with no caller on the stack. The message is taken at the top of each of the
+  three functions instead, where the caller still is; a modal window opened at
+  once is taken at the hook.
+- **The reason has to be noted at the source.** A box's words do not say what
+  it is about: "Connect ... failed!" names no device id, and the network
+  plug-in's update message names none at all. The cause is noted by the code
+  that knows it, and JusPrin's listeners of a finished slice or a failed
+  upload run before OrcaSlicer's own, since the handler bound later runs
+  first.
+- **One window class has three uses.** `UnsavedChangesDialog` asks
+  "Transfer or discard changes" on a profile switch, "<caption>: unsaved
+  changes" before profiles are reloaded, and whether to copy one nozzle's
+  settings to the other. The copy always has unsaved options, so the dirty
+  state does not tell them apart; only the title does.
+- **`UnsavedChangesDialog::ShowModal` can return without opening.** With
+  "remember my choice" set it returns the remembered action before the modal
+  hook is asked. The hook's answer of OK leaves the exit action undefined,
+  which every caller reads as neither transfer nor save.
+- **A profile switch can ask about another profile's edits.** A printer
+  switch asks about the process or filament edits when the selected process
+  or filament does not fit the new printer (`Tab::select_preset`, the printer
+  branch), with the same "Transfer or discard changes" window. Installing a
+  printer profile (`PresetBundle::apply_vendor_config`) reloads every
+  profile and drops their edits without asking.
+- **A filament switch renames the slot before it asks.** The sidebar's
+  filament sequence (`Plater::priv::on_select_preset`, mirrored by
+  `SetupCommands::select_filament_preset`) calls `set_filament_preset` and
+  then `Tab::select_preset`, where "Transfer or discard changes" is asked.
+  Anything that captures the project at the question sees the new
+  filament's name with the old filament's settings; a restore of that
+  capture loads the old settings onto the new filament.
+- **A restored project marks the printer changed.** Loading a saved project
+  back leaves `thumbnails` ("48x48/PNG, 300x300/PNG" against the profile's
+  "48x48/PNG,300x300/PNG") and `machine_max_junction_deviation` (the same
+  text on both sides) counted as unsaved printer changes. Unverified whether
+  OrcaSlicer's own project open does the same.
+- **The answer of a switch is the switch's own Discard.** Answering OK lets
+  `Tab::select_preset` drop the outgoing edits itself; the reload callers read
+  no choice from an undefined action, so the edits are dropped first.
+- **A page switch is refused with the notebook's own event.** Veto of
+  `wxEVT_BOOKCTRL_PAGE_CHANGING` stops `SelectPageByName`, `select_tab` and the
+  key that steps through pages alike, without a line in `MainFrame`.
+- **A failed upload's notification keeps its words.** The upload's chat entry
+  follows OrcaSlicer's progress notification (`PrintIssues/WorkFeed.cpp`).
+  On an error the notification only changes the state it draws, not the text
+  `for_each_notification` reads, so following the notification alone leaves
+  the entry running. The failure is known only from the upload queue's error
+  event. JusPrin's listener of that event notes the notification's words in
+  the cause, and the error box it raises ends the entry with those words
+  (`WorkFeed::fail_upload`), so the failure is told once, in the upload's own
+  entry.
+
 ### Application teardown can re-enter destroyed owners
 
 Quitting while model volumes are loaded can crash:

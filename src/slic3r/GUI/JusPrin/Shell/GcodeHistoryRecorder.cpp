@@ -1,4 +1,7 @@
 #include "GcodeHistoryRecorder.hpp"
+
+#include "slic3r/GUI/JusPrin/OrcaMessages/OwnDialogs.hpp"
+#include "slic3r/GUI/JusPrin/OrcaMessages/OrcaMessages.hpp"
 #include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 
 #include "libslic3r/PresetBundle.hpp"
@@ -30,6 +33,7 @@
 #include <algorithm>
 #include <fstream>
 #include <stdexcept>
+#include <utility>
 
 namespace Slic3r::GUI::JusPrin {
 
@@ -136,9 +140,12 @@ void GcodeHistoryRecorder::hook_print_host_queue()
     // The upload queue runs on its own thread: the observer copies what it
     // needs and hands it to the GUI thread.
     m_print_host_queue->set_enqueue_observer([this](std::size_t id, const PrintHostJob& job) {
+        // The notification's words as PrintHostQueueDialog::append_job gives
+        // them to NotificationManager::push_upload_job_notification.
         CallAfter(reported("recording a print sent to a printer", [this, id, host = job.printhost->get_host(), file_name = into_u8(from_path(job.upload_data.upload_path.filename())),
+                   notice = job.upload_data.upload_path.string() + " -> " + job.printhost->get_host(),
                    start = job.upload_data.post_action == PrintHostPostUploadAction::StartPrint] {
-            on_print_host_queued(id, host, file_name, start);
+            on_print_host_queued(id, host, file_name, notice, start);
         }));
     });
     m_print_host_dialog = wxGetApp().mainframe->printhost_queue_dlg();
@@ -383,7 +390,7 @@ void GcodeHistoryRecorder::send_again_to_print_host(const std::string& project_i
             upload.printhost->get_storage(storage_paths, storage_names);
         } catch (const Slic3r::IOError& error) {
             // As OrcaSlicer's own send says it: the host could not be asked.
-            show_error(&m_plater, error.what(), false);
+            OrcaMessages::show_own_error(&m_plater, wxString::FromUTF8(error.what()));
             return;
         }
     }
@@ -588,8 +595,9 @@ void GcodeHistoryRecorder::record_bambu_job(const wxCommandEvent& event, bool st
     record(leaving(plate), std::move(destination), Agent::KeptPackage{package, config});
 }
 
-void GcodeHistoryRecorder::on_print_host_queued(std::size_t id, std::string host, std::string file_name, bool start)
+void GcodeHistoryRecorder::on_print_host_queued(std::size_t id, std::string host, std::string file_name, std::string notice, bool start)
 {
+    m_queued_jobs[id] = {host, std::move(notice)};
     if (!m_send_plates && !m_reprint)
         return;
     PendingUpload upload;
@@ -629,8 +637,18 @@ void GcodeHistoryRecorder::on_print_host_progress(wxEvent& base)
 void GcodeHistoryRecorder::on_print_host_ended(wxEvent& base)
 {
     base.Skip();
+    // OrcaSlicer's own handler of this event runs next and opens a box with
+    // the reason: what the box says is about this upload, and it ends the
+    // upload's own entry in the chat (MessageRoutes.hpp).
+    const std::size_t job = static_cast<PrintHostQueueDialog::Event&>(base).job_id;
+    if (base.GetEventType() == EVT_PRINTHOST_ERROR) {
+        const auto failed = m_queued_jobs.find(job);
+        OrcaMessages::note_cause({OrcaMessages::Cause::Kind::HostUpload, failed != m_queued_jobs.end() ? failed->second.host : std::string(),
+                                  failed != m_queued_jobs.end() ? failed->second.notice : std::string()});
+    }
+    m_queued_jobs.erase(job);
     // An upload that failed or was cancelled never left.
-    m_uploads.erase(static_cast<PrintHostQueueDialog::Event&>(base).job_id);
+    m_uploads.erase(job);
 }
 
 void GcodeHistoryRecorder::follow_unfinished_prints()

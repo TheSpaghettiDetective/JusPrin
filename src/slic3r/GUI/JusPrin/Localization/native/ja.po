@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-17 17:55-0800\n"
+"POT-Creation-Date: 2026-11-18 20:27-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2189,9 +2189,10 @@ msgid "Slot %d is now %s."
 msgstr "スロット %d が%sになりました。"
 
 # AI Translated
+#. TRN Follows "Filament is now %s." in the chat after the person picks another filament. %s is the new filament's name.
 #, c-format, boost-format
-msgid "Heat and cooling follow %s; walls and infill unchanged."
-msgstr "温度と冷却は%sに従います。壁面とインフィルは変更されません。"
+msgid "Any unsaved filament setting changes were dropped; the filament settings now follow the %s profile."
+msgstr "保存されていないフィラメント設定の変更は破棄されました。フィラメント設定は%sのプリセットに従います。"
 
 # AI Translated
 #, c-format, boost-format
@@ -2204,8 +2205,22 @@ msgid "Filaments changed: %s."
 msgstr "フィラメントを変更しました: %s。"
 
 # AI Translated
+msgid "Any unsaved filament setting changes were dropped; the filament settings now follow the new profiles."
+msgstr "保存されていないフィラメント設定の変更は破棄されました。フィラメント設定は新しいプリセットに従います。"
+
+# AI Translated
 msgid "Slice again when ready."
 msgstr "準備ができたらもう一度スライスしてください。"
+
+# AI Translated
+#. TRN In the chat after the person picks another printer. %s is the printer's name.
+#, c-format, boost-format
+msgid "Printer is now %s."
+msgstr "プリンターが%sになりました。"
+
+# AI Translated
+msgid "Any unsaved setting changes were dropped; the settings now follow the newly selected printer, filament and process profiles."
+msgstr "保存されていない設定の変更は破棄されました。設定は新しく選んだプリンター、フィラメント、プロセスのプリセットに従います。"
 
 # AI Translated
 msgid "Preferences…"
@@ -2234,6 +2249,11 @@ msgstr "このプロジェクトは新しいバージョンのJusPrinで保存�
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "プロジェクトを開けませんでした。もう一度お試しください。"
+
+# AI Translated
+#, c-format, boost-format
+#~ msgid "Heat and cooling follow %s; walls and infill unchanged."
+#~ msgstr "温度と冷却は%sに従います。壁面とインフィルは変更されません。"
 
 # AI Translated
 #~ msgid "The attachment could not be stored."

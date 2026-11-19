@@ -1,4 +1,6 @@
 #include "AppMenus.hpp"
+
+#include "slic3r/GUI/JusPrin/OrcaMessages/OwnDialogs.hpp"
 #include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 
 #include "AboutWindow.hpp"
@@ -511,7 +513,7 @@ void AppMenus::build_help(wxMenu* menu)
                                    std::string(wxGetOsDescription().ToUTF8());
         const PrinterSetup::IssueLink link = PrinterSetup::issue_link("", "What happened:\n\n\nWhat you expected:\n\n\nSteps to make it happen again:\n", footer);
         if (!wxLaunchDefaultBrowser(wxString::FromUTF8(link.url)))
-            MessageDialog(&m_frame, _L("The app couldn't open your browser."), _L("Report a problem"), wxOK | wxICON_ERROR).ShowModal();
+            OrcaMessages::show_own_message(&m_frame, _L("The app couldn't open your browser."), _L("Report a problem"));
     }}));
     items.push_back(separator(menu));
     items.insert(items.end(), stock.begin(), stock.end());

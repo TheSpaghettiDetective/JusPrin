@@ -3,8 +3,10 @@
 // Listens to the app's modal dialogs. Every one, OrcaSlicer's own, a plain
 // wxDialog, a native message box or file picker, passes wxWidgets' ShowModal
 // hook, which hands it to the listeners registered here, innermost first. A
-// listener answers the dialog, and it is never shown, or passes it on; when
-// every listener has passed, it shows as usual.
+// listener answers the dialog, and it is never shown, or passes it on. When
+// every listener has passed, the JusPrin view may take it
+// (OrcaMessages/OrcaMessages.hpp); otherwise it shows as usual. JusPrin's own
+// windows open through OrcaMessages/OwnDialogs.hpp and always show.
 //
 // A listener learns what the window itself shows: its title, its message and
 // which of the standard buttons it offers. Nothing is matched against the
@@ -32,9 +34,17 @@ struct DialogFacts
     // Orca's STEP import settings, recognised by type: its Cancel abandons
     // the whole load, so it is the one dialog whose least change is OK.
     bool        step_import{false};
+    // A file or folder picker, and the chooser of a ZIP's files: windows
+    // only the person can answer.
+    bool        picker{false};
+    bool        chooser{false};
 };
 
 DialogFacts read_dialog(wxWindow& dialog);
+
+// Whether a listener is registered: a tool call or a file open answers the
+// dialogs that open now.
+bool dialog_listener_active();
 
 // The choice that changes least, from the buttons alone: No, else Cancel,
 // else OK, else Yes (Orca offers a lone Yes only where it acts regardless).
@@ -59,7 +69,7 @@ public:
     ScopedDialogListener& operator=(const ScopedDialogListener&) = delete;
 
 private:
-    friend bool dispatch_dialog(wxWindow& dialog, int& answer);
+    friend bool dispatch_dialog(wxWindow& dialog, int& answer, bool& shown_on_purpose);
     Listener              m_listener;
     ScopedDialogListener* m_outer{nullptr};
 };

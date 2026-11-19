@@ -12,6 +12,7 @@
 #include "slic3r/GUI/JusPrin/Workspace/PlaterProjectState.hpp"
 
 #include <algorithm>
+#include <iterator>
 #include <set>
 
 namespace Slic3r::GUI::JusPrin::PrintIssues {
@@ -106,10 +107,13 @@ void WorkFeed::sync(const PrintIssueSnapshot& snapshot)
             continue;
         const std::string key = notice_key(notice);
         held.insert(key);
+        if (m_failed.count(key) != 0)
+            continue;
         auto running = m_noticed.find(key);
         if (running == m_noticed.end()) {
             Running started;
             started.title = first_line(notice.text);
+            started.kind  = notice.kind;
             started.id    = m_sink.begin(work_kind(notice.kind), started.title, runs_on_job_worker(notice.kind));
             m_noticed.emplace(key, std::move(started));
         } else if (first_line(notice.text) != running->second.title) {
@@ -125,6 +129,20 @@ void WorkFeed::sync(const PrintIssueSnapshot& snapshot)
         m_sink.finish(running->second.id, running->second.cancel_pressed ? "cancelled" : "done", {});
         running = m_noticed.erase(running);
     }
+    for (auto failed = m_failed.begin(); failed != m_failed.end();)
+        failed = held.count(*failed) != 0 ? std::next(failed) : m_failed.erase(failed);
+}
+
+bool WorkFeed::fail_upload(const std::string& notice_text, const std::string& detail)
+{
+    for (auto running = m_noticed.begin(); running != m_noticed.end(); ++running)
+        if (running->second.kind == int(NotificationType::PrintHostUpload) && running->second.title == first_line(notice_text)) {
+            m_sink.finish(running->second.id, "failed", detail);
+            m_failed.insert(running->first);
+            m_noticed.erase(running);
+            return true;
+        }
+    return false;
 }
 
 void WorkFeed::cancel(const std::string& id)

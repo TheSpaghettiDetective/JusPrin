@@ -1,4 +1,6 @@
 #include "StatusRow.hpp"
+
+#include "slic3r/GUI/JusPrin/OrcaMessages/OwnDialogs.hpp"
 #include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 #include "CheckPrintDialog.hpp"
 #include "HeaderControls.hpp"
@@ -26,6 +28,7 @@
 #include "slic3r/GUI/Plater.hpp"
 #include "slic3r/GUI/JusPrin/Support/DecimalText.hpp"
 #include <wx/sizer.h>
+#include <wx/defs.h>
 #include <wx/msgdlg.h>
 #include <wx/filedlg.h>
 #include <wx/weakref.h>
@@ -517,7 +520,9 @@ void StatusRow::open_filament_menu()
 // and none for a colour-only visit: the plan did not change. The chip and the
 // pinned card already follow Orca's own settings-changed notification; the
 // line reports, and never offers to undo, because the selection belongs to
-// the chip.
+// the chip. A switch drops the old filament's unsaved setting changes
+// (OrcaMessages.hpp), and the model reads this line, so it says so: the
+// history still holds the model's own word that its change was applied.
 void StatusRow::on_filament_visit(const FilamentMenu::Visit& visit)
 {
     refresh();
@@ -527,29 +532,56 @@ void StatusRow::on_filament_visit(const FilamentMenu::Visit& visit)
     auto name_of = [&](std::size_t slot) {
         return slot < slots.size() ? slots[slot].filament.alias : wxString::FromUTF8(visit.filaments.at(slot));
     };
-    wxString note;
     wxString colour;
-    if (visit.filaments.size() == 1) {
-        const std::size_t slot = visit.filaments.begin()->first;
-        note = single ? wxString::Format(_L("Filament is now %s."), name_of(slot))
-                      : wxString::Format(_L("Slot %d is now %s."), int(slot + 1), name_of(slot));
-        if (slot < slots.size()) {
-            colour = slots[slot].colour;
-            if (!slots[slot].filament.material.empty())
-                note += " " + wxString::Format(_L("Heat and cooling follow %s; walls and infill unchanged."),
-                                               slots[slot].filament.material);
+    if (visit.filaments.size() == 1 && visit.filaments.begin()->first < slots.size())
+        colour = slots[visit.filaments.begin()->first].colour;
+    const auto line = [&](bool shown) {
+        const auto words = [shown](const char* english) { return shown ? _L(english) : wxString::FromUTF8(english); };
+        wxString note;
+        if (visit.filaments.size() == 1) {
+            const std::size_t slot = visit.filaments.begin()->first;
+            note = single ? wxString::Format(words(L("Filament is now %s.")), name_of(slot))
+                          : wxString::Format(words(L("Slot %d is now %s.")), int(slot + 1), name_of(slot));
+            // TRN Follows "Filament is now %s." in the chat after the person picks another filament. %s is the new filament's name.
+            note += " " + wxString::Format(words(L("Any unsaved filament setting changes were dropped; the filament "
+                                                   "settings now follow the %s profile.")),
+                                           name_of(slot));
+        } else {
+            wxString changed;
+            for (const auto& [slot, preset] : visit.filaments)
+                // TRN One entry of the list in "Filaments changed: %s.": a slot number, then the filament's name.
+                changed += (changed.empty() ? wxString() : wxString(", ")) +
+                           wxString::Format(words(L("slot %d %s")), int(slot + 1), name_of(slot));
+            note = wxString::Format(words(L("Filaments changed: %s.")), changed) + " " +
+                   words(L("Any unsaved filament setting changes were dropped; the filament settings now follow the new "
+                           "profiles."));
         }
-    } else {
-        wxString changed;
-        for (const auto& [slot, preset] : visit.filaments)
-            // TRN One entry of the list in "Filaments changed: %s.": a slot number, then the filament's name.
-            changed += (changed.empty() ? wxString() : wxString(", ")) +
-                       wxString::Format(_L("slot %d %s"), int(slot + 1), name_of(slot));
-        note = wxString::Format(_L("Filaments changed: %s."), changed);
-    }
-    if (!m_plan_recorded || !m_plan_recorded())
-        note += " " + _L("Slice again when ready.");
-    m_note_sink(note, colour);
+        if (!m_plan_recorded || !m_plan_recorded())
+            note += " " + words(L("Slice again when ready."));
+        return note;
+    };
+    m_note_sink(line(true), colour, line(false).utf8_string());
+}
+
+// The printer menu's line after the person picks another printer. A printer
+// switch drops the unsaved setting changes of every profile, printer,
+// filament and process alike, so the line says so for the same reason as the
+// filament's.
+void StatusRow::on_printer_switched(const std::string& printer)
+{
+    refresh();
+    if (!m_note_sink) return;
+    const auto line = [&](bool shown) {
+        const auto words = [shown](const char* english) { return shown ? _L(english) : wxString::FromUTF8(english); };
+        // TRN In the chat after the person picks another printer. %s is the printer's name.
+        wxString note = wxString::Format(words(L("Printer is now %s.")), wxString::FromUTF8(printer)) + " " +
+                        words(L("Any unsaved setting changes were dropped; the settings now follow the newly selected "
+                                "printer, filament and process profiles."));
+        if (!m_plan_recorded || !m_plan_recorded())
+            note += " " + words(L("Slice again when ready."));
+        return note;
+    };
+    m_note_sink(line(true), {}, line(false).utf8_string());
 }
 
 void StatusRow::show_overflow_menu()
@@ -616,8 +648,8 @@ void StatusRow::request_action(PrintAction action)
         auto& presets = *wxGetApp().preset_bundle;
         const auto* host = presets.printers.get_edited_preset().config.option<ConfigOptionString>("print_host");
         if (!presets.use_bbl_network() && (!host || host->value.empty())) {
-            wxMessageBox(_L("Configure a printer connection in Printer settings before printing. You can also export the sliced file."),
-                         _L("Printer connection required"), wxOK | wxICON_INFORMATION, this);
+            OrcaMessages::show_own_message(this, _L("Configure a printer connection in Printer settings before printing. You can also export the sliced file."),
+                                           _L("Printer connection required"), wxOK | wxICON_INFORMATION);
             return;
         }
         SimpleEvent event(action == PrintAction::Print ? EVT_GLTOOLBAR_PRINT_PLATE : EVT_GLTOOLBAR_PRINT_ALL);

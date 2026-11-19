@@ -205,7 +205,7 @@ void PrinterMenu::show_root(const Ptr& self)
             if (!SetupCommands::select_named_printer(self->m_plater, name))
                 return; // Orca kept the current printer, including when its prompt was cancelled.
             if (ShellController* shell = installed_shell())
-                shell->status_row()->refresh();
+                shell->status_row()->on_printer_switched(name);
         };
         rows.push_back(std::move(other));
     }

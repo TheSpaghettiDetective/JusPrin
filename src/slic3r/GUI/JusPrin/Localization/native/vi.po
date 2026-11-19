@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-17 17:55-0800\n"
+"POT-Creation-Date: 2026-11-18 20:27-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2190,9 +2190,10 @@ msgid "Slot %d is now %s."
 msgstr "Khe %d hiện là %s."
 
 # AI Translated
+#. TRN Follows "Filament is now %s." in the chat after the person picks another filament. %s is the new filament's name.
 #, c-format, boost-format
-msgid "Heat and cooling follow %s; walls and infill unchanged."
-msgstr "Nhiệt độ và làm mát theo %s; thành và infill không đổi."
+msgid "Any unsaved filament setting changes were dropped; the filament settings now follow the %s profile."
+msgstr "Các thay đổi chưa lưu trong cài đặt filament đã bị bỏ; cài đặt filament giờ theo cài đặt sẵn %s."
 
 # AI Translated
 #, c-format, boost-format
@@ -2205,8 +2206,22 @@ msgid "Filaments changed: %s."
 msgstr "Đã đổi filament: %s."
 
 # AI Translated
+msgid "Any unsaved filament setting changes were dropped; the filament settings now follow the new profiles."
+msgstr "Các thay đổi chưa lưu trong cài đặt filament đã bị bỏ; cài đặt filament giờ theo các cài đặt sẵn mới."
+
+# AI Translated
 msgid "Slice again when ready."
 msgstr "Hãy slice lại khi sẵn sàng."
+
+# AI Translated
+#. TRN In the chat after the person picks another printer. %s is the printer's name.
+#, c-format, boost-format
+msgid "Printer is now %s."
+msgstr "Máy in hiện là %s."
+
+# AI Translated
+msgid "Any unsaved setting changes were dropped; the settings now follow the newly selected printer, filament and process profiles."
+msgstr "Các thay đổi chưa lưu trong cài đặt đã bị bỏ; cài đặt giờ theo các cài đặt sẵn máy in, filament và process vừa chọn."
 
 # AI Translated
 msgid "Preferences…"
@@ -2235,6 +2250,11 @@ msgstr "Dự án này được lưu bằng phiên bản JusPrin mới hơn. Hãy
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "Không thể mở dự án. Hãy thử lại."
+
+# AI Translated
+#, c-format, boost-format
+#~ msgid "Heat and cooling follow %s; walls and infill unchanged."
+#~ msgstr "Nhiệt độ và làm mát theo %s; thành và infill không đổi."
 
 # AI Translated
 #~ msgid "The attachment could not be stored."

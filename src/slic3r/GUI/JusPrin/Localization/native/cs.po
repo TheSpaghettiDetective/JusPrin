@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-17 17:55-0800\n"
+"POT-Creation-Date: 2026-11-18 20:27-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2232,9 +2232,10 @@ msgid "Slot %d is now %s."
 msgstr "Slot %d je nyní %s."
 
 # AI Translated
+#. TRN Follows "Filament is now %s." in the chat after the person picks another filament. %s is the new filament's name.
 #, c-format, boost-format
-msgid "Heat and cooling follow %s; walls and infill unchanged."
-msgstr "Teploty a chlazení podle %s; stěny a výplň beze změny."
+msgid "Any unsaved filament setting changes were dropped; the filament settings now follow the %s profile."
+msgstr "Neuložené změny nastavení filamentu byly zahozeny; nastavení filamentu se nyní řídí předvolbou %s."
 
 # AI Translated
 #, c-format, boost-format
@@ -2247,8 +2248,22 @@ msgid "Filaments changed: %s."
 msgstr "Změněné filamenty: %s."
 
 # AI Translated
+msgid "Any unsaved filament setting changes were dropped; the filament settings now follow the new profiles."
+msgstr "Neuložené změny nastavení filamentu byly zahozeny; nastavení filamentu se nyní řídí novými předvolbami."
+
+# AI Translated
 msgid "Slice again when ready."
 msgstr "Až budete připraveni, slicujte znovu."
+
+# AI Translated
+#. TRN In the chat after the person picks another printer. %s is the printer's name.
+#, c-format, boost-format
+msgid "Printer is now %s."
+msgstr "Tiskárna je nyní %s."
+
+# AI Translated
+msgid "Any unsaved setting changes were dropped; the settings now follow the newly selected printer, filament and process profiles."
+msgstr "Neuložené změny nastavení byly zahozeny; nastavení se nyní řídí nově vybranými předvolbami tiskárny, filamentu a procesu."
 
 # AI Translated
 msgid "Preferences…"
@@ -2277,6 +2292,11 @@ msgstr "Tento projekt byl uložen novější verzí JusPrinu. Chcete-li ho otev�
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "Projekt se nepodařilo otevřít. Zkuste to znovu."
+
+# AI Translated
+#, c-format, boost-format
+#~ msgid "Heat and cooling follow %s; walls and infill unchanged."
+#~ msgstr "Teploty a chlazení podle %s; stěny a výplň beze změny."
 
 # AI Translated
 #~ msgid "The attachment could not be stored."

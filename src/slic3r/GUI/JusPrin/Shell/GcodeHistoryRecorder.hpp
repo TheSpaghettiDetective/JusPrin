@@ -32,6 +32,7 @@
 #include <wx/timer.h>
 #include <wx/weakref.h>
 
+#include <cstddef>
 #include <filesystem>
 #include <functional>
 #include <map>
@@ -60,6 +61,10 @@ namespace Slic3r::GUI::JusPrin {
 class GcodeHistoryRecorder final : public wxEvtHandler
 {
 public:
+    // Starts listening to the upload queue, as pressing Print does. Tests
+    // that queue an upload of their own call it first.
+    void listen_to_print_host_queue() { hook_print_host_queue(); }
+
     // Each saved project's id and its G-code records, the open one included.
     using ProjectRecords = std::function<std::vector<std::pair<std::string, std::vector<Agent::GcodeRecord>>>()>;
 
@@ -151,7 +156,7 @@ private:
     // action that may use them.
     void hook_print_host_queue();
     void unhook_print_host_queue();
-    void on_print_host_queued(std::size_t id, std::string host, std::string file_name, bool start);
+    void on_print_host_queued(std::size_t id, std::string host, std::string file_name, std::string notice, bool start);
     void on_print_host_progress(wxEvent& event);
     void on_print_host_ended(wxEvent& event);
     void on_poll(wxTimerEvent& event);
@@ -171,6 +176,13 @@ private:
     std::optional<Reprint>               m_reprint;
     bool                                 m_opening_reprint{false};
     std::map<std::size_t, PendingUpload> m_uploads;
+    // Every queued job's host and the words of OrcaSlicer's notification of
+    // it, for the cause of its error.
+    struct QueuedJob
+    {
+        std::string host, notice;
+    };
+    std::map<std::size_t, QueuedJob> m_queued_jobs;
     struct FileCheck
     {
         std::uintmax_t                  size{0};

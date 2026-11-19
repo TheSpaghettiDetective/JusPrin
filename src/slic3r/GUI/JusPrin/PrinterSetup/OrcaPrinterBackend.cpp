@@ -788,6 +788,7 @@ std::string OrcaPrinterBackend::connect_printer(const std::string& name, const s
         machine->set_access_code(access_code);
     m_connection_attempt = ConnectionAttempt{name, device_id, std::chrono::steady_clock::now(),
                                               std::chrono::system_clock::now(), std::chrono::steady_clock::now()};
+    Printers::expect_connection_answer(device_id);
     if (devices->get_selected_machine() != machine) {
         devices->set_selected_machine(device_id);
         return {};

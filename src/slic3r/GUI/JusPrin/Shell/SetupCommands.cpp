@@ -1,4 +1,5 @@
 #include "SetupCommands.hpp"
+#include "slic3r/GUI/JusPrin/OrcaMessages/OrcaMessages.hpp"
 #include "slic3r/GUI/JusPrin/Printers/HostLaneReader.hpp"
 #include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterDiscovery.hpp"
@@ -22,6 +23,7 @@
 #include <cmath>
 #include <functional>
 #include <map>
+#include <optional>
 #include <set>
 
 namespace Slic3r::GUI::JusPrin::SetupCommands {
@@ -359,6 +361,13 @@ bool select_filament_preset(Plater& plater, std::size_t slot, const std::string&
     const Preset* preset = presets->filaments.find_preset(preset_name);
     Tab*          tab    = wxGetApp().get_tab(Preset::TYPE_FILAMENT);
     if (preset == nullptr || tab == nullptr)
+        return false;
+
+    // Unsaved filament changes are dropped by the switch below, after the
+    // slot already names the new filament: the version that keeps them is
+    // saved now, while the project is still as it was.
+    std::optional<OrcaMessages::SavedFirst> saved_first;
+    if (presets->filaments.current_is_dirty() && !saved_first.emplace())
         return false;
 
     // The sequence the sidebar's filament combo runs, without its own repaint

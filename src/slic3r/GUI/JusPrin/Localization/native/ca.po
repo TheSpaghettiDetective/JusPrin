@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-17 17:55-0800\n"
+"POT-Creation-Date: 2026-11-18 20:27-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2215,10 +2215,10 @@ msgid "Slot %d is now %s."
 msgstr "Ara la ranura %d és %s."
 
 # AI Translated
-# Needs human review: “walls” rendered as “perímetres” per the glossary (Outer/Inner wall = Perímetre).
+#. TRN Follows "Filament is now %s." in the chat after the person picks another filament. %s is the new filament's name.
 #, c-format, boost-format
-msgid "Heat and cooling follow %s; walls and infill unchanged."
-msgstr "L'escalfament i la refrigeració segueixen %s; els perímetres i el farciment no canvien."
+msgid "Any unsaved filament setting changes were dropped; the filament settings now follow the %s profile."
+msgstr "S'han descartat els canvis no desats als ajustos del filament; ara els ajustos del filament segueixen el perfil %s."
 
 # AI Translated
 #, c-format, boost-format
@@ -2231,8 +2231,22 @@ msgid "Filaments changed: %s."
 msgstr "Filaments canviats: %s."
 
 # AI Translated
+msgid "Any unsaved filament setting changes were dropped; the filament settings now follow the new profiles."
+msgstr "S'han descartat els canvis no desats als ajustos del filament; ara els ajustos del filament segueixen els perfils nous."
+
+# AI Translated
 msgid "Slice again when ready."
 msgstr "Torneu a laminar quan estigueu a punt."
+
+# AI Translated
+#. TRN In the chat after the person picks another printer. %s is the printer's name.
+#, c-format, boost-format
+msgid "Printer is now %s."
+msgstr "Ara la impressora és %s."
+
+# AI Translated
+msgid "Any unsaved setting changes were dropped; the settings now follow the newly selected printer, filament and process profiles."
+msgstr "S'han descartat els canvis no desats als ajustos; ara els ajustos segueixen els perfils d'impressora, filament i procés seleccionats."
 
 # AI Translated
 msgid "Preferences…"
@@ -2261,6 +2275,12 @@ msgstr "Aquest projecte s'ha desat amb una versió més nova de JusPrin. Obteniu
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "No s'ha pogut obrir el projecte. Torneu-ho a provar."
+
+# AI Translated
+# Needs human review: “walls” rendered as “perímetres” per the glossary (Outer/Inner wall = Perímetre).
+#, c-format, boost-format
+#~ msgid "Heat and cooling follow %s; walls and infill unchanged."
+#~ msgstr "L'escalfament i la refrigeració segueixen %s; els perímetres i el farciment no canvien."
 
 # AI Translated
 #~ msgid "The attachment could not be stored."

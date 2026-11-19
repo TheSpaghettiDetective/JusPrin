@@ -15,6 +15,7 @@
 #include <optional>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 class wxDC;
@@ -80,13 +81,18 @@ public:
     // What ends a filament menu visit: the chip re-reads Orca, and a visit
     // that changed a filament leaves one line in the thread.
     void on_filament_visit(const FilamentMenu::Visit& visit);
+    // What follows a printer picked in the printer menu: the chip re-reads
+    // Orca, and the switch leaves one line in the thread.
+    void on_printer_switched(const std::string& printer);
     wxString project_summary() const;
     void set_autosave(Workspace::ProjectAutosave* autosave) { m_autosave = autosave; refresh(); }
 
-    // Where the after-change chat line goes, with the colour that leads it
-    // ("#RRGGBB", or empty). Supplied by ShellController once the Agent pane
-    // exists, so the header does not depend on the Agent host.
-    void set_note_sink(std::function<void(const wxString&, const wxString&)> sink) { m_note_sink = std::move(sink); }
+    // Where the after-change chat line goes: in the person's language, with
+    // the colour that leads it ("#RRGGBB", or empty), and in English for the
+    // model, which reads it too. Supplied by ShellController once the Agent
+    // pane exists, so the header does not depend on the Agent host.
+    using NoteSink = std::function<void(const wxString& shown, const wxString& swatch, const std::string& for_model)>;
+    void set_note_sink(NoteSink sink) { m_note_sink = std::move(sink); }
     // Whether the chat holds a plan the change puts in doubt. The line then
     // leaves out "Slice again when ready": the setup card offers the check.
     void set_plan_recorded(std::function<bool()> recorded) { m_plan_recorded = std::move(recorded); }
@@ -133,7 +139,7 @@ private:
     HeaderButton* m_overflow_button{nullptr};
     HeaderButton* m_agent_toggle{nullptr};
 
-    std::function<void(const wxString&, const wxString&)> m_note_sink;
+    NoteSink m_note_sink;
     std::function<bool()>                                 m_plan_recorded;
     std::function<void()>                                 m_agent_pane_toggle;
     std::function<void()>                                 m_left_pane_toggle_callback;

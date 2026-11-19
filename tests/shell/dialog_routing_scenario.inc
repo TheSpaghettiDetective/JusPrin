@@ -146,8 +146,9 @@
         }, {}, [self, from] { self->dialog_case("elephant_foot", *from, "elephant foot"); }});
 
         // -- A start G-code the placeholder parser refuses: a critical slicing
-        //    error, raised after slice_start has returned. It shows: nothing
-        //    carries past the end of a call. --------------------------------
+        //    error, raised after slice_start has returned. No listener is left
+        //    to answer it; the JusPrin view takes the box, because the print
+        //    issues say the slice failed (OrcaMessages.hpp). -----------------
         steps.push_back({"dialogs_slice_error_setup", [self] {
             const std::string printer = wxGetApp().preset_bundle->printers.get_edited_preset().name;
             self->patch_settings({{"scope", "printer"}, {"target", {{"preset", printer}}}, {"changes", {{"machine_start_gcode", "{if}"}}}});
@@ -156,7 +157,7 @@
             mark();
             self->m_slice_started = std::chrono::steady_clock::now();
             self->run_dialog_tool("slice_start", nlohmann::json::object());
-        }, self->slice_ended(), [self, from] { self->dialog_case("slice_error_after_the_call", *from, "start_gcode", true); }});
+        }, self->slice_ended(), [self, from] { self->dialog_case("slice_error_after_the_call", *from, "start_gcode"); }});
 
         // -- Split into shells, one floating: OrcaSlicer asks whether to keep
         //    auto-drop (Plater::priv::split_object) inside the call. --------

@@ -7,12 +7,14 @@
 #include "LeftPane.hpp"
 
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
+#include "slic3r/GUI/JusPrin/OrcaMessages/OwnDialogs.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/I18N.hpp"
 
 #include <wx/datetime.h>
 #include <wx/dcmemory.h>
+#include <wx/defs.h>
 #include <wx/filedlg.h>
 #include <wx/image.h>
 #include <wx/log.h>
@@ -39,7 +41,7 @@ const wxString& middle_dot() { static const wxString s = wxString::FromUTF8(" \x
 void show_project_error(const wxString& title, const wxString& message, const std::string& detail)
 {
     BOOST_LOG_TRIVIAL(error) << std::string(title.ToUTF8()) << ": " << detail;
-    wxMessageBox(message, title, wxOK | wxICON_ERROR);
+    OrcaMessages::show_own_message(nullptr, message, title);
 }
 
 // A moment the ledger or the version store recorded, in the viewer's own time
@@ -176,7 +178,7 @@ void LeftPane::restore_version(const std::string& version_id)
                "as a version first. Conversations and print records will stay current."),
             _L("Restore project version"), wxYES_NO | wxICON_QUESTION);
         confirmation.SetYesNoLabels(_L("Restore"), _L("Cancel"));
-        return confirmation.ShowModal() == wxID_YES;
+        return OrcaMessages::show_own_modal(confirmation) == wxID_YES;
     }();
     if (!confirmed)
         return;

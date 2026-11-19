@@ -17,6 +17,8 @@
 #include <string>
 #include <vector>
 
+class wxWindow;
+
 namespace Slic3r {
 
 enum class LoadStrategy;
@@ -41,6 +43,12 @@ void set_file_load_observer(FileLoadObserver* observer);
 // An observer handling a load-time notification or error owns its presentation.
 // False leaves the normal Orca presentation in place.
 bool report_file_load_message(const std::string& text, const char* source);
+
+// An error box GUI::show_error is about to put off until later, over
+// `parent`: a file load's observer owns it as above, and otherwise the JusPrin
+// view may take it (OrcaMessages/OrcaMessages.hpp). False opens OrcaSlicer's
+// box.
+bool report_error_box(const std::string& text, wxWindow* parent);
 
 class FileLoadScope
 {

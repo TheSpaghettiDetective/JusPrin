@@ -1,6 +1,7 @@
 // First: slic3r/GUI/I18N.hpp defines _L only while the _ macro is still
 // undefined, so it has to precede any header that brings one in.
 #include "slic3r/GUI/I18N.hpp"
+#include "slic3r/GUI/JusPrin/OrcaMessages/OwnDialogs.hpp"
 #include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 
 #include "PreferencesWindow.hpp"
@@ -32,6 +33,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <wx/defs.h>
 #include <wx/dirdlg.h>
 #include <wx/msgdlg.h>
 #include <wx/intl.h>
@@ -440,9 +442,10 @@ void restart_application()
     if (!app.mainframe->Close()) {
         g_restart_on_exit = false;
         // The Preferences window is gone, so say why nothing happened.
-        wxMessageBox(_L("JusPrin couldn't close the project, so it didn't restart. Your project stays open, and JusPrin "
-                        "will use the new language the next time it starts."),
-                     _L("Restart"), wxOK | wxICON_INFORMATION, app.mainframe);
+        OrcaMessages::show_own_message(app.mainframe,
+                                       _L("JusPrin couldn't close the project, so it didn't restart. Your project stays open, and JusPrin "
+                                          "will use the new language the next time it starts."),
+                                       _L("Restart"), wxOK | wxICON_INFORMATION);
     }
 }
 

@@ -258,6 +258,13 @@ private:
     // refreshes its gallery and takes the Agent panel off the screen.
     void on_page_changed();
     void on_notebook_page_changed(wxBookCtrlEvent& event);
+    // Refuses a switch to a page this view hides.
+    void on_notebook_page_changing(wxBookCtrlEvent& event);
+    // OrcaSlicer is about to drop setting changes that sit on a profile, by
+    // closing the project or by switching the profile: saves a version that
+    // keeps them. When no version can be saved, reports the failure and
+    // returns false, and the close or the switch does not happen.
+    bool save_before_dropping_changes();
     void on_frame_size(wxSizeEvent& event);
     void on_frame_activate(wxActivateEvent& event);
     // Whatever in the main window shows credits reads them from the server

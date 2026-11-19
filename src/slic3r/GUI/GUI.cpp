@@ -296,7 +296,7 @@ void change_opt_value(DynamicPrintConfig& config, const t_config_option_key& opt
 
 void show_error(wxWindow* parent, const wxString& message, bool has_code_excerpts)
 {
-    if (report_file_load_message(std::string(message.ToUTF8()), "error"))
+    if (report_error_box(std::string(message.ToUTF8()), parent)) // JusPrin: a file load or the view may say it itself
         return;
     wxGetApp().CallAfter([=] {
         ErrorDialog msg(parent, message, has_code_excerpts);

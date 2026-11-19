@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-17 17:55-0800\n"
+"POT-Creation-Date: 2026-11-18 20:27-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1719,8 +1719,9 @@ msgstr ""
 msgid "Slot %d is now %s."
 msgstr ""
 
+#. TRN Follows "Filament is now %s." in the chat after the person picks another filament. %s is the new filament's name.
 #, c-format, boost-format
-msgid "Heat and cooling follow %s; walls and infill unchanged."
+msgid "Any unsaved filament setting changes were dropped; the filament settings now follow the %s profile."
 msgstr ""
 
 #, c-format, boost-format
@@ -1731,7 +1732,18 @@ msgstr ""
 msgid "Filaments changed: %s."
 msgstr ""
 
+msgid "Any unsaved filament setting changes were dropped; the filament settings now follow the new profiles."
+msgstr ""
+
 msgid "Slice again when ready."
+msgstr ""
+
+#. TRN In the chat after the person picks another printer. %s is the printer's name.
+#, c-format, boost-format
+msgid "Printer is now %s."
+msgstr ""
+
+msgid "Any unsaved setting changes were dropped; the settings now follow the newly selected printer, filament and process profiles."
 msgstr ""
 
 msgid "Preferences…"

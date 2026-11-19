@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-17 17:55-0800\n"
+"POT-Creation-Date: 2026-11-18 20:27-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2198,9 +2198,10 @@ msgid "Slot %d is now %s."
 msgstr "ตอนนี้ช่อง %d คือ %s"
 
 # AI Translated
+#. TRN Follows "Filament is now %s." in the chat after the person picks another filament. %s is the new filament's name.
 #, c-format, boost-format
-msgid "Heat and cooling follow %s; walls and infill unchanged."
-msgstr "ความร้อนและการระบายความร้อนเป็นไปตาม %s ผนังและไส้ในไม่เปลี่ยนแปลง"
+msgid "Any unsaved filament setting changes were dropped; the filament settings now follow the %s profile."
+msgstr "การเปลี่ยนแปลงการตั้งค่าเส้นพลาสติกที่ยังไม่ได้บันทึกถูกยกเลิกแล้ว ตอนนี้การตั้งค่าเส้นพลาสติกเป็นไปตามพรีเซ็ต %s"
 
 # AI Translated
 #, c-format, boost-format
@@ -2213,8 +2214,22 @@ msgid "Filaments changed: %s."
 msgstr "เปลี่ยนเส้นพลาสติก: %s"
 
 # AI Translated
+msgid "Any unsaved filament setting changes were dropped; the filament settings now follow the new profiles."
+msgstr "การเปลี่ยนแปลงการตั้งค่าเส้นพลาสติกที่ยังไม่ได้บันทึกถูกยกเลิกแล้ว ตอนนี้การตั้งค่าเส้นพลาสติกเป็นไปตามพรีเซ็ตใหม่"
+
+# AI Translated
 msgid "Slice again when ready."
 msgstr "สไลซ์อีกครั้งเมื่อพร้อม"
+
+# AI Translated
+#. TRN In the chat after the person picks another printer. %s is the printer's name.
+#, c-format, boost-format
+msgid "Printer is now %s."
+msgstr "ตอนนี้เครื่องพิมพ์คือ %s"
+
+# AI Translated
+msgid "Any unsaved setting changes were dropped; the settings now follow the newly selected printer, filament and process profiles."
+msgstr "การเปลี่ยนแปลงการตั้งค่าที่ยังไม่ได้บันทึกถูกยกเลิกแล้ว ตอนนี้การตั้งค่าเป็นไปตามพรีเซ็ตเครื่องพิมพ์ เส้นพลาสติก และกระบวนการที่เพิ่งเลือก"
 
 # AI Translated
 msgid "Preferences…"
@@ -2243,6 +2258,11 @@ msgstr "โปรเจกต์นี้บันทึกด้วย JusPrin 
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "เปิดโปรเจกต์ไม่ได้ โปรดลองอีกครั้ง"
+
+# AI Translated
+#, c-format, boost-format
+#~ msgid "Heat and cooling follow %s; walls and infill unchanged."
+#~ msgstr "ความร้อนและการระบายความร้อนเป็นไปตาม %s ผนังและไส้ในไม่เปลี่ยนแปลง"
 
 # AI Translated
 #~ msgid "The attachment could not be stored."

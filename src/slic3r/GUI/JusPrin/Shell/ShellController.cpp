@@ -35,6 +35,10 @@
 #include "slic3r/GUI/BBLTopbar.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/DialogListeners.hpp"
+#include "slic3r/GUI/JusPrin/OrcaMessages/MessageRoutes.hpp"
+#include "slic3r/GUI/JusPrin/OrcaMessages/OrcaMessages.hpp"
+#include "slic3r/GUI/JusPrin/OrcaMessages/OwnDialogs.hpp"
+#include "slic3r/GUI/NotificationManager.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/StoredFormat.hpp"
 #include "slic3r/GUI/MsgDialog.hpp"
 #include "slic3r/GUI/Project.hpp"
@@ -47,6 +51,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/log/trivial.hpp>
 
+#include <wx/bookctrl.h>
 #include <wx/dcbuffer.h>
 #include <wx/dnd.h>
 #include <wx/event.h>
@@ -54,10 +59,13 @@
 #include <wx/msgdlg.h>
 #include <wx/panel.h>
 #include <wx/sizer.h>
+#include <wx/string.h>
 #include <wx/timer.h>
+#include <wx/weakref.h>
 
 #include <algorithm>
 #include <chrono>
+#include <cstddef>
 #include <filesystem>
 #include <functional>
 #include <utility>
@@ -429,8 +437,9 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         // here rather than giving StatusRow the AgentHost keeps the header free
         // of any Agent dependency, and the weak reference means a torn-down
         // pane simply stops accepting notes.
-        m_status_row->set_note_sink([pane = wxWeakRef<AgentPane>(m_agent_pane)](const wxString& text, const wxString& swatch) {
-            if (pane) pane->web_view().host().post_note(text.ToUTF8().data(), swatch.ToUTF8().data());
+        m_status_row->set_note_sink([pane = wxWeakRef<AgentPane>(m_agent_pane)](const wxString& text, const wxString& swatch,
+                                                                                 const std::string& for_model) {
+            if (pane) pane->web_view().host().post_note(text.ToUTF8().data(), swatch.ToUTF8().data(), for_model);
         });
         m_status_row->set_plan_recorded([pane = wxWeakRef<AgentPane>(m_agent_pane)] {
             return pane && !pane->web_view().host().persistence().document().plan().headline.empty();
@@ -556,14 +565,13 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 const bool same_plate = snapshot.active_plate &&
                     payload.value("plateId", std::string()) == std::to_string(snapshot.active_plate->value());
                 if (!active_chat || !same_project || !same_plate) {
-                    wxMessageBox(_L("The setup changed. Review the current plate and try again."),
-                                 _L("Couldn't slice"), wxOK | wxICON_WARNING, m_frame);
+                    OrcaMessages::show_own_message(m_frame, _L("The setup changed. Review the current plate and try again."),
+                                                   _L("Couldn't slice"), wxOK | wxICON_WARNING);
                     return true;
                 }
                 const auto result = m_workspace->start_slice(snapshot.active_plate, false);
                 if (!result.succeeded())
-                    wxMessageBox(wxString::FromUTF8(result.message), _L("Couldn't slice"),
-                                 wxOK | wxICON_ERROR, m_frame);
+                    OrcaMessages::show_own_message(m_frame, wxString::FromUTF8(result.message), _L("Couldn't slice"));
                 return true;
             }
             if (action != "revert_to_here")
@@ -574,8 +582,8 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 return version.id == id && version.change_seq != 0;
             });
             if (found == versions.end() || !m_autosave->restore(id)) {
-                wxMessageBox(_L("This saved version couldn't be restored. Try again from Version history."),
-                             _L("Revert failed"), wxOK | wxICON_ERROR, m_frame);
+                OrcaMessages::show_own_message(m_frame, _L("This saved version couldn't be restored. Try again from Version history."),
+                                               _L("Revert failed"));
             }
             m_agent_pane->web_view().host().refresh_page_state();
             return true;
@@ -590,12 +598,41 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         m_autosave->set_capture_hold([this] { return m_agent_pane && m_agent_pane->web_view().host().busy(); });
         Slic3r::set_backup_suspended(true);
         m_status_row->set_autosave(m_autosave.get());
+        // OrcaSlicer's messages are taken while this view is on screen
+        // (OrcaMessages.hpp), and shown in the project chat
+        // (MessageRoutes.hpp).
+        OrcaMessages::install({[this] { return save_before_dropping_changes(); },
+                               [this](const OrcaMessages::TakenMessage& message) {
+                                   OrcaMessages::Routes routes;
+                                   routes.begin_entry = [this](const std::string& kind, const std::string& title) {
+                                       if (m_agent_pane == nullptr)
+                                           return std::string();
+                                       set_agent_pane_collapsed(false);
+                                       return m_agent_pane->web_view().host().begin_work(kind, title, false);
+                                   };
+                                   routes.finish_entry = [this](const std::string& id, const std::string& state, const std::string& detail) {
+                                       if (m_agent_pane != nullptr)
+                                           m_agent_pane->web_view().host().finish_work(id, state, detail);
+                                   };
+                                   routes.fail_upload = [this](const std::string& notice_text, const std::string& detail) {
+                                       if (m_work_feed == nullptr || m_print_issues == nullptr)
+                                           return false;
+                                       // An upload can fail before the feed's next look has
+                                       // seen its notification: look now.
+                                       m_print_issues->refresh_now();
+                                       if (!m_work_feed->fail_upload(notice_text, detail))
+                                           return false;
+                                       set_agent_pane_collapsed(false);
+                                       return true;
+                                   };
+                                   OrcaMessages::route(message, routes);
+                               }});
         plater->set_before_project_release([this] {
             // A calibration generator's own new_project: the person's project
             // is already saved, and the empty one it replaces is not theirs.
             if (m_workspace && m_workspace->generating_calibration())
                 return true;
-            if (!m_autosave || !m_autosave->save_now())
+            if (!save_before_dropping_changes())
                 return false;
             m_autosave->ensure_current_preview();
             return true;
@@ -622,14 +659,10 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 // stops, the current project stays, and opening the file
                 // again works once the projects folder can be read.
                 BOOST_LOG_TRIVIAL(error) << error.what();
-                MessageDialog dialog(m_frame,
-                                     _L("Your saved projects couldn't be read, so JusPrin can't check whether you've opened this "
-                                        "file before. The file wasn't opened. Try again once JusPrin can read its projects folder."),
-                                     _L("Couldn't open file"), wxOK | wxICON_WARNING);
-                Workspace::ScopedDialogListener theirs([&dialog](wxWindow& window, const Workspace::DialogFacts&) {
-                    return &window == &dialog ? std::optional<int>(Workspace::kShowToPerson) : std::nullopt;
-                });
-                dialog.ShowModal();
+                OrcaMessages::show_own_message(m_frame,
+                                               _L("Your saved projects couldn't be read, so JusPrin can't check whether you've opened this "
+                                                  "file before. The file wasn't opened. Try again once JusPrin can read its projects folder."),
+                                               _L("Couldn't open file"), wxOK | wxICON_WARNING);
                 return true;
             }
             if (matches.empty())
@@ -660,10 +693,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 dialog.SetButtonLabel(wxID_NO, changed ? keep : fresh);
                 // A person's open answers OrcaSlicer's dialogs on its own
                 // (FileLoads.hpp); this question is theirs.
-                Workspace::ScopedDialogListener theirs([&dialog](wxWindow& window, const Workspace::DialogFacts&) {
-                    return &window == &dialog ? std::optional<int>(Workspace::kShowToPerson) : std::nullopt;
-                });
-                const int answer = dialog.ShowModal();
+                const int answer = OrcaMessages::show_own_modal(dialog);
                 if (answer != wxID_YES && answer != wxID_NO)
                     return ReimportDecision::Cancel;
                 return (answer == wxID_YES) != changed ? ReimportDecision::OpenExisting : ReimportDecision::CreateNew;
@@ -956,6 +986,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         // A member function rather than a lambda so uninstall() can take it
         // off again: the Notebook outlives this controller.
         tabpanel.Bind(wxEVT_NOTEBOOK_PAGE_CHANGED, &ShellController::on_notebook_page_changed, this);
+        tabpanel.Bind(wxEVT_BOOKCTRL_PAGE_CHANGING, &ShellController::on_notebook_page_changing, this);
 
         show_orca_calibration_menu(false);
         // After the Calibration menu is off the bar, so Print and Printer
@@ -1027,6 +1058,7 @@ void ShellController::on_frame_destroy(wxWindowDestroyEvent& event)
             m_home->backend().set_autosave(nullptr);
             m_home->backend().set_project_opening({});
         }
+        OrcaMessages::uninstall();
         m_plater->set_before_project_release({});
         m_plater->set_external_project_open_handler({});
         m_plater->set_external_file_open_handler({});
@@ -1062,12 +1094,8 @@ bool ShellController::take_opened_files(const std::vector<boost::filesystem::pat
     const boost::filesystem::path& named = model != files.end() ? *model : files.front();
     BOOST_LOG_TRIVIAL(info) << "JusPrin opens " << files.size() << " file(s) in a new project: " << named.string();
     if (!m_workspace->release_project(std::string(from_path(named.stem()).ToUTF8()))) {
-        MessageDialog dialog(m_frame, _L("The open project couldn't be saved, so the file wasn't opened. Try again."),
-                             _L("Couldn't open file"), wxOK | wxICON_ERROR);
-        Workspace::ScopedDialogListener theirs([&dialog](wxWindow& window, const Workspace::DialogFacts&) {
-            return &window == &dialog ? std::optional<int>(Workspace::kShowToPerson) : std::nullopt;
-        });
-        dialog.ShowModal();
+        OrcaMessages::show_own_message(m_frame, _L("The open project couldn't be saved, so the file wasn't opened. Try again."),
+                                       _L("Couldn't open file"));
         return true;
     }
     // OrcaSlicer's own load into the new project, as a drop on the canvas
@@ -1434,13 +1462,13 @@ void ShellController::answer_calibration(const std::string& request_id, bool con
     open.name        = Agent::calibration_project_name(pending.filament, pending.printer);
     Workspace::LoadReport report;
     if (!m_workspace->open_project(open, report).succeeded()) {
-        show_error(m_frame, _L("The calibration project could not be opened, so your project stays open."));
+        OrcaMessages::show_own_error(m_frame, _L("The calibration project could not be opened, so your project stays open."));
         return;
     }
     // A Home card's printer is the one the test prints on; there is no open
     // project to have it already.
     if (pending.filament.empty() && !SetupCommands::select_named_printer(*m_plater, pending.printer))
-        show_error(m_frame, wxString::Format(_L("The printer \"%s\" could not be selected."), from_u8(pending.printer)));
+        OrcaMessages::show_own_error(m_frame, wxString::Format(_L("The printer \"%s\" could not be selected."), from_u8(pending.printer)));
     m_agent_pane->web_view().host().open_calibration_chat(
         {pending.project, pending.filament, pending.printer, {}, pending.spools}, /*start=*/true);
 }
@@ -1477,7 +1505,7 @@ void ShellController::open_import(const Home::ImportApp& app)
     bool imported      = false;
     {
         Home::OrcaImportWindow window(*m_frame, *m_theme, *m_workspace, app);
-        window.ShowModal();
+        OrcaMessages::show_own_modal(window);
         imported = window.imported();
     }
     m_preferences_open = false;
@@ -1519,7 +1547,7 @@ void ShellController::open_preferences(const std::string& section, PreferencesCl
         };
         Preferences::PreferencesWindow window(m_frame, *m_theme, *m_workspace, m_agent_pane->web_view().host(),
                                               reply_running, Preferences::OpenRequest{section, bool(closed)});
-        window.ShowModal();
+        OrcaMessages::show_own_modal(window);
         after = window.after_close();
     }
     m_preferences_open = false;
@@ -1628,6 +1656,7 @@ void ShellController::uninstall()
     m_frame->Unbind(wxEVT_CHAR_HOOK, &ShellController::on_frame_char_hook, this);
     m_frame->Unbind(wxEVT_ACTIVATE, &ShellController::on_frame_activate, this);
     m_tabpanel->Unbind(wxEVT_NOTEBOOK_PAGE_CHANGED, &ShellController::on_notebook_page_changed, this);
+    m_tabpanel->Unbind(wxEVT_BOOKCTRL_PAGE_CHANGING, &ShellController::on_notebook_page_changing, this);
 
     m_prepare_canvas_presentation.detach();
     if (GLCanvas3D* prepare_canvas = m_plater->get_view3D_canvas3D())
@@ -1713,6 +1742,7 @@ void ShellController::uninstall()
     // gets it back shown.
     m_tabpanel->Show();
     // After the pane (and with it the Agent host) is gone.
+    OrcaMessages::uninstall();
     m_plater->set_before_project_release({});
     m_plater->set_external_project_open_handler({});
     m_plater->set_external_file_open_handler({});
@@ -1774,6 +1804,30 @@ void ShellController::apply_current_appearance()
 // -- a project saved, a print started -- so it is refreshed on the way in
 // rather than kept live behind the canvas. While it is on screen its printer
 // cards stay live (HomeWebView::set_live).
+// The JusPrin view shows Home, Prepare and the project page. A switch of the
+// main window to any other of OrcaSlicer's pages is refused, whatever asked
+// for it: Ctrl+Tab, a "Go to" key, MainFrame::jump_to_monitor after a send.
+// OrcaSlicer's own Ctrl+Tab already steps over a page that refuses.
+bool ShellController::save_before_dropping_changes()
+{
+    if (m_autosave && m_autosave->save_now())
+        return true;
+    report_unexpected_error("saving a version of the project before dropping setting changes",
+                            m_autosave ? m_autosave->error() : "the project has no version history");
+    return false;
+}
+
+void ShellController::on_notebook_page_changing(wxBookCtrlEvent& event)
+{
+    const wxString page = m_tabpanel != nullptr && event.GetSelection() >= 0 ? m_tabpanel->GetPageName(static_cast<size_t>(event.GetSelection())) : wxString();
+    if (m_installed && OrcaMessages::taking() && page != TAB_ID_HOME && page != TAB_ID_PREPARE && page != TAB_ID_PROJECT) {
+        OrcaMessages::note_refused_page(std::string(page.ToUTF8().data()));
+        event.Veto();
+        return;
+    }
+    event.Skip();
+}
+
 void ShellController::on_notebook_page_changed(wxBookCtrlEvent& event)
 {
     on_page_changed();
@@ -1788,7 +1842,7 @@ void ShellController::open_printer_conversation(const std::string& printer_name,
     // between the menu and the click: say so as Orca does, never open a
     // conversation about another printer.
     if (!printer_name.empty() && !preset_exists(Preset::TYPE_PRINTER, printer_name)) {
-        show_error(m_frame, wxString::Format(_L("The printer preset \"%s\" was not found."), from_u8(printer_name)));
+        OrcaMessages::show_own_error(m_frame, wxString::Format(_L("The printer preset \"%s\" was not found."), from_u8(printer_name)));
         return;
     }
     m_printer_panel->open(connect ? PrinterSetup::ConversationMode::Connect : printer_name.empty() ? PrinterSetup::ConversationMode::Add :
@@ -1869,9 +1923,8 @@ ShellController::open_print_dialog(const Agent::ToolExecutionCoordinator::PrintD
             return;
         // The plate can go between the call and this turn.
         if (m_workspace->snapshot().active_plate != plate && !m_workspace->select_plate(plate).succeeded()) {
-            MessageDialog(m_frame, _L("The plate to print is no longer in the project."), _L("Couldn't open the print dialog"),
-                          wxOK | wxICON_INFORMATION)
-                .ShowModal();
+            OrcaMessages::show_own_message(m_frame, _L("The plate to print is no longer in the project."),
+                                           _L("Couldn't open the print dialog"), wxOK | wxICON_INFORMATION);
             return;
         }
         SimpleEvent print(EVT_GLTOOLBAR_PRINT_PLATE);
@@ -1931,9 +1984,8 @@ void ShellController::open_in_chat(const std::string& project_id, const std::str
             toggle_agent_pane();
         // A chat can be deleted after a G-code went out from it.
         if (!m_agent_pane->web_view().host().reveal_item(conversation_id, item_id))
-            MessageDialog(m_frame, _L("The chat this G-code went out from is no longer in the project."), _L("Chat not found"),
-                          wxOK | wxICON_INFORMATION)
-                .ShowModal();
+            OrcaMessages::show_own_message(m_frame, _L("The chat this G-code went out from is no longer in the project."),
+                                           _L("Chat not found"), wxOK | wxICON_INFORMATION);
     }));
 }
 
@@ -1942,7 +1994,7 @@ void ShellController::open_filament_help(std::size_t slot, const std::string& pr
     if (m_task_open || m_printer_panel == nullptr || m_tabpanel == nullptr)
         return;
     if (!preset_exists(Preset::TYPE_FILAMENT, preset)) {
-        show_error(m_frame, wxString::Format(_L("The filament preset \"%s\" was not found."), from_u8(preset)));
+        OrcaMessages::show_own_error(m_frame, wxString::Format(_L("The filament preset \"%s\" was not found."), from_u8(preset)));
         return;
     }
     // Tab no longer reaches Preview from the shell, but OrcaSlicer's Ctrl+R
@@ -2138,7 +2190,7 @@ void show_open_failure(wxWindow* parent, const Workspace::ProjectAutosave& autos
         dialog.SetButtonLabel(wxID_YES, _L("Get the new version…"), true);
         dialog.SetButtonLabel(wxID_NO, _L("Close"));
     }
-    if (dialog.ShowModal() == wxID_YES)
+    if (OrcaMessages::show_own_modal(dialog) == wxID_YES)
         get_new_version();
 }
 
@@ -2183,9 +2235,8 @@ void reattach_shell()
     if (const std::optional<std::string> failure = install_shell()) {
         install_classic_view();
         // A person pressed a button; unlike a failed start, this one is told.
-        MessageDialog(attach_point().frame,
-                      _L("JusPrin's view couldn't be opened.") + "\n" + wxString::FromUTF8(*failure),
-                      wxEmptyString, wxOK | wxICON_ERROR).ShowModal();
+        OrcaMessages::show_own_message(attach_point().frame, _L("JusPrin's view couldn't be opened.") + "\n" + wxString::FromUTF8(*failure),
+                                       wxEmptyString);
     }
 }
 

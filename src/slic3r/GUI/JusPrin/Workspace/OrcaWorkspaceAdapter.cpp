@@ -1,4 +1,6 @@
 #include "OrcaWorkspaceAdapter.hpp"
+
+#include "slic3r/GUI/JusPrin/OrcaMessages/OrcaMessages.hpp"
 #include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 #include "SliceBounds.hpp"
 #include "SliceRequests.hpp"
@@ -998,6 +1000,9 @@ void OrcaWorkspaceAdapter::on_process_completed(SlicingProcessCompletedEvent& ev
     wxASSERT(wxIsMainThread());
     if (!event.error())
         return;
+    // OrcaSlicer's own handler of this event runs next and opens a box with
+    // the reason, which JusPrin already shows as a print issue.
+    OrcaMessages::note_cause({OrcaMessages::Cause::Kind::Slice, {}, {}, true});
     if (const PartPlate* current = m_plater.get_partplate_list().get_curr_plate()) {
         m_failed_run_plate   = current->id().id;
         m_failed_run_message = event.format_error_message().first;

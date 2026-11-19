@@ -16,6 +16,7 @@
 
 #include <functional>
 #include <chrono>
+#include <cstddef>
 #include <memory>
 #include <map>
 #include <optional>
@@ -110,9 +111,11 @@ public:
     wxRect add_plate_rect() const;
     wxRect add_model_rect() const;
     // The Project tab's controls as drawn, in order, and a way to press one by
-    // its label -- the same record the pointer reads.
+    // its label -- the same record the pointer reads. Rows can share a label
+    // (two versions saved in the same minute): `occurrence` picks the one
+    // that many rows down among them.
     std::vector<wxString> action_labels() const;
-    bool                  press_action(const wxString& label);
+    bool                  press_action(const wxString& label, std::size_t occurrence = 0);
     wxRect                action_rect(const wxString& label) const;
     // The Print history row's second line as last drawn.
     const wxString&       print_history_detail() const { return m_print_history_detail; }

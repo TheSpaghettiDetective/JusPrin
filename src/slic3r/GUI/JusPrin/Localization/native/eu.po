@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-17 17:55-0800\n"
+"POT-Creation-Date: 2026-11-18 20:27-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2209,9 +2209,10 @@ msgid "Slot %d is now %s."
 msgstr "%d. arteka %s da orain."
 
 # AI Translated
+#. TRN Follows "Filament is now %s." in the chat after the person picks another filament. %s is the new filament's name.
 #, c-format, boost-format
-msgid "Heat and cooling follow %s; walls and infill unchanged."
-msgstr "Beroa eta hoztea %s aurrezarpenari jarraitzen diote; hormak eta betegarria ez dira aldatu."
+msgid "Any unsaved filament setting changes were dropped; the filament settings now follow the %s profile."
+msgstr "Filamentuaren ezarpenetan gorde gabeko aldaketak baztertu dira; filamentuaren ezarpenek %s aurrezarpena jarraitzen dute orain."
 
 # AI Translated
 #, c-format, boost-format
@@ -2224,8 +2225,22 @@ msgid "Filaments changed: %s."
 msgstr "Filamentuak aldatu dira: %s."
 
 # AI Translated
+msgid "Any unsaved filament setting changes were dropped; the filament settings now follow the new profiles."
+msgstr "Filamentuaren ezarpenetan gorde gabeko aldaketak baztertu dira; filamentuaren ezarpenek aurrezarpen berriak jarraitzen dituzte orain."
+
+# AI Translated
 msgid "Slice again when ready."
 msgstr "Xerratu berriro prest zaudenean."
+
+# AI Translated
+#. TRN In the chat after the person picks another printer. %s is the printer's name.
+#, c-format, boost-format
+msgid "Printer is now %s."
+msgstr "Inprimagailua %s da orain."
+
+# AI Translated
+msgid "Any unsaved setting changes were dropped; the settings now follow the newly selected printer, filament and process profiles."
+msgstr "Ezarpenetan gorde gabeko aldaketak baztertu dira; ezarpenek hautatu berri diren inprimagailu, filamentu eta prozesu aurrezarpenak jarraitzen dituzte orain."
 
 # AI Translated
 msgid "Preferences…"
@@ -2254,6 +2269,11 @@ msgstr "Proiektu hau JusPrin-en bertsio berriago batek gorde zuen. Lortu bertsio
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "Ezin izan da proiektua ireki. Saiatu berriro."
+
+# AI Translated
+#, c-format, boost-format
+#~ msgid "Heat and cooling follow %s; walls and infill unchanged."
+#~ msgstr "Beroa eta hoztea %s aurrezarpenari jarraitzen diote; hormak eta betegarria ez dira aldatu."
 
 # AI Translated
 #~ msgid "The attachment could not be stored."

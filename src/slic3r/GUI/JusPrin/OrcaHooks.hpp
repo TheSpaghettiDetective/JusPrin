@@ -6,5 +6,6 @@
 // what a call does lives in the fork's own files under src/slic3r/GUI/JusPrin.
 // See agent-docs/jusprin/fork-stewardship.md.
 
-#include "Brand/BrandPalette.hpp" // IWYU pragma: export
-#include "Startup/Startup.hpp"    // IWYU pragma: export
+#include "Brand/BrandPalette.hpp"         // IWYU pragma: export
+#include "OrcaMessages/OrcaMessages.hpp" // IWYU pragma: export
+#include "Startup/Startup.hpp"           // IWYU pragma: export

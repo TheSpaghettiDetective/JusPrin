@@ -1,9 +1,16 @@
 #include "DialogListeners.hpp"
 
+#include "slic3r/GUI/JusPrin/OrcaMessages/OrcaMessages.hpp"
+#include "slic3r/GUI/JusPrin/OrcaMessages/OwnDialogs.hpp"
+
+#include "slic3r/GUI/FileArchiveDialog.hpp"
 #include "slic3r/GUI/GUI_Utils.hpp"
 #include "slic3r/GUI/StepMeshDialog.hpp"
 
+#include <wx/defs.h>
 #include <wx/dialog.h>
+#include <wx/dirdlg.h>
+#include <wx/filedlg.h>
 #include <wx/html/htmlwin.h>
 #include <wx/modalhook.h>
 #include <wx/msgdlg.h>
@@ -13,12 +20,13 @@
 #include <wx/window.h>
 
 #include <algorithm>
+#include <optional>
 
 #include <boost/log/trivial.hpp>
 
 namespace Slic3r::GUI::JusPrin::Workspace {
 
-bool dispatch_dialog(wxWindow& dialog, int& answer);
+bool dispatch_dialog(wxWindow& dialog, int& answer, bool& shown_on_purpose);
 
 namespace {
 ScopedDialogListener* g_innermost = nullptr;
@@ -61,11 +69,17 @@ class ListenerHook : public wxModalDialogHook
     {
         if (dialog == nullptr || !wxIsMainThread())
             return wxID_NONE;
-        if (int answer = wxID_NONE; dispatch_dialog(*dialog, answer)) {
+        bool shown_on_purpose = false;
+        if (int answer = wxID_NONE; dispatch_dialog(*dialog, answer, shown_on_purpose)) {
             BOOST_LOG_TRIVIAL(info) << "JusPrin answered the dialog \"" << dialog->GetTitle().ToUTF8().data() << "\" with " << answer
                                     << (std::find(dialogStack.begin(), dialogStack.end(), dialog) == dialogStack.end() ? " (not a DPIAware dialog)" : "");
             return answer;
         }
+        // No listener answered. A window shown on purpose, by a listener or
+        // as JusPrin's own, is the person's; any other is the JusPrin view's
+        // to take while it is on screen (OrcaMessages.hpp).
+        if (const std::optional<int> taken = OrcaMessages::take_modal(*dialog, shown_on_purpose))
+            return *taken;
         // A copy: an observer may unregister itself.
         for (UnansweredDialogObserver* observer : std::vector<UnansweredDialogObserver*>(observers()))
             if (const int answer = observer->Enter(dialog); answer != wxID_NONE)
@@ -104,6 +118,12 @@ void UnansweredDialogObserver::Unregister()
 DialogFacts read_dialog(wxWindow& dialog)
 {
     DialogFacts facts;
+    if (dynamic_cast<const wxFileDialogBase*>(&dialog) != nullptr || dynamic_cast<const wxDirDialogBase*>(&dialog) != nullptr) {
+        facts.picker = true;
+        if (const auto* window = dynamic_cast<const wxTopLevelWindow*>(&dialog))
+            facts.title = window->GetTitle().ToUTF8().data();
+        return facts;
+    }
     // A native message box draws its words and buttons outside wxWidgets:
     // they are read from what it was made with.
     if (const auto* box = dynamic_cast<const wxMessageDialogBase*>(&dialog)) {
@@ -133,6 +153,7 @@ DialogFacts read_dialog(wxWindow& dialog)
     facts.no          = wxWindow::FindWindowById(wxID_NO, &dialog) != nullptr;
     facts.cancel      = wxWindow::FindWindowById(wxID_CANCEL, &dialog) != nullptr;
     facts.step_import = dynamic_cast<const StepMeshDialog*>(&dialog) != nullptr;
+    facts.chooser     = dynamic_cast<const FileArchiveDialog*>(&dialog) != nullptr;
     return facts;
 }
 
@@ -188,15 +209,26 @@ ScopedDialogListener::~ScopedDialogListener()
         }
 }
 
-bool dispatch_dialog(wxWindow& dialog, int& answer)
+bool dialog_listener_active() { return g_innermost != nullptr; }
+
+bool dispatch_dialog(wxWindow& dialog, int& answer, bool& shown_on_purpose)
 {
-    if (g_innermost == nullptr || !wxIsMainThread())
+    if (!wxIsMainThread())
+        return false;
+    // JusPrin's own window is the person's, whatever else is running.
+    if (const auto* window = dynamic_cast<const wxDialog*>(&dialog); window != nullptr && OrcaMessages::is_own_dialog(*window)) {
+        shown_on_purpose = true;
+        return false;
+    }
+    if (g_innermost == nullptr)
         return false;
     const DialogFacts facts = read_dialog(dialog);
     for (ScopedDialogListener* listener = g_innermost; listener != nullptr; listener = listener->m_outer)
         if (const std::optional<int> decided = listener->m_listener(dialog, facts)) {
-            if (*decided == kShowToPerson)
+            if (*decided == kShowToPerson) {
+                shown_on_purpose = true;
                 return false;
+            }
             answer = *decided;
             return true;
         }
@@ -205,6 +237,12 @@ bool dispatch_dialog(wxWindow& dialog, int& answer)
 
 ScopedLeastChangeAnswers::ScopedLeastChangeAnswers(bool prefer_cancel)
     : m_listener([this, prefer_cancel](wxWindow&, const DialogFacts& facts) -> std::optional<int> {
+        // `prefer_cancel` is the listener of a file the person is opening
+        // themself. They are at the screen, and in the JusPrin view a picker
+        // or a chooser of files is theirs to answer: File > Import opens the
+        // open's scope before its picker.
+        if (prefer_cancel && OrcaMessages::taking() && (facts.picker || facts.chooser))
+            return kShowToPerson;
         int answer = wxID_CANCEL;
         OrcaMessage message = least_change_answer(facts, answer);
         if (prefer_cancel && facts.cancel && !facts.step_import) {

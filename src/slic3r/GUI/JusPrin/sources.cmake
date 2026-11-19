@@ -176,6 +176,12 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Canvas/ViewportToolStripLayout.cpp
     GUI/JusPrin/Canvas/ViewportToolStripLayout.hpp
     GUI/JusPrin/OrcaHooks.hpp
+    GUI/JusPrin/OrcaMessages/MessageRoutes.cpp
+    GUI/JusPrin/OrcaMessages/MessageRoutes.hpp
+    GUI/JusPrin/OrcaMessages/OrcaMessages.cpp
+    GUI/JusPrin/OrcaMessages/OrcaMessages.hpp
+    GUI/JusPrin/OrcaMessages/OwnDialogs.cpp
+    GUI/JusPrin/OrcaMessages/OwnDialogs.hpp
     GUI/JusPrin/Shell/AboutWindow.cpp
     GUI/JusPrin/Shell/AboutWindow.hpp
     GUI/JusPrin/Shell/GuideWindow.cpp

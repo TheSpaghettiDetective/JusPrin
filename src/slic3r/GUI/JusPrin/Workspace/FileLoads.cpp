@@ -1,5 +1,7 @@
 #include "FileLoads.hpp"
 
+#include "slic3r/GUI/JusPrin/OrcaMessages/OrcaMessages.hpp"
+
 #include <wx/debug.h>
 #include <wx/thread.h>
 
@@ -26,6 +28,11 @@ bool report_file_load_message(const std::string& text, const char* source)
         return false;
     return g_observer != nullptr && (g_depth != 0 || g_open_depth != 0) &&
            g_observer->file_load_message(text, source);
+}
+
+bool report_error_box(const std::string& text, wxWindow* parent)
+{
+    return report_file_load_message(text, "error") || JusPrin::OrcaMessages::take_error(text, parent);
 }
 
 FileLoadScope::FileLoadScope(const std::vector<boost::filesystem::path>& files, LoadStrategy strategy)

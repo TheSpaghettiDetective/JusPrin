@@ -31,6 +31,12 @@ struct ConnectionEvent
 // `connect_status` is a ConnectStatus value.
 void record_connection_event(int connect_status, const std::string& device_id, const std::string& message);
 
+// The printer chat waits for the plug-in's answer to its connection of
+// `device_id`, and tells the person what that answer was. OrcaSlicer's own box
+// about a failed answer is then not shown again (OrcaMessages.hpp). Until the
+// next answer that is not a lost connection.
+void expect_connection_answer(const std::string& device_id);
+
 // The last answer about a device, if the plug-in has given one.
 std::optional<ConnectionEvent> last_connection_event(const std::string& device_id);
 

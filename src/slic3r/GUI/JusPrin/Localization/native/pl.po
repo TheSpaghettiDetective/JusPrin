@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-17 17:55-0800\n"
+"POT-Creation-Date: 2026-11-18 20:27-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2230,9 +2230,10 @@ msgid "Slot %d is now %s."
 msgstr "Gniazdo %d to teraz %s."
 
 # AI Translated
+#. TRN Follows "Filament is now %s." in the chat after the person picks another filament. %s is the new filament's name.
 #, c-format, boost-format
-msgid "Heat and cooling follow %s; walls and infill unchanged."
-msgstr "Grzanie i chłodzenie według %s; ściany i wypełnienie bez zmian."
+msgid "Any unsaved filament setting changes were dropped; the filament settings now follow the %s profile."
+msgstr "Niezapisane zmiany ustawień filamentu zostały odrzucone; ustawienia filamentu są teraz zgodne z profilem %s."
 
 # AI Translated
 #, c-format, boost-format
@@ -2245,8 +2246,22 @@ msgid "Filaments changed: %s."
 msgstr "Zmienione filamenty: %s."
 
 # AI Translated
+msgid "Any unsaved filament setting changes were dropped; the filament settings now follow the new profiles."
+msgstr "Niezapisane zmiany ustawień filamentu zostały odrzucone; ustawienia filamentu są teraz zgodne z nowymi profilami."
+
+# AI Translated
 msgid "Slice again when ready."
 msgstr "Potnij ponownie, gdy wszystko będzie gotowe."
+
+# AI Translated
+#. TRN In the chat after the person picks another printer. %s is the printer's name.
+#, c-format, boost-format
+msgid "Printer is now %s."
+msgstr "Drukarka to teraz %s."
+
+# AI Translated
+msgid "Any unsaved setting changes were dropped; the settings now follow the newly selected printer, filament and process profiles."
+msgstr "Niezapisane zmiany ustawień zostały odrzucone; ustawienia są teraz zgodne z nowo wybranymi profilami drukarki, filamentu i procesu."
 
 # AI Translated
 msgid "Preferences…"
@@ -2275,6 +2290,11 @@ msgstr "Ten projekt został zapisany w nowszej wersji JusPrin. Pobierz nową wer
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "Nie udało się otworzyć projektu. Spróbuj ponownie."
+
+# AI Translated
+#, c-format, boost-format
+#~ msgid "Heat and cooling follow %s; walls and infill unchanged."
+#~ msgstr "Grzanie i chłodzenie według %s; ściany i wypełnienie bez zmian."
 
 # AI Translated
 #~ msgid "The attachment could not be stored."

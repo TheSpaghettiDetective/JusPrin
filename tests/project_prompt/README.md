@@ -607,6 +607,16 @@ Notes on the cases:
   project's and ends the turn that asked; the app then posts the load report
   in the opened project's chat and starts a turn there, as it does for a
   file the person opens, so `model-opened-by-tool` has no history.
+- A `"switch"` step has the person pick another profile in the header's
+  printer or filament menu before their words: `{"printer": "<name>"}` or
+  `{"filament": "<name>"}` (slot 1), where `"*"` is the first other visible
+  profile. Unsaved setting changes are then dropped as the app drops them on
+  a switch, and the menu posts its line into the chat ("Printer is now …" or
+  "Filament is now …", saying the unsaved changes were dropped), which the
+  next request sends after the person's words as a developer message. The
+  test data has one printer model installed, so a printer switch needs an
+  `"addPrinter": "<name>"` step first, which saves a second printer from the
+  selected system profile and selects the first again.
 
 The judge (`JUDGE_MODEL`) answers one narrow yes-or-no question about the
 last reply, only where a string test cannot tell, for example, "set to 0.28"

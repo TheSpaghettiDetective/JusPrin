@@ -6767,6 +6767,7 @@ void GUI_App::check_new_version_sf(bool show_tips, int by_user)
 // return true if handled
 bool GUI_App::process_network_msg(std::string dev_id, std::string msg)
 {
+    const auto jusprin_cause = JusPrin::OrcaMessages::plugin_message_cause(dev_id, msg); // JusPrin: what a message shown below is about
     if (dev_id.empty()) {
         if (msg == "wait_info") {
             BOOST_LOG_TRIVIAL(info) << "process_network_msg, wait_info";
@@ -7055,6 +7056,7 @@ std::string GUI_App::format_IP(const std::string& ip)
 
 void GUI_App::show_dialog(wxString msg)
 {
+    if (JusPrin::OrcaMessages::take_app_message(msg)) return; // JusPrin: the view may say it itself
     if (m_info_dialog_content.empty()) {
         wxCommandEvent* evt = new wxCommandEvent(EVT_SHOW_DIALOG);
         evt->SetString(msg);
@@ -7065,6 +7067,7 @@ void GUI_App::show_dialog(wxString msg)
 
 void  GUI_App::push_notification(const MachineObject* obj, wxString msg, wxString title, UserNotificationStyle style)
 {
+    if (JusPrin::OrcaMessages::take_printer_message(obj, msg, title)) return; // JusPrin: the view may say it itself, for this printer
     if (this->is_enable_multi_machine())
     {
         if (m_device_manager && (obj != m_device_manager->get_selected_machine()))

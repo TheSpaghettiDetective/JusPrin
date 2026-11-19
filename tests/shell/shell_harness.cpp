@@ -385,6 +385,7 @@
 #endif
 
 #include "libslic3r/Format/bbs_3mf.hpp"
+#include "libslic3r/Config.hpp"
 #include "libslic3r/Geometry.hpp"
 #include "libslic3r/Utils.hpp"
 #include "libslic3r/libslic3r.h"
@@ -396,9 +397,11 @@
 #include "slic3r/GUI/JusPrin/Workspace/ProjectState.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/PlaterProjectState.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/DialogListeners.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 #include "slic3r/GUI/GUI_Init.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ProjectStateDocument.hpp"
 #include "slic3r/GUI/JusPrin/Preferences/PreferencesWindow.hpp"
 #include "slic3r/GUI/Preferences.hpp"
 #include "slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.hpp"
@@ -447,6 +450,14 @@
 #include "slic3r/GUI/JusPrin/PrinterSetup/OrcaPrinterBackend.hpp"
 #include "slic3r/Utils/NetworkAgent.hpp"
 #include "slic3r/GUI/JusPrin/Testing/FakeBambuAgent.hpp"
+#include "slic3r/GUI/JusPrin/Shell/GcodeHistoryRecorder.hpp"
+#include "slic3r/Utils/PrintHost.hpp"
+#include "slic3r/GUI/DeviceManager.hpp"
+#include "slic3r/GUI/PrintHostDialogs.hpp"
+#include "slic3r/GUI/UnsavedChangesDialog.hpp"
+#include "slic3r/GUI/DeviceCore/DevConfigUtil.h"
+#include "slic3r/GUI/JusPrin/OrcaMessages/MessageRoutes.hpp"
+#include "slic3r/GUI/JusPrin/OrcaMessages/OrcaMessages.hpp"
 #include "slic3r/Utils/CloudProvider.hpp"
 #include "slic3r/Utils/NetworkAgentFactory.hpp"
 #include "slic3r/GUI/DeviceCore/DevManager.h"
@@ -658,6 +669,22 @@ bool preview_has_subject(const std::string& url)
         return value != 0;
     });
 }
+
+// Writes down each dialog that reached the person while it lives, and closes
+// it with Cancel, so a check that expects none fails instead of waiting on a
+// modal nobody will press.
+class ShownDialogs final : public Workspace::UnansweredDialogObserver
+{
+public:
+    ShownDialogs() { Register(); }
+    int Enter(wxDialog* dialog) override
+    {
+        titles.push_back(dialog->GetTitle().ToUTF8().data());
+        std::cerr << "HARNESS DIALOG SHOWN '" << titles.back() << "'\n";
+        return wxID_CANCEL;
+    }
+    std::vector<std::string> titles;
+};
 
 // Takes away this user's access to a folder and everything in it, as a
 // permission change or a storage fault would, until destroyed. POSIX mode
@@ -1489,6 +1516,11 @@ bool g_issue_readers = false;
 // --check-print: the Check print window steps instead of the lifecycle steps.
 bool g_check_print = false;
 bool g_dialog_routing = false;
+// --orca-messages: what OrcaSlicer says in the JusPrin view
+// (orca_messages_scenario.inc). --orca-messages-pause <seconds> holds the
+// window at each picture for that long.
+bool                      g_orca_messages = false;
+std::chrono::milliseconds g_orca_messages_pause{0};
 
 // wxString::ToStdString() narrows through that same locale converter and
 // returns an empty string when a character will not fit the code page. Names
@@ -2090,6 +2122,7 @@ public:
             if (m_state->mode == HarnessState::Mode::PrinterMenu) {
                 check(selected_printer() == kSetupFixturePrinter, "printer_menu_fixture_starts_on_system_profile");
                 verify_other_printers_menu();
+                verify_printer_switch_with_unsaved_edits();
                 verify_hidden_presets_in_use();
                 verify_printer_embedded_in_a_file();
                 finish();
@@ -2254,6 +2287,7 @@ public:
                 wait_for_agent_page("print_issues", [self = shared_from_this()] {
                     if (g_check_print) self->begin_check_print();
                     else if (g_dialog_routing) self->begin_dialog_routing();
+                    else if (g_orca_messages) self->begin_orca_messages();
                     else if (g_issue_readers) self->begin_issue_readers();
                     else self->begin_print_issues();
                 });
@@ -4218,6 +4252,116 @@ private:
               "printer_menu_fixture_removes_other_printer");
         check(Printers::remove_named_printer(*m_plater, selected_name).empty(),
               "printer_menu_fixture_removes_first_printer");
+        m_frame->select_tab(TAB_ID_HOME);
+        wxYield();
+    }
+
+    // Picking another printer in the header while the project's printer has
+    // unsaved edits saves the project to its version history, drops the edits
+    // and switches, without OrcaSlicer's "Transfer or discard changes" window
+    // (OrcaMessages.hpp). The saved printer keeps its values, and the version
+    // brings the edits back.
+    void verify_printer_switch_with_unsaved_edits()
+    {
+        using namespace std::chrono_literals;
+        PresetCollection& printers = wxGetApp().preset_bundle->printers;
+        SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+        const std::string edited = Printers::add_named_printer(*m_plater, "Edited Printer", {});
+        SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+        const std::string other = Printers::add_named_printer(*m_plater, "Clean Printer", {});
+        check(SetupCommands::select_named_printer(*m_plater, edited), "unsaved_switch_fixture_selects_the_edited_printer");
+        // An empty project that was never saved has no versions, so the
+        // project gets a model first.
+        const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+        check(m_plater->load_files(std::vector<boost::filesystem::path>{cube},
+                                   LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1,
+              "unsaved_switch_fixture_has_a_model");
+        auto* autosave = installed_shell()->autosave();
+        check(autosave->save_now(), "unsaved_switch_fixture_project_saved");
+        std::set<std::string> known;
+        for (const auto& version : autosave->history()) known.insert(version.id);
+        printers.get_edited_preset().config.set_key_value("printer_notes", new ConfigOptionString("edited by hand"));
+        check(printers.current_is_dirty(), "unsaved_switch_fixture_has_unsaved_printer_edits");
+
+        m_frame->select_tab(TAB_ID_PREPARE);
+        wxYield();
+        auto* header = installed_shell()->status_row();
+        header->refresh();
+        ShownDialogs shown;
+        // The chat's activity list says the person switched printers; the
+        // dropped edit is part of that switch, not a setting they changed.
+        std::vector<Workspace::WorkspaceEdit> rows;
+        const auto edits = installed_shell()->workspace()->subscribe_edits(
+            [&rows](const Workspace::WorkspaceEdit& edit) { rows.push_back(edit); });
+        header->open_printer_menu();
+        HeaderMenu* menu = visible_header_menu();
+        auto* row = menu == nullptr ? nullptr : wxWindow::FindWindowByName(wxString::FromUTF8(other), menu);
+        check(row != nullptr, "unsaved_switch_menu_lists_the_other_printer");
+        if (row != nullptr)
+            click_row(menu, row);
+        else if (menu != nullptr)
+            menu->close();
+        wxYield();
+        check(shown.titles.empty(), "printer_switch_with_unsaved_edits_asks_nothing");
+        check(selected_printer() == other && !printers.current_is_dirty(), "printer_switch_with_unsaved_edits_switches");
+        // The menu leaves one line in the chat, which the model reads in
+        // English: the switch dropped the unsaved changes.
+        {
+            const auto conversation = installed_shell()->agent_pane()->web_view().host().conversation();
+            const auto line = std::find_if(conversation.rbegin(), conversation.rend(),
+                                           [](const auto& message) { return message.role == Agent::MessageRole::Note; });
+            if (line != conversation.rend())
+                std::cerr << "HARNESS NOTE printer_switch_line '" << line->text << "' for_model '" << line->for_model << "'\n";
+            // In English the two are the same text, and the note keeps one.
+            const std::string read = line == conversation.rend() ? std::string()
+                                     : line->for_model.empty()   ? line->text : line->for_model;
+            check(line != conversation.rend() && line->text.find("Printer is now " + other + ".") != std::string::npos &&
+                      read.find("Any unsaved setting changes were dropped") != std::string::npos,
+                  "printer_switch_line_says_the_unsaved_changes_were_dropped");
+        }
+        for (const auto& row : rows)
+            std::cerr << "HARNESS NOTE unsaved_switch_row kind=" << int(row.kind) << " label=" << row.label << " key=" << row.key << '\n';
+        check(std::none_of(rows.begin(), rows.end(), [](const auto& row) { return row.kind != Workspace::EditKind::Preset; }),
+              "printer_switch_with_unsaved_edits_reads_as_a_switch");
+        const Preset* saved = printer_profile(edited);
+        check(saved != nullptr && saved->config.opt_string("printer_notes") != "edited by hand",
+              "printer_switch_with_unsaved_edits_leaves_the_saved_printer");
+        const Workspace::ProjectVersionStore::Version* kept = nullptr;
+        const auto versions = autosave->history();
+        for (const auto& version : versions)
+            if (!known.count(version.id) && (kept == nullptr || version.revision < kept->revision)) kept = &version;
+        check(kept != nullptr && autosave->restore(kept->id) && selected_printer() == edited &&
+                  printers.get_edited_preset().config.opt_string("printer_notes") == "edited by hand",
+              "printer_switch_with_unsaved_edits_keeps_them_in_history");
+
+        // When the project cannot be saved, the edits exist nowhere else:
+        // nothing changes, and the failure is reported as unexpected.
+        printers.get_edited_preset().config.set_key_value("printer_notes", new ConfigOptionString("not saved anywhere"));
+        {
+            const int   reported_before = unexpected_errors_logged();
+            ShownDialogs asked;
+            {
+                UnavailableFolder folder(std::filesystem::path(data_dir()) / "jusprin" / "projects" /
+                                         persistence().document().project_id() / "pending");
+                SetupCommands::select_named_printer(*m_plater, other);
+            }
+            // The report's window opens after the switch's event.
+            wait_for([&] { return !asked.titles.empty(); }, 5s);
+            for (const auto& title : asked.titles)
+                std::cerr << "HARNESS NOTE unsaved_switch_save_failed_window '" << title << "'\n";
+            check(std::none_of(asked.titles.begin(), asked.titles.end(),
+                               [](const std::string& title) { return title.find("Transfer or discard") != std::string::npos; }),
+                  "printer_switch_that_cannot_save_asks_nothing");
+            check(selected_printer() == edited && printers.get_edited_preset().config.opt_string("printer_notes") == "not saved anywhere",
+                  "printer_switch_keeps_edits_it_could_not_save");
+            check(unexpected_errors_logged() == reported_before + 1, "printer_switch_that_cannot_save_reports_it");
+        }
+
+        printers.discard_current_changes();
+        SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+        check(Printers::remove_named_printer(*m_plater, other).empty() && Printers::remove_named_printer(*m_plater, edited).empty(),
+              "unsaved_switch_fixture_removes_its_printers");
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "unsaved_switch_cleanup_starts_an_empty_project");
         m_frame->select_tab(TAB_ID_HOME);
         wxYield();
     }
@@ -6735,7 +6879,8 @@ private:
     void connect_skill_try_code(const std::string& code, bool cancel, std::vector<Agent::AgentSkillUse>& skills)
     {
         using namespace std::chrono_literals;
-        // Upstream's "Incorrect password" dialog would hold the run.
+        // Any dialog would hold the run; OrcaSlicer's connect popups are
+        // taken in the JusPrin view, so one shown here is news.
         struct Answer : Workspace::UnansweredDialogObserver
         {
             int Enter(wxDialog* dialog) override
@@ -7404,8 +7549,10 @@ private:
         if (fake == nullptr)
             return;
         auto* devices = wxGetApp().getDeviceManager();
-        // Upstream shows the person "Incorrect password" in a modal dialog;
-        // answer it here and keep its text.
+        // OrcaSlicer's handler shows a modal popup on every failure
+        // ("Incorrect password", "Connect ... failed!"). In the JusPrin view
+        // the app says it itself and the popup is taken; any popup is kept
+        // here.
         struct Answer : Workspace::UnansweredDialogObserver
         {
             std::vector<std::string> texts;
@@ -7446,10 +7593,61 @@ private:
         check(lost.state == "failed" && lost.message.find("lost") != std::string::npos, "connection_lost_says_it_was_lost");
         check(lost.message.find("selected printer changed") == std::string::npos, "connection_lost_is_not_blamed_on_the_selection");
 
+        // -1: no connection made at all, the code Kenneth's P1S gave.
+        const auto unanswered = attempt([&] { fake->fail_next_connect("-1"); }, "connection_not_made_code_minus_1");
+        check(unanswered.state == "failed" && unanswered.message.find("-1") != std::string::npos,
+              "connection_not_made_is_told_in_the_printer_chat");
+
+        // A connection the header's printer menu starts: no chat is waiting,
+        // so the header and Home's printer card read Not connected, and the
+        // project chat gets an entry with the printer's name and OrcaSlicer's
+        // words.
+        {
+            const std::string before       = selected_printer();
+            const std::size_t work_before  = persistence().document().work().size();
+            devices->set_selected_machine("");
+            wxYield();
+            fake->fail_next_connect("-1");
+            const auto started = std::chrono::steady_clock::now();
+            check(SetupCommands::select_named_printer(*m_plater, name), "header_connect_selects_the_printer");
+            check(wait_for([&] {
+                      const auto event = Printers::last_connection_event(device);
+                      return event && event->at >= started;
+                  }, 10s),
+                  "header_connect_gets_the_plugins_answer");
+            wxYield();
+            const auto header = SetupCommands::printer_connection();
+            check(header.state == SetupCommands::ConnectionState::NotConnected, "header_connect_failure_reads_not_connected_in_the_header");
+            const auto card = home_card(name);
+            std::cerr << "HARNESS NOTE header_connect_failure_home_card status=" << (card ? int(card->status) : -1)
+                      << " message=" << (card ? card->message : std::string()) << '\n';
+            check(card && card->status == Home::PrinterStatus::NotConnected, "header_connect_failure_reads_not_connected_on_home");
+            const auto work = persistence().document().work();
+            const Agent::WorkEntry* entry = work.size() > work_before ? &work.back() : nullptr;
+            std::cerr << "HARNESS NOTE header_connect_failure_entry kind=" << (entry ? entry->kind : "") << " title='"
+                      << (entry ? entry->title : "") << "' state=" << (entry ? entry->state : "") << " detail='"
+                      << (entry ? entry->detail : "") << "'\n";
+            check(entry != nullptr && entry->kind == "printer" && entry->title == name && entry->state == "failed" &&
+                      entry->detail.find("failed!") != std::string::npos,
+                  "header_connect_failure_is_an_entry_in_the_project_chat");
+            SetupCommands::select_printer_preset(*m_plater, before);
+        }
+        check(answer.texts.empty(), "failed_connections_show_no_upstream_popup");
+        for (const auto& text : answer.texts)
+            std::cerr << "HARNESS NOTE upstream_popup '" << text << "'\n";
+
+        // Classic view has no other report, so OrcaSlicer's popup stays there.
+        OrcaMessages::set_taking_for_tests(false);
+        attempt([&] { fake->fail_next_connect("-1"); }, "classic_connection_not_made");
+        check(answer.texts.size() == 1 && answer.texts.back().find("failed!") != std::string::npos &&
+                  answer.texts.back().find("printer.cer") != std::string::npos,
+              "classic_view_keeps_upstreams_connect_failed_popup");
+        OrcaMessages::set_taking_for_tests(true);
+        answer.texts.clear();
+
         const auto wrong = attempt([&] { fake->fail_next_connect("5"); }, "connection_wrong_access_code");
         messages.insert(wrong.message);
-        check(!answer.texts.empty() && answer.texts.back().find("Incorrect password") != std::string::npos,
-              "wrong_access_code_shows_the_person_upstreams_dialog");
+        check(answer.texts.empty(), "wrong_access_code_shows_no_upstream_popup");
         check(wrong.state == "failed" && wrong.message.find("access code") != std::string::npos,
               "wrong_access_code_names_the_access_code");
         check(wrong.message.find("no longer available") == std::string::npos, "wrong_access_code_is_not_reported_as_a_vanished_printer");
@@ -7463,6 +7661,7 @@ private:
         // ConnectStatusLost); the codes were not observed from the real plug-in,
         // which needs a LAN-mode printer and a deliberately wrong access code.
         check(messages.size() == 3, "connection_failures_are_told_apart");
+        check(answer.texts.empty(), "wrong_access_code_popup_stays_skipped");
         answer.Unregister();
         devices->set_selected_machine("");
         wxYield();
@@ -9856,6 +10055,9 @@ private:
         const auto messages = host.conversation();
         if (!messages.empty() && messages.back().role == Agent::MessageRole::Note) {
             check(messages.back().text.find(ui_text(other_alias)) != std::string::npos, "the_line_names_the_new_filament");
+            const std::string read = messages.back().for_model.empty() ? messages.back().text : messages.back().for_model;
+            check(read.find("Any unsaved filament setting changes were dropped") != std::string::npos,
+                  "the_line_tells_the_model_the_unsaved_filament_changes_were_dropped");
             check(wxColour(wxString::FromUTF8(messages.back().swatch)) == saved, "the_line_is_led_by_the_colour");
         }
 
@@ -12598,6 +12800,7 @@ private:
 #include "print_issue_readers_scenario.inc"
 #include "check_print_scenario.inc"
 #include "dialog_routing_scenario.inc"
+#include "orca_messages_scenario.inc"
 #include "project_prompt_scenario.inc"
 #include "account_box_scenario.inc"
 #include "preferences_capture_scenario.inc"
@@ -15308,8 +15511,17 @@ private:
               "failed_autosave_is_visible");
         check(installed_shell()->status_row()->project_summary().BeforeFirst('\n').EndsWith(wxGetTranslation("Couldn't save")),
               "failed_autosave_has_plain_status_text");
-        check(m_plater->new_project(true, true) == wxID_CANCEL && persistence().document().project_id() == project_id,
-              "failed_autosave_blocks_project_release");
+        {
+            // The same rule as a profile switch: no version, no close, and the
+            // failure is reported as unexpected. Its window opens after the
+            // close's event.
+            const int    reported_before = unexpected_errors_logged();
+            ShownDialogs asked;
+            check(m_plater->new_project(true, true) == wxID_CANCEL && persistence().document().project_id() == project_id,
+                  "failed_autosave_blocks_project_release");
+            wait_for([&] { return !asked.titles.empty(); }, std::chrono::seconds(5));
+            check(unexpected_errors_logged() == reported_before + 1, "failed_autosave_project_release_reports_it");
+        }
         std::filesystem::permissions(pending, original_permissions, std::filesystem::perm_options::replace);
         check(installed_shell()->autosave()->save_now() &&
               installed_shell()->autosave()->state() == Workspace::ProjectAutosave::State::Saved,
@@ -16087,10 +16299,33 @@ private:
         finish();
     }
 
+    // In every mode: while the JusPrin view takes OrcaSlicer's messages, no
+    // OrcaSlicer message with only OK reached the person over the main
+    // window, no unsaved-changes question reached them, and every printer
+    // message the view took carried the printer it is about
+    // (OrcaMessages.hpp).
+    void check_no_orca_message_missed()
+    {
+        using OrcaMessages::TakenMessage;
+        using OrcaMessages::WindowKind;
+        for (const OrcaMessages::ShownWindow& window : OrcaMessages::shown_windows())
+            if (window.kind == WindowKind::Message || window.kind == WindowKind::UnsavedChanges) {
+                std::cerr << "HARNESS MISSED window '" << window.title << "' kind=" << OrcaMessages::window_kind_name(window.kind)
+                          << " why='" << window.why << "'\n";
+                check(false, "no_orca_message_reaches_the_person_in_the_jusprin_view");
+            }
+        for (const TakenMessage& message : OrcaMessages::taken_messages())
+            if (message.from == TakenMessage::From::PrinterNotification && message.cause.printer.empty()) {
+                std::cerr << "HARNESS MISSED cause from=" << OrcaMessages::from_name(message.from) << " text='" << message.text << "'\n";
+                check(false, "every_printer_message_taken_has_its_printer");
+            }
+    }
+
     void finish()
     {
         if (m_finished)
             return;
+        check_no_orca_message_missed();
         m_finished = true;
         const int result = m_failures == 0 ? 0 : 1;
         std::cerr << "HARNESS RESULT " << (result == 0 ? "PASS" : "FAIL") << " failures=" << m_failures << '\n';
@@ -16786,6 +17021,29 @@ int main(int argc, char** argv)
             g_dialog_routing = true;
             fs::create_directories(fs::absolute(argv[index]));
             g_dialog_witness = std::make_unique<JusPrinTest::DialogWitness>(fs::absolute(argv[index]));
+        }
+        else if (argument == "--orca-messages") {
+            if (++index == argc) {
+                std::cerr << "--orca-messages requires an output directory\n";
+                return 2;
+            }
+            state->mode        = HarnessState::Mode::PrintIssues;
+            g_orca_messages    = true;
+            state->capture_dir = fs::absolute(argv[index]);
+            fs::create_directories(fs::absolute(argv[index]));
+            g_dialog_witness = std::make_unique<JusPrinTest::DialogWitness>(fs::absolute(argv[index]));
+        }
+        else if (argument == "--orca-messages-pause") {
+            if (++index == argc) {
+                std::cerr << "--orca-messages-pause requires a number of seconds\n";
+                return 2;
+            }
+            g_orca_messages_pause = std::chrono::seconds(std::atoi(argv[index]));
+        }
+        // OrcaSlicer's own windows open as in the classic view while the
+        // JusPrin view stays installed: the before side of every check.
+        else if (argument == "--classic-messages") {
+            Slic3r::GUI::JusPrin::OrcaMessages::set_taking_for_tests(false);
         }
         else if (argument == "--check-print") {
             state->mode   = HarnessState::Mode::PrintIssues;

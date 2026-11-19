@@ -9,7 +9,8 @@
 // is and how it ended. The rest is read from the notification list by the
 // monitor: such a notification says that the work is running and nothing
 // about how it ended, so one that goes is "done" unless its Cancel was
-// pressed here.
+// pressed here. An upload that fails keeps its notification, drawn as
+// failed with the same words; its entry is ended by fail_upload.
 //
 // GUI thread only.
 
@@ -19,6 +20,7 @@
 
 #include <functional>
 #include <map>
+#include <set>
 #include <string>
 
 namespace Slic3r {
@@ -52,11 +54,16 @@ public:
     void sync(const PrintIssueSnapshot& snapshot);
     // The Cancel button of one entry.
     void cancel(const std::string& id);
+    // The upload whose notification has these words failed: its entry ends
+    // failed with `detail`, and does not start again while OrcaSlicer holds
+    // the notification. False when no such upload is running.
+    bool fail_upload(const std::string& notice_text, const std::string& detail);
 
 private:
     struct Running
     {
         std::string id, title;
+        int         kind{0};
         bool        cancel_pressed{false};
     };
 
@@ -71,6 +78,8 @@ private:
     // By notification kind, and by its words for the kinds OrcaSlicer holds
     // several of (uploads, downloads).
     std::map<std::string, Running> m_noticed;
+    // Failed uploads whose notification OrcaSlicer still holds.
+    std::set<std::string> m_failed;
 };
 
 } // namespace Slic3r::GUI::JusPrin::PrintIssues

@@ -588,6 +588,68 @@
                 std::cerr << "HARNESS PROMPT " << name << " pressed Slice: plate " << plate.id.value() << " sliced=" << plate.sliced << " failure='"
                               << (plate.slice_failure ? plate.slice_failure->message : std::string()) << "'\n";
         }
+        if (step.contains("addPrinter")) {
+            // A second saved printer from the selected system profile, as Home
+            // adds one; adding selects it, so the first printer is selected
+            // again.
+            const std::string first = wxGetApp().preset_bundle->printers.get_edited_preset().name;
+            const std::string added = Printers::add_named_printer(*m_plater, step["addPrinter"].get<std::string>(), {});
+            check(!added.empty() && SetupCommands::select_printer_preset(*m_plater, first), name + "_added_printer");
+            std::cerr << "HARNESS PROMPT " << name << " added printer '" << added << "', selected '"
+                      << wxGetApp().preset_bundle->printers.get_edited_preset().name << "'\n";
+        }
+        if (step.contains("switch")) {
+            // The person picks another printer or filament in the header,
+            // which calls these, with setting changes unsaved. "*" picks the
+            // first other visible profile. The test data dir has one printer
+            // model installed, so a printer switch needs a step with
+            // "addPrinter" first.
+            PresetBundle&     bundle = *wxGetApp().preset_bundle;
+            const json&       pick   = step["switch"];
+            const bool        printer = pick.contains("printer");
+            PresetCollection& presets = printer ? static_cast<PresetCollection&>(bundle.printers) : bundle.filaments;
+            std::string       to      = pick.value(printer ? "printer" : "filament", "");
+            if (to == "*")
+                for (const Preset& preset : presets)
+                    if (preset.is_visible && preset.is_compatible && !preset.is_default && preset.name != presets.get_edited_preset().name) {
+                        to = preset.name;
+                        break;
+                    }
+            std::cerr << "HARNESS PROMPT " << name << " switch " << (printer ? "printer" : "filament") << " from '"
+                      << presets.get_edited_preset().name << "' to '" << to << "' printer_dirty=" << bundle.printers.current_is_dirty()
+                      << " filament_dirty=" << bundle.filaments.current_is_dirty() << " process_dirty=" << bundle.prints.current_is_dirty()
+                      << '\n';
+            // Through the header's own menu, which also posts its line into
+            // the chat: the printer menu when a printer is picked, the
+            // filament menu when the person closes it.
+            wxString row_name = wxString::FromUTF8(to);
+            if (!printer)
+                for (const auto& filament : SetupCommands::compatible_filaments())
+                    if (filament.preset_name == to) row_name = filament.alias;
+            StatusRow* header = installed_shell()->status_row();
+            header->refresh();
+            if (printer)
+                header->open_printer_menu();
+            else
+                header->open_filament_menu();
+            HeaderMenu* menu = visible_header_menu();
+            wxWindow*   row  = menu == nullptr ? nullptr : wxWindow::FindWindowByName(row_name, menu);
+            check(row != nullptr, name + "_menu_lists_the_profile");
+            if (row != nullptr)
+                click_row(menu, row);
+            wxYield();
+            if (HeaderMenu* open = visible_header_menu()) open->close();
+            wxYield();
+            wxYield();
+            check(presets.get_edited_preset().name == to, name + "_switched");
+            wait_for([this] { return !m_plater->is_background_process_update_scheduled(); }, 5s);
+            std::cerr << "HARNESS PROMPT " << name << " after switch printer='" << bundle.printers.get_edited_preset().name << "' filament='"
+                      << bundle.filaments.get_edited_preset().name << "' process='" << bundle.prints.get_edited_preset().name
+                      << "' wall_loops=" << bundle.prints.get_edited_preset().config.opt_serialize("wall_loops")
+                      << " nozzle_temperature=" << bundle.filaments.get_edited_preset().config.opt_serialize("nozzle_temperature")
+                      << " dirty printer=" << bundle.printers.current_is_dirty() << " filament=" << bundle.filaments.current_is_dirty()
+                      << " process=" << bundle.prints.current_is_dirty() << '\n';
+        }
         if (step.contains("say")) {
             std::string said = step["say"];
             for (std::size_t at; (at = said.find("{{file/")) != std::string::npos;) {

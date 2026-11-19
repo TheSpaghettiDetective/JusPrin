@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-17 17:55-0800\n"
+"POT-Creation-Date: 2026-11-18 20:27-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2211,9 +2211,10 @@ msgid "Slot %d is now %s."
 msgstr "%d. férőhely mostantól: %s."
 
 # AI Translated
+#. TRN Follows "Filament is now %s." in the chat after the person picks another filament. %s is the new filament's name.
 #, c-format, boost-format
-msgid "Heat and cooling follow %s; walls and infill unchanged."
-msgstr "A fűtés és a hűtés a(z) %s beállításait követi; a falak és a kitöltés változatlanok."
+msgid "Any unsaved filament setting changes were dropped; the filament settings now follow the %s profile."
+msgstr "A filamentbeállítások nem mentett módosításai elvesztek; a filamentbeállítások mostantól a(z) %s beállítást követik."
 
 # AI Translated
 #, c-format, boost-format
@@ -2226,8 +2227,22 @@ msgid "Filaments changed: %s."
 msgstr "Módosított filamentek: %s."
 
 # AI Translated
+msgid "Any unsaved filament setting changes were dropped; the filament settings now follow the new profiles."
+msgstr "A filamentbeállítások nem mentett módosításai elvesztek; a filamentbeállítások mostantól az új beállításokat követik."
+
+# AI Translated
 msgid "Slice again when ready."
 msgstr "Ha elkészültél, szeleteld újra."
+
+# AI Translated
+#. TRN In the chat after the person picks another printer. %s is the printer's name.
+#, c-format, boost-format
+msgid "Printer is now %s."
+msgstr "A nyomtató mostantól: %s."
+
+# AI Translated
+msgid "Any unsaved setting changes were dropped; the settings now follow the newly selected printer, filament and process profiles."
+msgstr "A beállítások nem mentett módosításai elvesztek; a beállítások mostantól az újonnan kiválasztott nyomtató-, filament- és folyamatbeállításokat követik."
 
 # AI Translated
 msgid "Preferences…"
@@ -2256,6 +2271,11 @@ msgstr "Ezt a projektet a JusPrin egy újabb verziója mentette. A megnyitásáh
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "A projektet nem sikerült megnyitni. Próbáld újra."
+
+# AI Translated
+#, c-format, boost-format
+#~ msgid "Heat and cooling follow %s; walls and infill unchanged."
+#~ msgstr "A fűtés és a hűtés a(z) %s beállításait követi; a falak és a kitöltés változatlanok."
 
 # AI Translated
 #~ msgid "The attachment could not be stored."

@@ -1,6 +1,7 @@
 // First: slic3r/GUI/I18N.hpp defines _L only while the _ macro is still
 // undefined, so it has to precede any header that brings one in.
 #include "slic3r/GUI/I18N.hpp"
+#include "slic3r/GUI/JusPrin/OrcaMessages/OwnDialogs.hpp"
 #include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 
 #include "AboutWindow.hpp"
@@ -133,7 +134,7 @@ private:
 void open_link(wxWindow* parent, const wxString& url)
 {
     if (!wxLaunchDefaultBrowser(url))
-        MessageDialog(parent, _L("The app couldn't open your browser."), _L("About JusPrin"), wxOK | wxICON_WARNING).ShowModal();
+        OrcaMessages::show_own_message(parent, _L("The app couldn't open your browser."), _L("About JusPrin"), wxOK | wxICON_WARNING);
 }
 
 } // namespace

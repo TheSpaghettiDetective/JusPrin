@@ -1,5 +1,6 @@
 #include "ErrorReportDialog.hpp"
 
+#include "slic3r/GUI/JusPrin/OrcaMessages/OwnDialogs.hpp"
 #include "CheckPrintReportPanel.hpp"
 #include "LucideIcon.hpp"
 #include "ShellRecipes.hpp"
@@ -13,6 +14,7 @@
 #include <boost/log/trivial.hpp>
 
 #include <wx/dcclient.h>
+#include <wx/event.h>
 #include <wx/panel.h>
 #include <wx/sizer.h>
 #include <wx/statbmp.h>
@@ -89,7 +91,7 @@ ErrorReportDialog::Answer ErrorReportDialog::ask(const ErrorReport& report)
     }
     ErrorReportDialog dialog(window_in_front(), *theme, report);
     Answer answer;
-    if (dialog.ShowModal() == wxID_OK) {
+    if (OrcaMessages::show_own_modal(dialog) == wxID_OK) {
         answer.report        = true;
         answer.automatically = dialog.m_automatic->is_checked();
     }

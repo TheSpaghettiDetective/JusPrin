@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-17 17:55-0800\n"
+"POT-Creation-Date: 2026-11-18 20:27-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2189,9 +2189,10 @@ msgid "Slot %d is now %s."
 msgstr "槽位 %d 已改为 %s。"
 
 # AI Translated
+#. TRN Follows "Filament is now %s." in the chat after the person picks another filament. %s is the new filament's name.
 #, c-format, boost-format
-msgid "Heat and cooling follow %s; walls and infill unchanged."
-msgstr "加热和冷却参数沿用 %s；墙和填充保持不变。"
+msgid "Any unsaved filament setting changes were dropped; the filament settings now follow the %s profile."
+msgstr "未保存的耗材丝设置更改已丢弃；耗材丝设置现在采用 %s 预设。"
 
 # AI Translated
 #, c-format, boost-format
@@ -2204,8 +2205,22 @@ msgid "Filaments changed: %s."
 msgstr "已更改耗材丝：%s。"
 
 # AI Translated
+msgid "Any unsaved filament setting changes were dropped; the filament settings now follow the new profiles."
+msgstr "未保存的耗材丝设置更改已丢弃；耗材丝设置现在采用新的预设。"
+
+# AI Translated
 msgid "Slice again when ready."
 msgstr "准备好后请重新切片。"
+
+# AI Translated
+#. TRN In the chat after the person picks another printer. %s is the printer's name.
+#, c-format, boost-format
+msgid "Printer is now %s."
+msgstr "打印机已改为 %s。"
+
+# AI Translated
+msgid "Any unsaved setting changes were dropped; the settings now follow the newly selected printer, filament and process profiles."
+msgstr "未保存的设置更改已丢弃；设置现在采用新选择的打印机、耗材丝和工艺预设。"
 
 # AI Translated
 msgid "Preferences…"
@@ -2234,6 +2249,11 @@ msgstr "此项目由更新版本的 JusPrin 保存。请获取新版本以打开
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "无法打开项目。请重试。"
+
+# AI Translated
+#, c-format, boost-format
+#~ msgid "Heat and cooling follow %s; walls and infill unchanged."
+#~ msgstr "加热和冷却参数沿用 %s；墙和填充保持不变。"
 
 # AI Translated
 #~ msgid "The attachment could not be stored."
