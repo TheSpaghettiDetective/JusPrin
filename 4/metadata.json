@@ -1,0 +1,64 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7T9HDQ5NCV4V9HC4DYXK66C",
+  "session_id": "4699a1bb-b59f-4492-a9be-ed1c34f104e5",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-19T16:17:00.812595Z",
+  "branch": "claude/mac-release-test",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/jusprin_build_all.yml",
+    ".github/workflows/jusprin_release_build.yml",
+    ".github/workflows/tmp_mac_release_test_hosted.yml",
+    ".github/workflows/tmp_mac_release_test_self_hosted.yml"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "5be3c8a264fa",
+  "checkpoint_transcript_start": 893,
+  "transcript_lines_at_start": 893,
+  "compact_transcript_start": 99,
+  "token_usage": {
+    "input_tokens": 10,
+    "cache_creation_tokens": 7011,
+    "cache_read_tokens": 1426259,
+    "output_tokens": 3631,
+    "api_call_count": 5
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-19T16:17:00.696774Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 8,
+    "total_committed": 0,
+    "total_lines_changed": 8,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 415,
+      "user_lines_removed": 8,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".claude/skills/figma-agent-design/SKILL.md": 132,
+        ".claude/skills/figma-agent-design/agents/openai.yaml": 4,
+        ".claude/skills/figma-agent-design/references/design-system-governance.md": 103,
+        ".claude/skills/figma-agent-design/references/prompt-and-review.md": 124,
+        ".github/workflows/jusprin_build_all.yml": 1,
+        ".github/workflows/jusprin_release_build.yml": 1,
+        ".github/workflows/tmp_mac_release_test_hosted.yml": 14,
+        ".github/workflows/tmp_mac_release_test_self_hosted.yml": 14
+      },
+      "user_removed_per_file": {
+        ".github/workflows/jusprin_build_all.yml": 7,
+        ".github/workflows/jusprin_release_build.yml": 1
+      }
+    }
+  ]
+}
