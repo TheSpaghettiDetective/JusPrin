@@ -2,7 +2,7 @@
   "cli_version": "0.10.5",
   "checkpoint_id": "01M7T9EZTEKB9SYKTS1FA9VSKV",
   "strategy": "manual-commit",
-  "branch": "claude/mac-builds-without-homebrew",
+  "branch": "claude/mac-self-hosted-rcodesign",
   "checkpoints_count": 15,
   "files_touched": [
     ".github/workflows/jusprin_build_all.yml",
@@ -88,10 +88,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 14,
-    "cache_creation_tokens": 10583,
-    "cache_read_tokens": 1065705,
-    "output_tokens": 2157,
-    "api_call_count": 7
+    "input_tokens": 16,
+    "cache_creation_tokens": 127978,
+    "cache_read_tokens": 1112843,
+    "output_tokens": 2672,
+    "api_call_count": 8
   }
 }
