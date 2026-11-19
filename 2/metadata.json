@@ -1,0 +1,47 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7TXGX6ZNJCYQPD80TMS85M0",
+  "session_id": "e121a972-2fcb-4863-84bf-c169363ec7f7",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-19T22:06:17.748067Z",
+  "branch": "claude/magical-moore-c0fa18",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/shell/shell_harness.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "c8ac6c1c1de4",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 4100,
+    "cache_creation_tokens": 1624928,
+    "cache_read_tokens": 60732273,
+    "output_tokens": 202852,
+    "api_call_count": 160
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-19T22:06:17.439619Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 12,
+    "human_removed": 46,
+    "total_committed": 4,
+    "total_lines_changed": 58,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}

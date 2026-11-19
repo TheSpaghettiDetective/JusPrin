@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7TXGX6ZNJCYQPD80TMS85M0",
   "strategy": "manual-commit",
   "branch": "claude/magical-moore-c0fa18",
-  "checkpoints_count": 5,
+  "checkpoints_count": 6,
   "files_touched": [
     "tests/shell/shell_harness.cpp"
   ],
@@ -21,14 +21,21 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 218,
-    "cache_creation_tokens": 248157,
-    "cache_read_tokens": 26107526,
-    "output_tokens": 49685,
-    "api_call_count": 109,
+    "input_tokens": 4318,
+    "cache_creation_tokens": 1873085,
+    "cache_read_tokens": 86839799,
+    "output_tokens": 252537,
+    "api_call_count": 269,
     "subagent_tokens": {
       "input_tokens": 0,
       "cache_creation_tokens": 0,
