@@ -1,0 +1,53 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7TG4P2SXMP7CYH74HF3T2JJ",
+  "session_id": "e1ccfc09-a5d5-4c2a-85ff-c7407d1f5490",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-19T18:12:23.648522Z",
+  "branch": "tostdstring-utf8",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Brand/BrandPalette.cpp",
+    "src/slic3r/GUI/JusPrin/CMakeLists.txt",
+    "src/slic3r/GUI/JusPrin/CheckWxStringConversions.cmake",
+    "src/slic3r/GUI/JusPrin/Home/MonitorWindow.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/OrcaPrinterBackend.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterPanel.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/FilamentMenu.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/LucideIcon.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/SetupCommands.cpp",
+    "src/slic3r/GUI/JusPrin/Support/DecimalText.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-2",
+  "turn_id": "0a0e93e6696b",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 208,
+    "cache_creation_tokens": 617386,
+    "cache_read_tokens": 24159708,
+    "output_tokens": 148694,
+    "api_call_count": 104
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-19T18:12:23.319881Z",
+    "agent_lines": 52,
+    "agent_removed": 11,
+    "human_added": 12,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 64,
+    "total_lines_changed": 75,
+    "agent_percentage": 84,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
