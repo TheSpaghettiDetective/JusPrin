@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7T8QYRSDKRJZJ04F8CFDT0A",
   "strategy": "manual-commit",
   "branch": "claude/mac-signing-test",
-  "checkpoints_count": 7,
+  "checkpoints_count": 8,
   "files_touched": [
     ".github/workflows/tmp_mac_signing_test.yml"
   ],
@@ -28,13 +28,20 @@
       "compact_transcript": "/2/transcript.jsonl",
       "content_hash": "/2/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/3/metadata.json",
+      "transcript": "/3/full.jsonl",
+      "compact_transcript": "/3/transcript.jsonl",
+      "content_hash": "/3/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 4,
+    "cache_creation_tokens": 5015,
+    "cache_read_tokens": 393647,
+    "output_tokens": 614,
+    "api_call_count": 2
   }
 }
