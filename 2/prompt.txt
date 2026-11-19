@@ -1,0 +1,26 @@
+Task (from the session that started this one):
+Background (from the session that started this one):
+JusPrin 2 is a free AI slicer, a fork of OrcaSlicer 2.5.0, released 2026-11-13; version 2.0.1 was published 2026-11-19. Kenneth is planning how to reach English-language YouTube channels. The Next Layer (Jonathan Levi, 291K subscribers) covered JusPrin 1 for about 80 seconds in a 760,576-view video in May 2026 and named the two faults in the task. Kenneth has an email to him drafted, not sent, which asks him to run his same two tests on JusPrin 2. The draft is in `jusprin2-creator-outreach.md`, section 5, and the measurements behind it are in `jusprin2-marketing-research.md` under "English channels compared, measured 2026-11-19". Both files are untracked working notes. Nobody has run those tests on JusPrin 2, and if it still fails them the email invites the same verdict before a larger audience, so the result decides whether and how the email goes out. Do not send or edit that email, and do not contact anyone. Kenneth wants findings stated with their evidence, inferences labelled as inferences, and the tests run on the real app across a spread of cases, not on a fake or a single example.
+
+Task:
+Find out whether JusPrin 2.0.1 still has the two faults a YouTube reviewer named on camera about JusPrin 1, by running his two tests on the real app. This is a measurement. Do not change any code or prompt, and do not fix anything you find.
+
+**The two faults, in his words (video `K3Fmc98ug2I`, "These 13 New 3D Printing Apps Are Insane!", transcript 13:39 to 14:51):**
+1. Asked to maximise strength while minimising weight, it "added tons of infill and perimeters".
+2. It "added way excessive supports to any overhang, despite the angle".
+He also said the changes were "mostly logical" and that he would recommend it to absolute beginners only. We do not have his exact prompts or his model files, only those sentences, so you choose reasonable ones and write down what you chose.
+
+**What to run**
+- Use the released JusPrin 2.0.1 (GitHub release `jusprin/v2.0.1` of `TheSpaghettiDetective/JusPrin`), or an existing local build of that tag if one is already there. Do not start a fresh full build for this; read "Building on a shared machine" in `AGENTS.md` first if you think you need one.
+- Go through the app's own AI chat beside the 3D view, signed in to a JusPrin account, with the model a new user gets by default. That is what a reviewer would do. The result depends on the app's own prompt and model, so driving the project from an outside AI app over MCP does not count as the test. You may use any means to read settings and slice results afterwards.
+- Use an isolated `--datadir` and do not drive another running JusPrin instance. The project memory has recipes for driving the real app on this Mac and for a signed-in scratch app; `agent-docs/jusprin/README.md` has the verification method.
+- Test 1 (strength against weight): on at least three different parts (for example a load-bearing bracket, a hook, a plain box), ask in plain words for the strongest part at the lowest weight. Record before and after: wall loops, sparse infill density and pattern, top and bottom layers, and the sliced filament weight. Say for each whether the change is a sensible trade (strength added where it counts, weight kept down) or the fault he described.
+- Test 2 (supports): on parts with overhangs at several angles, including shallow ones that print fine without support and steep ones that do not, ask the AI to set the part up for printing, and separately ask whether it needs supports. Record whether supports were turned on, the support type and threshold angle, and how much support material the slice contains. Say whether it supports everything regardless of angle.
+- Run each case more than once, because replies vary from run to run. Say how many runs each figure rests on.
+- If a JusPrin 1.4 build can still run and sign in, run one or two of the same cases on it for comparison. Do not spend long on this; say so if it cannot be done.
+
+**Spend:** this uses AI credits. Keep to roughly 30 chat turns in total. If you think more is needed, stop and say what it would cost before going on.
+
+**Done looks like:** an untracked file `jusprin2-next-layer-retest.md` in the repository root (never commit it, never add it to `.gitignore`), which opens with a verdict a cold reader can check: for each of the two faults, would he say the same thing about JusPrin 2.0.1, yes, no or partly. Under it, one table per test with the part, the exact prompt, the settings before and after, the slice figures and the number of runs, plus screenshots saved beside it or in your scratch folder with full paths. List what you did not test. Mark anything you inferred rather than measured.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_9e485764-3d67-4413-b061-31068610c61a
