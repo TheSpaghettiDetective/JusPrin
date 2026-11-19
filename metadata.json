@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7T9EZTEKB9SYKTS1FA9VSKV",
   "strategy": "manual-commit",
   "branch": "claude/mac-builds-without-homebrew",
-  "checkpoints_count": 1,
+  "checkpoints_count": 6,
   "files_touched": [
     ".github/workflows/jusprin_build_all.yml",
     "src/slic3r/GUI/JusPrin/Packaging/macos_package.sh"
@@ -14,6 +14,13 @@
       "transcript": "/0/full.jsonl",
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
       "prompt": ""
     }
   ],
