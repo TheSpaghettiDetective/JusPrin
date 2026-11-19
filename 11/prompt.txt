@@ -1,0 +1,124 @@
+Background (from the session that started this one):
+JusPrin is a desktop 3D-printing slicer, a fork of OrcaSlicer (C++/wxWidgets). Its update check (`src/slic3r/GUI/JusPrin/Updates/UpdateCheck.cpp`) reads JusPrin's GitHub releases and today only shows the result in Preferences › Updates, where Download opens the GitHub release page. On 2026-11-19 Kenneth chose, for now, a card on Home that downloads the update inside the app. The person still runs the installer themselves. He also asked for this separate prototype of a full "install and restart" on Windows, to learn its real cost and risks before deciding later. Known facts: the Windows release files are an unsigned NSIS installer and a portable zip; the Mac disk image is signed and notarised; Linux is an AppImage. The repo's AGENTS.md has the build rules, including a limit on parallel build jobs on shared machines. The main checkout's working branch is `jusprin-dev`.
+
+Task:
+Prototype "install and restart" for JusPrin on Windows, on the Windows GUI test VM in GCP, and report what actually happens. This is a measurement and a throwaway prototype. Don't land it on `jusprin-dev`, open a PR or change the release workflow.
+
+What to find out. Measure each of these on the VM; don't infer them.
+1. A running JusPrin downloads the 2.0.1 Windows installer, `JusPrin_Windows_Installer_V2.0.1_x64.exe` (192 MB), from the GitHub release `jusprin/v2.0.1` of TheSpaghettiDetective/JusPrin, into a temp or Downloads folder, using the app's own `Slic3r::Http`. Does Windows Defender, SmartScreen or any other warning appear when the app starts that installer? The installer is unsigned. Compare with the same file downloaded through Edge and double-clicked, which carries the "downloaded from the internet" mark.
+2. Does the installer accept `/S` (it is a CPack NSIS installer, built by `src/slic3r/GUI/JusPrin/Packaging/windows_package.ps1` and `packaging.cmake`)? Does it succeed when JusPrin is still running, when it has just quit, and when it is told to wait for the old process to exit? Does it ask for administrator rights (UAC), and where does it install?
+3. After a silent install, can the new version be relaunched automatically (for example the installer's finish step, or a small detached step started before JusPrin quits)? Does it come up as 2.0.1 with the same projects, printers, settings and sign-in? Check `%APPDATA%` data dir and the `JusPrin2.conf` settings file.
+4. The overall time from pressing the button to the new version being open, and what the person sees during it.
+
+Start from an installed JusPrin 2.0.0 (the 2.0.0 installer from the `jusprin/v2.0.0` release). The quickest route may be a tiny standalone test program, or a debug hook in a local build, that does the download, verifies SHA-256 against the release's `SHA256SUMS.txt`, and launches the installer the way the app would (`CreateProcess`/`ShellExecute` from a process the user started). Pick whichever proves the points with the least building. Building JusPrin on the VM is slow; reuse what's there.
+
+How to reach the VM and build there: read the memory files `windows-gui-test-vm-gcp.md` and `windows-build-on-gcp-vm.md` in `~/.claude/projects/-Users-kenneth-Projects-JusPrin/memory/` first. Use the `ai-agent@tsdtechnology.iam.gserviceaccount.com` gcloud account (see `~/.claude/CLAUDE.md`). Stop the VM when you're done if you started it.
+
+Done means a short report, under 500 words, in plain sentences, with screenshots of anything Windows shows: what worked, what was blocked or warned, the exact command lines used, and what a real implementation would need, for example a Windows code-signing certificate, waiting for the old process, or UAC. Say which findings you measured and which you inferred.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_967e82c4-707b-4115-b53a-ae20ea401129
+
+---
+
+<task-notification>
+<task-id>b6ff6aolz</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-win-install-restart-proto-fc3c72/8b17998f-1be8-4027-8800-1a20cd6031a4/tasks/b6ff6aolz.output</output-file>
+<status>failed</status>
+<summary>Background command "cd /Users/kenneth/Projects/JusPrin/.claude/vm-harness/windows/; timeout 900 ./winssh.sh 'powershell -NoProfile -ExecutionPolicy Bypass -File C:\guitest\ipr\inst200.ps1; Get-ChildItem \"C:\Program Files\JusPrin\Uninstall.exe\" | Select LastWriteTime'" failed with exit code 143</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bs70v1869</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-win-install-restart-proto-fc3c72/8b17998f-1be8-4027-8800-1a20cd6031a4/tasks/bs70v1869.output</output-file>
+<status>completed</status>
+<summary>Background command "cd /Users/kenneth/Projects/JusPrin/.claude/vm-harness/windows/; for i in $(seq 1 40); do f=$(timeout 40 ./winssh.sh "[math]::Round((Get-PSDrive C).Free/1GB,1)" 2&gt;/dev/null | tr -d '\r'); echo "$(date +%T) free=$f"; if [ -n "$f" ] &amp;&amp; [ "${f%.*}" -ge 30 ] 2&gt;/dev/null; then break; fi; sleep 20; done" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b132uhrdh</task-id>
+<tool-use-id>toolu_017TFGDnAUo91CxhYyV6un77</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-win-install-restart-proto-fc3c72/8b17998f-1be8-4027-8800-1a20cd6031a4/tasks/b132uhrdh.output</output-file>
+<status>completed</status>
+<summary>Background command "cd /Users/kenneth/Projects/JusPrin/.claude/vm-harness/windows/; timeout 600 ./winssh.sh 'powershell -NoProfile -ExecutionPolicy Bypass -File C:\guitest\ipr\inst200.ps1' 2&gt;&amp;1" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bf53m1z7b</task-id>
+<tool-use-id>toolu_014WV3W46EPNtuDxD5BDiNjx</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-win-install-restart-proto-fc3c72/8b17998f-1be8-4027-8800-1a20cd6031a4/tasks/bf53m1z7b.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-win-install-restart-proto-fc3c72/8b17998f-1be8-4027-8800-1a20cd6031a4/scratchpad; cat &gt; $S/vm/common.ps1 &lt;&lt;'EOF'
+. C:\guitest\harness.ps1
+$Inst = "C:\Users\guitest\AppData\Local\Temp\JusPrinUpdate\JusPrin_Windows_Installer_V2.0.1_x64.exe"
+$Inst200 = "C:\guitest\ipr\setup\JusPrin_Windows_Installer_V2.0.0_x64.exe"
+$App = "C:\Program Files\JusPrin\orca-slicer.exe"
+function T { Get-Date -Format "HH
+
+... [2831 characters truncated] ...
+
+ 60 ./winscp.sh $S/vm/common.ps1 $S/vm/c1.ps1 guitest@34.135.245.169:C:/guitest/ipr/ &amp;&amp; timeout 400 ./winssh.sh 'powershell -NoProfile -ExecutionPolicy Bypass -File C:\guitest\ipr\c1.ps1' 2&gt;&amp;1; timeout 60 ./winscp.sh 'guitest@34.135.245.169:C:/guitest/ipr/C1_*.png' $S/shots/" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b7fir6q7t</task-id>
+<tool-use-id>toolu_01SjDxnB9cyKuJBrVGEYJByE</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-win-install-restart-proto-fc3c72/8b17998f-1be8-4027-8800-1a20cd6031a4/tasks/b7fir6q7t.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-win-install-restart-proto-fc3c72/8b17998f-1be8-4027-8800-1a20cd6031a4/scratchpad; cat &gt; $S/vm/iclose.ps1 &lt;&lt;'EOF'
+Get-Process orca-slicer -ErrorAction SilentlyContinue | ForEach-Object { $_.CloseMainWindow() | Out-Null }
+EOF
+cat &gt;&gt; $S/vm/common.ps1 &lt;&lt;'EOF'
+function Close-App([int]$TimeoutSec = 60) {
+  $p = Get-Process orca-slicer -ErrorAction SilentlyContinue
+  if (-not $p) { "$(T) app not runni
+
+... [1852 characters truncated] ...
+
+/winscp.sh $S/vm/iclose.ps1 $S/vm/common.ps1 $S/vm/c2.ps1 guitest@34.135.245.169:C:/guitest/ipr/ &amp;&amp; timeout 900 ./winssh.sh 'Get-Process explorer | Where-Object Id -eq 9096 | Stop-Process -Force; powershell -NoProfile -ExecutionPolicy Bypass -File C:\guitest\ipr\c2.ps1' 2&gt;&amp;1" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bcaqhrykm</task-id>
+<tool-use-id>toolu_01AuRatvvC17CaNdW7WteEF3</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-win-install-restart-proto-fc3c72/8b17998f-1be8-4027-8800-1a20cd6031a4/tasks/bcaqhrykm.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-win-install-restart-proto-fc3c72/8b17998f-1be8-4027-8800-1a20cd6031a4/scratchpad; cd /Users/kenneth/Projects/JusPrin/.claude/vm-harness/windows/; timeout 60 ./winscp.sh $S/vm/c3.ps1 guitest@34.135.245.169:C:/guitest/ipr/ &amp;&amp; timeout 60 ./winscp.sh 'guitest@34.135.245.169:C:/guitest/ipr/C*.png' $S/shots/ &amp;&amp; timeout 1200 ./winssh.sh 'powershell -NoProfile -ExecutionPolicy Bypass -File C:\guitest\ipr\c3.ps1' 2&gt;&amp;1 | grep -v "windows.txt\|^At C\|^+ \|CategoryInfo\|FullyQualified\|^ *$"" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+give me the steps to test it myself on windows
+
+---
+
+give me the steps to test it myself on jusprin-win-test
+
+---
+
+That's a lot of hand waving. How can I make sure that you prototype the right thing? Tell me what you are supposed to prototype.
+
+---
+
+Go with A
+
+---
+
+<task-notification>
+<task-id>b0jgv3hxj</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-win-install-restart-proto-fc3c72/8b17998f-1be8-4027-8800-1a20cd6031a4/tasks/b0jgv3hxj.output</output-file>
+<status>failed</status>
+<summary>Background command "cd /Users/kenneth/Projects/JusPrin/.claude/vm-harness/windows/; for i in $(seq 1 180); do out=$(timeout 60 ./winssh.sh 'powershell -NoProfile -Command "Select-String -Path C:\guitest\ipr\jusprin-build.log -Pattern ^exit= | Select-Object -Last 1 | ForEach-Object Line"' 2&gt;/dev/null); if [ -n "$out" ]; then echo "$out"; break; fi; sleep 60; done; timeout 60 ./winssh.sh 'powershell -NoProfile -Command "Select-String -Path C:\guitest\ipr\jusprin-build.log -Pattern \"error \" | Select-Object -First 10 | ForEach-Object Line; Get-Content C:\guitest\ipr\jusprin-build.log -Tail 8"'" failed with exit code 1</summary>
+</task-notification>
