@@ -11,6 +11,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include <ctime>
+
 using namespace Slic3r::GUI::JusPrin::Updates;
 using nlohmann::json;
 
@@ -196,6 +198,51 @@ TEST_CASE("A skipped version is offered again only when a newer one comes out", 
     const UpdateRecord record = load_record(config, "2.0.0");
     REQUIRE(record.available);
     CHECK(record.available->version == "2.2.0");
+}
+
+// Home's new-version card (board update-07).
+TEST_CASE("Home offers the release the check found, unless put off or checks are off", "[Updates]")
+{
+    constexpr std::time_t day = 24 * 60 * 60;
+    Slic3r::AppConfig config;
+    CHECK_FALSE(home_notice(config, "2.0.0", 1000));
+    save_success(config, 1000, Release{"2.0.1", "https://example.test/v2.0.1", "", ""});
+    REQUIRE(home_notice(config, "2.0.0", 1000));
+    CHECK(home_notice(config, "2.0.0", 1000)->version == "2.0.1");
+
+    SECTION("Remind me tomorrow hides it for a day")
+    {
+        remind_later(config, 1000 + day);
+        CHECK_FALSE(home_notice(config, "2.0.0", 1000));
+        CHECK_FALSE(home_notice(config, "2.0.0", 1000 + day - 1));
+        CHECK(home_notice(config, "2.0.0", 1000 + day));
+    }
+    SECTION("a clock set back does not hide it for longer than a day")
+    {
+        remind_later(config, 1000 + day);
+        CHECK(home_notice(config, "2.0.0", 1000 - day));
+    }
+    SECTION("Skip this version hides it until a newer one comes out")
+    {
+        skip_version(config, "2.0.1");
+        CHECK_FALSE(home_notice(config, "2.0.0", 1000));
+        save_success(config, 2000, Release{"2.0.2", "https://example.test/v2.0.2", "", ""});
+        CHECK(home_notice(config, "2.0.0", 2000));
+    }
+    SECTION("the version that runs is not offered")
+    {
+        CHECK_FALSE(home_notice(config, "2.0.1", 1000));
+    }
+    SECTION("no card with automatic checks off")
+    {
+        config.set_bool(kAutoCheckKey, false);
+        CHECK_FALSE(home_notice(config, "2.0.0", 1000));
+    }
+    SECTION("no card in stealth mode")
+    {
+        config.set_bool("stealth_mode", true);
+        CHECK_FALSE(home_notice(config, "2.0.0", 1000));
+    }
 }
 
 TEST_CASE("New JusPrin versions can be turned off", "[Updates]")

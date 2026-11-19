@@ -10,6 +10,7 @@
 
 #include <array>
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -58,6 +59,13 @@ public:
     void add_printer() override { ++wizards; }
     void open_preferences() override { ++preferences_opened; }
     void check_for_updates() override { ++update_checks; }
+    std::optional<UpdateNotice> update_notice() const override { return update; }
+    void open_update_notes() override { update_calls.push_back("notes"); }
+    void open_update_page() override { update_calls.push_back("page"); }
+    void remind_update_later() override { update_calls.push_back("remind"); }
+    void skip_update(const std::string& version) override { update_calls.push_back("skip:" + version); }
+    std::optional<UpdateNotice> update;
+    std::vector<std::string>    update_calls;
 
     bool reports_offered() const override { return offers_reports; }
     std::optional<PrintReportPhoto> choose_report_photo() override { return report_photo; }
@@ -456,6 +464,33 @@ TEST_CASE("the free doors open Preferences and the poll brings back how it close
     backend.onboarding_changed = true;
     CHECK(host.poll());
     CHECK(wire.of_type("state").size() == states + 1);
+}
+
+// Board update-07: the card comes with the update check's answer, and goes
+// with Remind me tomorrow or Skip this version, on the poll that follows.
+TEST_CASE("the new-version card follows the update check and sends its buttons on", "[home][updates]")
+{
+    FakeBackend backend;
+    Wire wire;
+    HomeHost host(backend, wire.sink());
+    host.on_page_message(hello());
+    CHECK_FALSE(wire.of_type("state").back().at("payload").contains("update"));
+    CHECK_FALSE(host.poll());
+
+    backend.update = UpdateNotice{"2.0.1", "2.0.0"};
+    CHECK(host.poll());
+    CHECK(wire.of_type("state").back().at("payload").at("update") == json{{"version", "2.0.1"}, {"running", "2.0.0"}});
+    CHECK_FALSE(host.poll());
+
+    host.on_page_message(page_message("update_notes"));
+    host.on_page_message(page_message("update_open_page"));
+    host.on_page_message(page_message("update_remind_later"));
+    host.on_page_message(page_message("update_skip", json{{"version", "2.0.1"}}));
+    CHECK(backend.update_calls == std::vector<std::string>{"notes", "page", "remind", "skip:2.0.1"});
+
+    backend.update.reset();
+    CHECK(host.poll());
+    CHECK_FALSE(wire.of_type("state").back().at("payload").contains("update"));
 }
 
 TEST_CASE("a printer the first launch could not bring says why and keeps the step", "[home][onboarding]")

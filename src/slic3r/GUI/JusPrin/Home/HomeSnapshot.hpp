@@ -201,9 +201,22 @@ struct ProjectList
     std::string               problem;
 };
 
+// Home's new-version card (board update-07): the release JusPrin's update
+// check found, and the version running.
+struct UpdateNotice
+{
+    std::string version;
+    std::string running;
+
+    bool operator==(const UpdateNotice& other) const { return version == other.version && running == other.running; }
+    bool operator!=(const UpdateNotice& other) const { return !(*this == other); }
+};
+
 struct Snapshot
 {
     bool                      dark{false};
+    // Absent while there is nothing to offer.
+    std::optional<UpdateNotice> update;
     std::vector<ProjectEntry> projects;
     std::string               projects_problem; // ProjectList::problem
     std::vector<PrinterEntry> printers;
@@ -279,7 +292,7 @@ struct Snapshot
 
 };
 
-// The `state` payload: { appearance, projects, projectsProblem, printers, highlightPrinter, onboarding }.
+// The `state` payload: { appearance, projects, projectsProblem, printers, highlightPrinter, onboarding, update? }.
 nlohmann::json state_payload(const Snapshot& snapshot);
 
 }}}} // namespace Slic3r::GUI::JusPrin::Home

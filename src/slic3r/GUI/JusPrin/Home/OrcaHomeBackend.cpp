@@ -33,6 +33,7 @@
 #include "slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp"
 #include "libslic3r/PresetBundle.hpp"
 #include "libslic3r/Utils.hpp"
+#include "slic3r/GUI/JusPrin/Updates/UpdateCheck.hpp"
 #include "slic3r/GUI/JusPrin/Updates/Version.hpp"
 #include "slic3r/GUI/JusPrin/Support/DecimalText.hpp"
 #include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
@@ -1585,6 +1586,33 @@ void OrcaHomeBackend::check_for_updates()
 {
     get_new_version();
 }
+
+std::optional<UpdateNotice> OrcaHomeBackend::update_notice() const
+{
+    const std::optional<Updates::Release> release = Updates::update_check().home_notice();
+    if (!release)
+        return std::nullopt;
+    return UpdateNotice{release->version, Updates::kVersion};
+}
+
+void OrcaHomeBackend::open_update_notes()
+{
+    if (ShellController* shell = installed_shell())
+        shell->request_preferences("updates");
+    else
+        wxGetApp().CallAfter(reported("opening Preferences", [] { wxGetApp().open_preferences(); }));
+}
+
+void OrcaHomeBackend::open_update_page()
+{
+    // As Preferences' Download does.
+    if (const auto available = Updates::update_check().state().available)
+        wxLaunchDefaultBrowser(wxString::FromUTF8(available->url));
+}
+
+void OrcaHomeBackend::remind_update_later() { Updates::update_check().remind_later(); }
+
+void OrcaHomeBackend::skip_update(const std::string& version) { Updates::update_check().skip(version); }
 
 void OrcaHomeBackend::open_preferences()
 {

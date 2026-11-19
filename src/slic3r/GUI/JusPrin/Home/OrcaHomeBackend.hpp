@@ -24,6 +24,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -93,6 +94,11 @@ public:
     void add_printer() override;
     void open_preferences() override;
     void check_for_updates() override;
+    std::optional<UpdateNotice> update_notice() const override;
+    void open_update_notes() override;
+    void open_update_page() override;
+    void remind_update_later() override;
+    void skip_update(const std::string& version) override;
 
     bool poll_onboarding() override;
     void start_sign_in() override;

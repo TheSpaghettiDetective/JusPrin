@@ -283,6 +283,34 @@ describe('Home', () => {
     expect(atob(payload.files[0].dataBase64.split(';base64,')[1])).toBe('solid cube');
   });
 
+  // Board update-07: the card leads the right column while the host offers a
+  // release, and each of its buttons is the host's to carry out.
+  it('offers a new version at the top of the right column and sends its buttons to the host', async () => {
+    const host = start();
+    host.deliver('state', state());
+    expect(screen.queryByRole('region', { name: 'New version' })).toBeNull();
+
+    host.deliver('state', state({ update: { version: '2.0.1', running: '2.0.0' } }));
+    const card = screen.getByRole('region', { name: 'New version' });
+    expect(document.querySelector('.printer-column')!.firstElementChild).toBe(card);
+    expect(within(card).getByRole('heading', { name: 'JusPrin 2.0.1 is available' })).toBeInTheDocument();
+    expect(card).toHaveTextContent('You have version 2.0.0.');
+    expect(within(card).getByRole('button', { name: 'Open download page' })).toHaveClass('button-primary');
+
+    await userEvent.click(within(card).getByRole('button', { name: 'See what’s new' }));
+    await userEvent.click(within(card).getByRole('button', { name: 'Open download page' }));
+    await userEvent.click(within(card).getByRole('button', { name: 'Remind me tomorrow' }));
+    await userEvent.click(within(card).getByRole('button', { name: 'Skip this version' }));
+    expect(host.ofType('update_notes')).toHaveLength(1);
+    expect(host.ofType('update_open_page')).toHaveLength(1);
+    expect(host.ofType('update_remind_later')).toHaveLength(1);
+    expect(host.lastOfType('update_skip')!.payload).toEqual({ version: '2.0.1' });
+
+    // The host's next state without a release takes the card away.
+    host.deliver('state', state());
+    expect(screen.queryByRole('region', { name: 'New version' })).toBeNull();
+  });
+
   it('opens Preferences from the gear and from Ctrl+,', async () => {
     const host = start();
     host.deliver('state', state());

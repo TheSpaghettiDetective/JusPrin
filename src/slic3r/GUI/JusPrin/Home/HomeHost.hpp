@@ -13,6 +13,7 @@
 #include "HomeBackend.hpp"
 
 #include <memory>
+#include <optional>
 
 #include <nlohmann/json_fwd.hpp>
 
@@ -49,8 +50,9 @@ public:
     // read becoming readable: while the page shows that problem, the
     // projects are re-read on every refresh too. Returns whether it sent.
     bool refresh_if_changed();
-    // First run's own sources: sends the whole state when the backend says
-    // something it shows changed. Returns whether it sent.
+    // First run's own sources and the new-version card: sends the whole
+    // state when the backend says something it shows changed, or the card
+    // differs from the one last sent. Returns whether it sent.
     bool poll();
     void push_appearance(bool dark);
     // Which screen the page shows: {screen: "home"}, or {screen: "history",
@@ -102,6 +104,8 @@ private:
     StepListener       m_step_listener;
     // Why the last state sent had no projects, when they could not be read.
     std::string        m_sent_projects_problem;
+    // The new-version card in the last state sent, which poll compares.
+    std::optional<UpdateNotice> m_sent_update;
     // A print report is answered after the host may be gone.
     std::shared_ptr<void> m_alive{std::make_shared<int>(0)};
 };

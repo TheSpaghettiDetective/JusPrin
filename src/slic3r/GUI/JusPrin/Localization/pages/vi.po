@@ -2212,6 +2212,7 @@ msgid "Jump to latest"
 msgstr "Đến tin mới nhất"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
 #: src/components/Preferences.tsx
 msgid "JusPrin {latest} is available"
 msgstr "Đã có JusPrin {latest}"
@@ -2696,6 +2697,11 @@ msgid "New print settings"
 msgstr "Cài đặt in mới"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "New version"
+msgstr "Phiên bản mới"
+
+# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Next"
 msgstr "Tiếp theo"
@@ -2960,6 +2966,11 @@ msgstr "Trực tuyến"
 #: src/components/ChatNavigation.tsx
 msgid "Open chat: {title}"
 msgstr "Mở cuộc trò chuyện: {title}"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "Open download page"
+msgstr "Mở trang tải xuống"
 
 # AI Translated
 #: src/App.tsx
@@ -3373,6 +3384,11 @@ msgid "Released {released} · you have {current}"
 msgstr "Phát hành {released} · bạn đang dùng {current}"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "Remind me tomorrow"
+msgstr "Nhắc tôi vào ngày mai"
+
+# AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
 #: ../HomeUI/src/components/PrintReportForm.tsx
 #: src/components/AgentConnection.tsx
@@ -3700,6 +3716,11 @@ msgid "See usage"
 msgstr "Xem mức sử dụng"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "See what’s new"
+msgstr "Có gì mới"
+
+# AI Translated
 #: src/components/Composer.tsx
 msgid "Send"
 msgstr "Gửi"
@@ -3929,6 +3950,7 @@ msgid "Skip for now"
 msgstr "Bỏ qua lúc này"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
 #: src/components/Preferences.tsx
 msgid "Skip this version"
 msgstr "Bỏ qua phiên bản này"
@@ -4191,6 +4213,11 @@ msgstr "Ứng dụng sẽ tự tiếp tục khi bạn xong việc trên trình d
 #: src/components/AddPrinterForm.tsx
 msgid "The Create filament window opens"
 msgstr "Cửa sổ Tạo filament sẽ mở"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "The download page is on GitHub. Pick the file for your computer there: Mac, Windows or Linux."
+msgstr "Trang tải xuống nằm trên GitHub. Hãy chọn tệp cho máy tính của bạn ở đó: Mac, Windows hoặc Linux."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -4664,6 +4691,11 @@ msgstr "Bạn có thể chuẩn bị bản in với máy in này trước khi c�
 #: src/components/Preferences.tsx
 msgid "You have {current}"
 msgstr "Bạn đang dùng {current}"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "You have version {running}. Your projects, printers and settings stay when you install the new one. Installing doesn’t affect a print your printer is already running."
+msgstr "Bạn đang dùng phiên bản {running}. Các dự án, máy in và cài đặt của bạn vẫn được giữ khi bạn cài phiên bản mới. Việc cài đặt không ảnh hưởng đến bản in mà máy in của bạn đang thực hiện."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx

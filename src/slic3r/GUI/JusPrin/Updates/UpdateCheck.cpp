@@ -152,6 +152,19 @@ void UpdateCheck::unskip()
     notify();
 }
 
+void UpdateCheck::remind_later()
+{
+    Updates::remind_later(config(), now() + 24 * 60 * 60);
+    notify();
+}
+
+std::optional<Release> UpdateCheck::home_notice() const
+{
+    if (is_running_in_msix())
+        return std::nullopt;
+    return Updates::home_notice(config(), kVersion, now());
+}
+
 int UpdateCheck::subscribe(std::function<void()> listener)
 {
     m_listeners.emplace(++m_next_token, std::move(listener));

@@ -2212,6 +2212,7 @@ msgid "Jump to latest"
 msgstr "Přejít na nejnovější"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
 #: src/components/Preferences.tsx
 msgid "JusPrin {latest} is available"
 msgstr "Je k dispozici JusPrin {latest}"
@@ -2698,6 +2699,11 @@ msgid "New print settings"
 msgstr "Nová nastavení tisku"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "New version"
+msgstr "Nová verze"
+
+# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Next"
 msgstr "Další"
@@ -2962,6 +2968,11 @@ msgstr "Online"
 #: src/components/ChatNavigation.tsx
 msgid "Open chat: {title}"
 msgstr "Otevřít chat: {title}"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "Open download page"
+msgstr "Otevřít stránku ke stažení"
 
 # AI Translated
 #: src/App.tsx
@@ -3376,6 +3387,11 @@ msgid "Released {released} · you have {current}"
 msgstr "Vydáno {released} · máte {current}"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "Remind me tomorrow"
+msgstr "Připomenout zítra"
+
+# AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
 #: ../HomeUI/src/components/PrintReportForm.tsx
 #: src/components/AgentConnection.tsx
@@ -3703,6 +3719,11 @@ msgid "See usage"
 msgstr "Zobrazit využití"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "See what’s new"
+msgstr "Co je nového"
+
+# AI Translated
 #: src/components/Composer.tsx
 msgid "Send"
 msgstr "Odeslat"
@@ -3932,6 +3953,7 @@ msgid "Skip for now"
 msgstr "Prozatím přeskočit"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
 #: src/components/Preferences.tsx
 msgid "Skip this version"
 msgstr "Přeskočit tuto verzi"
@@ -4194,6 +4216,11 @@ msgstr "Jakmile v prohlížeči skončíte, aplikace bude pokračovat sama."
 #: src/components/AddPrinterForm.tsx
 msgid "The Create filament window opens"
 msgstr "Otevře se okno Vytvořit filament"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "The download page is on GitHub. Pick the file for your computer there: Mac, Windows or Linux."
+msgstr "Stránka ke stažení je na GitHubu. Vyberte tam soubor pro svůj počítač: Mac, Windows nebo Linux."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -4667,6 +4694,11 @@ msgstr "S touto tiskárnou můžete připravovat tisky ještě před instalací 
 #: src/components/Preferences.tsx
 msgid "You have {current}"
 msgstr "Máte {current}"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "You have version {running}. Your projects, printers and settings stay when you install the new one. Installing doesn’t affect a print your printer is already running."
+msgstr "Máte verzi {running}. Vaše projekty, tiskárny a nastavení zůstanou, když nainstalujete novou. Instalace neovlivní tisk, který vaše tiskárna právě provádí."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx

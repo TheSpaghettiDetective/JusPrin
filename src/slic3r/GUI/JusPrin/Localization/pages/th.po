@@ -2222,6 +2222,7 @@ msgid "Jump to latest"
 msgstr "ไปที่ล่าสุด"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
 #: src/components/Preferences.tsx
 msgid "JusPrin {latest} is available"
 msgstr "JusPrin {latest} พร้อมให้ใช้งานแล้ว"
@@ -2708,6 +2709,11 @@ msgid "New print settings"
 msgstr "การตั้งค่าพิมพ์ใหม่"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "New version"
+msgstr "เวอร์ชันใหม่"
+
+# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Next"
 msgstr "ถัดไป"
@@ -2973,6 +2979,11 @@ msgstr "ออนไลน์"
 #: src/components/ChatNavigation.tsx
 msgid "Open chat: {title}"
 msgstr "เปิดแชท: {title}"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "Open download page"
+msgstr "เปิดหน้าดาวน์โหลด"
 
 # AI Translated
 #: src/App.tsx
@@ -3388,6 +3399,11 @@ msgid "Released {released} · you have {current}"
 msgstr "เผยแพร่ {released} · คุณใช้ {current}"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "Remind me tomorrow"
+msgstr "เตือนฉันพรุ่งนี้"
+
+# AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
 #: ../HomeUI/src/components/PrintReportForm.tsx
 #: src/components/AgentConnection.tsx
@@ -3716,6 +3732,11 @@ msgid "See usage"
 msgstr "ดูการใช้งาน"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "See what’s new"
+msgstr "มีอะไรใหม่"
+
+# AI Translated
 #: src/components/Composer.tsx
 msgid "Send"
 msgstr "ส่ง"
@@ -3945,6 +3966,7 @@ msgid "Skip for now"
 msgstr "ข้ามไปก่อน"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
 #: src/components/Preferences.tsx
 msgid "Skip this version"
 msgstr "ข้ามเวอร์ชันนี้"
@@ -4209,6 +4231,12 @@ msgstr "แอปจะดำเนินการต่อเองเมื่
 #: src/components/AddPrinterForm.tsx
 msgid "The Create filament window opens"
 msgstr "หน้าต่างสร้างเส้นพลาสติกจะเปิดขึ้น"
+
+# AI Translated
+# Needs human review: Thai wording of the whole sentence
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "The download page is on GitHub. Pick the file for your computer there: Mac, Windows or Linux."
+msgstr "หน้าดาวน์โหลดอยู่บน GitHub เลือกไฟล์สำหรับคอมพิวเตอร์ของคุณที่นั่น: Mac, Windows หรือ Linux"
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -4686,6 +4714,12 @@ msgstr "คุณเตรียมงานพิมพ์ด้วยเคร
 #: src/components/Preferences.tsx
 msgid "You have {current}"
 msgstr "คุณใช้ {current}"
+
+# AI Translated
+# Needs human review: Thai wording of the whole sentence
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "You have version {running}. Your projects, printers and settings stay when you install the new one. Installing doesn’t affect a print your printer is already running."
+msgstr "คุณใช้เวอร์ชัน {running} อยู่ โปรเจกต์ เครื่องพิมพ์ และการตั้งค่าของคุณจะยังอยู่เมื่อคุณติดตั้งเวอร์ชันใหม่ การติดตั้งไม่มีผลต่องานพิมพ์ที่เครื่องพิมพ์ของคุณกำลังพิมพ์อยู่"
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx

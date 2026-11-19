@@ -2230,6 +2230,7 @@ msgid "Jump to latest"
 msgstr "Naar nieuwste"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
 #: src/components/Preferences.tsx
 msgid "JusPrin {latest} is available"
 msgstr "JusPrin {latest} is beschikbaar"
@@ -2718,6 +2719,11 @@ msgid "New print settings"
 msgstr "Nieuwe printinstellingen"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "New version"
+msgstr "Nieuwe versie"
+
+# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Next"
 msgstr "Volgende"
@@ -2982,6 +2988,11 @@ msgstr "Online"
 #: src/components/ChatNavigation.tsx
 msgid "Open chat: {title}"
 msgstr "Chat openen: {title}"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "Open download page"
+msgstr "Downloadpagina openen"
 
 # AI Translated
 #: src/App.tsx
@@ -3399,6 +3410,11 @@ msgid "Released {released} · you have {current}"
 msgstr "Uitgebracht op {released} · u hebt {current}"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "Remind me tomorrow"
+msgstr "Morgen herinneren"
+
+# AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
 #: ../HomeUI/src/components/PrintReportForm.tsx
 #: src/components/AgentConnection.tsx
@@ -3728,6 +3744,11 @@ msgid "See usage"
 msgstr "Gebruik bekijken"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "See what’s new"
+msgstr "Wat is er nieuw"
+
+# AI Translated
 #: src/components/Composer.tsx
 msgid "Send"
 msgstr "Versturen"
@@ -3959,6 +3980,7 @@ msgid "Skip for now"
 msgstr "Voorlopig overslaan"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
 #: src/components/Preferences.tsx
 msgid "Skip this version"
 msgstr "Deze versie overslaan"
@@ -4222,6 +4244,11 @@ msgstr "De app gaat vanzelf verder zodra de browser klaar is."
 #: src/components/AddPrinterForm.tsx
 msgid "The Create filament window opens"
 msgstr "Het venster Filament maken wordt geopend"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "The download page is on GitHub. Pick the file for your computer there: Mac, Windows or Linux."
+msgstr "De downloadpagina staat op GitHub. Kies daar het bestand voor je computer: Mac, Windows of Linux."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -4700,6 +4727,11 @@ msgstr "U kunt prints voorbereiden met deze printer voordat u de Bambu-plug-in i
 #: src/components/Preferences.tsx
 msgid "You have {current}"
 msgstr "U hebt {current}"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "You have version {running}. Your projects, printers and settings stay when you install the new one. Installing doesn’t affect a print your printer is already running."
+msgstr "Je hebt versie {running}. Je projecten, printers en instellingen blijven behouden als je de nieuwe installeert. Installeren heeft geen invloed op een print die je printer al aan het maken is."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx

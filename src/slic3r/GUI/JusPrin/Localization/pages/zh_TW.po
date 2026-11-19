@@ -2227,6 +2227,7 @@ msgid "Jump to latest"
 msgstr "跳到最新"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
 #: src/components/Preferences.tsx
 msgid "JusPrin {latest} is available"
 msgstr "JusPrin {latest} 已推出"
@@ -2715,6 +2716,11 @@ msgid "New print settings"
 msgstr "新列印設定"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "New version"
+msgstr "新版本"
+
+# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Next"
 msgstr "下一步"
@@ -2981,6 +2987,11 @@ msgstr "線上"
 #: src/components/ChatNavigation.tsx
 msgid "Open chat: {title}"
 msgstr "開啟對話：{title}"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "Open download page"
+msgstr "開啟下載頁面"
 
 # AI Translated
 #: src/App.tsx
@@ -3396,6 +3407,11 @@ msgid "Released {released} · you have {current}"
 msgstr "發布於 {released} · 您目前的版本為 {current}"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "Remind me tomorrow"
+msgstr "明天提醒我"
+
+# AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
 #: ../HomeUI/src/components/PrintReportForm.tsx
 #: src/components/AgentConnection.tsx
@@ -3726,6 +3742,11 @@ msgid "See usage"
 msgstr "查看用量"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "See what’s new"
+msgstr "新功能"
+
+# AI Translated
 #: src/components/Composer.tsx
 msgid "Send"
 msgstr "傳送"
@@ -3956,6 +3977,7 @@ msgid "Skip for now"
 msgstr "暫時略過"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
 #: src/components/Preferences.tsx
 msgid "Skip this version"
 msgstr "略過此版本"
@@ -4219,6 +4241,11 @@ msgstr "瀏覽器完成後，App 會自動繼續。"
 #: src/components/AddPrinterForm.tsx
 msgid "The Create filament window opens"
 msgstr "「建立線材」視窗會開啟"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "The download page is on GitHub. Pick the file for your computer there: Mac, Windows or Linux."
+msgstr "下載頁面在 GitHub 上。請在那裡選擇適合你電腦的檔案：Mac、Windows 或 Linux。"
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -4696,6 +4723,11 @@ msgstr "安裝 Bambu 外掛程式之前，您就可以使用此列印裝置準�
 #: src/components/Preferences.tsx
 msgid "You have {current}"
 msgstr "您目前的版本為 {current}"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "You have version {running}. Your projects, printers and settings stay when you install the new one. Installing doesn’t affect a print your printer is already running."
+msgstr "你目前的版本是 {running}。安裝新版本後，你的專案、印表機和設定都會保留。安裝不會影響印表機正在進行的列印。"
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx

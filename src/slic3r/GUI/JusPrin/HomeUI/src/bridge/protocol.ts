@@ -333,6 +333,15 @@ export interface StatePayload {
   // A printer the conversation just added; empty for any other push.
   highlightPrinter?: string;
   onboarding: OnboardingState;
+  // The new-version card's release; absent while there is nothing to offer.
+  update?: UpdateNotice;
+}
+
+// A newer JusPrin the update check found (board update-07): its version and
+// the one running.
+export interface UpdateNotice {
+  version: string;
+  running: string;
 }
 
 // The first launch: the welcome, then the Printers step, then Home. The host

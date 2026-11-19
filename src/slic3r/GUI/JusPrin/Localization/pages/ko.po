@@ -2214,6 +2214,7 @@ msgid "Jump to latest"
 msgstr "최신 메시지로 이동"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
 #: src/components/Preferences.tsx
 msgid "JusPrin {latest} is available"
 msgstr "JusPrin {latest}을(를) 사용할 수 있습니다"
@@ -2698,6 +2699,11 @@ msgid "New print settings"
 msgstr "새 출력 설정"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "New version"
+msgstr "새 버전"
+
+# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Next"
 msgstr "다음"
@@ -2962,6 +2968,11 @@ msgstr "온라인"
 #: src/components/ChatNavigation.tsx
 msgid "Open chat: {title}"
 msgstr "채팅 열기: {title}"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "Open download page"
+msgstr "다운로드 페이지 열기"
 
 # AI Translated
 #: src/App.tsx
@@ -3375,6 +3386,11 @@ msgid "Released {released} · you have {current}"
 msgstr "{released} 출시 · 현재 버전 {current}"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "Remind me tomorrow"
+msgstr "내일 다시 알림"
+
+# AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
 #: ../HomeUI/src/components/PrintReportForm.tsx
 #: src/components/AgentConnection.tsx
@@ -3702,6 +3718,11 @@ msgid "See usage"
 msgstr "사용량 보기"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "See what’s new"
+msgstr "새로운 기능"
+
+# AI Translated
 #: src/components/Composer.tsx
 msgid "Send"
 msgstr "보내기"
@@ -3931,6 +3952,7 @@ msgid "Skip for now"
 msgstr "지금은 건너뛰기"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
 #: src/components/Preferences.tsx
 msgid "Skip this version"
 msgstr "이 버전 건너뛰기"
@@ -4193,6 +4215,11 @@ msgstr "브라우저에서 완료되면 앱이 자동으로 계속 진행합니�
 #: src/components/AddPrinterForm.tsx
 msgid "The Create filament window opens"
 msgstr "필라멘트 만들기 창이 열립니다"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "The download page is on GitHub. Pick the file for your computer there: Mac, Windows or Linux."
+msgstr "다운로드 페이지는 GitHub에 있습니다. 그곳에서 사용 중인 컴퓨터용 파일(Mac, Windows 또는 Linux)을 고르세요."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -4666,6 +4693,11 @@ msgstr "Bambu 플러그인을 설치하기 전에도 이 프린터로 출력을 
 #: src/components/Preferences.tsx
 msgid "You have {current}"
 msgstr "현재 버전 {current}"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "You have version {running}. Your projects, printers and settings stay when you install the new one. Installing doesn’t affect a print your printer is already running."
+msgstr "현재 버전은 {running}입니다. 새 버전을 설치해도 프로젝트, 프린터, 설정은 그대로 유지됩니다. 설치는 프린터에서 이미 진행 중인 출력에 영향을 주지 않습니다."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx

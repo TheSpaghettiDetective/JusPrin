@@ -15,6 +15,7 @@ constexpr char        kUrlKey[]         = "jusprin_update_url";
 constexpr char        kPublishedKey[]   = "jusprin_update_published";
 constexpr char        kNotesKey[]       = "jusprin_update_notes";
 constexpr char        kSkippedKey[]     = "jusprin_update_skipped";
+constexpr char        kRemindKey[]      = "jusprin_update_remind_after";
 constexpr std::time_t kDay              = 24 * 60 * 60;
 
 std::time_t read_time(const AppConfig& config, const char* key)
@@ -63,6 +64,19 @@ void save_failure(AppConfig& config, std::time_t now)
 
 void skip_version(AppConfig& config, const std::string& version) { config.set(kSkippedKey, version); }
 void unskip(AppConfig& config) { config.set(kSkippedKey, std::string()); }
+
+void remind_later(AppConfig& config, std::time_t until) { config.set(kRemindKey, std::to_string(until)); }
+
+std::optional<Release> home_notice(const AppConfig& config, const std::string& running, std::time_t now)
+{
+    if (!auto_check_enabled(config) || config.get_bool("stealth_mode"))
+        return std::nullopt;
+    // A clock set back by more than a day must not hide the card for longer.
+    const std::time_t remind = read_time(config, kRemindKey);
+    if (now < remind && remind - now <= kDay)
+        return std::nullopt;
+    return load_record(config, running).available;
+}
 
 bool check_due(const UpdateRecord& record, std::time_t now, bool at_startup)
 {

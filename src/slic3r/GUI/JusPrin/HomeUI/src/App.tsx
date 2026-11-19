@@ -15,6 +15,7 @@ import { ChevronDownGlyph, HistoryGlyph, PlusGlyph, SearchGlyph, SettingsGlyph, 
 import { Lockup } from './components/Lockup';
 import { Onboarding, STAND_IN_PRINTER } from './components/Onboarding';
 import { AgentGroup } from './components/AgentGroup';
+import { UpdateCard } from './components/UpdateCard';
 import { initialState, reduce } from './state/store';
 import type { Screen } from './state/store';
 import { applyAppearance } from './tokens';
@@ -343,6 +344,14 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
           )}
         </main>
         <aside className="printer-column">
+          {state.update && (
+            <UpdateCard update={state.update} actions={{
+              onNotes: () => client.send('update_notes', {}),
+              onOpenPage: () => client.send('update_open_page', {}),
+              onRemindLater: () => client.send('update_remind_later', {}),
+              onSkip: (version) => client.send('update_skip', { version }),
+            }} />
+          )}
           {state.onboarding && (
             <AgentGroup onboarding={state.onboarding} onAction={onboardingAction} setupHidden={Boolean(state.agentSetupHidden)}
               onHideSetup={() => {

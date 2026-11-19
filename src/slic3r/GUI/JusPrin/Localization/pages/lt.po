@@ -2216,6 +2216,7 @@ msgid "Jump to latest"
 msgstr "Pereiti į naujausią"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
 #: src/components/Preferences.tsx
 msgid "JusPrin {latest} is available"
 msgstr "Išleista JusPrin {latest}"
@@ -2700,6 +2701,11 @@ msgid "New print settings"
 msgstr "Nauji spausdinimo nustatymai"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "New version"
+msgstr "Nauja versija"
+
+# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Next"
 msgstr "Toliau"
@@ -2964,6 +2970,11 @@ msgstr "Prisijungęs"
 #: src/components/ChatNavigation.tsx
 msgid "Open chat: {title}"
 msgstr "Atverti pokalbį: {title}"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "Open download page"
+msgstr "Atidaryti atsisiuntimo puslapį"
 
 # AI Translated
 #: src/App.tsx
@@ -3377,6 +3388,11 @@ msgid "Released {released} · you have {current}"
 msgstr "Išleista {released} · jūsų versija {current}"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "Remind me tomorrow"
+msgstr "Priminti rytoj"
+
+# AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
 #: ../HomeUI/src/components/PrintReportForm.tsx
 #: src/components/AgentConnection.tsx
@@ -3704,6 +3720,11 @@ msgid "See usage"
 msgstr "Žiūrėti naudojimą"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "See what’s new"
+msgstr "Kas naujo"
+
+# AI Translated
 #: src/components/Composer.tsx
 msgid "Send"
 msgstr "Siųsti"
@@ -3933,6 +3954,7 @@ msgid "Skip for now"
 msgstr "Kol kas praleisti"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
 #: src/components/Preferences.tsx
 msgid "Skip this version"
 msgstr "Praleisti šią versiją"
@@ -4195,6 +4217,12 @@ msgstr "Kai naršyklėje baigsite, programa tęs darbą pati."
 #: src/components/AddPrinterForm.tsx
 msgid "The Create filament window opens"
 msgstr "Atsiveria langas „Sukurti giją“"
+
+# AI Translated
+# Needs human review: Lithuanian wording of the whole sentence
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "The download page is on GitHub. Pick the file for your computer there: Mac, Windows or Linux."
+msgstr "Atsisiuntimo puslapis yra „GitHub“. Ten pasirinkite failą savo kompiuteriui: „Mac“, „Windows“ arba „Linux“."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -4668,6 +4696,12 @@ msgstr "Su šiuo spausdintuvu spausdinimus galite ruošti dar neįdiegę Bambu p
 #: src/components/Preferences.tsx
 msgid "You have {current}"
 msgstr "Jūsų versija: {current}"
+
+# AI Translated
+# Needs human review: Lithuanian wording of the whole sentence
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "You have version {running}. Your projects, printers and settings stay when you install the new one. Installing doesn’t affect a print your printer is already running."
+msgstr "Turite {running} versiją. Įdiegus naująją, jūsų projektai, spausdintuvai ir nustatymai išliks. Diegimas neturi įtakos spaudiniui, kurį jūsų spausdintuvas jau spausdina."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx

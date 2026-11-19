@@ -586,6 +586,36 @@ body {
   color: var(--text-secondary);
 }
 
+/* The new-version card (board update-07), above the Agent group: the Agent
+   group's card, with its buttons at their own widths. */
+.update-card {
+  margin-bottom: 8px;
+}
+
+.update-card > button {
+  align-self: flex-start;
+}
+
+.update-card-title {
+  margin: 0;
+  font: var(--font-body-bold);
+  color: var(--text-primary);
+}
+
+.update-card .update-card-body {
+  font: var(--font-body-small);
+  color: var(--text-primary);
+}
+
+.update-card .update-card-note {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.update-card-download {
+  margin-top: 4px;
+}
+
 .footnote {
   font: var(--font-label);
   color: var(--text-secondary);
@@ -1350,6 +1380,7 @@ body {
 .glyph-check { -webkit-mask-image: url('@resources/jusprin/ui/icons/check.svg'); mask-image: url('@resources/jusprin/ui/icons/check.svg'); }
 .glyph-alert { -webkit-mask-image: url('@resources/jusprin/ui/icons/circle-alert.svg'); mask-image: url('@resources/jusprin/ui/icons/circle-alert.svg'); }
 .glyph-close { -webkit-mask-image: url('@resources/jusprin/ui/icons/x.svg'); mask-image: url('@resources/jusprin/ui/icons/x.svg'); }
+.glyph-external { -webkit-mask-image: url('@resources/jusprin/ui/icons/arrow-up-right.svg'); mask-image: url('@resources/jusprin/ui/icons/arrow-up-right.svg'); }
 .glyph-download { -webkit-mask-image: url('@resources/jusprin/ui/icons/download.svg'); mask-image: url('@resources/jusprin/ui/icons/download.svg'); }
 .glyph-message { -webkit-mask-image: url('@resources/jusprin/ui/icons/message-circle.svg'); mask-image: url('@resources/jusprin/ui/icons/message-circle.svg'); }
 .glyph-send { -webkit-mask-image: url('@resources/jusprin/ui/icons/send.svg'); mask-image: url('@resources/jusprin/ui/icons/send.svg'); }

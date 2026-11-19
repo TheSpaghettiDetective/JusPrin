@@ -2230,6 +2230,7 @@ msgid "Jump to latest"
 msgstr "Vai agli ultimi"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
 #: src/components/Preferences.tsx
 msgid "JusPrin {latest} is available"
 msgstr "JusPrin {latest} è disponibile"
@@ -2722,6 +2723,11 @@ msgid "New print settings"
 msgstr "Nuove impostazioni di stampa"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "New version"
+msgstr "Nuova versione"
+
+# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Next"
 msgstr "Avanti"
@@ -2989,6 +2995,11 @@ msgstr "In linea"
 #: src/components/ChatNavigation.tsx
 msgid "Open chat: {title}"
 msgstr "Apri chat: {title}"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "Open download page"
+msgstr "Apri la pagina di download"
 
 # AI Translated
 #: src/App.tsx
@@ -3407,6 +3418,11 @@ msgid "Released {released} · you have {current}"
 msgstr "Rilasciata il {released} · la tua versione è {current}"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "Remind me tomorrow"
+msgstr "Ricordamelo domani"
+
+# AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
 #: ../HomeUI/src/components/PrintReportForm.tsx
 #: src/components/AgentConnection.tsx
@@ -3738,6 +3754,11 @@ msgid "See usage"
 msgstr "Vedi l’utilizzo"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "See what’s new"
+msgstr "Novità"
+
+# AI Translated
 #: src/components/Composer.tsx
 msgid "Send"
 msgstr "Invia"
@@ -3969,6 +3990,7 @@ msgid "Skip for now"
 msgstr "Salta per ora"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
 #: src/components/Preferences.tsx
 msgid "Skip this version"
 msgstr "Salta questa versione"
@@ -4234,6 +4256,11 @@ msgstr "L’app prosegue da sola quando il browser ha finito."
 #: src/components/AddPrinterForm.tsx
 msgid "The Create filament window opens"
 msgstr "Si apre la finestra Crea filamento"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "The download page is on GitHub. Pick the file for your computer there: Mac, Windows or Linux."
+msgstr "La pagina di download è su GitHub. Scegli lì il file per il tuo computer: Mac, Windows o Linux."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -4710,6 +4737,11 @@ msgstr "Puoi preparare stampe con questa stampante prima di installare il plug-i
 #: src/components/Preferences.tsx
 msgid "You have {current}"
 msgstr "Hai la {current}"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "You have version {running}. Your projects, printers and settings stay when you install the new one. Installing doesn’t affect a print your printer is already running."
+msgstr "Hai la versione {running}. I tuoi progetti, stampanti e impostazioni restano quando installi la nuova. L’installazione non influisce su una stampa che la tua stampante sta già eseguendo."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx

@@ -1798,6 +1798,7 @@ msgstr "Its earlier values are back."
 msgid "Jump to latest"
 msgstr "Jump to latest"
 
+#: ../HomeUI/src/components/UpdateCard.tsx
 #: src/components/Preferences.tsx
 msgid "JusPrin {latest} is available"
 msgstr "JusPrin {latest} is available"
@@ -2190,6 +2191,10 @@ msgstr "New JusPrin versions"
 msgid "New print settings"
 msgstr "New print settings"
 
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "New version"
+msgstr "New version"
+
 #: src/components/AddPrinterForm.tsx
 msgid "Next"
 msgstr "Next"
@@ -2403,6 +2408,10 @@ msgstr "Online"
 #: src/components/ChatNavigation.tsx
 msgid "Open chat: {title}"
 msgstr "Open chat: {title}"
+
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "Open download page"
+msgstr "Open download page"
 
 #: src/App.tsx
 msgid "Open filament settings"
@@ -2736,6 +2745,10 @@ msgstr "Release notes"
 msgid "Released {released} · you have {current}"
 msgstr "Released {released} · you have {current}"
 
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "Remind me tomorrow"
+msgstr "Remind me tomorrow"
+
 #: ../HomeUI/src/components/PrinterMenu.tsx
 #: ../HomeUI/src/components/PrintReportForm.tsx
 #: src/components/AgentConnection.tsx
@@ -3002,6 +3015,10 @@ msgstr "See prices"
 msgid "See usage"
 msgstr "See usage"
 
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "See what’s new"
+msgstr "See what’s new"
+
 #: src/components/Composer.tsx
 msgid "Send"
 msgstr "Send"
@@ -3188,6 +3205,7 @@ msgstr "Skip — start with {defaultLabel}"
 msgid "Skip for now"
 msgstr "Skip for now"
 
+#: ../HomeUI/src/components/UpdateCard.tsx
 #: src/components/Preferences.tsx
 msgid "Skip this version"
 msgstr "Skip this version"
@@ -3399,6 +3417,10 @@ msgstr "The app continues on its own once the browser is done."
 #: src/components/AddPrinterForm.tsx
 msgid "The Create filament window opens"
 msgstr "The Create filament window opens"
+
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "The download page is on GitHub. Pick the file for your computer there: Mac, Windows or Linux."
+msgstr "The download page is on GitHub. Pick the file for your computer there: Mac, Windows or Linux."
 
 #: src/components/SetupLocalTool.tsx
 msgid "The file changed since you reviewed it."
@@ -3781,6 +3803,10 @@ msgstr "You can prepare prints with this printer before installing the Bambu plu
 #: src/components/Preferences.tsx
 msgid "You have {current}"
 msgstr "You have {current}"
+
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "You have version {running}. Your projects, printers and settings stay when you install the new one. Installing doesn’t affect a print your printer is already running."
+msgstr "You have version {running}. Your projects, printers and settings stay when you install the new one. Installing doesn’t affect a print your printer is already running."
 
 #: src/components/SetupLocalTool.tsx
 msgid "You won’t need to set this up again after a normal JusPrin restart."

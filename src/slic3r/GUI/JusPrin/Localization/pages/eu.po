@@ -2215,6 +2215,7 @@ msgid "Jump to latest"
 msgstr "Joan azkenera"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
 #: src/components/Preferences.tsx
 msgid "JusPrin {latest} is available"
 msgstr "JusPrin {latest} erabilgarri dago"
@@ -2699,6 +2700,11 @@ msgid "New print settings"
 msgstr "Inprimaketa-ezarpen berriak"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "New version"
+msgstr "Bertsio berria"
+
+# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Next"
 msgstr "Hurrengoa"
@@ -2963,6 +2969,11 @@ msgstr "Linean"
 #: src/components/ChatNavigation.tsx
 msgid "Open chat: {title}"
 msgstr "Ireki txata: {title}"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "Open download page"
+msgstr "Ireki deskarga-orria"
 
 # AI Translated
 #: src/App.tsx
@@ -3376,6 +3387,11 @@ msgid "Released {released} · you have {current}"
 msgstr "Argitaratua: {released} · zurea: {current}"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "Remind me tomorrow"
+msgstr "Gogorarazi bihar"
+
+# AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
 #: ../HomeUI/src/components/PrintReportForm.tsx
 #: src/components/AgentConnection.tsx
@@ -3703,6 +3719,11 @@ msgid "See usage"
 msgstr "Ikusi erabilera"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "See what’s new"
+msgstr "Zer dago berri"
+
+# AI Translated
 #: src/components/Composer.tsx
 msgid "Send"
 msgstr "Bidali"
@@ -3932,6 +3953,7 @@ msgid "Skip for now"
 msgstr "Saltatu oraingoz"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
 #: src/components/Preferences.tsx
 msgid "Skip this version"
 msgstr "Saltatu bertsio hau"
@@ -4194,6 +4216,12 @@ msgstr "Aplikazioak bere kabuz jarraituko du nabigatzailean amaitzen duzunean."
 #: src/components/AddPrinterForm.tsx
 msgid "The Create filament window opens"
 msgstr "Sortu filamentua leihoa irekiko da"
+
+# AI Translated
+# Needs human review: Basque wording of the whole sentence
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "The download page is on GitHub. Pick the file for your computer there: Mac, Windows or Linux."
+msgstr "Deskarga-orria GitHub-en dago. Aukeratu han zure ordenagailurako fitxategia: Mac, Windows edo Linux."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -4667,6 +4695,12 @@ msgstr "Inprimaketak presta ditzakezu inprimagailu honekin Bambu plugina instala
 #: src/components/Preferences.tsx
 msgid "You have {current}"
 msgstr "Zurea: {current}"
+
+# AI Translated
+# Needs human review: Basque wording of the whole sentence
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "You have version {running}. Your projects, printers and settings stay when you install the new one. Installing doesn’t affect a print your printer is already running."
+msgstr "{running} bertsioa duzu. Zure proiektuak, inprimagailuak eta ezarpenak mantendu egiten dira berria instalatzean. Instalatzeak ez dio eragiten zure inprimagailua dagoeneko egiten ari den inprimaketa bati."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx

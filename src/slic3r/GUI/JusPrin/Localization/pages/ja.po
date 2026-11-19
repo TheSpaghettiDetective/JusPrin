@@ -2213,6 +2213,7 @@ msgid "Jump to latest"
 msgstr "最新へ移動"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
 #: src/components/Preferences.tsx
 msgid "JusPrin {latest} is available"
 msgstr "JusPrin {latest}が利用可能です"
@@ -2697,6 +2698,11 @@ msgid "New print settings"
 msgstr "新しい造形設定"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "New version"
+msgstr "新しいバージョン"
+
+# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Next"
 msgstr "次へ"
@@ -2961,6 +2967,11 @@ msgstr "オンライン"
 #: src/components/ChatNavigation.tsx
 msgid "Open chat: {title}"
 msgstr "チャットを開く: {title}"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "Open download page"
+msgstr "ダウンロードページを開く"
 
 # AI Translated
 #: src/App.tsx
@@ -3374,6 +3385,11 @@ msgid "Released {released} · you have {current}"
 msgstr "リリース日: {released} · 現在のバージョン: {current}"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "Remind me tomorrow"
+msgstr "明日また通知"
+
+# AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
 #: ../HomeUI/src/components/PrintReportForm.tsx
 #: src/components/AgentConnection.tsx
@@ -3701,6 +3717,11 @@ msgid "See usage"
 msgstr "使用状況を見る"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "See what’s new"
+msgstr "新機能"
+
+# AI Translated
 #: src/components/Composer.tsx
 msgid "Send"
 msgstr "送信"
@@ -3930,6 +3951,7 @@ msgid "Skip for now"
 msgstr "今はスキップ"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
 #: src/components/Preferences.tsx
 msgid "Skip this version"
 msgstr "このバージョンをスキップ"
@@ -4192,6 +4214,11 @@ msgstr "ブラウザーでの操作が終わると、アプリは自動的に続
 #: src/components/AddPrinterForm.tsx
 msgid "The Create filament window opens"
 msgstr "「フィラメントを作成」ウィンドウが開きます"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "The download page is on GitHub. Pick the file for your computer there: Mac, Windows or Linux."
+msgstr "ダウンロードページはGitHubにあります。そこでお使いのコンピューター用のファイル（Mac、Windows、Linux）を選んでください。"
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -4665,6 +4692,11 @@ msgstr "Bambuプラグインをインストールする前でも、このプリ�
 #: src/components/Preferences.tsx
 msgid "You have {current}"
 msgstr "現在のバージョン: {current}"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "You have version {running}. Your projects, printers and settings stay when you install the new one. Installing doesn’t affect a print your printer is already running."
+msgstr "現在のバージョンは{running}です。新しいバージョンをインストールしても、プロジェクト、プリンター、設定はそのまま残ります。インストールしても、プリンターで実行中の印刷には影響しません。"
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx

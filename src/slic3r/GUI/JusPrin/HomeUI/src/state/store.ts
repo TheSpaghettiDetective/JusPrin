@@ -15,6 +15,7 @@ import type {
   ScreenPayload,
   StatePayload,
   OnboardingState,
+  UpdateNotice,
   PrintReportPhoto,
   PrintReportResult,
 } from '../bridge/protocol';
@@ -61,6 +62,8 @@ export interface HomeState {
   stateCount: number;
   onboarding?: OnboardingState;
   onboardingError?: string;
+  // The new-version card, while the host offers one.
+  update?: UpdateNotice;
   // Set up AI's "Don't show again" was just pressed: until Home next comes
   // on screen, a line in the card's place says where AI setup is now.
   agentSetupHidden?: boolean;
@@ -127,6 +130,7 @@ export function reduce(state: HomeState, action: HomeAction): HomeState {
         highlightPrinter: next.highlightPrinter || undefined,
         stateCount: state.stateCount + 1,
         onboarding: next.onboarding,
+        update: next.update,
       };
     }
     case 'screen': {

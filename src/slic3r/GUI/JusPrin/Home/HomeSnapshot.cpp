@@ -198,7 +198,7 @@ json state_payload(const Snapshot& snapshot)
         printers.push_back(printer_json(printer));
 
     const auto& onboarding = snapshot.onboarding;
-    return json{
+    json payload{
         {"appearance", snapshot.dark ? "dark" : "light"},
         {"projects", std::move(projects)},
         {"projectsProblem", snapshot.projects_problem},
@@ -232,6 +232,9 @@ json state_payload(const Snapshot& snapshot)
              {"account", onboarding.account},
          }},
     };
+    if (snapshot.update)
+        payload["update"] = json{{"version", snapshot.update->version}, {"running", snapshot.update->running}};
+    return payload;
 }
 
 }}}} // namespace Slic3r::GUI::JusPrin::Home

@@ -58,6 +58,11 @@ export function CloseGlyph() {
   return <span className="glyph glyph-close" aria-hidden="true" />;
 }
 
+// After a label whose button opens a page in the browser.
+export function ExternalGlyph() {
+  return <span className="glyph glyph-external" aria-hidden="true" />;
+}
+
 export function DownloadGlyph() {
   return <span className="glyph glyph-download" aria-hidden="true" />;
 }

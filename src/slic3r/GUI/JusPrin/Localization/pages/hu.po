@@ -2215,6 +2215,7 @@ msgid "Jump to latest"
 msgstr "Ugrás a legújabbra"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
 #: src/components/Preferences.tsx
 msgid "JusPrin {latest} is available"
 msgstr "Elérhető a JusPrin {latest}"
@@ -2699,6 +2700,11 @@ msgid "New print settings"
 msgstr "Új nyomtatási beállítások"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "New version"
+msgstr "Új verzió"
+
+# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Next"
 msgstr "Következő"
@@ -2963,6 +2969,11 @@ msgstr "Online"
 #: src/components/ChatNavigation.tsx
 msgid "Open chat: {title}"
 msgstr "Csevegés megnyitása: {title}"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "Open download page"
+msgstr "Letöltési oldal megnyitása"
 
 # AI Translated
 #: src/App.tsx
@@ -3376,6 +3387,11 @@ msgid "Released {released} · you have {current}"
 msgstr "Megjelent: {released} · a te verziód: {current}"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "Remind me tomorrow"
+msgstr "Emlékeztess holnap"
+
+# AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
 #: ../HomeUI/src/components/PrintReportForm.tsx
 #: src/components/AgentConnection.tsx
@@ -3703,6 +3719,11 @@ msgid "See usage"
 msgstr "Használat megtekintése"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "See what’s new"
+msgstr "Újdonságok"
+
+# AI Translated
 #: src/components/Composer.tsx
 msgid "Send"
 msgstr "Küldés"
@@ -3932,6 +3953,7 @@ msgid "Skip for now"
 msgstr "Kihagyás most"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
 #: src/components/Preferences.tsx
 msgid "Skip this version"
 msgstr "Ennek a verziónak a kihagyása"
@@ -4194,6 +4216,11 @@ msgstr "Amint a böngészőben végeztél, az app magától folytatja."
 #: src/components/AddPrinterForm.tsx
 msgid "The Create filament window opens"
 msgstr "Megnyílik a Filament létrehozása ablak"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "The download page is on GitHub. Pick the file for your computer there: Mac, Windows or Linux."
+msgstr "A letöltési oldal a GitHubon van. Ott válaszd ki a számítógépednek megfelelő fájlt: Mac, Windows vagy Linux."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -4667,6 +4694,11 @@ msgstr "A Bambu bővítmény telepítése előtt is előkészíthetsz nyomtatás
 #: src/components/Preferences.tsx
 msgid "You have {current}"
 msgstr "A te verziód: {current}"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "You have version {running}. Your projects, printers and settings stay when you install the new one. Installing doesn’t affect a print your printer is already running."
+msgstr "A(z) {running} verzió van telepítve. A projektjeid, nyomtatóid és beállításaid megmaradnak, amikor az újat telepíted. A telepítés nem érinti a nyomtató által már folyamatban lévő nyomtatást."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx

@@ -38,6 +38,13 @@ void         save_failure(AppConfig& config, std::time_t now);
 void         skip_version(AppConfig& config, const std::string& version);
 // Offers a skipped version again.
 void         unskip(AppConfig& config);
+// Home's "Remind me tomorrow": its card stays hidden until `until`.
+void         remind_later(AppConfig& config, std::time_t until);
+
+// The release Home's new-version card offers: one is available, the daily
+// check is on and stealth mode off (otherwise only the person's own Check now
+// finds a release, and Preferences shows it), and the card is not put off.
+std::optional<Release> home_notice(const AppConfig& config, const std::string& running, std::time_t now);
 
 // Whether the daily check should run: a day after the last attempt and, at
 // startup, also when the last attempt failed.

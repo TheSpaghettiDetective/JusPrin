@@ -3,7 +3,8 @@
 // JusPrin's own update check. It reads JusPrin's release list on GitHub at
 // startup and then once a day, and when the person asks with Check now. It
 // only finds out: the release page is opened by the person, and nothing is
-// downloaded or installed.
+// downloaded or installed. Preferences > Updates and a card on Home show
+// what it found.
 
 #include "ReleaseFeed.hpp"
 
@@ -57,6 +58,11 @@ public:
     // JusPrin needs a newer version (the server no longer serves this one, or
     // a project was saved by a newer one): a skipped version is offered again.
     void unskip();
+    // Home's "Remind me tomorrow": its card goes for a day.
+    void remind_later();
+    // The release Home's card offers, or none (UpdateRecord.hpp, home_notice).
+    // None for a Store install.
+    std::optional<Release> home_notice() const;
 
     // Calls `listener` on the UI thread whenever state() changes.
     int  subscribe(std::function<void()> listener);

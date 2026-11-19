@@ -56,6 +56,10 @@ TEST_CASE("the payload carries the fields the page reads, empty when there is no
     CHECK(payload.at("highlightPrinter") == "");
     CHECK(payload.at("onboarding").at("visible") == false);
     CHECK(payload.at("onboarding").at("step") == "hidden");
+    CHECK_FALSE(payload.contains("update"));
+
+    snapshot.update = UpdateNotice{"2.0.1", "2.0.0"};
+    CHECK(state_payload(snapshot).at("update") == json{{"version", "2.0.1"}, {"running", "2.0.0"}});
 }
 
 TEST_CASE("onboarding state uses the page contract", "[home][onboarding]")

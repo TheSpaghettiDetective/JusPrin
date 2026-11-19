@@ -2223,6 +2223,7 @@ msgid "Jump to latest"
 msgstr "Gå till senaste"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
 #: src/components/Preferences.tsx
 msgid "JusPrin {latest} is available"
 msgstr "JusPrin {latest} är tillgänglig"
@@ -2710,6 +2711,11 @@ msgid "New print settings"
 msgstr "Nya utskriftsinställningar"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "New version"
+msgstr "Ny version"
+
+# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Next"
 msgstr "Nästa"
@@ -2974,6 +2980,11 @@ msgstr "Online"
 #: src/components/ChatNavigation.tsx
 msgid "Open chat: {title}"
 msgstr "Öppna chatt: {title}"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "Open download page"
+msgstr "Öppna nedladdningssidan"
 
 # AI Translated
 #: src/App.tsx
@@ -3388,6 +3399,11 @@ msgid "Released {released} · you have {current}"
 msgstr "Släppt {released} · du har {current}"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "Remind me tomorrow"
+msgstr "Påminn mig i morgon"
+
+# AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
 #: ../HomeUI/src/components/PrintReportForm.tsx
 #: src/components/AgentConnection.tsx
@@ -3715,6 +3731,11 @@ msgid "See usage"
 msgstr "Se användning"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "See what’s new"
+msgstr "Nyheter"
+
+# AI Translated
 #: src/components/Composer.tsx
 msgid "Send"
 msgstr "Skicka"
@@ -3945,6 +3966,7 @@ msgid "Skip for now"
 msgstr "Hoppa över för tillfället"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
 #: src/components/Preferences.tsx
 msgid "Skip this version"
 msgstr "Hoppa över den här versionen"
@@ -4210,6 +4232,11 @@ msgstr "Appen fortsätter av sig själv när du är klar i webbläsaren."
 #: src/components/AddPrinterForm.tsx
 msgid "The Create filament window opens"
 msgstr "Fönstret Skapa filament öppnas"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "The download page is on GitHub. Pick the file for your computer there: Mac, Windows or Linux."
+msgstr "Nedladdningssidan finns på GitHub. Välj filen för din dator där: Mac, Windows eller Linux."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -4684,6 +4711,11 @@ msgstr "Du kan förbereda utskrifter med den här skrivaren innan du installerar
 #: src/components/Preferences.tsx
 msgid "You have {current}"
 msgstr "Du har {current}"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "You have version {running}. Your projects, printers and settings stay when you install the new one. Installing doesn’t affect a print your printer is already running."
+msgstr "Du har version {running}. Dina projekt, skrivare och inställningar finns kvar när du installerar den nya. Installationen påverkar inte en utskrift som din skrivare redan håller på med."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx

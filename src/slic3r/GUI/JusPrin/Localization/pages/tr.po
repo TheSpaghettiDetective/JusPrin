@@ -2217,6 +2217,7 @@ msgid "Jump to latest"
 msgstr "En sona git"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
 #: src/components/Preferences.tsx
 msgid "JusPrin {latest} is available"
 msgstr "JusPrin {latest} kullanılabilir"
@@ -2701,6 +2702,11 @@ msgid "New print settings"
 msgstr "Yeni yazdırma ayarları"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "New version"
+msgstr "Yeni sürüm"
+
+# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Next"
 msgstr "İleri"
@@ -2965,6 +2971,11 @@ msgstr "Çevrimiçi"
 #: src/components/ChatNavigation.tsx
 msgid "Open chat: {title}"
 msgstr "Sohbeti aç: {title}"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "Open download page"
+msgstr "İndirme sayfasını aç"
 
 # AI Translated
 #: src/App.tsx
@@ -3379,6 +3390,11 @@ msgid "Released {released} · you have {current}"
 msgstr "Yayınlanma: {released} · sizdeki: {current}"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "Remind me tomorrow"
+msgstr "Yarın hatırlat"
+
+# AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
 #: ../HomeUI/src/components/PrintReportForm.tsx
 #: src/components/AgentConnection.tsx
@@ -3707,6 +3723,11 @@ msgid "See usage"
 msgstr "Kullanımı gör"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "See what’s new"
+msgstr "Yenilikler"
+
+# AI Translated
 #: src/components/Composer.tsx
 msgid "Send"
 msgstr "Gönder"
@@ -3936,6 +3957,7 @@ msgid "Skip for now"
 msgstr "Şimdilik atla"
 
 # AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
 #: src/components/Preferences.tsx
 msgid "Skip this version"
 msgstr "Bu sürümü atla"
@@ -4198,6 +4220,11 @@ msgstr "Tarayıcıdaki işlem bitince uygulama kendiliğinden devam eder."
 #: src/components/AddPrinterForm.tsx
 msgid "The Create filament window opens"
 msgstr "Filament oluştur penceresi açılır"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "The download page is on GitHub. Pick the file for your computer there: Mac, Windows or Linux."
+msgstr "İndirme sayfası GitHub'da. Oradan bilgisayarınıza uygun dosyayı seçin: Mac, Windows veya Linux."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -4671,6 +4698,11 @@ msgstr "Bambu eklentisini yüklemeden önce de bu yazıcıyla baskı hazırlayab
 #: src/components/Preferences.tsx
 msgid "You have {current}"
 msgstr "Sizdeki: {current}"
+
+# AI Translated
+#: ../HomeUI/src/components/UpdateCard.tsx
+msgid "You have version {running}. Your projects, printers and settings stay when you install the new one. Installing doesn’t affect a print your printer is already running."
+msgstr "{running} sürümüne sahipsiniz. Yenisini kurduğunuzda projeleriniz, yazıcılarınız ve ayarlarınız korunur. Kurulum, yazıcınızın halihazırda yaptığı bir baskıyı etkilemez."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx

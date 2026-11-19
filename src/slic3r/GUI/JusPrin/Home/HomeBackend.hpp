@@ -56,6 +56,18 @@ public:
     // Get the new version...: offers a skipped version again, checks for a
     // new JusPrin version and shows Preferences > Updates.
     virtual void check_for_updates() {}
+    // Home's new-version card (board update-07): the release it offers, or
+    // none. Read with the rest of the state, and on every poll, so the card
+    // comes and goes with the update check's answers.
+    virtual std::optional<UpdateNotice> update_notice() const { return std::nullopt; }
+    // Its buttons. See what's new: Preferences > Updates, which shows the
+    // release notes. Open download page: the release page in the browser;
+    // the card stays until the new version runs. Remind me tomorrow: the card
+    // goes for a day. Skip this version: as Preferences' Skip this version.
+    virtual void open_update_notes() {}
+    virtual void open_update_page() {}
+    virtual void remind_update_later() {}
+    virtual void skip_update(const std::string& version) {}
 
     // The Print history screen. Its entries, every project's, with each
     // exported file checked against what was written (PrintHistory.hpp).

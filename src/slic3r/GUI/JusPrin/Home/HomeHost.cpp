@@ -61,6 +61,7 @@ Snapshot HomeHost::collect()
     snapshot.projects_problem = std::move(listed.problem);
     snapshot.printers = ordered_printers();
     snapshot.onboarding = m_backend.onboarding();
+    snapshot.update     = m_backend.update_notice();
     return snapshot;
 }
 
@@ -96,6 +97,7 @@ void HomeHost::send_state(Snapshot snapshot)
     snapshot.highlight_printer = listed ? m_added : std::string();
     m_sent_printers            = printers_json(snapshot.printers);
     m_sent_projects_problem    = snapshot.projects_problem;
+    m_sent_update              = snapshot.update;
     send("state", state_payload(snapshot));
 }
 
@@ -126,13 +128,19 @@ bool HomeHost::refresh_if_changed()
     // which the backend reads with the projects.
     snapshot.printers = ordered_printers();
     snapshot.onboarding = m_backend.onboarding();
+    snapshot.update     = m_backend.update_notice();
     send_state(std::move(snapshot));
     return true;
 }
 
 bool HomeHost::poll()
 {
-    if (!m_backend.poll_onboarding() || !m_connected)
+    const bool onboarding = m_backend.poll_onboarding();
+    if (!m_connected)
+        return false;
+    // The update check answers on its own schedule, and Remind me tomorrow
+    // runs out a day later: the card follows within a poll.
+    if (!onboarding && m_backend.update_notice() == m_sent_update)
         return false;
     send_state(collect());
     return true;
@@ -248,6 +256,14 @@ void HomeHost::on_page_message(const std::string& text)
         m_backend.open_preferences();
     else if (type == "check_for_updates")
         m_backend.check_for_updates();
+    else if (type == "update_notes")
+        m_backend.open_update_notes();
+    else if (type == "update_open_page")
+        m_backend.open_update_page();
+    else if (type == "update_remind_later")
+        m_backend.remind_update_later();
+    else if (type == "update_skip")
+        m_backend.skip_update(payload.at("version").get<std::string>());
     else if (type == "history_request")
         send("history", history_payload(), correlation);
     else if (type == "history_back")

@@ -53,7 +53,7 @@ Classic view is the app's original screen, with all print settings in a panel at
 
 ## Updates
 
-JusPrin looks for a newer version once a day, on GitHub. When there is one, **Updates** in Preferences is marked with a dot.
+JusPrin looks for a newer version once a day, on GitHub. When there is one, **Updates** in Preferences is marked with a dot, and a card at the top of Home's right column says which version is available. On the card, **Open download page** opens the release's page in your browser, **See what’s new** opens **Updates** in Preferences, **Remind me tomorrow** hides the card for a day, and **Skip this version** stops it asking about that version.
 
 1. In Preferences, open **Updates**. **Check now** looks straight away.
 2. When it says a newer version is available, click **Download**. The release's page opens in your browser; download and install it from there.
