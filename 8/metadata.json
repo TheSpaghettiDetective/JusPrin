@@ -1,0 +1,57 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7T9EHQRM1B3KVAT24T1TS13",
+  "session_id": "f0e45184-f50b-43f9-903d-caf169deac64",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-19T16:15:31.375054Z",
+  "branch": "claude/mac-builds-without-homebrew",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "deps/CMakeLists.txt",
+    "deps/python3/python3.cmake",
+    "deps/xz/xz.cmake"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "046d9076bd6e",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 28,
+    "cache_creation_tokens": 77852,
+    "cache_read_tokens": 1603269,
+    "output_tokens": 10255,
+    "api_call_count": 14
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-19T16:15:31.314281Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 30,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 30,
+    "total_lines_changed": 30,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 394,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".claude/skills/figma-agent-design/SKILL.md": 132,
+        ".claude/skills/figma-agent-design/agents/openai.yaml": 4,
+        ".claude/skills/figma-agent-design/references/design-system-governance.md": 103,
+        ".claude/skills/figma-agent-design/references/prompt-and-review.md": 124,
+        ".claude/skills/jusprin-release/SKILL.md": 9
+      }
+    }
+  ]
+}
