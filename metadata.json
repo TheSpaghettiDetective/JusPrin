@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7RY2D2HKTB8M5DGY5E44SRV",
+  "strategy": "manual-commit",
+  "branch": "claude/orca-messages-c67fbe",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/project_prompt/README.md",
+    "tests/shell/project_prompt_scenario.inc"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 98,
+    "cache_creation_tokens": 144590,
+    "cache_read_tokens": 10015270,
+    "output_tokens": 25756,
+    "api_call_count": 49
+  }
+}
