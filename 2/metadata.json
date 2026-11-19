@@ -1,0 +1,84 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7V1H8XDG5DYYRQG7YE40HRK",
+  "session_id": "f24f8706-b226-4869-9fa5-aa00870a165d",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-19T23:16:25.45624Z",
+  "branch": "error-sites",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
+    "tests/agent/test_printer_conversation.cpp",
+    "tests/jusprin/test_home_host.cpp",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "9420ffa77146",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 4556,
+    "cache_creation_tokens": 1674589,
+    "cache_read_tokens": 71442721,
+    "output_tokens": 225560,
+    "api_call_count": 178
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01FzB54SyRnoT2wB4yx1kXJv",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "obico-gmail"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "9420ffa77146",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 1818,
+        "end": 1819,
+        "entry_ids": [
+          "2a28c265-b710-4dd6-95cf-456880f5b170"
+        ],
+        "tool_use_id": "toolu_01FzB54SyRnoT2wB4yx1kXJv"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01FzB54SyRnoT2wB4yx1kXJv"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: obico-gmail",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-19T23:16:25.061097Z",
+    "agent_lines": 8,
+    "agent_removed": 0,
+    "human_added": 262,
+    "human_modified": 42,
+    "human_removed": 0,
+    "total_committed": 312,
+    "total_lines_changed": 312,
+    "agent_percentage": 2.564102564102564,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}

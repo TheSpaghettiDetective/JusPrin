@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7V1H8XDG5DYYRQG7YE40HRK",
   "strategy": "manual-commit",
   "branch": "error-sites",
-  "checkpoints_count": 2,
+  "checkpoints_count": 4,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
     "tests/agent/test_printer_conversation.cpp",
@@ -24,13 +24,20 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 34,
-    "cache_creation_tokens": 13998,
-    "cache_read_tokens": 5304498,
-    "output_tokens": 6701,
-    "api_call_count": 17
+    "input_tokens": 4590,
+    "cache_creation_tokens": 1688587,
+    "cache_read_tokens": 76747219,
+    "output_tokens": 232261,
+    "api_call_count": 195
   }
 }
