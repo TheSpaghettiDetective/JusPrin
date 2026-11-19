@@ -1,0 +1,51 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7TH9113QG4KDM3QDYTKBPTK",
+  "session_id": "8b17998f-1be8-4027-8800-1a20cd6031a4",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-19T18:32:13.636776Z",
+  "branch": "proto/win-install-restart-from-2.0.0",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Preferences/PreferencesWindow.cpp",
+    "src/slic3r/GUI/JusPrin/Preferences/PreferencesWindow.hpp",
+    "src/slic3r/GUI/JusPrin/Updates/InstallRestartPrototype.cpp",
+    "src/slic3r/GUI/JusPrin/Updates/InstallRestartPrototype.hpp",
+    "src/slic3r/GUI/JusPrin/sources.cmake"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "1be5c4d817b2",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 290,
+    "cache_creation_tokens": 309860,
+    "cache_read_tokens": 33947536,
+    "output_tokens": 110188,
+    "api_call_count": 145
+  },
+  "session_metrics": {
+    "turn_count": 3
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-19T18:32:13.226319Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 167,
+    "human_modified": 69,
+    "human_removed": 0,
+    "total_committed": 167,
+    "total_lines_changed": 236,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
