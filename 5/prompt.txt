@@ -1,0 +1,20 @@
+auot update is not showing:
+
+<pasted_content id="6554">
+I checked it, and the update prompt does not pop up on its own.
+What I did:
+
+1. I quit the installed JusPrin 2.0.0 on your Mac and set `jusprin_update_last_attempt` to `"0"` in its settings file. I saved a copy of the file first at `/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/710d8e8d-0d6b-4a8f-9d8f-a3910b8238b8/scratchpad/JusPrin2.conf.before-update-test`. On the Mac this file has no checksum line, so the edit was safe.
+2. I started 2.0.0 again. 12 seconds after starting, its log said “JusPrin’s update check: found 2.0.1”.
+3. I waited until the app had been running for over a minute, then looked at every window it had.
+
+What I saw:
+
+* The app showed only its usual windows. No update dialog or prompt opened.
+* Home looks exactly as it did before the check. The gear icon at the top right has no dot or badge either.
+* The update shows up only if someone opens Preferences and looks: a dot beside “Updates”, and on that page the “JusPrin 2.0.1 is available” card. This matches the code, where the Preferences window is the only part of the app that receives the update check’s result.
+
+So someone on 2.0.0 who never opens Preferences won’t learn that 2.0.1 exists. The app ran the new check itself and saved its normal settings, so there’s nothing to restore. 2.0.0 is still running.
+</pasted_content id="6554">
+
+investigate why
