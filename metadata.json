@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7RTATM5TCSHN0NHT5SQYC6B",
+  "strategy": "manual-commit",
+  "branch": "claude/hosted-mac-test",
+  "checkpoints_count": 4,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1096,
+    "cache_creation_tokens": 2485519,
+    "cache_read_tokens": 126512197,
+    "output_tokens": 345198,
+    "api_call_count": 548
+  }
+}
