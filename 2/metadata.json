@@ -3,8 +3,8 @@
   "checkpoint_id": "01M7T9EZTEKB9SYKTS1FA9VSKV",
   "session_id": "37743fb2-cafd-4d55-8acc-ae85c83504a5",
   "strategy": "manual-commit",
-  "created_at": "2026-11-19T19:08:12.000829Z",
-  "branch": "claude/mac-builds-without-homebrew",
+  "created_at": "2026-11-19T19:11:13.483356Z",
+  "branch": "claude/mac-self-hosted-rcodesign",
   "checkpoints_count": 1,
   "files_touched": [
     ".github/workflows/jusprin_build_all.yml",
@@ -24,7 +24,7 @@
     "api_call_count": 0
   },
   "initial_attribution": {
-    "calculated_at": "2026-11-19T19:08:10.959212Z",
+    "calculated_at": "2026-11-19T19:11:13.010884Z",
     "agent_lines": 46,
     "agent_removed": 40,
     "human_added": 0,
