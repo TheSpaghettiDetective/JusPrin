@@ -61,4 +61,6 @@ void close_splash_when_shown(MainFrame& frame)
         splash()->close_when_shown(frame);
 }
 
+void app_closing() { stop_sentry(); }
+
 } // namespace Slic3r::GUI::JusPrin

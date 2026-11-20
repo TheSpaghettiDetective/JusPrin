@@ -2987,6 +2987,7 @@ int GUI_App::OnExit()
         BOOST_LOG_TRIVIAL(error) << "Failed to clean up encrypt bbl network log file";
     }
 
+    JusPrin::app_closing(); // JusPrin: stop Sentry while threads can still start
     return wxApp::OnExit();
 }
 

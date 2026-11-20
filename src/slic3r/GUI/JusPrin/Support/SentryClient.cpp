@@ -171,8 +171,14 @@ void start_sentry(const std::string& data_dir, bool reports_automatically)
     g_started = true;
     start_recording_throws();
     sentry_follow_setting(reports_automatically);
-    // Sends what is still under way when the app quits.
-    std::atexit([] { sentry_close(); });
+}
+
+void stop_sentry()
+{
+    if (!g_started)
+        return;
+    g_started = false;
+    sentry_close();
 }
 
 void sentry_follow_setting(bool reports_automatically)

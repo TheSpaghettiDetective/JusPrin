@@ -23,4 +23,8 @@ bool startup_begin(GUI_App& app);
 // close costs no upstream line. Does nothing when no splash is open.
 void close_splash_when_shown(MainFrame& frame);
 
+// The end of GUI_App::OnExit: the windows are gone and new threads can still
+// start. Stops Sentry's SDK, which sends what is still under way.
+void app_closing();
+
 } // namespace Slic3r::GUI::JusPrin

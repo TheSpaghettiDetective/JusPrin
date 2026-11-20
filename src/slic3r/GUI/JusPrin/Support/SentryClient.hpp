@@ -21,6 +21,11 @@ namespace Slic3r::GUI::JusPrin {
 // project (no JUSPRIN_SENTRY_DSN) starts nothing and sends nothing.
 void start_sentry(const std::string& data_dir, bool reports_automatically);
 
+// Stops the SDK, once, sending what is still under way. Call it while the app
+// can still start threads: the uploads run on their own threads, and once
+// Windows is ending the process (atexit, DLL unload) starting one fails.
+void stop_sentry();
+
 // Gives or takes back consent as the person's setting now stands.
 void sentry_follow_setting(bool reports_automatically);
 
