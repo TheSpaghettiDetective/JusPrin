@@ -27,6 +27,7 @@
 #include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentService.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ToolExecution.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -67,7 +68,7 @@ public:
                              const Agent::ToolExecutionCoordinator::ExtensionResult& outcome) = 0;
     // Renames that call's card as what it waits for changes, and with
     // `answer_dialogs` from then on answers the app's dialogs as its own.
-    virtual bool update_tool(const std::string& action_id, const std::string& title, bool answer_dialogs) = 0;
+    virtual bool update_tool(const std::string& action_id, const Agent::ActivityTitle& title, bool answer_dialogs) = 0;
     // The panel is done: restore its originating workspace.
     virtual void close_panel() = 0;
     // Opens `url` in the person's default browser. False when none opened.

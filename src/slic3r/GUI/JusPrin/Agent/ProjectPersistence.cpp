@@ -1,6 +1,8 @@
 #include "ProjectPersistence.hpp"
+#include "ToolExecution.hpp"
 #include "slic3r/GUI/JusPrin/Support/Files.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/UtcTime.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 
 #include <cerrno>
 #include <chrono>
@@ -14,6 +16,7 @@
 #include <utility>
 
 // Last: it defines the L marker.
+#include "ActivityTitle.hpp"
 #include "slic3r/GUI/JusPrin/Support/Translate.hpp"
 
 namespace Slic3r::GUI::JusPrin::Agent {
@@ -59,28 +62,64 @@ const char* edit_kind_name(Workspace::EditKind kind)
     throw std::logic_error("Unknown workspace edit kind");
 }
 
-// What put the plan in doubt, as the setup card shows it and the model
-// reads it, so in words that suit both: what changed and who changed it
-// ("Filament changed to Generic ABS by hand"). A preset's library suffix
-// (" @System", " @BBL A1M") is not the person's word and is dropped.
-std::string plan_doubt_reason(const Workspace::WorkspaceEdit& edit)
+// What put the plan in doubt: what changed and who changed it ("Filament
+// changed to Generic ABS by hand"), in English for the model and in the
+// person's language for the setup card. A preset's library suffix
+// (" @System", " @BBL A1M") is not the person's word and is dropped. The
+// two texts are built as an action's title is (ActivityTitle.hpp).
+ActivityTitle plan_doubt_reason(const Workspace::WorkspaceEdit& edit)
 {
-    const std::string by = edit.actor == Workspace::EditActor::Person ? "by hand"
-                         : "by " + (edit.client.empty() ? std::string("another app") : edit.client);
+    const bool        by_hand = edit.actor == Workspace::EditActor::Person;
+    // A client names itself; "another app" is the app's own word for one that did not.
+    const ActivityTitle who = edit.client.empty() ? title_of(L("another app")) : same_title(edit.client);
     const auto short_preset = [](const std::string& name) { return name.substr(0, name.find(" @")); };
+    // An undo step's or a setting's name, in OrcaSlicer's English and as its catalog shows it.
+    // An empty text is never looked up: the catalog's empty entry is its header.
+    const ActivityTitle label{edit.label, edit.label.empty() ? edit.label : translated(edit.label.c_str())};
+    // The first sentence when the person made the change, the second when an app did.
+    const auto either = [&](const char* person, const char* app, const auto&... args) {
+        return by_hand ? title_of(person, args...) : title_of(app, args..., who);
+    };
     switch (edit.kind) {
     case Workspace::EditKind::Preset: {
-        const std::string what = edit.location == "printer"  ? "Printer"
-                               : edit.location == "filament" ? "Filament" : "Print settings";
-        return what + " changed to " + short_preset(edit.label) + " " + by;
+        const std::string preset = short_preset(edit.label);
+        if (edit.location == "printer")
+            // TRN %1% is a printer preset's name; %2%, in the second form, the app that changed it.
+            return either(L("Printer changed to %1% by hand"), L("Printer changed to %1% by %2%"), preset);
+        if (edit.location == "filament")
+            // TRN %1% is a filament preset's name; %2%, in the second form, the app that changed it.
+            return either(L("Filament changed to %1% by hand"), L("Filament changed to %1% by %2%"), preset);
+        // TRN %1% is a process preset's name; %2%, in the second form, the app that changed it.
+        return either(L("Print settings changed to %1% by hand"), L("Print settings changed to %1% by %2%"), preset);
     }
     case Workspace::EditKind::Setting:
-        return edit.label + " changed" + (edit.after.empty() ? std::string() : " to " + edit.after) + " " + by;
-    case Workspace::EditKind::Undo: return edit.label.empty() ? "Undone " + by : edit.label + " undone " + by;
-    case Workspace::EditKind::Redo: return edit.label.empty() ? "Redone " + by : edit.label + " redone " + by;
+        if (edit.after.empty())
+            // TRN %1% is a setting's name; %2%, in the second form, the app that changed it.
+            return either(L("%1% changed by hand"), L("%1% changed by %2%"), label);
+        {
+            const ActivityTitle value{edit.after, edit.after_shown.empty() ? edit.after : edit.after_shown};
+            // TRN %1% is a setting's name, %2% its new value; %3%, in the second form, the app that changed it.
+            return either(L("%1% changed to %2% by hand"), L("%1% changed to %2% by %3%"), label, value);
+        }
+    case Workspace::EditKind::Undo:
+        if (edit.label.empty())
+            // TRN %1%, in the second form, is the app that undid the last change.
+            return either(L("Undone by hand"), L("Undone by %1%"));
+        // TRN %1% is the change that was undone; %2%, in the second form, the app that undid it.
+        return either(L("%1% undone by hand"), L("%1% undone by %2%"), label);
+    case Workspace::EditKind::Redo:
+        if (edit.label.empty())
+            // TRN %1%, in the second form, is the app that redid the last change.
+            return either(L("Redone by hand"), L("Redone by %1%"));
+        // TRN %1% is the change that was redone; %2%, in the second form, the app that redid it.
+        return either(L("%1% redone by hand"), L("%1% redone by %2%"), label);
     case Workspace::EditKind::Step: break;
     }
-    return edit.label.empty() ? "The project changed " + by : edit.label + ", " + by;
+    if (edit.label.empty())
+        // TRN %1%, in the second form, is the app that changed the project.
+        return either(L("The project changed by hand"), L("The project changed by %1%"));
+    // TRN %1% is what changed, such as Move; %2%, in the second form, the app that changed it.
+    return either(L("%1%, by hand"), L("%1%, by %2%"), label);
 }
 
 // Which reason the card keeps while the plan is in doubt: a setup switch
@@ -158,8 +197,9 @@ void ProjectPersistence::on_edit(const Workspace::WorkspaceEdit& edit)
     entry.external = edit.actor == Workspace::EditActor::ExternalTool;
     entry.client   = edit.client;
     entry.label  = edit.label;
-    entry.from   = edit.before;
-    entry.to     = edit.after;
+    // The change log is read by people only: its values are the shown ones.
+    entry.from   = edit.before_shown.empty() ? edit.before : edit.before_shown;
+    entry.to     = edit.after_shown.empty() ? edit.after : edit.after_shown;
     entry.preset   = edit.preset;
     entry.key      = edit.key;
     entry.location = edit.location;
@@ -167,8 +207,10 @@ void ProjectPersistence::on_edit(const Workspace::WorkspaceEdit& edit)
     // The in-app agent's own edits carry out its plan; they do not put it in
     // doubt. A person's edit, Undo and Redo, and an external MCP client's
     // edit do.
-    if (edit.actor != Workspace::EditActor::Agent)
-        m_document.mark_plan_needs_reassessment(plan_doubt_reason(edit), plan_doubt_weight(edit));
+    if (edit.actor != Workspace::EditActor::Agent) {
+        const ActivityTitle reason = plan_doubt_reason(edit);
+        m_document.mark_plan_needs_reassessment(reason.english, plan_doubt_weight(edit), reason.shown);
+    }
     // A paint session is a burst of edits; the owner's pacing timer writes them.
     commit();
     if (m_change_added)
@@ -435,7 +477,8 @@ void ProjectPersistence::record_managed_restore(const std::string& current_state
     change.to = selected_version;
     current.add_change(std::move(change), m_config.clock());
     // A restore brings back another version's setup whole: no edit outweighs it.
-    current.mark_plan_needs_reassessment("An earlier model version was restored", 4);
+    current.mark_plan_needs_reassessment("An earlier model version was restored", 4,
+                                         translated(L("An earlier model version was restored")));
     m_document = std::move(current);
     m_draft = m_document.draft();
     m_attached_aux_dir = m_workspace.auxiliary_data_dir();

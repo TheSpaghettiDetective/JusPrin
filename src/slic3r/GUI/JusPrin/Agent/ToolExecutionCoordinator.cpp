@@ -1,11 +1,13 @@
 #include "ToolExecutionCoordinator.hpp"
 #include "Base64.hpp"
 #include "ToolErrors.hpp"
+#include "ToolExecution.hpp"
 #include "ToolResults.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SettingDisplay.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/StoredFormat.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/UtcTime.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 
 #include <nlohmann/json.hpp>
 #include <algorithm>
@@ -20,6 +22,7 @@
 
 #include "libslic3r/format.hpp"
 // Last: it defines the L marker.
+#include "ActivityTitle.hpp"
 #include "slic3r/GUI/JusPrin/Support/Translate.hpp"
 
 namespace Slic3r::GUI::JusPrin::Agent {
@@ -370,17 +373,23 @@ Workspace::SettingsPatch settings_patch(const json& arguments, const Workspace::
 }
 
 // The activity title: what changes, whose, and where it is saved.
-std::string settings_title(const Workspace::SettingsPreview& preview, const SettingsTargetLookup& target,
-                           const Workspace::SettingsPatch& patch)
+ActivityTitle settings_title(const Workspace::SettingsPreview& preview, const SettingsTargetLookup& target,
+                             const Workspace::SettingsPatch& patch)
 {
-    std::string title = "Change " + std::to_string(preview.changes.size()) + " settings of " +
-                        (target.target.object ? target.object_name : "\"" + preview.preset + "\"") + ":";
+    const std::string whose = target.target.object ? target.object_name : "\"" + preview.preset + "\"";
+    std::string       keys;
     for (std::size_t index = 0; index < preview.changes.size(); ++index)
-        title += (index == 0 ? " " : ", ") + preview.changes[index].key;
-    if (patch.persist_as)
-        title += *patch.persist_as == preview.preset ? "; save it" : "; save as \"" + *patch.persist_as + "\"";
-    if (title.size() > kToolLabelLimit) title.resize(kToolLabelLimit - 3), title += "...";
-    return title;
+        keys += (index == 0 ? "" : ", ") + preview.changes[index].key;
+    const std::size_t count = preview.changes.size();
+    if (!patch.persist_as)
+        // TRN %1% is how many settings, %2% an object's name or a preset's name in quotes, %3% the settings' keys.
+        return plural_title("Change %1% setting of %2%: %3%", "Change %1% settings of %2%: %3%", count, whose, keys);
+    if (*patch.persist_as == preview.preset)
+        // TRN %1% is how many settings, %2% a preset's name in quotes, %3% the settings' keys. The preset is saved with them.
+        return plural_title("Change %1% setting of %2%: %3%; save it", "Change %1% settings of %2%: %3%; save it", count, whose, keys);
+    // TRN %1% is how many settings, %2% a preset's name in quotes, %3% the settings' keys, %4% the new preset's name.
+    return plural_title("Change %1% setting of %2%: %3%; save as \"%4%\"", "Change %1% settings of %2%: %3%; save as \"%4%\"", count,
+                        whose, keys, *patch.persist_as);
 }
 
 json stale_settings_details(const json& arguments, const Workspace::WorkspaceSnapshot& snapshot)
@@ -425,17 +434,27 @@ const char* pa_method_name(Workspace::PressureAdvanceMethod method)
            method == Workspace::PressureAdvanceMethod::Pattern ? "pattern" : "tower";
 }
 
-std::string calibration_title(const Workspace::CalibrationRequest& request)
+ActivityTitle calibration_title(const Workspace::CalibrationRequest& request)
 {
     switch (request.test) {
     case Workspace::CalibrationTest::Temperature:
-        return "Make a temperature tower, " + calibration_number(*request.start) + " °C to " + calibration_number(*request.end) + " °C";
+        // TRN %1% and %2% are the tower's first and last temperatures.
+        return title_of(L("Make a temperature tower, %1% °C to %2% °C"), calibration_number(*request.start),
+                        calibration_number(*request.end));
     case Workspace::CalibrationTest::Flow:
-        return std::string("Make a flow-ratio test, ") + (request.flow_linear ? "YOLO" : "classic") + " pass " +
-               std::to_string(request.flow_pass);
-    case Workspace::CalibrationTest::PressureAdvance:
-        return std::string("Make a pressure-advance ") + pa_method_name(request.method) + ", " +
-               calibration_number(*request.start) + " to " + calibration_number(*request.end);
+        // TRN YOLO is the name of OrcaSlicer's quicker flow-ratio test; %1% is its pass, 1 or 2.
+        return request.flow_linear ? title_of(L("Make a flow-ratio test, YOLO pass %1%"), request.flow_pass) :
+                                     // TRN %1% is the test's pass, 1 or 2.
+                                     title_of(L("Make a flow-ratio test, classic pass %1%"), request.flow_pass);
+    case Workspace::CalibrationTest::PressureAdvance: {
+        const std::string start = calibration_number(*request.start), end = calibration_number(*request.end);
+        // TRN %1% and %2% are the first and last pressure-advance values.
+        return request.method == Workspace::PressureAdvanceMethod::Line    ? title_of(L("Make a pressure-advance line, %1% to %2%"), start, end) :
+               // TRN %1% and %2% are the first and last pressure-advance values.
+               request.method == Workspace::PressureAdvanceMethod::Pattern ? title_of(L("Make a pressure-advance pattern, %1% to %2%"), start, end) :
+                                                                             // TRN %1% and %2% are the first and last pressure-advance values.
+                                                                             title_of(L("Make a pressure-advance tower, %1% to %2%"), start, end);
+    }
     }
     throw std::logic_error("calibration test has no title");
 }
@@ -496,7 +515,7 @@ json settings_proposal(const Workspace::SettingsPreview& preview, const Workspac
                                       // TRN %1% is a preset's name.
                                       L("New preset · %1%");
     json rows = json::array({json{{"icon", "save"}, {"text", Slic3r::format(translated(saved_as), persist_as)}}});
-    std::string value, saved_settings, pick;
+    std::string value, value_shown, saved_settings, saved_shown, pick;
     json        restore = json::object();
     for (const Workspace::SettingChange& change : preview.changes) {
         if (change.saved && *change.saved == change.after)
@@ -509,14 +528,22 @@ json settings_proposal(const Workspace::SettingsPreview& preview, const Workspac
             definition.label = change.key;
         const std::string after = Workspace::display_value(definition, change.after);
         // The label is OrcaSlicer's, which its own catalog translates.
+        const std::string shown_label = translated(definition.label.c_str());
         rows.push_back({{"icon", change.key.find("temperature") != std::string::npos ? "thermometer" : "sliders"},
-                        {"text", translated(definition.label.c_str()) + " " +
-                                     Workspace::display_change(definition, change.saved.value_or(change.before), change.after)}});
+                        {"text", shown_label + " " +
+                                     Workspace::display_change(definition, change.saved.value_or(change.before), change.after,
+                                                               Workspace::ValueWords::Shown)}});
         std::string named = definition.label;
         named.front() = char(std::tolower(static_cast<unsigned char>(named.front())));
         saved_settings += (saved_settings.empty() ? "" : ", ") + named + " " + after;
+        // Its name, then its value. The English name starts lower case, as
+        // in the model's text; a translated one stays as its catalog writes
+        // it (a German noun keeps its capital).
+        saved_shown += (saved_shown.empty() ? "" : ", ") + (shown_label == definition.label ? named : shown_label) + " " +
+                       Workspace::display_value(definition, change.after, Workspace::ValueWords::Shown);
         if (value.empty()) {
-            value = after;
+            value       = after;
+            value_shown = Workspace::display_value(definition, change.after, Workspace::ValueWords::Shown);
             pick  = calibration_pick(change.key, snapshot);
         }
         restore[change.key] = change.saved.value_or(change.before);
@@ -528,6 +555,12 @@ json settings_proposal(const Workspace::SettingsPreview& preview, const Workspac
         rows.push_back({{"icon", "info"}, {"text", Slic3r::format(translated(L("%1% itself is unchanged")), base)}});
     std::string kind = scope;
     kind.front() = char(std::toupper(static_cast<unsigned char>(kind.front())));
+    // TRN The saved preset's receipt: %1% lists the settings saved, such as "Nozzle temperature 215 °C".
+    const char* receipt = target.scope == Workspace::SettingsScope::Filament ? L("Filament preset · %1%") :
+                          // TRN The saved preset's receipt: %1% lists the settings saved.
+                          target.scope == Workspace::SettingsScope::Printer  ? L("Printer preset · %1%") :
+                                                                               // TRN The saved preset's receipt: %1% lists the settings saved.
+                                                                               L("Process preset · %1%");
     // TRN %1% is a setting's new value, such as 215 °C.
     const char* as_new = target.scope == Workspace::SettingsScope::Filament ? L("Save %1% as a new filament preset") :
                          // TRN %1% is a setting's new value, such as 215 °C.
@@ -535,13 +568,15 @@ json settings_proposal(const Workspace::SettingsPreview& preview, const Workspac
                                                                               // TRN %1% is a setting's new value, such as 215 °C.
                                                                               L("Save %1% as a new process preset");
     // TRN %1% is a setting's new value, such as 215 °C, %2% a preset's name.
-    json proposal{{"title", in_place ? Slic3r::format(translated(L("Save %1% to %2%")), value, persist_as)
-                                     : Slic3r::format(translated(as_new), value)},
+    json proposal{{"title", in_place ? Slic3r::format(translated(L("Save %1% to %2%")), value_shown, persist_as)
+                                     : Slic3r::format(translated(as_new), value_shown)},
                   {"rows", std::move(rows)},
                   {"save", translated(L("Save preset"))},
                   {"value", value},
-                  // Board 6's receipt, once it is saved.
-                  {"receipt", kind + " preset · " + saved_settings}};
+                  // Board 6's receipt, once it is saved: the model reads the
+                  // English, the note shows the person's language.
+                  {"receipt", kind + " preset · " + saved_settings},
+                  {"receiptShown", Slic3r::format(translated(receipt), saved_shown)}};
     // The button's words are also the message it sends, as the person's own.
     if (!pick.empty())
         proposal["other"] = translated(pick_another(pick));
@@ -651,10 +686,10 @@ const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request,
     activity.progress_total    = pacing.ticks > 0 ? pacing.ticks : 1;
 
     if (definition != nullptr) {
-        activity.title             = definition->title;
+        set_title(activity, {definition->title, translated(definition->title.c_str())});
         activity.action_class      = definition->action_class;
     } else {
-        activity.title = "Unknown tool request";
+        set_title(activity, title_of(L("Unknown tool request")));
     }
 
     m_activities.emplace_back(std::move(activity));
@@ -671,7 +706,7 @@ const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request,
         return stored;
     }
     stored.arguments_json = std::move(validation.arguments_json);
-    stored.title = m_registry.activity_title(*definition, stored.arguments_json);
+    set_title(stored, m_registry.activity_title(*definition, stored.arguments_json));
 
     if (definition->handler == ToolHandler::ObjectImportFile) {
         const auto arguments = json::parse(stored.arguments_json);
@@ -682,18 +717,24 @@ const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request,
             fail(stored, "invalid_arguments", "Give the absolute path of a file that exists.");
             return stored;
         }
-        stored.title = "Import " + arguments["path"].get<std::string>();
-        if (stored.title.size() > kToolLabelLimit) stored.title.resize(kToolLabelLimit - 3), stored.title += "...";
+        // TRN %1% is a file's path.
+        set_title(stored, title_of(L("Import %1%"), arguments["path"].get<std::string>()));
     }
 
-    const auto name_of_object = [&snapshot](const json& id) {
+    // An object, plate or region the snapshot no longer has is named by its id.
+    const auto object_title = [&snapshot](const std::string& id) {
         for (const auto& plate : snapshot.plates)
             for (const auto& object : plate.objects)
-                if (std::to_string(object.id.value()) == id) return object.name;
-        return "object " + id.get<std::string>();
+                if (std::to_string(object.id.value()) == id) return same_title(object.name);
+        // TRN %1% is an object's id, a number.
+        return title_of(L("object %1%"), id);
     };
-    const auto bounded_title = [&stored]() {
-        if (stored.title.size() > kToolLabelLimit) stored.title.resize(kToolLabelLimit - 3), stored.title += "...";
+    const auto name_of_object = [&object_title](const json& id) { return object_title(id.get<std::string>()); };
+    const auto plate_title = [&snapshot](const std::string& id) {
+        for (const auto& plate : snapshot.plates)
+            if (std::to_string(plate.id.value()) == id) return same_title(plate.name);
+        // TRN %1% is a plate's id, a number.
+        return title_of(L("plate %1%"), id);
     };
 
     if (definition->handler == ToolHandler::ObjectDivide) {
@@ -709,25 +750,49 @@ const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request,
             fail(stored, workspace_error_code(previewed.error), previewed.message);
             return stored;
         }
-        const std::string name = name_of_object(arguments["objectId"]);
+        const ActivityTitle name = name_of_object(arguments["objectId"]);
+        std::vector<ActivityTitle> sizes;
+        for (const auto& piece : preview.pieces)
+            // TRN A piece's size: width, depth and height in millimetres.
+            sizes.push_back(title_of(L("%1% x %2% x %3% mm"), number_words(piece.size[0]), number_words(piece.size[1]),
+                                     number_words(piece.size[2])));
+        const ActivityTitle listed = joined_titles(sizes);
+        const std::size_t   count  = preview.pieces.size();
+        ActivityTitle       title;
         if (request.mode == Workspace::DivideRequest::Mode::Shells) {
-            stored.title = "Split " + name + " into its " + std::to_string(preview.pieces.size()) + " shells as " +
-                           (request.as_parts ? "parts of one object" : "separate objects");
+            title = request.as_parts ?
+                        // TRN %1% is how many shells, %2% an object's name, %3% the pieces' sizes.
+                        plural_title("Split %2% into its %1% shell as parts of one object: %3%",
+                                     "Split %2% into its %1% shells as parts of one object: %3%", count, name, listed) :
+                        // TRN %1% is how many shells, %2% an object's name, %3% the pieces' sizes.
+                        plural_title("Split %2% into its %1% shell as separate objects: %3%",
+                                     "Split %2% into its %1% shells as separate objects: %3%", count, name, listed);
         } else {
-            const std::string kept = request.keep_upper && request.keep_lower ? "keeping both pieces" :
-                                     request.keep_upper ? "keeping the upper piece" : "keeping the lower piece";
-            stored.title = "Cut " + name + " by the plane through (" + number_words(request.point[0]) + ", " +
-                           number_words(request.point[1]) + ", " + number_words(request.point[2]) + ") facing (" +
-                           number_words(request.normal[0]) + ", " + number_words(request.normal[1]) + ", " +
-                           number_words(request.normal[2]) + "), " + kept + (request.as_parts ? " as parts" : "");
+            const std::string point  = number_words(request.point[0]) + ", " + number_words(request.point[1]) + ", " +
+                                       number_words(request.point[2]);
+            const std::string normal = number_words(request.normal[0]) + ", " + number_words(request.normal[1]) + ", " +
+                                       number_words(request.normal[2]);
+            const char* words =
+                request.keep_upper && request.keep_lower ?
+                    (request.as_parts ?
+                         // TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+                         L("Cut %1% by the plane through (%2%) facing (%3%), keeping both pieces as parts: %4%") :
+                         // TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+                         L("Cut %1% by the plane through (%2%) facing (%3%), keeping both pieces: %4%")) :
+                request.keep_upper ?
+                    (request.as_parts ?
+                         // TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+                         L("Cut %1% by the plane through (%2%) facing (%3%), keeping the upper piece as parts: %4%") :
+                         // TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+                         L("Cut %1% by the plane through (%2%) facing (%3%), keeping the upper piece: %4%")) :
+                    (request.as_parts ?
+                         // TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+                         L("Cut %1% by the plane through (%2%) facing (%3%), keeping the lower piece as parts: %4%") :
+                         // TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+                         L("Cut %1% by the plane through (%2%) facing (%3%), keeping the lower piece: %4%"));
+            title = title_of(words, name, point, normal, listed);
         }
-        stored.title += ":";
-        for (std::size_t index = 0; index < preview.pieces.size(); ++index) {
-            const auto& size = preview.pieces[index].size;
-            stored.title += (index == 0 ? " " : ", ") + number_words(size[0]) + " x " + number_words(size[1]) + " x " +
-                            number_words(size[2]) + " mm";
-        }
-        bounded_title();
+        set_title(stored, title);
     }
 
     if (definition->handler == ToolHandler::ExportFile) {
@@ -740,37 +805,47 @@ const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request,
             fail(stored, workspace_error_code(checked.error), checked.message);
             return stored;
         }
-        const std::string what = request.kind == "gcode"      ? "the G-code" :
-                                 request.kind == "sliced_3mf" ? "the sliced plate" :
-                                 request.kind == "project_3mf" ? "the project" :
-                                 request.kind == "stl"        ? "an STL" : "the presets in use";
         std::error_code error;
         const bool replaces = std::filesystem::exists(std::filesystem::u8path(request.path), error) && request.kind != "presets";
-        stored.title = "Export " + what + " to " + request.path + (replaces ? ", replacing it" : "");
+        // TRN %1% is a file's path.
+        const char* words = request.kind == "gcode"       ? (replaces ? L("Export the G-code to %1%, replacing it") : L("Export the G-code to %1%")) :
+                            // TRN %1% is a file's path.
+                            request.kind == "sliced_3mf"  ? (replaces ? L("Export the sliced plate to %1%, replacing it") : L("Export the sliced plate to %1%")) :
+                            // TRN %1% is a file's path.
+                            request.kind == "project_3mf" ? (replaces ? L("Export the project to %1%, replacing it") : L("Export the project to %1%")) :
+                            // TRN %1% is a file's path.
+                            request.kind == "stl"         ? (replaces ? L("Export an STL to %1%, replacing it") : L("Export an STL to %1%")) :
+                                                            // TRN %1% is a file's path.
+                                                            L("Export the presets in use to %1%");
+        std::vector<ActivityTitle> parts{title_of(words, request.path)};
         const std::string license = m_workspace.project_details().license;
         if (license_restricts(license))
-            stored.title += "; the project's license is " + license;
+            // TRN %1% is a license's name, such as CC BY-NC.
+            parts.push_back(title_of(L("the project's license is %1%"), license));
         const auto warnings = export_slice_warnings(m_workspace, request);
         if (!warnings.empty())
-            stored.title += "; the slice has " + std::to_string(warnings.size()) + (warnings.size() == 1 ? " warning: " : " warnings, first: ") +
-                            warnings.front();
-        bounded_title();
+            // TRN %1% is how many warnings, %2% the first one, in OrcaSlicer's words.
+            parts.push_back(plural_title("the slice has %1% warning: %2%", "the slice has %1% warnings, first: %2%", warnings.size(),
+                                         warnings.front()));
+        set_title(stored, joined_titles(parts, "; "));
     }
 
     if (definition->handler == ToolHandler::ObjectMerge) {
         const auto arguments = json::parse(stored.arguments_json);
-        stored.title = "Merge";
         const auto& ids = arguments["objectIds"];
-        for (std::size_t index = 0; index < ids.size(); ++index)
-            stored.title += (index == 0 ? " " : index + 1 == ids.size() ? " and " : ", ") + name_of_object(ids[index]);
-        stored.title += " into one object";
-        bounded_title();
+        std::vector<ActivityTitle> names;
+        for (const auto& id : ids)
+            names.push_back(name_of_object(id));
+        const ActivityTitle last = names.back();
+        names.pop_back();
+        // TRN %1% is a list of objects' names, %2% the last name.
+        set_title(stored, title_of(L("Merge %1% and %2% into one object"), joined_titles(names), last));
     }
 
     if (definition->handler == ToolHandler::ObjectRepair) {
         const auto arguments = json::parse(stored.arguments_json);
-        stored.title = "Repair the mesh of " + name_of_object(arguments["objectId"]);
-        bounded_title();
+        // TRN %1% is an object's name.
+        set_title(stored, title_of(L("Repair the mesh of %1%"), name_of_object(arguments["objectId"])));
     }
 
     if (definition->handler == ToolHandler::RegionAnnotate) {
@@ -782,118 +857,133 @@ const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request,
             fail(stored, workspace_error_code(plan.error), plan.message);
             return stored;
         }
-        stored.title = "Annotate";
+        // The regions' labels are the model's own description of each, in English.
+        std::string regions;
         for (std::size_t index = 0; index < planned.size(); ++index)
-            stored.title += (index == 0 ? " " : "; ") + planned[index].id + " " + planned[index].label;
-        if (stored.title.size() > kToolLabelLimit) stored.title.resize(kToolLabelLimit - 3), stored.title += "...";
+            regions += (index == 0 ? "" : "; ") + planned[index].id + " " + planned[index].label;
+        // TRN %1% is a list of regions, each its id and a description.
+        set_title(stored, title_of(L("Annotate %1%"), regions));
     }
 
     if (definition->handler == ToolHandler::ProjectDeleteItems) {
         const auto arguments = json::parse(stored.arguments_json);
-        const auto object_name = [&snapshot](const std::string& id) {
-            for (const auto& plate : snapshot.plates)
-                for (const auto& object : plate.objects)
-                    if (std::to_string(object.id.value()) == id) return object.name;
-            return "object " + id;
-        };
-        stored.title = "Delete";
-        bool first = true;
+        std::vector<ActivityTitle> items;
         for (const auto& row : arguments["items"]) {
-            std::string item;
             if (row.contains("plateId")) {
-                item = "plate " + row["plateId"].get<std::string>();
-                for (const auto& plate : snapshot.plates)
-                    if (std::to_string(plate.id.value()) == row["plateId"]) item = plate.name;
+                items.push_back(plate_title(row["plateId"].get<std::string>()));
             } else if (row.contains("regionId")) {
-                item = "region " + row["regionId"].get<std::string>();
+                const std::string id = row["regionId"].get<std::string>();
+                std::string       label;
                 if (m_product_state != nullptr)
                     for (const auto& region : m_product_state->regions())
-                        if (region.id == row["regionId"]) item += " (" + region.label + ")";
+                        if (region.id == id) label = region.label;
+                items.push_back(label.empty() ?
+                                    // TRN %1% is a region's id.
+                                    title_of(L("region %1%"), id) :
+                                    // TRN %1% is a region's id, %2% its description.
+                                    title_of(L("region %1% (%2%)"), id, label));
             } else if (row.contains("partId")) {
-                item = "a part of " + object_name(row["objectId"]);
+                // TRN %1% is an object's name.
+                items.push_back(title_of(L("a part of %1%"), object_title(row["objectId"].get<std::string>())));
             } else if (row.contains("instance")) {
-                item = "copy " + std::to_string(row["instance"].get<std::size_t>() + 1) + " of " + object_name(row["objectId"]);
+                // TRN %1% is which copy, counting from 1, %2% an object's name.
+                items.push_back(title_of(L("copy %1% of %2%"), row["instance"].get<std::size_t>() + 1,
+                                         object_title(row["objectId"].get<std::string>())));
             } else {
-                item = object_name(row["objectId"]);
+                items.push_back(object_title(row["objectId"].get<std::string>()));
             }
-            stored.title += (first ? " " : ", ") + item;
-            first = false;
         }
-        if (stored.title.size() > kToolLabelLimit) stored.title.resize(kToolLabelLimit - 3), stored.title += "...";
+        // TRN %1% is a list of what is deleted: objects, copies, parts, plates or regions.
+        set_title(stored, title_of(L("Delete %1%"), joined_titles(items)));
     }
 
     if (definition->handler == ToolHandler::PlateLayout) {
         const auto arguments = json::parse(stored.arguments_json);
-        const auto name_of = [&snapshot](const std::string& id) {
-            for (const auto& plate : snapshot.plates)
-                for (const auto& object : plate.objects)
-                    if (std::to_string(object.id.value()) == id) return object.name;
-            return "object " + id;
-        };
-        const auto plate_name = [&snapshot](const std::string& id) {
-            for (const auto& plate : snapshot.plates)
-                if (std::to_string(plate.id.value()) == id) return plate.name;
-            return "plate " + id;
-        };
-        std::vector<std::string> parts;
+        std::vector<ActivityTitle> parts;
         for (const auto& row : arguments.value("objects", json::array())) {
-            const std::string name = name_of(row["objectId"]);
-            if (row.contains("quantity")) parts.push_back(name + " x" + std::to_string(row["quantity"].get<int>()));
-            if (row.contains("enabled")) parts.push_back((row["enabled"].get<bool>() ? "print " : "skip ") + name);
-            if (row.contains("plateId")) parts.push_back("move " + name + " to " + plate_name(row["plateId"]));
-            if (row.contains("name")) parts.push_back("rename " + name + " to " + row["name"].get<std::string>());
-            if (row.contains("extruder")) parts.push_back(name + " on filament " + std::to_string(row["extruder"].get<int>()));
+            const ActivityTitle name = object_title(row["objectId"].get<std::string>());
+            // TRN %1% is an object's name, %2% how many copies it will have.
+            if (row.contains("quantity")) parts.push_back(title_of(L("%1% x%2%"), name, row["quantity"].get<int>()));
+            if (row.contains("enabled"))
+                // TRN %1% is an object's name.
+                parts.push_back(row["enabled"].get<bool>() ? title_of(L("print %1%"), name) :
+                                                             // TRN %1% is an object's name.
+                                                             title_of(L("skip %1%"), name));
+            if (row.contains("plateId"))
+                // TRN %1% is an object's name, %2% a plate's name.
+                parts.push_back(title_of(L("move %1% to %2%"), name, plate_title(row["plateId"].get<std::string>())));
+            if (row.contains("name"))
+                // TRN %1% is an object's name, %2% its new name.
+                parts.push_back(title_of(L("rename %1% to %2%"), name, row["name"].get<std::string>()));
+            if (row.contains("extruder"))
+                // TRN %1% is an object's name, %2% a filament slot's number.
+                parts.push_back(title_of(L("%1% on filament %2%"), name, row["extruder"].get<int>()));
         }
         for (const auto& row : arguments.value("plates", json::array())) {
-            const std::string name = row.contains("plateId") ? plate_name(row["plateId"]) : "a new plate";
-            if (!row.contains("plateId")) parts.push_back("add a plate");
-            if (row.contains("name")) parts.push_back("name " + name + " " + row["name"].get<std::string>());
-            if (row.contains("bedType")) parts.push_back(name + " on " + row["bedType"].get<std::string>());
+            const bool existing = row.contains("plateId");
+            const ActivityTitle name = existing ? plate_title(row["plateId"].get<std::string>()) : ActivityTitle{};
+            if (!existing) parts.push_back(title_of(L("add a plate")));
+            if (row.contains("name"))
+                parts.push_back(existing ?
+                                    // TRN %1% is a plate's name, %2% its new name.
+                                    title_of(L("name %1% %2%"), name, row["name"].get<std::string>()) :
+                                    // TRN %1% is the new plate's name.
+                                    title_of(L("name a new plate %1%"), row["name"].get<std::string>()));
+            if (row.contains("bedType"))
+                parts.push_back(existing ?
+                                    // TRN %1% is a plate's name, %2% a build plate type, such as Textured PEI Plate.
+                                    title_of(L("%1% on %2%"), name, row["bedType"].get<std::string>()) :
+                                    // TRN %1% is a build plate type, such as Textured PEI Plate.
+                                    title_of(L("a new plate on %1%"), row["bedType"].get<std::string>()));
         }
         if (arguments.contains("arrange"))
-            parts.push_back(arguments["arrange"].contains("plateId") ? "arrange " + plate_name(arguments["arrange"]["plateId"])
-                                                                      : "arrange all plates");
-        stored.title = "Lay out:";
-        for (std::size_t index = 0; index < parts.size(); ++index)
-            stored.title += (index == 0 ? " " : ", ") + parts[index];
-        if (stored.title.size() > kToolLabelLimit) stored.title.resize(kToolLabelLimit - 3), stored.title += "...";
+            parts.push_back(arguments["arrange"].contains("plateId") ?
+                                // TRN %1% is a plate's name.
+                                title_of(L("arrange %1%"), plate_title(arguments["arrange"]["plateId"].get<std::string>())) :
+                                title_of(L("arrange all plates")));
+        // TRN %1% is a list of changes to the plates, such as "move Cube to Plate 2, arrange all plates".
+        set_title(stored, title_of(L("Lay out: %1%"), joined_titles(parts)));
     }
 
     if (definition->handler == ToolHandler::ObjectPlace) {
         const auto arguments = json::parse(stored.arguments_json);
-        std::string name = "object " + arguments["objectId"].get<std::string>();
-        for (const auto& plate : snapshot.plates)
-            for (const auto& candidate : plate.objects)
-                if (std::to_string(candidate.id.value()) == arguments["objectId"]) name = candidate.name;
-        std::vector<std::string> parts;
+        const ActivityTitle name = object_title(arguments["objectId"].get<std::string>());
+        std::vector<ActivityTitle> parts;
         const auto number = [](double value) {
             std::ostringstream out;
             out << value;
             return out.str();
         };
-        if (arguments.contains("unitsFix")) parts.push_back("convert from " + arguments["unitsFix"].get<std::string>());
+        // TRN %1% is a unit, inches or meters.
+        if (arguments.contains("unitsFix")) parts.push_back(title_of(L("convert from %1%"), arguments["unitsFix"].get<std::string>()));
         if (arguments.contains("scale"))
-            parts.push_back("scale x" + number(arguments["scale"][0]) + " y" + number(arguments["scale"][1]) + " z" + number(arguments["scale"][2]));
+            // TRN %1%, %2% and %3% are scale factors along x, y and z.
+            parts.push_back(title_of(L("scale x%1% y%2% z%3%"), number(arguments["scale"][0]), number(arguments["scale"][1]),
+                                     number(arguments["scale"][2])));
         if (arguments.contains("scaleTo"))
-            parts.push_back("scale to " + number(arguments["scaleTo"]["sizeMm"]) + " mm in " + arguments["scaleTo"]["axis"].get<std::string>());
-        if (arguments.contains("mirrorAxis")) parts.push_back("mirror in " + arguments["mirrorAxis"].get<std::string>());
-        if (arguments.contains("faceDown")) parts.push_back("put a chosen face down");
+            // TRN %1% is a size in millimetres, %2% an axis: x, y or z.
+            parts.push_back(title_of(L("scale to %1% mm in %2%"), number(arguments["scaleTo"]["sizeMm"]),
+                                     arguments["scaleTo"]["axis"].get<std::string>()));
+        // TRN %1% is an axis: x, y or z.
+        if (arguments.contains("mirrorAxis")) parts.push_back(title_of(L("mirror in %1%"), arguments["mirrorAxis"].get<std::string>()));
+        if (arguments.contains("faceDown")) parts.push_back(title_of(L("put a chosen face down")));
         if (arguments.contains("rotateDegrees"))
-            parts.push_back("rotate " + number(arguments["rotateDegrees"][0]) + "/" + number(arguments["rotateDegrees"][1]) + "/" +
-                            number(arguments["rotateDegrees"][2]) + " degrees");
-        if (arguments.contains("autoOrient")) parts.push_back("auto-orient");
+            // TRN %1%, %2% and %3% are angles about x, y and z.
+            parts.push_back(title_of(L("rotate %1%/%2%/%3% degrees"), number(arguments["rotateDegrees"][0]),
+                                     number(arguments["rotateDegrees"][1]), number(arguments["rotateDegrees"][2])));
+        if (arguments.contains("autoOrient")) parts.push_back(title_of(L("auto-orient")));
         if (arguments.contains("position"))
-            parts.push_back("move to " + number(arguments["position"][0]) + ", " + number(arguments["position"][1]));
-        if (arguments.contains("dropToBed")) parts.push_back("drop to the bed");
-        stored.title = "Place " + name + ":";
-        for (std::size_t index = 0; index < parts.size(); ++index)
-            stored.title += (index == 0 ? " " : ", ") + parts[index];
-        if (stored.title.size() > kToolLabelLimit) stored.title.resize(kToolLabelLimit - 3), stored.title += "...";
+            // TRN %1% and %2% are a position's x and y on the plate.
+            parts.push_back(title_of(L("move to %1%, %2%"), number(arguments["position"][0]), number(arguments["position"][1])));
+        if (arguments.contains("dropToBed")) parts.push_back(title_of(L("drop to the bed")));
+        // TRN %1% is an object's name, %2% a list of what is done to it, such as "rotate 0/0/90 degrees, drop to the bed".
+        set_title(stored, title_of(L("Place %1%: %2%"), name, joined_titles(parts)));
     }
 
     if (definition->handler == ToolHandler::PrinterSetup) {
         auto arguments = json::parse(stored.arguments_json);
         const Workspace::PrinterSetupRequest request = setup_request(arguments);
+        std::vector<ActivityTitle>           parts;
         if (!request.empty()) {
             const auto preview = m_workspace.preview_printer_setup(request);
             if (!preview.valid) {
@@ -903,18 +993,29 @@ const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request,
             }
             // Store the previewed outcome, compared again before anything is applied.
             arguments["previewedSetup"] = setup_outcome(preview);
-            stored.title = "Set up " + preview.resulting.preset;
-            if (request.plate_type) stored.title += ", " + preview.resulting.plate_type;
-            if (request.process_preset) stored.title += ", " + preview.process_preset;
+            std::string setup = preview.resulting.preset;
+            if (request.plate_type) setup += ", " + preview.resulting.plate_type;
+            if (request.process_preset) setup += ", " + preview.process_preset;
             if (request.filament_presets)
                 for (std::size_t slot = 0; slot < request.filament_presets->size(); ++slot)
-                    stored.title += ", " + (*request.filament_presets)[slot];
+                    setup += ", " + (*request.filament_presets)[slot];
+            // TRN %1% is a list of presets: the printer, then its plate, process and filaments.
+            parts.push_back(title_of(L("Set up %1%"), setup));
             for (const auto& substitution : preview.substitutions)
-                stored.title += "; replaces " + substitution.kind + " " + substitution.from;
+                parts.push_back(substitution.kind == "filament" ?
+                                    // TRN %1% is the name of the filament preset that is replaced.
+                                    title_of(L("replaces filament %1%"), substitution.from) :
+                                substitution.kind == "process" ?
+                                    // TRN %1% is the name of the process preset that is replaced.
+                                    title_of(L("replaces process %1%"), substitution.from) :
+                                    // TRN %1% is the build plate type that is replaced, such as Textured PEI Plate.
+                                    title_of(L("replaces plate %1%"), substitution.from));
             for (const auto& edits : preview.unsaved_edits)
-                stored.title += "; discards " + std::to_string(edits.count) + " unsaved edits in " + edits.preset;
+                // TRN %1% is how many edits, %2% a preset's name.
+                parts.push_back(plural_title("discards %1% unsaved edit in %2%", "discards %1% unsaved edits in %2%", edits.count,
+                                             edits.preset));
         } else {
-            stored.title = "Record printer facts";
+            parts.push_back(title_of(L("Record printer facts")));
         }
         if (arguments.contains("confirmFacts")) {
             if (m_product_state == nullptr)
@@ -923,11 +1024,12 @@ const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request,
                 fail(stored, "refused", "Printer facts cannot be recorded here: this project has no printer facts store.");
                 return stored;
             }
+            // A fact's name and value are the model's own words.
             for (const auto& fact : arguments["confirmFacts"])
-                stored.title += "; " + fact["fact"].get<std::string>() + ": " + fact["value"].get<std::string>();
+                parts.push_back(same_title(fact["fact"].get<std::string>() + ": " + fact["value"].get<std::string>()));
         }
         stored.arguments_json = arguments.dump();
-        if (stored.title.size() > kToolLabelLimit) stored.title.resize(kToolLabelLimit - 3), stored.title += "...";
+        set_title(stored, joined_titles(parts, "; "));
     }
 
     if (definition->handler == ToolHandler::ProjectOpen) {
@@ -966,12 +1068,14 @@ const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request,
                      details);
                 return stored;
             }
-            stored.title = earlier && arguments["openedBefore"] == "existing" ? "Continue " + earlier->name :
-                                                                                "Open " + arguments["path"].get<std::string>();
+            set_title(stored, earlier && arguments["openedBefore"] == "existing" ?
+                                  // TRN %1% is a project's name.
+                                  title_of(L("Continue %1%"), earlier->name) :
+                                  // TRN %1% is a file's path.
+                                  title_of(L("Open %1%"), arguments["path"].get<std::string>()));
         } else {
-            stored.title = "Start a new project";
+            set_title(stored, title_of(L("Start a new project")));
         }
-        if (stored.title.size() > kToolLabelLimit) stored.title.resize(kToolLabelLimit - 3), stored.title += "...";
     }
 
     if (definition->handler == ToolHandler::CalibrationGenerate) {
@@ -982,7 +1086,7 @@ const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request,
             fail(stored, "invalid_arguments", problem);
             return stored;
         }
-        stored.title = calibration_title(Workspace::with_dialog_defaults(request));
+        set_title(stored, calibration_title(Workspace::with_dialog_defaults(request)));
     }
 
     if (definition->handler == ToolHandler::SettingsApplyPatch) {
@@ -1012,7 +1116,7 @@ const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request,
             fail(stored, issue.code, issue.message, settings_preview_result(preview, target.target.scope, snapshot).dump());
             return stored;
         }
-        stored.title = settings_title(preview, target, patch);
+        set_title(stored, settings_title(preview, target, patch));
         arguments["previewedChanges"] = json::array();
         for (const auto& change : Workspace::previewed_changes(preview))
             arguments["previewedChanges"].push_back({{"key", change.key}, {"before", change.before}, {"after", change.after}});
@@ -1097,12 +1201,12 @@ bool ToolExecutionCoordinator::finish_pending(const std::string& action_id, Exte
     return true;
 }
 
-bool ToolExecutionCoordinator::retitle_pending(const std::string& action_id, std::string title)
+bool ToolExecutionCoordinator::retitle_pending(const std::string& action_id, const ActivityTitle& title)
 {
     ToolActivity* activity = m_pending.count(action_id) != 0 ? find_mutable(action_id) : nullptr;
     if (activity == nullptr)
         return false;
-    activity->title = std::move(title);
+    set_title(*activity, title);
     notify(*activity);
     return true;
 }

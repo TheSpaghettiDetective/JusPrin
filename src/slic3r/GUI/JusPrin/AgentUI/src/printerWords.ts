@@ -19,9 +19,8 @@ export function sizesText(nozzles: number[]): string {
   return `${sizes.map((size, index) => (index === 0 ? '' : index + 1 === sizes.length ? ' and ' : ', ') + size).join('')} mm`;
 }
 
-// A likely answer, rather than a standing invitation.
-// Shown only, never sent to the model, so it is translated; the opening below
-// is the model's own first turn and stays English.
+// A likely answer, rather than a standing invitation. Shown only, never sent
+// to the model.
 export function placeholder(session: PrinterSessionPayload): string {
   if (session.mode === 'connect') return t`Ask anything about connecting it`;
   return session.mode === 'add'
@@ -29,22 +28,40 @@ export function placeholder(session: PrinterSessionPayload): string {
     : t`e.g. "I put a 0.6 nozzle on it" or "loaded black PETG"`;
 }
 
-// The panel's own first line, which the model is shown as having said. A
-// trailing "Choices:" line is drawn as reply chips, as the model's are.
+// The reply chips under a line: the trailing "Choices:" line the page draws
+// as buttons (replyChoices.ts). The marker stays English; the answers are
+// the person's words, sent as their message when tapped.
+function withChoices(body: string, choices: string[]): string {
+  return `${body}\nChoices: ${choices.join(' | ')}`;
+}
+
+// The panel's own first line, which the model is shown as having said. It is
+// in the person's language, so the model goes on in it.
 export function opening(session: PrinterSessionPayload): string {
   const printer = session.context.printer;
-  const name = printer?.name || session.printerName || 'this printer';
+  const name = printer?.name || session.printerName;
   // Asking about the printer's LAN mode is no use while this computer has
   // nothing to reach it with; the notice under this line offers the plug-in.
   if (session.mode === 'connect' && printer?.provider === 'bambu' && printer.needsNetworkPlugin)
-    return `To connect ${name}, JusPrin first needs Bambu’s network plug-in, which isn’t installed on this computer yet. ${name} already works for preparing prints.`;
-  if (session.mode === 'connect')
-    return printer?.provider === 'bambu'
-      ? `Let’s connect ${name}. Is it turned on, in LAN mode, and on the same network as this computer?\nChoices: Yes, it is | How do I check?`
-      : `Let’s connect ${name}. What address do you use to open it in a browser? It’s usually its IP address, like 192.168.1.20.`;
-  if (session.mode === 'change') return `This is the ${name}. Tell me what changed on it, or ask anything about it.`;
-  return (
-    'Which printer do you have? Tell me the brand and model, or share a photo of its label. ' +
-    "Not sure? Tell me what you know, and I'll help you find it."
-  );
+    return name
+      ? t`To connect ${name}, JusPrin first needs Bambu’s network plug-in, which isn’t installed on this computer yet. ${name} already works for preparing prints.`
+      : t`To connect this printer, JusPrin first needs Bambu’s network plug-in, which isn’t installed on this computer yet. This printer already works for preparing prints.`;
+  if (session.mode === 'connect') {
+    if (printer?.provider === 'bambu')
+      return withChoices(
+        name
+          ? t`Let’s connect ${name}. Is it turned on, in LAN mode, and on the same network as this computer?`
+          : t`Let’s connect this printer. Is it turned on, in LAN mode, and on the same network as this computer?`,
+        [t({ message: 'Yes, it is', comment: 'An answer to tap: the printer is on, in LAN mode and on this network.' }),
+          t`How do I check?`],
+      );
+    return name
+      ? t`Let’s connect ${name}. What address do you use to open it in a browser? It’s usually its IP address, like 192.168.1.20.`
+      : t`Let’s connect this printer. What address do you use to open it in a browser? It’s usually its IP address, like 192.168.1.20.`;
+  }
+  if (session.mode === 'change')
+    return name
+      ? t`This is the ${name}. Tell me what changed on it, or ask anything about it.`
+      : t`This is your printer. Tell me what changed on it, or ask anything about it.`;
+  return t`Which printer do you have? Tell me the brand and model, or share a photo of its label. Not sure? Tell me what you know, and I'll help you find it.`;
 }

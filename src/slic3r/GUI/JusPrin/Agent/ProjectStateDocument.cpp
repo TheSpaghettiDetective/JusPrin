@@ -376,6 +376,8 @@ void write_activity_fields(json& entry, const ToolActivity& activity)
     entry["server"]           = activity.server;
     entry["tool"]             = activity.tool;
     entry["title"]            = activity.title;
+    if (!activity.shown_title.empty())
+        entry["shownTitle"] = activity.shown_title;
     entry["arguments"]        = activity.arguments_json;
     entry["actionClass"]      = action_class_name(activity.action_class);
     entry["sessionId"]        = std::to_string(activity.session);
@@ -413,6 +415,7 @@ std::optional<ToolActivity> read_activity(const json& entry)
     activity.server            = entry.value("server", "");
     activity.tool              = entry.value("tool", "");
     activity.title             = entry.value("title", "");
+    activity.shown_title       = entry.value("shownTitle", "");
     activity.arguments_json    = entry.value("arguments", "");
     activity.action_class      = *action_class;
     activity.session = std::stoull(entry.value("sessionId", "0"));
@@ -509,6 +512,7 @@ PlanRecord read_plan(const json& stored)
     record.headline       = stored.value("headline", "");
     record.validity       = stored.value("validity", "current");
     record.invalidated_by = stored.value("invalidatedBy", "");
+    record.invalidated_shown = stored.value("invalidatedShown", "");
     if (stored.contains("decisions") && stored["decisions"].is_array())
         for (const json& entry : stored["decisions"])
             record.decisions.push_back({entry.value("topic", ""), entry.value("statement", ""),
@@ -1338,6 +1342,7 @@ PlanRecord ProjectStateDocument::set_plan(PlanRecord record, const std::string& 
     stored["headline"]    = record.headline;
     stored["validity"]    = "current";
     stored["invalidatedBy"] = "";
+    stored.erase("invalidatedShown");
     stored.erase("invalidatedWeight");
     stored["decisions"]   = json::array();
     for (const PlanDecision& decision : record.decisions)
@@ -1351,7 +1356,7 @@ PlanRecord ProjectStateDocument::set_plan(PlanRecord record, const std::string& 
     return record;
 }
 
-bool ProjectStateDocument::mark_plan_needs_reassessment(const std::string& reason, int weight)
+bool ProjectStateDocument::mark_plan_needs_reassessment(const std::string& reason, int weight, const std::string& shown)
 {
     // Only the active chat's plan can go stale: nothing edits the project for
     // an inactive chat.
@@ -1367,6 +1372,10 @@ bool ProjectStateDocument::mark_plan_needs_reassessment(const std::string& reaso
         return false;
     stored["validity"] = "needs_reassessment";
     stored["invalidatedBy"] = reason;
+    if (shown.empty())
+        stored.erase("invalidatedShown");
+    else
+        stored["invalidatedShown"] = shown;
     stored["invalidatedWeight"] = weight;
     touch();
     return true;

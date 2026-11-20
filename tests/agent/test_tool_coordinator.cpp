@@ -22,6 +22,9 @@
 #include <filesystem>
 #include <fstream>
 #include <stdexcept>
+#include <string>
+
+#include "slic3r/GUI/JusPrin/Support/Translate.hpp"
 
 using namespace Slic3r::GUI::JusPrin;
 using namespace Slic3r::GUI::JusPrin::Agent;
@@ -385,7 +388,7 @@ TEST_CASE("a call its surface leaves pending runs once and ends with the outcome
         harness.coordinator.pump();
         // The person may be using the app while the call waits for them.
         harness.workspace.dialog_opened({"Theirs", "A dialog the person opened.", {"ok"}, "ok"});
-        REQUIRE(harness.coordinator.retitle_pending(waiting, "Checking Workshop"));
+        REQUIRE(harness.coordinator.retitle_pending(waiting, {"Checking Workshop", "Checking Workshop"}));
         CHECK(harness.events.back().title == "Checking Workshop");
         CHECK(harness.events.back().state == ToolState::Running);
         REQUIRE(harness.coordinator.answer_dialogs_while_pending(waiting));
@@ -395,7 +398,7 @@ TEST_CASE("a call its surface leaves pending runs once and ends with the outcome
         REQUIRE(dialogs.at("items").size() == 1);
         CHECK(dialogs.dump().find("Incorrect password.") != std::string::npos);
         // A call that no longer waits has no title or dialogs to change.
-        CHECK_FALSE(harness.coordinator.retitle_pending(waiting, "Again"));
+        CHECK_FALSE(harness.coordinator.retitle_pending(waiting, {"Again", "Again"}));
         CHECK_FALSE(harness.coordinator.answer_dialogs_while_pending(waiting));
         // Nothing is listening for it any more.
         harness.workspace.dialog_opened({"Later", "After the call.", {"ok"}, "ok"});
@@ -1814,9 +1817,13 @@ TEST_CASE("settings tools read and write one object's overrides", "[tools][setti
     const auto snapshot = h.workspace.snapshot();
     json apply{{"scope", "object"}, {"changes", {{"wall_loops", 4}}}, {"target", target},
                {"expectedSessionId", std::to_string(snapshot.session.value())}, {"expectedRevision", snapshot.revision}};
+    // The person reads the title in their language; the model reads English.
+    install_plural_translator([](const char* singular, const char*, unsigned) { return "<" + std::string(singular) + ">"; });
     const ToolActivity pending = h.coordinator.submit({"settings_apply_patch", apply.dump()}, "m-2");
+    install_plural_translator(nullptr);
     REQUIRE(pending.state == ToolState::Running);
-    CHECK(pending.title == "Change 1 settings of " + snapshot.plates[0].objects[0].name + ": wall_loops");
+    CHECK(pending.title == "Change 1 setting of " + snapshot.plates[0].objects[0].name + ": wall_loops");
+    CHECK(pending.shown_title == "<Change 1 setting of " + snapshot.plates[0].objects[0].name + ": wall_loops>");
     h.pump_to_completion(pending.action_id);
     const auto applied = json::parse(h.coordinator.find(pending.action_id)->result_json);
     CHECK(registry.validate_output(*registry.find("settings_apply_patch"), applied));
@@ -1866,7 +1873,7 @@ TEST_CASE("a printer preset OrcaSlicer ships is saved as a copy, which is used i
                      {"expectedSessionId", std::to_string(snapshot.session.value())}, {"expectedRevision", snapshot.revision}};
     const ToolActivity pending = h.coordinator.submit({"settings_apply_patch", apply.dump()}, "m-2");
     REQUIRE(pending.state == ToolState::Running);
-    CHECK(pending.title == "Change 1 settings of \"Fixture printer\": machine_start_gcode; save as \"Fixture printer - Copy\"");
+    CHECK(pending.title == "Change 1 setting of \"Fixture printer\": machine_start_gcode; save as \"Fixture printer - Copy\"");
     h.pump_to_completion(pending.action_id);
     const auto applied = json::parse(h.coordinator.find(pending.action_id)->result_json);
     CHECK(registry.validate_output(*registry.find("settings_apply_patch"), applied));

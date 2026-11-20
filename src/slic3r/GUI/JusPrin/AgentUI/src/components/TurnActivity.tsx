@@ -102,8 +102,9 @@ function errorDetails(activity: ToolActivityInfo): Record<string, unknown> | und
 function resultText(activity: ToolActivityInfo): string | undefined {
   if (!hasFields(activity.result)) return undefined;
   const text = pretty(activity.result);
-  return text.length > RESULT_LIMIT
-    ? `${text.slice(0, RESULT_LIMIT)}\n… ${text.length - RESULT_LIMIT} more characters`
+  const more = text.length - RESULT_LIMIT;
+  return more > 0
+    ? `${text.slice(0, RESULT_LIMIT)}\n${plural(more, { one: '… # more character', other: '… # more characters' })}`
     : text;
 }
 

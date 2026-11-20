@@ -276,7 +276,7 @@ public:
     bool finish_pending(const std::string& action_id, ExtensionResult outcome);
     // Renames a pending call while it waits, as what it waits for changes:
     // the chat's card and the turn's line show the new title.
-    bool retitle_pending(const std::string& action_id, std::string title);
+    bool retitle_pending(const std::string& action_id, const ActivityTitle& title);
     // From now until it finishes, the app's dialogs are answered as during
     // any call and listed in its result. Not while it waits for the person,
     // who may be using the app meanwhile: only once its own work runs.

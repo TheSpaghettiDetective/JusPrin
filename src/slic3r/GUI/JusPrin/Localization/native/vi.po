@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-20 08:46-0800\n"
+"POT-Creation-Date: 2026-11-20 10:49-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -58,16 +58,90 @@ msgid "Document (PDF)"
 msgstr "Tài liệu (PDF)"
 
 # AI Translated
-#. TRN A calibration chat's first line. %1%: where it was started from, %2%: a printer.
+#. TRN A calibration chat's first line. %1%: a printer.
+#, boost-format
+msgid "From Home · %1% · filament not chosen · temporary test settings"
+msgstr "Từ Trang chủ · %1% · chưa chọn filament · cài đặt thử nghiệm tạm thời"
+
+# AI Translated
+#. TRN A calibration chat's first line. %1%: the project it was started from, %2%: a printer.
 #, boost-format
 msgid "From %1% · %2% · filament not chosen · temporary test settings"
 msgstr "Từ %1% · %2% · chưa chọn filament · cài đặt thử nghiệm tạm thời"
 
 # AI Translated
-#. TRN A calibration chat's first line. %1%: where it was started from, %2%: a filament, %3%: a printer.
+#. TRN A calibration chat's first line. %1%: a filament, %2%: a printer.
+#, boost-format
+msgid "From Home · %1% on %2% · temporary test settings"
+msgstr "Từ Trang chủ · %1% trên %2% · cài đặt thử nghiệm tạm thời"
+
+# AI Translated
+#. TRN A calibration chat's first line. %1%: the project it was started from, %2%: a filament, %3%: a printer.
 #, boost-format
 msgid "From %1% · %2% on %3% · temporary test settings"
 msgstr "Từ %1% · %2% trên %3% · cài đặt thử nghiệm tạm thời"
+
+# AI Translated
+# Needs human review: check the short date format (21 thg 10, 2026)
+#. TRN A date: %1% is the day of the month, %2% the year.
+#, boost-format
+msgid "%1% Jan %2%"
+msgstr "%1% thg 1, %2%"
+
+# AI Translated
+#, boost-format
+msgid "%1% Feb %2%"
+msgstr "%1% thg 2, %2%"
+
+# AI Translated
+#, boost-format
+msgid "%1% Mar %2%"
+msgstr "%1% thg 3, %2%"
+
+# AI Translated
+#, boost-format
+msgid "%1% Apr %2%"
+msgstr "%1% thg 4, %2%"
+
+# AI Translated
+#, boost-format
+msgid "%1% May %2%"
+msgstr "%1% thg 5, %2%"
+
+# AI Translated
+#, boost-format
+msgid "%1% Jun %2%"
+msgstr "%1% thg 6, %2%"
+
+# AI Translated
+#, boost-format
+msgid "%1% Jul %2%"
+msgstr "%1% thg 7, %2%"
+
+# AI Translated
+#, boost-format
+msgid "%1% Aug %2%"
+msgstr "%1% thg 8, %2%"
+
+# AI Translated
+#, boost-format
+msgid "%1% Sep %2%"
+msgstr "%1% thg 9, %2%"
+
+# AI Translated
+#, boost-format
+msgid "%1% Oct %2%"
+msgstr "%1% thg 10, %2%"
+
+# AI Translated
+#, boost-format
+msgid "%1% Nov %2%"
+msgstr "%1% thg 11, %2%"
+
+# AI Translated
+#, boost-format
+msgid "%1% Dec %2%"
+msgstr "%1% thg 12, %2%"
 
 # AI Translated
 #. TRN A reopened calibration test's line. %1%: the day it was made, as "21 Oct 2026".
@@ -76,7 +150,13 @@ msgid "Reopened · generated %1%"
 msgstr "Đã mở lại · tạo ngày %1%"
 
 # AI Translated
-#. TRN %1%: where the test was opened from, %2%: the day it was made, as "21 Oct 2026".
+#. TRN A reopened calibration test's line. %1%: the day it was made, as "21 Oct 2026".
+#, boost-format
+msgid "Opened from Home · generated %1%"
+msgstr "Mở từ Trang chủ · tạo ngày %1%"
+
+# AI Translated
+#. TRN %1%: the project the test was opened from, %2%: the day it was made, as "21 Oct 2026".
 #, boost-format
 msgid "Opened from %1% · generated %2%"
 msgstr "Mở từ %1% · tạo ngày %2%"
@@ -277,8 +357,134 @@ msgid "JusPrin has no AI model for this account right now. Try again later."
 msgstr "Hiện JusPrin không có mô hình AI nào cho tài khoản này. Hãy thử lại sau."
 
 # AI Translated
+msgid "another app"
+msgstr "một ứng dụng khác"
+
+# AI Translated
+#. TRN %1% is a printer preset's name; %2%, in the second form, the app that changed it.
+#, boost-format
+msgid "Printer changed to %1% by hand"
+msgstr "Đã đổi máy in thành %1% thủ công"
+
+# AI Translated
+#, boost-format
+msgid "Printer changed to %1% by %2%"
+msgstr "%2% đã đổi máy in thành %1%"
+
+# AI Translated
+#. TRN %1% is a filament preset's name; %2%, in the second form, the app that changed it.
+#, boost-format
+msgid "Filament changed to %1% by hand"
+msgstr "Đã đổi filament thành %1% thủ công"
+
+# AI Translated
+#, boost-format
+msgid "Filament changed to %1% by %2%"
+msgstr "%2% đã đổi filament thành %1%"
+
+# AI Translated
+#. TRN %1% is a process preset's name; %2%, in the second form, the app that changed it.
+#, boost-format
+msgid "Print settings changed to %1% by hand"
+msgstr "Đã đổi cài đặt in thành %1% thủ công"
+
+# AI Translated
+#, boost-format
+msgid "Print settings changed to %1% by %2%"
+msgstr "%2% đã đổi cài đặt in thành %1%"
+
+# AI Translated
+#. TRN %1% is a setting's name; %2%, in the second form, the app that changed it.
+#, boost-format
+msgid "%1% changed by hand"
+msgstr "Đã đổi %1% thủ công"
+
+# AI Translated
+#, boost-format
+msgid "%1% changed by %2%"
+msgstr "%2% đã đổi %1%"
+
+# AI Translated
+#. TRN %1% is a setting's name, %2% its new value; %3%, in the second form, the app that changed it.
+#, boost-format
+msgid "%1% changed to %2% by hand"
+msgstr "Đã đổi %1% thành %2% thủ công"
+
+# AI Translated
+#, boost-format
+msgid "%1% changed to %2% by %3%"
+msgstr "%3% đã đổi %1% thành %2%"
+
+# AI Translated
+#. TRN %1%, in the second form, is the app that undid the last change.
+msgid "Undone by hand"
+msgstr "Đã hoàn tác thủ công"
+
+# AI Translated
+#, boost-format
+msgid "Undone by %1%"
+msgstr "%1% đã hoàn tác"
+
+# AI Translated
+#. TRN %1% is the change that was undone; %2%, in the second form, the app that undid it.
+#, boost-format
+msgid "%1% undone by hand"
+msgstr "Đã hoàn tác %1% thủ công"
+
+# AI Translated
+#, boost-format
+msgid "%1% undone by %2%"
+msgstr "%2% đã hoàn tác %1%"
+
+# AI Translated
+#. TRN %1%, in the second form, is the app that redid the last change.
+msgid "Redone by hand"
+msgstr "Đã làm lại thủ công"
+
+# AI Translated
+#, boost-format
+msgid "Redone by %1%"
+msgstr "%1% đã làm lại"
+
+# AI Translated
+#. TRN %1% is the change that was redone; %2%, in the second form, the app that redid it.
+#, boost-format
+msgid "%1% redone by hand"
+msgstr "Đã làm lại %1% thủ công"
+
+# AI Translated
+#, boost-format
+msgid "%1% redone by %2%"
+msgstr "%2% đã làm lại %1%"
+
+# AI Translated
+#. TRN %1%, in the second form, is the app that changed the project.
+msgid "The project changed by hand"
+msgstr "Dự án đã được thay đổi thủ công"
+
+# AI Translated
+#, boost-format
+msgid "The project changed by %1%"
+msgstr "%1% đã thay đổi dự án"
+
+# AI Translated
+#. TRN %1% is what changed, such as Move; %2%, in the second form, the app that changed it.
+#, boost-format
+msgid "%1%, by hand"
+msgstr "%1%, thủ công"
+
+# AI Translated
+#, boost-format
+msgid "%1%, by %2%"
+msgstr "%1%, bởi %2%"
+
+# AI Translated
 msgid "Restored an earlier project version"
 msgstr "Đã khôi phục một phiên bản dự án trước đó"
+
+# AI Translated
+msgid "An earlier model version was restored"
+msgstr "Đã khôi phục một phiên bản mô hình trước đó"
 
 # AI Translated
 msgid "Restored this chat's saved project setup"
@@ -318,6 +524,63 @@ msgstr[0] "Tin nhắn này cần %1% tín dụng; bạn có %2%."
 #, boost-format
 msgid "The %1% API key was rejected. Update the AI configuration and try again."
 msgstr "Khóa API %1% đã bị từ chối. Hãy cập nhật cấu hình AI rồi thử lại."
+
+# AI Translated
+#. TRN %1% is how many settings, %2% an object's name or a preset's name in quotes, %3% the settings' keys.
+#, boost-format
+msgid "Change %1% setting of %2%: %3%"
+msgid_plural "Change %1% settings of %2%: %3%"
+msgstr[0] "Đổi %1% cài đặt của %2%: %3%"
+
+# AI Translated
+#. TRN %1% is how many settings, %2% a preset's name in quotes, %3% the settings' keys. The preset is saved with them.
+#, boost-format
+msgid "Change %1% setting of %2%: %3%; save it"
+msgid_plural "Change %1% settings of %2%: %3%; save it"
+msgstr[0] "Đổi %1% cài đặt của %2%: %3%; lưu lại"
+
+# AI Translated
+#. TRN %1% is how many settings, %2% a preset's name in quotes, %3% the settings' keys, %4% the new preset's name.
+#, boost-format
+msgid "Change %1% setting of %2%: %3%; save as \"%4%\""
+msgid_plural "Change %1% settings of %2%: %3%; save as \"%4%\""
+msgstr[0] "Đổi %1% cài đặt của %2%: %3%; lưu thành \"%4%\""
+
+# AI Translated
+#. TRN %1% and %2% are the tower's first and last temperatures.
+#, boost-format
+msgid "Make a temperature tower, %1% °C to %2% °C"
+msgstr "Tạo tháp nhiệt độ, %1% °C đến %2% °C"
+
+# AI Translated
+#. TRN YOLO is the name of OrcaSlicer's quicker flow-ratio test; %1% is its pass, 1 or 2.
+#, boost-format
+msgid "Make a flow-ratio test, YOLO pass %1%"
+msgstr "Tạo bài kiểm tra tỷ lệ lưu lượng, YOLO lượt %1%"
+
+# AI Translated
+#. TRN %1% is the test's pass, 1 or 2.
+#, boost-format
+msgid "Make a flow-ratio test, classic pass %1%"
+msgstr "Tạo bài kiểm tra tỷ lệ lưu lượng, cổ điển lượt %1%"
+
+# AI Translated
+#. TRN %1% and %2% are the first and last pressure-advance values.
+#, boost-format
+msgid "Make a pressure-advance line, %1% to %2%"
+msgstr "Tạo đường Pressure Advance, %1% đến %2%"
+
+# AI Translated
+#. TRN %1% and %2% are the first and last pressure-advance values.
+#, boost-format
+msgid "Make a pressure-advance pattern, %1% to %2%"
+msgstr "Tạo mẫu Pressure Advance, %1% đến %2%"
+
+# AI Translated
+#. TRN %1% and %2% are the first and last pressure-advance values.
+#, boost-format
+msgid "Make a pressure-advance tower, %1% to %2%"
+msgstr "Tạo tháp Pressure Advance, %1% đến %2%"
 
 # AI Translated
 #. TRN A button that asks the AI to choose another block of a calibration test.
@@ -363,6 +626,24 @@ msgid "%1% itself is unchanged"
 msgstr "Bản thân %1% không thay đổi"
 
 # AI Translated
+#. TRN The saved preset's receipt: %1% lists the settings saved, such as "Nozzle temperature 215 °C".
+#, boost-format
+msgid "Filament preset · %1%"
+msgstr "Cài đặt sẵn filament · %1%"
+
+# AI Translated
+#. TRN The saved preset's receipt: %1% lists the settings saved.
+#, boost-format
+msgid "Printer preset · %1%"
+msgstr "Cài đặt sẵn máy in · %1%"
+
+# AI Translated
+#. TRN The saved preset's receipt: %1% lists the settings saved.
+#, boost-format
+msgid "Process preset · %1%"
+msgstr "Cài đặt sẵn process · %1%"
+
+# AI Translated
 #. TRN %1% is a setting's new value, such as 215 °C.
 #, boost-format
 msgid "Save %1% as a new filament preset"
@@ -385,6 +666,584 @@ msgstr "Lưu %1% thành cài đặt sẵn process mới"
 #, boost-format
 msgid "Save %1% to %2%"
 msgstr "Lưu %1% vào %2%"
+
+# AI Translated
+msgid "Unknown tool request"
+msgstr "Yêu cầu công cụ không xác định"
+
+# AI Translated
+#. TRN %1% is a file's path.
+#, boost-format
+msgid "Import %1%"
+msgstr "Nhập %1%"
+
+# AI Translated
+#. TRN %1% is an object's id, a number.
+#, boost-format
+msgid "object %1%"
+msgstr "vật thể %1%"
+
+# AI Translated
+#. TRN %1% is a plate's id, a number.
+#, boost-format
+msgid "plate %1%"
+msgstr "plate %1%"
+
+# AI Translated
+#. TRN A piece's size: width, depth and height in millimetres.
+#, boost-format
+msgid "%1% x %2% x %3% mm"
+msgstr "%1% x %2% x %3% mm"
+
+# AI Translated
+# Needs human review: check vỏ for a mesh's disconnected shell
+#. TRN %1% is how many shells, %2% an object's name, %3% the pieces' sizes.
+#, boost-format
+msgid "Split %2% into its %1% shell as parts of one object: %3%"
+msgid_plural "Split %2% into its %1% shells as parts of one object: %3%"
+msgstr[0] "Tách %2% thành %1% vỏ làm các phần của một vật thể: %3%"
+
+# AI Translated
+# Needs human review: check vỏ for a mesh's disconnected shell
+#. TRN %1% is how many shells, %2% an object's name, %3% the pieces' sizes.
+#, boost-format
+msgid "Split %2% into its %1% shell as separate objects: %3%"
+msgid_plural "Split %2% into its %1% shells as separate objects: %3%"
+msgstr[0] "Tách %2% thành %1% vỏ làm các vật thể riêng: %3%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+#, boost-format
+msgid "Cut %1% by the plane through (%2%) facing (%3%), keeping both pieces as parts: %4%"
+msgstr "Cắt %1% bằng mặt phẳng đi qua (%2%) hướng về (%3%), giữ cả hai mảnh làm các phần: %4%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+#, boost-format
+msgid "Cut %1% by the plane through (%2%) facing (%3%), keeping both pieces: %4%"
+msgstr "Cắt %1% bằng mặt phẳng đi qua (%2%) hướng về (%3%), giữ cả hai mảnh: %4%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+#, boost-format
+msgid "Cut %1% by the plane through (%2%) facing (%3%), keeping the upper piece as parts: %4%"
+msgstr "Cắt %1% bằng mặt phẳng đi qua (%2%) hướng về (%3%), giữ mảnh trên làm các phần: %4%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+#, boost-format
+msgid "Cut %1% by the plane through (%2%) facing (%3%), keeping the upper piece: %4%"
+msgstr "Cắt %1% bằng mặt phẳng đi qua (%2%) hướng về (%3%), giữ mảnh trên: %4%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+#, boost-format
+msgid "Cut %1% by the plane through (%2%) facing (%3%), keeping the lower piece as parts: %4%"
+msgstr "Cắt %1% bằng mặt phẳng đi qua (%2%) hướng về (%3%), giữ mảnh dưới làm các phần: %4%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+#, boost-format
+msgid "Cut %1% by the plane through (%2%) facing (%3%), keeping the lower piece: %4%"
+msgstr "Cắt %1% bằng mặt phẳng đi qua (%2%) hướng về (%3%), giữ mảnh dưới: %4%"
+
+# AI Translated
+#. TRN %1% is a file's path.
+#, boost-format
+msgid "Export the G-code to %1%, replacing it"
+msgstr "Xuất G-code ra %1%, thay thế file cũ"
+
+# AI Translated
+#, boost-format
+msgid "Export the G-code to %1%"
+msgstr "Xuất G-code ra %1%"
+
+# AI Translated
+#. TRN %1% is a file's path.
+#, boost-format
+msgid "Export the sliced plate to %1%, replacing it"
+msgstr "Xuất plate đã slice ra %1%, thay thế file cũ"
+
+# AI Translated
+#, boost-format
+msgid "Export the sliced plate to %1%"
+msgstr "Xuất plate đã slice ra %1%"
+
+# AI Translated
+#. TRN %1% is a file's path.
+#, boost-format
+msgid "Export the project to %1%, replacing it"
+msgstr "Xuất dự án ra %1%, thay thế file cũ"
+
+# AI Translated
+#, boost-format
+msgid "Export the project to %1%"
+msgstr "Xuất dự án ra %1%"
+
+# AI Translated
+#. TRN %1% is a file's path.
+#, boost-format
+msgid "Export an STL to %1%, replacing it"
+msgstr "Xuất STL ra %1%, thay thế file cũ"
+
+# AI Translated
+#, boost-format
+msgid "Export an STL to %1%"
+msgstr "Xuất STL ra %1%"
+
+# AI Translated
+#. TRN %1% is a file's path.
+#, boost-format
+msgid "Export the presets in use to %1%"
+msgstr "Xuất các cài đặt sẵn đang dùng ra %1%"
+
+# AI Translated
+#. TRN %1% is a license's name, such as CC BY-NC.
+#, boost-format
+msgid "the project's license is %1%"
+msgstr "giấy phép của dự án là %1%"
+
+# AI Translated
+#. TRN %1% is how many warnings, %2% the first one, in OrcaSlicer's words.
+#, boost-format
+msgid "the slice has %1% warning: %2%"
+msgid_plural "the slice has %1% warnings, first: %2%"
+msgstr[0] "bản slice có %1% cảnh báo, đầu tiên: %2%"
+
+# AI Translated
+#. TRN %1% is a list of objects' names, %2% the last name.
+#, boost-format
+msgid "Merge %1% and %2% into one object"
+msgstr "Gộp %1% và %2% thành một vật thể"
+
+# AI Translated
+#. TRN %1% is an object's name.
+#, boost-format
+msgid "Repair the mesh of %1%"
+msgstr "Sửa lưới của %1%"
+
+# AI Translated
+#. TRN %1% is a list of regions, each its id and a description.
+#, boost-format
+msgid "Annotate %1%"
+msgstr "Chú thích %1%"
+
+# AI Translated
+#. TRN %1% is a region's id.
+#, boost-format
+msgid "region %1%"
+msgstr "vùng %1%"
+
+# AI Translated
+#. TRN %1% is a region's id, %2% its description.
+#, boost-format
+msgid "region %1% (%2%)"
+msgstr "vùng %1% (%2%)"
+
+# AI Translated
+#. TRN %1% is an object's name.
+#, boost-format
+msgid "a part of %1%"
+msgstr "một phần của %1%"
+
+# AI Translated
+#. TRN %1% is which copy, counting from 1, %2% an object's name.
+#, boost-format
+msgid "copy %1% of %2%"
+msgstr "bản sao %1% của %2%"
+
+# AI Translated
+#. TRN %1% is a list of what is deleted: objects, copies, parts, plates or regions.
+#, boost-format
+msgid "Delete %1%"
+msgstr "Xóa %1%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% how many copies it will have.
+#, boost-format
+msgid "%1% x%2%"
+msgstr "%1% x%2%"
+
+# AI Translated
+#. TRN %1% is an object's name.
+#, boost-format
+msgid "print %1%"
+msgstr "in %1%"
+
+# AI Translated
+#. TRN %1% is an object's name.
+#, boost-format
+msgid "skip %1%"
+msgstr "bỏ qua %1%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% a plate's name.
+#, boost-format
+msgid "move %1% to %2%"
+msgstr "chuyển %1% sang %2%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% its new name.
+#, boost-format
+msgid "rename %1% to %2%"
+msgstr "đổi tên %1% thành %2%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% a filament slot's number.
+#, boost-format
+msgid "%1% on filament %2%"
+msgstr "%1% dùng filament %2%"
+
+# AI Translated
+msgid "add a plate"
+msgstr "thêm một plate"
+
+# AI Translated
+#. TRN %1% is a plate's name, %2% its new name.
+#, boost-format
+msgid "name %1% %2%"
+msgstr "đặt tên %1% là %2%"
+
+# AI Translated
+#. TRN %1% is the new plate's name.
+#, boost-format
+msgid "name a new plate %1%"
+msgstr "đặt tên plate mới là %1%"
+
+# AI Translated
+#. TRN %1% is a plate's name, %2% a build plate type, such as Textured PEI Plate.
+#, boost-format
+msgid "%1% on %2%"
+msgstr "%1% trên %2%"
+
+# AI Translated
+#. TRN %1% is a build plate type, such as Textured PEI Plate.
+#, boost-format
+msgid "a new plate on %1%"
+msgstr "một plate mới trên %1%"
+
+# AI Translated
+#. TRN %1% is a plate's name.
+#, boost-format
+msgid "arrange %1%"
+msgstr "sắp xếp %1%"
+
+# AI Translated
+msgid "arrange all plates"
+msgstr "sắp xếp tất cả plate"
+
+# AI Translated
+#. TRN %1% is a list of changes to the plates, such as "move Cube to Plate 2, arrange all plates".
+#, boost-format
+msgid "Lay out: %1%"
+msgstr "Bố trí: %1%"
+
+# AI Translated
+#. TRN %1% is a unit, inches or meters.
+#, boost-format
+msgid "convert from %1%"
+msgstr "chuyển đổi từ %1%"
+
+# AI Translated
+#. TRN %1%, %2% and %3% are scale factors along x, y and z.
+#, boost-format
+msgid "scale x%1% y%2% z%3%"
+msgstr "tỷ lệ x%1% y%2% z%3%"
+
+# AI Translated
+#. TRN %1% is a size in millimetres, %2% an axis: x, y or z.
+#, boost-format
+msgid "scale to %1% mm in %2%"
+msgstr "đổi tỷ lệ thành %1% mm theo trục %2%"
+
+# AI Translated
+#. TRN %1% is an axis: x, y or z.
+#, boost-format
+msgid "mirror in %1%"
+msgstr "lật theo trục %1%"
+
+# AI Translated
+msgid "put a chosen face down"
+msgstr "đặt mặt đã chọn xuống dưới"
+
+# AI Translated
+#. TRN %1%, %2% and %3% are angles about x, y and z.
+#, boost-format
+msgid "rotate %1%/%2%/%3% degrees"
+msgstr "xoay %1%/%2%/%3% độ"
+
+# AI Translated
+msgid "auto-orient"
+msgstr "tự động định hướng"
+
+# AI Translated
+#. TRN %1% and %2% are a position's x and y on the plate.
+#, boost-format
+msgid "move to %1%, %2%"
+msgstr "di chuyển đến %1%, %2%"
+
+# AI Translated
+msgid "drop to the bed"
+msgstr "thả xuống bàn in"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% a list of what is done to it, such as "rotate 0/0/90 degrees, drop to the bed".
+#, boost-format
+msgid "Place %1%: %2%"
+msgstr "Đặt %1%: %2%"
+
+# AI Translated
+#. TRN %1% is a list of presets: the printer, then its plate, process and filaments.
+#, boost-format
+msgid "Set up %1%"
+msgstr "Thiết lập %1%"
+
+# AI Translated
+#. TRN %1% is the name of the filament preset that is replaced.
+#, boost-format
+msgid "replaces filament %1%"
+msgstr "thay filament %1%"
+
+# AI Translated
+#. TRN %1% is the name of the process preset that is replaced.
+#, boost-format
+msgid "replaces process %1%"
+msgstr "thay process %1%"
+
+# AI Translated
+#. TRN %1% is the build plate type that is replaced, such as Textured PEI Plate.
+#, boost-format
+msgid "replaces plate %1%"
+msgstr "thay plate %1%"
+
+# AI Translated
+#. TRN %1% is how many edits, %2% a preset's name.
+#, boost-format
+msgid "discards %1% unsaved edit in %2%"
+msgid_plural "discards %1% unsaved edits in %2%"
+msgstr[0] "bỏ %1% chỉnh sửa chưa lưu trong %2%"
+
+# AI Translated
+msgid "Record printer facts"
+msgstr "Ghi lại thông tin máy in"
+
+# AI Translated
+#. TRN %1% is a project's name.
+#, boost-format
+msgid "Continue %1%"
+msgstr "Tiếp tục %1%"
+
+# AI Translated
+#. TRN %1% is a file's path.
+#, boost-format
+msgid "Open %1%"
+msgstr "Mở %1%"
+
+# AI Translated
+msgid "Search settings"
+msgstr "Tìm cài đặt"
+
+# AI Translated
+msgid "Read settings"
+msgstr "Đọc cài đặt"
+
+# AI Translated
+msgid "Preview settings"
+msgstr "Xem trước cài đặt"
+
+# AI Translated
+msgid "Change settings"
+msgstr "Thay đổi cài đặt"
+
+# AI Translated
+msgid "Record what this print is for and how to print it"
+msgstr "Ghi lại mục đích của bản in này và cách in"
+
+# AI Translated
+msgid "List the printers this app knows"
+msgstr "Liệt kê các máy in mà ứng dụng này biết"
+
+# AI Translated
+msgid "Open a project"
+msgstr "Mở một dự án"
+
+# AI Translated
+msgid "Make a calibration test"
+msgstr "Tạo bài kiểm tra hiệu chỉnh"
+
+# AI Translated
+msgid "Set up the printer"
+msgstr "Thiết lập máy in"
+
+# AI Translated
+msgid "Preview a printer setup"
+msgstr "Xem trước thiết lập máy in"
+
+# AI Translated
+msgid "Import an attached model"
+msgstr "Nhập mô hình đính kèm"
+
+# AI Translated
+msgid "Import a model file"
+msgstr "Nhập file mô hình"
+
+# AI Translated
+msgid "Delete from the project"
+msgstr "Xóa khỏi dự án"
+
+# AI Translated
+msgid "Lay out the plates"
+msgstr "Bố trí các plate"
+
+# AI Translated
+msgid "Place an object"
+msgstr "Đặt một vật thể"
+
+# AI Translated
+msgid "Read a skill"
+msgstr "Đọc một kỹ năng"
+
+# AI Translated
+msgid "Picture a plate"
+msgstr "Tạo hình ảnh plate"
+
+# AI Translated
+msgid "Read a project attachment"
+msgstr "Đọc file đính kèm của dự án"
+
+# AI Translated
+msgid "Inspect a slice in detail"
+msgstr "Kiểm tra chi tiết bản slice"
+
+# AI Translated
+msgid "Cancel a run"
+msgstr "Hủy một lần chạy"
+
+# AI Translated
+msgid "Export a file"
+msgstr "Xuất một file"
+
+# AI Translated
+msgid "Preview dividing an object"
+msgstr "Xem trước việc chia vật thể"
+
+# AI Translated
+msgid "Divide an object"
+msgstr "Chia một vật thể"
+
+# AI Translated
+msgid "Merge objects"
+msgstr "Gộp các vật thể"
+
+# AI Translated
+msgid "Repair an object's mesh"
+msgstr "Sửa lưới của vật thể"
+
+# AI Translated
+msgid "Mark what parts of an object mean"
+msgstr "Đánh dấu ý nghĩa các phần của vật thể"
+
+# AI Translated
+msgid "Analyze an object"
+msgstr "Phân tích một vật thể"
+
+# AI Translated
+msgid "List printer, filament, or process presets"
+msgstr "Liệt kê cài đặt sẵn máy in, filament hoặc process"
+
+# AI Translated
+msgid "Check the sliced plate"
+msgstr "Kiểm tra plate đã slice"
+
+# AI Translated
+msgid "Slice the plate"
+msgstr "Slice plate"
+
+# AI Translated
+msgid "Open the print dialog"
+msgstr "Mở hộp thoại in"
+
+# AI Translated
+msgid "Inspect the live workspace"
+msgstr "Kiểm tra không gian làm việc hiện tại"
+
+# AI Translated
+msgid "Show the printers you mean"
+msgstr "Hiện các máy in bạn muốn nói đến"
+
+# AI Translated
+msgid "Add this printer"
+msgstr "Thêm máy in này"
+
+# AI Translated
+msgid "Change this printer"
+msgstr "Thay đổi máy in này"
+
+# AI Translated
+msgid "Check a printer's connection"
+msgstr "Kiểm tra kết nối của máy in"
+
+# AI Translated
+msgid "Connect a print host"
+msgstr "Kết nối máy chủ in"
+
+# AI Translated
+msgid "Connect a Bambu Lab printer"
+msgstr "Kết nối máy in Bambu Lab"
+
+# AI Translated
+msgid "Open an issue for the developers"
+msgstr "Gửi báo cáo sự cố cho nhà phát triển"
+
+# AI Translated
+#. TRN %1% is what the print is for, %2% the plan's headline, both in the AI's words.
+#, boost-format
+msgid "Record what this print is for: %1%; plan: %2%"
+msgstr "Ghi lại mục đích của bản in này: %1%; kế hoạch: %2%"
+
+# AI Translated
+#. TRN %1% is what the print is for, in the AI's words.
+#, boost-format
+msgid "Record what this print is for: %1%"
+msgstr "Ghi lại mục đích của bản in này: %1%"
+
+# AI Translated
+#. TRN %1% is the plan's headline, in the AI's words.
+#, boost-format
+msgid "Record the plan: %1%"
+msgstr "Ghi lại kế hoạch: %1%"
+
+# AI Translated
+msgid "Record the plan"
+msgstr "Ghi lại kế hoạch"
+
+# AI Translated
+#. TRN %1% is how many settings, %2% their keys.
+#, boost-format
+msgid "Change %1% object setting: %2%"
+msgid_plural "Change %1% object settings: %2%"
+msgstr[0] "Đổi %1% cài đặt vật thể: %2%"
+
+# AI Translated
+#. TRN %1% is how many settings, %2% their keys.
+#, boost-format
+msgid "Change %1% filament setting: %2%"
+msgid_plural "Change %1% filament settings: %2%"
+msgstr[0] "Đổi %1% cài đặt filament: %2%"
+
+# AI Translated
+#. TRN %1% is how many settings, %2% their keys.
+#, boost-format
+msgid "Change %1% printer setting: %2%"
+msgid_plural "Change %1% printer settings: %2%"
+msgstr[0] "Đổi %1% cài đặt máy in: %2%"
+
+# AI Translated
+#. TRN %1% is how many settings, %2% their keys.
+#, boost-format
+msgid "Change %1% process setting: %2%"
+msgid_plural "Change %1% process settings: %2%"
+msgstr[0] "Đổi %1% cài đặt process: %2%"
 
 # AI Translated
 msgid "Drop a model here or add one"
@@ -709,6 +1568,11 @@ msgid "Client configuration changed while preparing the write. Original file ret
 msgstr "Cấu hình ứng dụng khách đã thay đổi trong khi chuẩn bị ghi. Đã giữ nguyên file gốc; hãy xem lại."
 
 # AI Translated
+#. TRN Under Cowork's name in the list of AI apps: it connects in its local sessions only.
+msgid "local sessions"
+msgstr "phiên cục bộ"
+
+# AI Translated
 msgid "JusPrin couldn't close the project, so it didn't restart. Your project stays open, and JusPrin will use the new language the next time it starts."
 msgstr "JusPrin không thể đóng dự án nên chưa khởi động lại. Dự án của bạn vẫn mở, và JusPrin sẽ dùng ngôn ngữ mới vào lần khởi động tiếp theo."
 
@@ -804,6 +1668,31 @@ msgid "Slicing plate %1%"
 msgstr "Đang slice plate %1%"
 
 # AI Translated
+#. TRN %1% is a printer's name.
+#, boost-format
+msgid "Waiting for the access code for %1%"
+msgstr "Đang chờ mã truy cập cho %1%"
+
+# AI Translated
+#. TRN %1% is a print host's address, such as 192.168.1.20.
+#. TRN %1% is a printer's name or a print host's address.
+#, boost-format
+msgid "Checking %1%"
+msgstr "Đang kiểm tra %1%"
+
+# AI Translated
+#. TRN %1% is a print host's address. The key the app holds was refused.
+#, boost-format
+msgid "Waiting for a different API key for %1%"
+msgstr "Đang chờ một khóa API khác cho %1%"
+
+# AI Translated
+#. TRN %1% is a print host's address.
+#, boost-format
+msgid "Waiting for an API key for %1%"
+msgstr "Đang chờ khóa API cho %1%"
+
+# AI Translated
 msgid "The form was out of date. Choose the printer again."
 msgstr "Biểu mẫu đã cũ. Hãy chọn lại máy in."
 
@@ -835,6 +1724,18 @@ msgstr "Duyệt toàn bộ danh sách máy in"
 # AI Translated
 msgid "Open printer settings"
 msgstr "Mở cài đặt máy in"
+
+# AI Translated
+#. TRN The filament chat's first line. %1% is a filament slot's number.
+#, boost-format
+msgid "I can help with settings for the filament in slot %1%. What would you like to change?"
+msgstr "Tôi có thể giúp với cài đặt cho filament ở khe %1%. Bạn muốn thay đổi gì?"
+
+# AI Translated
+#. TRN The filament chat's first line. %1% is a filament's name, %2% its slot's number.
+#, boost-format
+msgid "I can help with settings for %1% in slot %2%. What would you like to change?"
+msgstr "Tôi có thể giúp với cài đặt cho %1% ở khe %2%. Bạn muốn thay đổi gì?"
 
 # AI Translated
 #. TRN %1% is the profile loader's own error, in English.
@@ -1714,8 +2615,22 @@ msgid "Saving the MCP entry using the client's own CLI..."
 msgstr "Đang lưu mục MCP bằng CLI của chính ứng dụng khách..."
 
 # AI Translated
+msgid "Could not start the client CLI. Use Copy or check its installation."
+msgstr "Không thể khởi động CLI của ứng dụng khách. Hãy dùng nút Sao chép hoặc kiểm tra việc cài đặt nó."
+
+# AI Translated
 msgid "The setup command timed out. Stopping it..."
 msgstr "Lệnh thiết lập đã hết thời gian chờ. Đang dừng..."
+
+# AI Translated
+msgid "Setup timed out; the client config may have changed. Inspect it before trying again."
+msgstr "Thiết lập đã hết thời gian; cấu hình của ứng dụng khách có thể đã thay đổi. Hãy kiểm tra trước khi thử lại."
+
+# AI Translated
+#. TRN %1% is the exit code of an AI app's command-line tool, a number.
+#, boost-format
+msgid "Client CLI exited with code %1%."
+msgstr "CLI của ứng dụng khách đã thoát với mã %1%."
 
 # AI Translated
 msgid "Select printer"
@@ -2104,12 +3019,99 @@ msgid "Printer connection required"
 msgstr "Cần kết nối máy in"
 
 # AI Translated
+msgid "No more plates can be added"
+msgstr "Không thể thêm plate nữa"
+
+# AI Translated
+msgid "Annotate regions"
+msgstr "Chú thích vùng"
+
+# AI Translated
+msgid "Remove regions"
+msgstr "Xóa vùng"
+
+# AI Translated
+#. TRN The name of a plate the person has not named. %1% is its number, counting from 1.
+#, boost-format
+msgid "Plate %1%"
+msgstr "Plate %1%"
+
+# AI Translated
+msgid "Filament slot"
+msgstr "Khe filament"
+
+# AI Translated
+msgid "The app did not start slicing this plate."
+msgstr "Ứng dụng chưa bắt đầu slice plate này."
+
+# AI Translated
+msgid "The slice stopped with an error."
+msgstr "Quá trình slice đã dừng do lỗi."
+
+# AI Translated
+msgid "Object name cannot be empty"
+msgstr "Tên vật thể không được để trống"
+
+# AI Translated
+msgid "Lay out plates"
+msgstr "Bố trí plate"
+
+# AI Translated
+msgid "Place object"
+msgstr "Đặt vật thể"
+
+# AI Translated
+msgid "Import model"
+msgstr "Nhập mô hình"
+
+# AI Translated
+msgid "Delete items"
+msgstr "Xóa mục"
+
+# AI Translated
+msgid "Change object settings"
+msgstr "Thay đổi cài đặt vật thể"
+
+# AI Translated
 msgid "This project was saved by a newer version of JusPrin. Get the new version to open it."
 msgstr "Dự án này được lưu bằng phiên bản JusPrin mới hơn. Hãy tải phiên bản mới để mở."
 
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "Không thể mở dự án. Hãy thử lại."
+
+# AI Translated
+#. TRN A setting's text value, such as custom G-code, described by its length.
+#, boost-format
+msgid "%1% line"
+msgid_plural "%1% lines"
+msgstr[0] "%1% dòng"
+
+# AI Translated
+#. TRN A setting's text value, described by its length.
+#, boost-format
+msgid "%1% character"
+msgid_plural "%1% characters"
+msgstr[0] "%1% ký tự"
+
+# AI Translated
+#. TRN A setting's value: it takes the value of another preset.
+msgid "Not set"
+msgstr "Chưa đặt"
+
+# AI Translated
+#. TRN A setting that holds a list of texts, described by how many.
+#, boost-format
+msgid "%1% entry"
+msgid_plural "%1% entries"
+msgstr[0] "%1% mục"
+
+# AI Translated
+#. TRN A setting that holds a shape, such as the bed's outline, described by its points.
+#, boost-format
+msgid "%1% point"
+msgid_plural "%1% points"
+msgstr[0] "%1% điểm"
 
 # AI Translated
 #~ msgid "JusPrin's view couldn't be opened."

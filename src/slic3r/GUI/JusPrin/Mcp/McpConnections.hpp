@@ -5,6 +5,8 @@
 #include <utility>
 #include <vector>
 
+#include "slic3r/GUI/JusPrin/Support/Translate.hpp"
+
 namespace Slic3r::GUI::JusPrin::Mcp {
 struct ConnectionEntry
 {
@@ -44,7 +46,8 @@ inline std::vector<ConnectionEntry> connection_entries(const std::string& bridge
         {"codex", "Codex", "codex mcp add jusprin -- " + invocation, true,
             std::move(codex)},
         {"desktop", "Claude Desktop", desktop},
-        {"cowork", "Cowork", desktop, false, {}, "local sessions"},
+        // TRN Under Cowork's name in the list of AI apps: it connects in its local sessions only.
+        {"cowork", "Cowork", desktop, false, {}, L("local sessions")},
         {"cursor", "Cursor", desktop},
         {"code", "VS Code", json{{"servers", {{"jusprin", vscode}}}}.dump(2)}
     };

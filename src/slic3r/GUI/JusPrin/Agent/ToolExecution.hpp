@@ -75,6 +75,15 @@ struct ToolImage
 inline constexpr int         kToolImageEdge  = 1280;
 inline constexpr std::size_t kToolImageBytes = 2 * 1024 * 1024;
 
+// An action's title as two texts: the English the model reads through
+// workspace_inspect's activities, and the person's language, which the chat's
+// action line and card show. Agent/ActivityTitle.hpp builds them.
+struct ActivityTitle
+{
+    std::string english;
+    std::string shown;
+};
+
 struct ToolActivity
 {
     std::string   action_id;      // coordinator-assigned, stable across reloads
@@ -84,7 +93,11 @@ struct ToolActivity
     std::string   call_id;
     std::string   server;
     std::string   tool;
+    // In English: what the model reads through workspace_inspect.
     std::string   title;
+    // The title in the person's language, as the chat shows it; empty for an
+    // action recorded before titles were translated, which shows `title`.
+    std::string   shown_title;
     std::string   arguments_json;
     ActionClass   action_class{ActionClass::ReadOnly};
     std::uint64_t session{0};           // workspace session when queued

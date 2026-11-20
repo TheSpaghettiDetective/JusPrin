@@ -218,6 +218,9 @@ struct PlanRecord
     std::vector<std::string>  risks;
     std::string               validity{"current"};
     std::string               invalidated_by;
+    // invalidated_by in the person's language; empty when it was recorded
+    // without one, and then the card shows invalidated_by.
+    std::string               invalidated_shown;
 };
 
 class ProjectStateDocument
@@ -392,7 +395,9 @@ public:
     // Puts the active chat's plan in doubt, saying why. While it is in doubt
     // a later reason replaces the shown one unless that one weighs more: a
     // printer switch is not hidden behind the setting edits that follow it.
-    bool mark_plan_needs_reassessment(const std::string& reason, int weight = 0);
+    // `reason` is in English, for the model; `shown`, when given, is the
+    // same in the person's language, for the setup card.
+    bool mark_plan_needs_reassessment(const std::string& reason, int weight = 0, const std::string& shown = {});
     // Region annotations of the model in the workspace. They label modifier
     // volumes, paint and overrides that live in the model, so they belong
     // with it, not with a chat: every saved model version records the list it

@@ -423,6 +423,11 @@ msgid "{minutes}m left"
 msgstr "{minutes}분 남음"
 
 # AI Translated
+#: src/components/TurnActivity.tsx
+msgid "{more, plural, one {… # more character} other {… # more characters}}"
+msgstr "{more, plural, one {… #자 더} other {… #자 더}}"
+
+# AI Translated
 #: src/components/SetupCard.tsx
 msgid "{more, plural, one {{preset} with {filament} and # other filament.} other {{preset} with {filament} and # other filaments.}}"
 msgstr "{more, plural, other {{preset}, {filament} 외 필라멘트 #개.}}"
@@ -1370,6 +1375,11 @@ msgid "Check plan"
 msgstr "출력 계획 확인"
 
 # AI Translated
+#: src/App.tsx
+msgid "Check the plan against what changed."
+msgstr "변경된 내용과 출력 계획을 대조해 확인해 주세요."
+
+# AI Translated
 #: src/components/Guide.tsx
 msgid "Check the spelling or try other words. You can also ask AI: choose Ask AI… in the Help menu."
 msgstr "철자를 확인하거나 다른 단어로 검색해 보세요. AI에게 물어볼 수도 있습니다: 도움말 메뉴에서 AI에게 묻기…를 선택하세요."
@@ -2119,6 +2129,11 @@ msgid "How did it come out?"
 msgstr "결과가 어땠나요?"
 
 # AI Translated
+#: src/printerWords.ts
+msgid "How do I check?"
+msgstr "어떻게 확인하나요?"
+
+# AI Translated
 #: src/components/OrcaImport.tsx
 msgid "If {app} keeps its settings somewhere else, choose that folder."
 msgstr "{app}이(가) 설정을 다른 곳에 보관한다면 그 폴더를 선택하세요."
@@ -2456,6 +2471,26 @@ msgstr "왼쪽 드래그"
 #: src/components/AgentConnection.tsx
 msgid "Let an AI app on this computer, such as Claude Desktop, work with the open project. JusPrin adds itself to that app’s settings."
 msgstr "Claude Desktop 같은 이 컴퓨터의 AI 앱이 열린 프로젝트로 작업하도록 합니다. JusPrin이 해당 앱의 설정에 자신을 추가합니다."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect {name}. Is it turned on, in LAN mode, and on the same network as this computer?"
+msgstr "{name}을(를) 연결해 보겠습니다. 전원이 켜져 있고, LAN 모드이며, 이 컴퓨터와 같은 네트워크에 연결되어 있나요?"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect {name}. What address do you use to open it in a browser? It’s usually its IP address, like 192.168.1.20."
+msgstr "{name}을(를) 연결해 보겠습니다. 브라우저에서 열 때 어떤 주소를 사용하시나요? 보통 192.168.1.20 같은 IP 주소입니다."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect this printer. Is it turned on, in LAN mode, and on the same network as this computer?"
+msgstr "이 프린터를 연결해 보겠습니다. 전원이 켜져 있고, LAN 모드이며, 이 컴퓨터와 같은 네트워크에 연결되어 있나요?"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect this printer. What address do you use to open it in a browser? It’s usually its IP address, like 192.168.1.20."
+msgstr "이 프린터를 연결해 보겠습니다. 브라우저에서 열 때 어떤 주소를 사용하시나요? 보통 192.168.1.20 같은 IP 주소입니다."
 
 # AI Translated
 #: src/components/Preferences.tsx
@@ -4341,6 +4376,16 @@ msgid "This is an internal connection inside JusPrin, not a network service. The
 msgstr "이것은 JusPrin 내부 연결이며 네트워크 서비스가 아닙니다. 3D 캔버스와 다른 모든 컨트롤은 계속 작동합니다."
 
 # AI Translated
+#: src/printerWords.ts
+msgid "This is the {name}. Tell me what changed on it, or ask anything about it."
+msgstr "이 프린터는 {name}입니다. 변경된 내용을 알려 주시거나 무엇이든 물어보세요."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "This is your printer. Tell me what changed on it, or ask anything about it."
+msgstr "사용자의 프린터입니다. 변경된 내용을 알려 주시거나 무엇이든 물어보세요."
+
+# AI Translated
 #: src/components/AllSettings.tsx
 msgid "This JusPrin build cannot list the settings."
 msgstr "이 JusPrin 빌드에서는 설정 목록을 표시할 수 없습니다."
@@ -4375,6 +4420,16 @@ msgstr "시간 및 재료 예상치를 다시 계산하는 중…"
 #: src/components/SetupLocalTool.tsx
 msgid "Timed out."
 msgstr "시간이 초과되었습니다."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "To connect {name}, JusPrin first needs Bambu’s network plug-in, which isn’t installed on this computer yet. {name} already works for preparing prints."
+msgstr "{name}을(를) 연결하려면 JusPrin에 먼저 Bambu의 네트워크 플러그인이 필요하지만, 이 컴퓨터에는 아직 설치되어 있지 않습니다. {name}은(는) 이미 출력 준비에 사용할 수 있습니다."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "To connect this printer, JusPrin first needs Bambu’s network plug-in, which isn’t installed on this computer yet. This printer already works for preparing prints."
+msgstr "이 프린터를 연결하려면 JusPrin에 먼저 Bambu의 네트워크 플러그인이 필요하지만, 이 컴퓨터에는 아직 설치되어 있지 않습니다. 이 프린터는 이미 출력 준비에 사용할 수 있습니다."
 
 # AI Translated
 #: ../HomeUI/src/history.ts
@@ -4626,6 +4681,11 @@ msgid "Which printer do you have?"
 msgstr "어떤 프린터를 사용하시나요?"
 
 # AI Translated
+#: src/printerWords.ts
+msgid "Which printer do you have? Tell me the brand and model, or share a photo of its label. Not sure? Tell me what you know, and I'll help you find it."
+msgstr "어떤 프린터를 사용하시나요? 브랜드와 모델을 알려 주시거나 라벨 사진을 공유해 주세요. 잘 모르시겠다면 아는 내용을 알려 주세요. 찾는 것을 도와드리겠습니다."
+
+# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Which printer?"
 msgstr "어떤 프린터인가요?"
@@ -4661,6 +4721,12 @@ msgstr "작업 중…"
 #: src/components/SetupLocalTool.tsx
 msgid "Writing settings…"
 msgstr "설정을 쓰는 중…"
+
+# AI Translated
+#. An answer to tap: the printer is on, in LAN mode and on this network.
+#: src/printerWords.ts
+msgid "Yes, it is"
+msgstr "네, 맞아요"
 
 # AI Translated
 #: src/components/Preferences.tsx

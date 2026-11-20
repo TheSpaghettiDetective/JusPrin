@@ -424,6 +424,11 @@ msgid "{minutes}m left"
 msgstr "Liko {minutes} min"
 
 # AI Translated
+#: src/components/TurnActivity.tsx
+msgid "{more, plural, one {… # more character} other {… # more characters}}"
+msgstr "{more, plural, one {… dar # simbolis} few {… dar # simboliai} many {… dar # simbolio} other {… dar # simbolių}}"
+
+# AI Translated
 #: src/components/SetupCard.tsx
 msgid "{more, plural, one {{preset} with {filament} and # other filament.} other {{preset} with {filament} and # other filaments.}}"
 msgstr "{more, plural, one {{preset} su {filament} ir dar # gija.} few {{preset} su {filament} ir dar # gijomis.} many {{preset} su {filament} ir dar # gijos.} other {{preset} su {filament} ir dar # gijų.}}"
@@ -1371,6 +1376,11 @@ msgid "Check plan"
 msgstr "Patikrinti planą"
 
 # AI Translated
+#: src/App.tsx
+msgid "Check the plan against what changed."
+msgstr "Patikrink planą pagal tai, kas pasikeitė."
+
+# AI Translated
 #: src/components/Guide.tsx
 msgid "Check the spelling or try other words. You can also ask AI: choose Ask AI… in the Help menu."
 msgstr "Patikrinkite rašybą arba pabandykite kitus žodžius. Taip pat galite paklausti DI: meniu „Pagalba“ pasirinkite „Klausti DI…“."
@@ -2121,6 +2131,11 @@ msgid "How did it come out?"
 msgstr "Kaip pavyko?"
 
 # AI Translated
+#: src/printerWords.ts
+msgid "How do I check?"
+msgstr "Kaip patikrinti?"
+
+# AI Translated
 #: src/components/OrcaImport.tsx
 msgid "If {app} keeps its settings somewhere else, choose that folder."
 msgstr "Jei {app} nustatymus laiko kitur, pasirinkite tą aplanką."
@@ -2458,6 +2473,26 @@ msgstr "Vilkimas kairiuoju"
 #: src/components/AgentConnection.tsx
 msgid "Let an AI app on this computer, such as Claude Desktop, work with the open project. JusPrin adds itself to that app’s settings."
 msgstr "Leiskite šiame kompiuteryje esančiai DI programai, pvz., Claude Desktop, dirbti su atvertu projektu. JusPrin įsitraukia į tos programos nustatymus."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect {name}. Is it turned on, in LAN mode, and on the same network as this computer?"
+msgstr "Prijunkime {name}. Ar jis įjungtas, veikia LAN režimu ir yra tame pačiame tinkle kaip šis kompiuteris?"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect {name}. What address do you use to open it in a browser? It’s usually its IP address, like 192.168.1.20."
+msgstr "Prijunkime {name}. Kokiu adresu jį atveriate naršyklėje? Paprastai tai jo IP adresas, pvz., 192.168.1.20."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect this printer. Is it turned on, in LAN mode, and on the same network as this computer?"
+msgstr "Prijunkime šį spausdintuvą. Ar jis įjungtas, veikia LAN režimu ir yra tame pačiame tinkle kaip šis kompiuteris?"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect this printer. What address do you use to open it in a browser? It’s usually its IP address, like 192.168.1.20."
+msgstr "Prijunkime šį spausdintuvą. Kokiu adresu jį atveriate naršyklėje? Paprastai tai jo IP adresas, pvz., 192.168.1.20."
 
 # AI Translated
 #: src/components/Preferences.tsx
@@ -4344,6 +4379,16 @@ msgid "This is an internal connection inside JusPrin, not a network service. The
 msgstr "Tai vidinis ryšys JusPrin viduje, o ne tinklo paslauga. 3D vaizdas ir visi kiti valdikliai toliau veikia."
 
 # AI Translated
+#: src/printerWords.ts
+msgid "This is the {name}. Tell me what changed on it, or ask anything about it."
+msgstr "Tai {name}. Papasakokite, kas jame pasikeitė, arba klauskite bet ko apie jį."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "This is your printer. Tell me what changed on it, or ask anything about it."
+msgstr "Tai jūsų spausdintuvas. Papasakokite, kas jame pasikeitė, arba klauskite bet ko apie jį."
+
+# AI Translated
 #: src/components/AllSettings.tsx
 msgid "This JusPrin build cannot list the settings."
 msgstr "Ši JusPrin versija negali pateikti nustatymų sąrašo."
@@ -4378,6 +4423,16 @@ msgstr "Perskaičiuojami laiko ir medžiagų įverčiai…"
 #: src/components/SetupLocalTool.tsx
 msgid "Timed out."
 msgstr "Baigėsi laikas."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "To connect {name}, JusPrin first needs Bambu’s network plug-in, which isn’t installed on this computer yet. {name} already works for preparing prints."
+msgstr "Kad prijungtų {name}, JusPrin pirmiausia reikia Bambu tinklo papildinio, kuris šiame kompiuteryje dar neįdiegtas. {name} jau tinka spaudiniams paruošti."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "To connect this printer, JusPrin first needs Bambu’s network plug-in, which isn’t installed on this computer yet. This printer already works for preparing prints."
+msgstr "Kad prijungtų šį spausdintuvą, JusPrin pirmiausia reikia Bambu tinklo papildinio, kuris šiame kompiuteryje dar neįdiegtas. Šis spausdintuvas jau tinka spaudiniams paruošti."
 
 # AI Translated
 #: ../HomeUI/src/history.ts
@@ -4629,6 +4684,11 @@ msgid "Which printer do you have?"
 msgstr "Kokį spausdintuvą turite?"
 
 # AI Translated
+#: src/printerWords.ts
+msgid "Which printer do you have? Tell me the brand and model, or share a photo of its label. Not sure? Tell me what you know, and I'll help you find it."
+msgstr "Kokį spausdintuvą turite? Nurodykite gamintoją ir modelį arba pasidalykite jo etiketės nuotrauka. Nesate tikri? Papasakokite, ką žinote, ir padėsiu jį rasti."
+
+# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Which printer?"
 msgstr "Koks spausdintuvas?"
@@ -4664,6 +4724,12 @@ msgstr "Dirbama…"
 #: src/components/SetupLocalTool.tsx
 msgid "Writing settings…"
 msgstr "Įrašomi nustatymai…"
+
+# AI Translated
+#. An answer to tap: the printer is on, in LAN mode and on this network.
+#: src/printerWords.ts
+msgid "Yes, it is"
+msgstr "Taip, yra"
 
 # AI Translated
 #: src/components/Preferences.tsx

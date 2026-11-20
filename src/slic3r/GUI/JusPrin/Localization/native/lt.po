@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-20 08:46-0800\n"
+"POT-Creation-Date: 2026-11-20 10:49-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -58,17 +58,90 @@ msgid "Document (PDF)"
 msgstr "Dokumentas (PDF)"
 
 # AI Translated
-#. TRN A calibration chat's first line. %1%: where it was started from, %2%: a printer.
+#. TRN A calibration chat's first line. %1%: a printer.
+#, boost-format
+msgid "From Home · %1% · filament not chosen · temporary test settings"
+msgstr "Iš pradžios ekrano · %1% · gija nepasirinkta · laikini bandymo nustatymai"
+
+# AI Translated
+#. TRN A calibration chat's first line. %1%: the project it was started from, %2%: a printer.
 #, boost-format
 msgid "From %1% · %2% · filament not chosen · temporary test settings"
 msgstr "Iš %1% · %2% · gija nepasirinkta · laikini bandymo nustatymai"
 
 # AI Translated
+#. TRN A calibration chat's first line. %1%: a filament, %2%: a printer.
+#, boost-format
+msgid "From Home · %1% on %2% · temporary test settings"
+msgstr "Iš pradžios ekrano · %1% spausdintuve %2% · laikini bandymo nustatymai"
+
+# AI Translated
 # Needs human review: %2% is a filament and %3% a printer; check the locative 'spausdintuve' reads right with real names.
-#. TRN A calibration chat's first line. %1%: where it was started from, %2%: a filament, %3%: a printer.
+#. TRN A calibration chat's first line. %1%: the project it was started from, %2%: a filament, %3%: a printer.
 #, boost-format
 msgid "From %1% · %2% on %3% · temporary test settings"
 msgstr "Iš %1% · %2% spausdintuve %3% · laikini bandymo nustatymai"
+
+# AI Translated
+#. TRN A date: %1% is the day of the month, %2% the year.
+#, boost-format
+msgid "%1% Jan %2%"
+msgstr "%2% m. sausio %1% d."
+
+# AI Translated
+#, boost-format
+msgid "%1% Feb %2%"
+msgstr "%2% m. vasario %1% d."
+
+# AI Translated
+#, boost-format
+msgid "%1% Mar %2%"
+msgstr "%2% m. kovo %1% d."
+
+# AI Translated
+#, boost-format
+msgid "%1% Apr %2%"
+msgstr "%2% m. balandžio %1% d."
+
+# AI Translated
+#, boost-format
+msgid "%1% May %2%"
+msgstr "%2% m. gegužės %1% d."
+
+# AI Translated
+#, boost-format
+msgid "%1% Jun %2%"
+msgstr "%2% m. birželio %1% d."
+
+# AI Translated
+#, boost-format
+msgid "%1% Jul %2%"
+msgstr "%2% m. liepos %1% d."
+
+# AI Translated
+#, boost-format
+msgid "%1% Aug %2%"
+msgstr "%2% m. rugpjūčio %1% d."
+
+# AI Translated
+#, boost-format
+msgid "%1% Sep %2%"
+msgstr "%2% m. rugsėjo %1% d."
+
+# AI Translated
+#, boost-format
+msgid "%1% Oct %2%"
+msgstr "%2% m. spalio %1% d."
+
+# AI Translated
+#, boost-format
+msgid "%1% Nov %2%"
+msgstr "%2% m. lapkričio %1% d."
+
+# AI Translated
+#, boost-format
+msgid "%1% Dec %2%"
+msgstr "%2% m. gruodžio %1% d."
 
 # AI Translated
 #. TRN A reopened calibration test's line. %1%: the day it was made, as "21 Oct 2026".
@@ -77,7 +150,13 @@ msgid "Reopened · generated %1%"
 msgstr "Atverta iš naujo · sugeneruota %1%"
 
 # AI Translated
-#. TRN %1%: where the test was opened from, %2%: the day it was made, as "21 Oct 2026".
+#. TRN A reopened calibration test's line. %1%: the day it was made, as "21 Oct 2026".
+#, boost-format
+msgid "Opened from Home · generated %1%"
+msgstr "Atverta iš pradžios ekrano · sukurta %1%"
+
+# AI Translated
+#. TRN %1%: the project the test was opened from, %2%: the day it was made, as "21 Oct 2026".
 #, boost-format
 msgid "Opened from %1% · generated %2%"
 msgstr "Atverta iš %1% · sugeneruota %2%"
@@ -278,8 +357,134 @@ msgid "JusPrin has no AI model for this account right now. Try again later."
 msgstr "Šiuo metu JusPrin neturi DI modelio šiai paskyrai. Bandykite vėliau."
 
 # AI Translated
+msgid "another app"
+msgstr "kita programa"
+
+# AI Translated
+#. TRN %1% is a printer preset's name; %2%, in the second form, the app that changed it.
+#, boost-format
+msgid "Printer changed to %1% by hand"
+msgstr "Spausdintuvas pakeistas į %1% rankiniu būdu"
+
+# AI Translated
+#, boost-format
+msgid "Printer changed to %1% by %2%"
+msgstr "%2% pakeitė spausdintuvą į %1%"
+
+# AI Translated
+#. TRN %1% is a filament preset's name; %2%, in the second form, the app that changed it.
+#, boost-format
+msgid "Filament changed to %1% by hand"
+msgstr "Gija pakeista į %1% rankiniu būdu"
+
+# AI Translated
+#, boost-format
+msgid "Filament changed to %1% by %2%"
+msgstr "%2% pakeitė giją į %1%"
+
+# AI Translated
+#. TRN %1% is a process preset's name; %2%, in the second form, the app that changed it.
+#, boost-format
+msgid "Print settings changed to %1% by hand"
+msgstr "Spausdinimo nustatymai pakeisti į %1% rankiniu būdu"
+
+# AI Translated
+#, boost-format
+msgid "Print settings changed to %1% by %2%"
+msgstr "%2% pakeitė spausdinimo nustatymus į %1%"
+
+# AI Translated
+#. TRN %1% is a setting's name; %2%, in the second form, the app that changed it.
+#, boost-format
+msgid "%1% changed by hand"
+msgstr "%1% pakeista rankiniu būdu"
+
+# AI Translated
+#, boost-format
+msgid "%1% changed by %2%"
+msgstr "%2% pakeitė: %1%"
+
+# AI Translated
+#. TRN %1% is a setting's name, %2% its new value; %3%, in the second form, the app that changed it.
+#, boost-format
+msgid "%1% changed to %2% by hand"
+msgstr "%1% pakeista į %2% rankiniu būdu"
+
+# AI Translated
+#, boost-format
+msgid "%1% changed to %2% by %3%"
+msgstr "%3% pakeitė %1% į %2%"
+
+# AI Translated
+#. TRN %1%, in the second form, is the app that undid the last change.
+msgid "Undone by hand"
+msgstr "Atšaukta rankiniu būdu"
+
+# AI Translated
+#, boost-format
+msgid "Undone by %1%"
+msgstr "Atšaukė %1%"
+
+# AI Translated
+#. TRN %1% is the change that was undone; %2%, in the second form, the app that undid it.
+#, boost-format
+msgid "%1% undone by hand"
+msgstr "%1% atšaukta rankiniu būdu"
+
+# AI Translated
+#, boost-format
+msgid "%1% undone by %2%"
+msgstr "%2% atšaukė: %1%"
+
+# AI Translated
+#. TRN %1%, in the second form, is the app that redid the last change.
+msgid "Redone by hand"
+msgstr "Perdaryta rankiniu būdu"
+
+# AI Translated
+#, boost-format
+msgid "Redone by %1%"
+msgstr "Perdarė %1%"
+
+# AI Translated
+#. TRN %1% is the change that was redone; %2%, in the second form, the app that redid it.
+#, boost-format
+msgid "%1% redone by hand"
+msgstr "%1% perdaryta rankiniu būdu"
+
+# AI Translated
+#, boost-format
+msgid "%1% redone by %2%"
+msgstr "%2% perdarė: %1%"
+
+# AI Translated
+#. TRN %1%, in the second form, is the app that changed the project.
+msgid "The project changed by hand"
+msgstr "Projektas pakeistas rankiniu būdu"
+
+# AI Translated
+#, boost-format
+msgid "The project changed by %1%"
+msgstr "Projektą pakeitė %1%"
+
+# AI Translated
+#. TRN %1% is what changed, such as Move; %2%, in the second form, the app that changed it.
+#, boost-format
+msgid "%1%, by hand"
+msgstr "%1%, rankiniu būdu"
+
+# AI Translated
+#, boost-format
+msgid "%1%, by %2%"
+msgstr "%1%, atliko %2%"
+
+# AI Translated
 msgid "Restored an earlier project version"
 msgstr "Atkurta ankstesnė projekto versija"
+
+# AI Translated
+msgid "An earlier model version was restored"
+msgstr "Atkurta ankstesnė modelio versija"
 
 # AI Translated
 msgid "Restored this chat's saved project setup"
@@ -321,6 +526,70 @@ msgstr[2] "Šiai žinutei reikia %1% kreditų; jūs turite %2%."
 #, boost-format
 msgid "The %1% API key was rejected. Update the AI configuration and try again."
 msgstr "%1% API raktas atmestas. Atnaujinkite DI konfigūraciją ir bandykite dar kartą."
+
+# AI Translated
+#. TRN %1% is how many settings, %2% an object's name or a preset's name in quotes, %3% the settings' keys.
+#, boost-format
+msgid "Change %1% setting of %2%: %3%"
+msgid_plural "Change %1% settings of %2%: %3%"
+msgstr[0] "%2%: pakeisti %1% nustatymą (%3%)"
+msgstr[1] "%2%: pakeisti %1% nustatymus (%3%)"
+msgstr[2] "%2%: pakeisti %1% nustatymų (%3%)"
+
+# AI Translated
+#. TRN %1% is how many settings, %2% a preset's name in quotes, %3% the settings' keys. The preset is saved with them.
+#, boost-format
+msgid "Change %1% setting of %2%: %3%; save it"
+msgid_plural "Change %1% settings of %2%: %3%; save it"
+msgstr[0] "%2%: pakeisti %1% nustatymą (%3%) ir išsaugoti profilį"
+msgstr[1] "%2%: pakeisti %1% nustatymus (%3%) ir išsaugoti profilį"
+msgstr[2] "%2%: pakeisti %1% nustatymų (%3%) ir išsaugoti profilį"
+
+# AI Translated
+#. TRN %1% is how many settings, %2% a preset's name in quotes, %3% the settings' keys, %4% the new preset's name.
+#, boost-format
+msgid "Change %1% setting of %2%: %3%; save as \"%4%\""
+msgid_plural "Change %1% settings of %2%: %3%; save as \"%4%\""
+msgstr[0] "%2%: pakeisti %1% nustatymą (%3%) ir išsaugoti kaip \"%4%\""
+msgstr[1] "%2%: pakeisti %1% nustatymus (%3%) ir išsaugoti kaip \"%4%\""
+msgstr[2] "%2%: pakeisti %1% nustatymų (%3%) ir išsaugoti kaip \"%4%\""
+
+# AI Translated
+#. TRN %1% and %2% are the tower's first and last temperatures.
+#, boost-format
+msgid "Make a temperature tower, %1% °C to %2% °C"
+msgstr "Sukurti temperatūros bokštelį nuo %1% °C iki %2% °C"
+
+# AI Translated
+# Needs human review: check the word for a calibration 'pass' (etapas)
+#. TRN YOLO is the name of OrcaSlicer's quicker flow-ratio test; %1% is its pass, 1 or 2.
+#, boost-format
+msgid "Make a flow-ratio test, YOLO pass %1%"
+msgstr "Sukurti srauto santykio bandymą, YOLO, %1% etapas"
+
+# AI Translated
+#. TRN %1% is the test's pass, 1 or 2.
+#, boost-format
+msgid "Make a flow-ratio test, classic pass %1%"
+msgstr "Sukurti srauto santykio bandymą, klasikinis, %1% etapas"
+
+# AI Translated
+#. TRN %1% and %2% are the first and last pressure-advance values.
+#, boost-format
+msgid "Make a pressure-advance line, %1% to %2%"
+msgstr "Sukurti Pressure Advance liniją nuo %1% iki %2%"
+
+# AI Translated
+#. TRN %1% and %2% are the first and last pressure-advance values.
+#, boost-format
+msgid "Make a pressure-advance pattern, %1% to %2%"
+msgstr "Sukurti Pressure Advance raštą nuo %1% iki %2%"
+
+# AI Translated
+#. TRN %1% and %2% are the first and last pressure-advance values.
+#, boost-format
+msgid "Make a pressure-advance tower, %1% to %2%"
+msgstr "Sukurti Pressure Advance bokštelį nuo %1% iki %2%"
 
 # AI Translated
 #. TRN A button that asks the AI to choose another block of a calibration test.
@@ -366,6 +635,24 @@ msgid "%1% itself is unchanged"
 msgstr "Pats %1% lieka nepakeistas"
 
 # AI Translated
+#. TRN The saved preset's receipt: %1% lists the settings saved, such as "Nozzle temperature 215 °C".
+#, boost-format
+msgid "Filament preset · %1%"
+msgstr "Gijos profilis · %1%"
+
+# AI Translated
+#. TRN The saved preset's receipt: %1% lists the settings saved.
+#, boost-format
+msgid "Printer preset · %1%"
+msgstr "Spausdintuvo profilis · %1%"
+
+# AI Translated
+#. TRN The saved preset's receipt: %1% lists the settings saved.
+#, boost-format
+msgid "Process preset · %1%"
+msgstr "Proceso profilis · %1%"
+
+# AI Translated
 #. TRN %1% is a setting's new value, such as 215 °C.
 #, boost-format
 msgid "Save %1% as a new filament preset"
@@ -388,6 +675,599 @@ msgstr "Išsaugoti %1% kaip naują proceso profilį"
 #, boost-format
 msgid "Save %1% to %2%"
 msgstr "Išsaugoti %1% į %2%"
+
+# AI Translated
+msgid "Unknown tool request"
+msgstr "Nežinoma įrankio užklausa"
+
+# AI Translated
+#. TRN %1% is a file's path.
+#, boost-format
+msgid "Import %1%"
+msgstr "Importuoti %1%"
+
+# AI Translated
+#. TRN %1% is an object's id, a number.
+#, boost-format
+msgid "object %1%"
+msgstr "objektas %1%"
+
+# AI Translated
+#. TRN %1% is a plate's id, a number.
+#, boost-format
+msgid "plate %1%"
+msgstr "plokštė %1%"
+
+# AI Translated
+#. TRN A piece's size: width, depth and height in millimetres.
+#, boost-format
+msgid "%1% x %2% x %3% mm"
+msgstr "%1% x %2% x %3% mm"
+
+# AI Translated
+#. TRN %1% is how many shells, %2% an object's name, %3% the pieces' sizes.
+#, boost-format
+msgid "Split %2% into its %1% shell as parts of one object: %3%"
+msgid_plural "Split %2% into its %1% shells as parts of one object: %3%"
+msgstr[0] "Padalinti %2% į %1% apvalkalą kaip vieno objekto dalis: %3%"
+msgstr[1] "Padalinti %2% į %1% apvalkalus kaip vieno objekto dalis: %3%"
+msgstr[2] "Padalinti %2% į %1% apvalkalų kaip vieno objekto dalis: %3%"
+
+# AI Translated
+#. TRN %1% is how many shells, %2% an object's name, %3% the pieces' sizes.
+#, boost-format
+msgid "Split %2% into its %1% shell as separate objects: %3%"
+msgid_plural "Split %2% into its %1% shells as separate objects: %3%"
+msgstr[0] "Padalinti %2% į %1% apvalkalą kaip atskirus objektus: %3%"
+msgstr[1] "Padalinti %2% į %1% apvalkalus kaip atskirus objektus: %3%"
+msgstr[2] "Padalinti %2% į %1% apvalkalų kaip atskirus objektus: %3%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+#, boost-format
+msgid "Cut %1% by the plane through (%2%) facing (%3%), keeping both pieces as parts: %4%"
+msgstr "Perpjauti %1% plokštuma, einančia per (%2%) ir atsukta į (%3%), paliekant abu gabalus kaip dalis: %4%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+#, boost-format
+msgid "Cut %1% by the plane through (%2%) facing (%3%), keeping both pieces: %4%"
+msgstr "Perpjauti %1% plokštuma, einančia per (%2%) ir atsukta į (%3%), paliekant abu gabalus: %4%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+#, boost-format
+msgid "Cut %1% by the plane through (%2%) facing (%3%), keeping the upper piece as parts: %4%"
+msgstr "Perpjauti %1% plokštuma, einančia per (%2%) ir atsukta į (%3%), paliekant viršutinį gabalą kaip dalis: %4%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+#, boost-format
+msgid "Cut %1% by the plane through (%2%) facing (%3%), keeping the upper piece: %4%"
+msgstr "Perpjauti %1% plokštuma, einančia per (%2%) ir atsukta į (%3%), paliekant viršutinį gabalą: %4%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+#, boost-format
+msgid "Cut %1% by the plane through (%2%) facing (%3%), keeping the lower piece as parts: %4%"
+msgstr "Perpjauti %1% plokštuma, einančia per (%2%) ir atsukta į (%3%), paliekant apatinį gabalą kaip dalis: %4%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+#, boost-format
+msgid "Cut %1% by the plane through (%2%) facing (%3%), keeping the lower piece: %4%"
+msgstr "Perpjauti %1% plokštuma, einančia per (%2%) ir atsukta į (%3%), paliekant apatinį gabalą: %4%"
+
+# AI Translated
+#. TRN %1% is a file's path.
+#, boost-format
+msgid "Export the G-code to %1%, replacing it"
+msgstr "Eksportuoti G-code į %1%, perrašant esamą failą"
+
+# AI Translated
+#, boost-format
+msgid "Export the G-code to %1%"
+msgstr "Eksportuoti G-code į %1%"
+
+# AI Translated
+#. TRN %1% is a file's path.
+#, boost-format
+msgid "Export the sliced plate to %1%, replacing it"
+msgstr "Eksportuoti susluoksniuotą plokštę į %1%, perrašant esamą failą"
+
+# AI Translated
+#, boost-format
+msgid "Export the sliced plate to %1%"
+msgstr "Eksportuoti susluoksniuotą plokštę į %1%"
+
+# AI Translated
+#. TRN %1% is a file's path.
+#, boost-format
+msgid "Export the project to %1%, replacing it"
+msgstr "Eksportuoti projektą į %1%, perrašant esamą failą"
+
+# AI Translated
+#, boost-format
+msgid "Export the project to %1%"
+msgstr "Eksportuoti projektą į %1%"
+
+# AI Translated
+#. TRN %1% is a file's path.
+#, boost-format
+msgid "Export an STL to %1%, replacing it"
+msgstr "Eksportuoti STL į %1%, perrašant esamą failą"
+
+# AI Translated
+#, boost-format
+msgid "Export an STL to %1%"
+msgstr "Eksportuoti STL į %1%"
+
+# AI Translated
+#. TRN %1% is a file's path.
+#, boost-format
+msgid "Export the presets in use to %1%"
+msgstr "Eksportuoti naudojamus profilius į %1%"
+
+# AI Translated
+#. TRN %1% is a license's name, such as CC BY-NC.
+#, boost-format
+msgid "the project's license is %1%"
+msgstr "projekto licencija – %1%"
+
+# AI Translated
+#. TRN %1% is how many warnings, %2% the first one, in OrcaSlicer's words.
+#, boost-format
+msgid "the slice has %1% warning: %2%"
+msgid_plural "the slice has %1% warnings, first: %2%"
+msgstr[0] "sluoksniuojant gautas %1% įspėjimas: %2%"
+msgstr[1] "sluoksniuojant gauti %1% įspėjimai, pirmasis: %2%"
+msgstr[2] "sluoksniuojant gauta %1% įspėjimų, pirmasis: %2%"
+
+# AI Translated
+#. TRN %1% is a list of objects' names, %2% the last name.
+#, boost-format
+msgid "Merge %1% and %2% into one object"
+msgstr "Sujungti %1% ir %2% į vieną objektą"
+
+# AI Translated
+#. TRN %1% is an object's name.
+#, boost-format
+msgid "Repair the mesh of %1%"
+msgstr "Sutaisyti objekto %1% poligoninį tinklą"
+
+# AI Translated
+#. TRN %1% is a list of regions, each its id and a description.
+#, boost-format
+msgid "Annotate %1%"
+msgstr "Pažymėti: %1%"
+
+# AI Translated
+#. TRN %1% is a region's id.
+#, boost-format
+msgid "region %1%"
+msgstr "sritis %1%"
+
+# AI Translated
+#. TRN %1% is a region's id, %2% its description.
+#, boost-format
+msgid "region %1% (%2%)"
+msgstr "sritis %1% (%2%)"
+
+# AI Translated
+#. TRN %1% is an object's name.
+#, boost-format
+msgid "a part of %1%"
+msgstr "objekto %1% dalis"
+
+# AI Translated
+#. TRN %1% is which copy, counting from 1, %2% an object's name.
+#, boost-format
+msgid "copy %1% of %2%"
+msgstr "objekto %2% kopija Nr. %1%"
+
+# AI Translated
+#. TRN %1% is a list of what is deleted: objects, copies, parts, plates or regions.
+#, boost-format
+msgid "Delete %1%"
+msgstr "Ištrinti: %1%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% how many copies it will have.
+#, boost-format
+msgid "%1% x%2%"
+msgstr "%1% x%2%"
+
+# AI Translated
+#. TRN %1% is an object's name.
+#, boost-format
+msgid "print %1%"
+msgstr "spausdinti %1%"
+
+# AI Translated
+#. TRN %1% is an object's name.
+#, boost-format
+msgid "skip %1%"
+msgstr "praleisti %1%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% a plate's name.
+#, boost-format
+msgid "move %1% to %2%"
+msgstr "perkelti %1% į %2%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% its new name.
+#, boost-format
+msgid "rename %1% to %2%"
+msgstr "pervadinti %1% į %2%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% a filament slot's number.
+#, boost-format
+msgid "%1% on filament %2%"
+msgstr "%1% su gija %2%"
+
+# AI Translated
+msgid "add a plate"
+msgstr "pridėti plokštę"
+
+# AI Translated
+#. TRN %1% is a plate's name, %2% its new name.
+#, boost-format
+msgid "name %1% %2%"
+msgstr "%1%: pavadinimas %2%"
+
+# AI Translated
+#. TRN %1% is the new plate's name.
+#, boost-format
+msgid "name a new plate %1%"
+msgstr "nauja plokštė pavadinimu %1%"
+
+# AI Translated
+#. TRN %1% is a plate's name, %2% a build plate type, such as Textured PEI Plate.
+#, boost-format
+msgid "%1% on %2%"
+msgstr "%1%, pagrindas %2%"
+
+# AI Translated
+#. TRN %1% is a build plate type, such as Textured PEI Plate.
+#, boost-format
+msgid "a new plate on %1%"
+msgstr "nauja plokštė, pagrindas %1%"
+
+# AI Translated
+#. TRN %1% is a plate's name.
+#, boost-format
+msgid "arrange %1%"
+msgstr "išdėstyti %1%"
+
+# AI Translated
+msgid "arrange all plates"
+msgstr "išdėstyti visas plokštes"
+
+# AI Translated
+#. TRN %1% is a list of changes to the plates, such as "move Cube to Plate 2, arrange all plates".
+#, boost-format
+msgid "Lay out: %1%"
+msgstr "Išdėstyti: %1%"
+
+# AI Translated
+#. TRN %1% is a unit, inches or meters.
+#, boost-format
+msgid "convert from %1%"
+msgstr "konvertuoti iš %1%"
+
+# AI Translated
+#. TRN %1%, %2% and %3% are scale factors along x, y and z.
+#, boost-format
+msgid "scale x%1% y%2% z%3%"
+msgstr "mastelis x%1% y%2% z%3%"
+
+# AI Translated
+#. TRN %1% is a size in millimetres, %2% an axis: x, y or z.
+#, boost-format
+msgid "scale to %1% mm in %2%"
+msgstr "pakeisti mastelį iki %1% mm pagal %2% ašį"
+
+# AI Translated
+#. TRN %1% is an axis: x, y or z.
+#, boost-format
+msgid "mirror in %1%"
+msgstr "atspindėti pagal %1% ašį"
+
+# AI Translated
+msgid "put a chosen face down"
+msgstr "pasukti pasirinktu paviršiumi žemyn"
+
+# AI Translated
+#. TRN %1%, %2% and %3% are angles about x, y and z.
+#, boost-format
+msgid "rotate %1%/%2%/%3% degrees"
+msgstr "pasukti %1%/%2%/%3% laipsnių"
+
+# AI Translated
+msgid "auto-orient"
+msgstr "automatiškai orientuoti"
+
+# AI Translated
+#. TRN %1% and %2% are a position's x and y on the plate.
+#, boost-format
+msgid "move to %1%, %2%"
+msgstr "perkelti į %1%, %2%"
+
+# AI Translated
+msgid "drop to the bed"
+msgstr "nuleisti ant pagrindo"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% a list of what is done to it, such as "rotate 0/0/90 degrees, drop to the bed".
+#, boost-format
+msgid "Place %1%: %2%"
+msgstr "Padėti %1%: %2%"
+
+# AI Translated
+#. TRN %1% is a list of presets: the printer, then its plate, process and filaments.
+#, boost-format
+msgid "Set up %1%"
+msgstr "Nustatyti: %1%"
+
+# AI Translated
+#. TRN %1% is the name of the filament preset that is replaced.
+#, boost-format
+msgid "replaces filament %1%"
+msgstr "pakeičia giją %1%"
+
+# AI Translated
+#. TRN %1% is the name of the process preset that is replaced.
+#, boost-format
+msgid "replaces process %1%"
+msgstr "pakeičia procesą %1%"
+
+# AI Translated
+#. TRN %1% is the build plate type that is replaced, such as Textured PEI Plate.
+#, boost-format
+msgid "replaces plate %1%"
+msgstr "pakeičia pagrindą %1%"
+
+# AI Translated
+#. TRN %1% is how many edits, %2% a preset's name.
+#, boost-format
+msgid "discards %1% unsaved edit in %2%"
+msgid_plural "discards %1% unsaved edits in %2%"
+msgstr[0] "atmeta %1% neišsaugotą pakeitimą profilyje %2%"
+msgstr[1] "atmeta %1% neišsaugotus pakeitimus profilyje %2%"
+msgstr[2] "atmeta %1% neišsaugotų pakeitimų profilyje %2%"
+
+# AI Translated
+msgid "Record printer facts"
+msgstr "Įrašyti spausdintuvo duomenis"
+
+# AI Translated
+#. TRN %1% is a project's name.
+#, boost-format
+msgid "Continue %1%"
+msgstr "Tęsti %1%"
+
+# AI Translated
+#. TRN %1% is a file's path.
+#, boost-format
+msgid "Open %1%"
+msgstr "Atverti %1%"
+
+# AI Translated
+msgid "Search settings"
+msgstr "Ieškoti nustatymų"
+
+# AI Translated
+msgid "Read settings"
+msgstr "Skaityti nustatymus"
+
+# AI Translated
+msgid "Preview settings"
+msgstr "Peržiūrėti nustatymų pakeitimą"
+
+# AI Translated
+msgid "Change settings"
+msgstr "Keisti nustatymus"
+
+# AI Translated
+msgid "Record what this print is for and how to print it"
+msgstr "Įrašyti, kam skirtas šis spaudinys ir kaip jį spausdinti"
+
+# AI Translated
+msgid "List the printers this app knows"
+msgstr "Išvardyti šiai programai žinomus spausdintuvus"
+
+# AI Translated
+msgid "Open a project"
+msgstr "Atverti projektą"
+
+# AI Translated
+msgid "Make a calibration test"
+msgstr "Sukurti kalibravimo bandymą"
+
+# AI Translated
+msgid "Set up the printer"
+msgstr "Nustatyti spausdintuvą"
+
+# AI Translated
+msgid "Preview a printer setup"
+msgstr "Peržiūrėti spausdintuvo sąranką"
+
+# AI Translated
+msgid "Import an attached model"
+msgstr "Importuoti pridėtą modelį"
+
+# AI Translated
+msgid "Import a model file"
+msgstr "Importuoti modelio failą"
+
+# AI Translated
+msgid "Delete from the project"
+msgstr "Ištrinti iš projekto"
+
+# AI Translated
+msgid "Lay out the plates"
+msgstr "Išdėstyti plokštes"
+
+# AI Translated
+msgid "Place an object"
+msgstr "Padėti objektą"
+
+# AI Translated
+# Needs human review: check 'įgūdis' for an AI skill
+msgid "Read a skill"
+msgstr "Perskaityti įgūdį"
+
+# AI Translated
+msgid "Picture a plate"
+msgstr "Pavaizduoti plokštę"
+
+# AI Translated
+msgid "Read a project attachment"
+msgstr "Perskaityti projekto priedą"
+
+# AI Translated
+msgid "Inspect a slice in detail"
+msgstr "Išsamiai apžiūrėti sluoksniavimą"
+
+# AI Translated
+msgid "Cancel a run"
+msgstr "Atšaukti vykdymą"
+
+# AI Translated
+msgid "Export a file"
+msgstr "Eksportuoti failą"
+
+# AI Translated
+msgid "Preview dividing an object"
+msgstr "Peržiūrėti objekto padalijimą"
+
+# AI Translated
+msgid "Divide an object"
+msgstr "Padalinti objektą"
+
+# AI Translated
+msgid "Merge objects"
+msgstr "Sujungti objektus"
+
+# AI Translated
+msgid "Repair an object's mesh"
+msgstr "Sutaisyti objekto poligoninį tinklą"
+
+# AI Translated
+msgid "Mark what parts of an object mean"
+msgstr "Pažymėti, ką reiškia objekto dalys"
+
+# AI Translated
+msgid "Analyze an object"
+msgstr "Analizuoti objektą"
+
+# AI Translated
+msgid "List printer, filament, or process presets"
+msgstr "Išvardyti spausdintuvo, gijos ar proceso profilius"
+
+# AI Translated
+msgid "Check the sliced plate"
+msgstr "Patikrinti susluoksniuotą plokštę"
+
+# AI Translated
+msgid "Slice the plate"
+msgstr "Sluoksniuoti plokštę"
+
+# AI Translated
+msgid "Open the print dialog"
+msgstr "Atverti spausdinimo langą"
+
+# AI Translated
+msgid "Inspect the live workspace"
+msgstr "Apžiūrėti dabartinę darbo sritį"
+
+# AI Translated
+msgid "Show the printers you mean"
+msgstr "Parodyti spausdintuvus, kuriuos turite omenyje"
+
+# AI Translated
+msgid "Add this printer"
+msgstr "Pridėti šį spausdintuvą"
+
+# AI Translated
+msgid "Change this printer"
+msgstr "Pakeisti šį spausdintuvą"
+
+# AI Translated
+msgid "Check a printer's connection"
+msgstr "Patikrinti spausdintuvo ryšį"
+
+# AI Translated
+msgid "Connect a print host"
+msgstr "Prijungti spausdinimo serverį"
+
+# AI Translated
+msgid "Connect a Bambu Lab printer"
+msgstr "Prijungti Bambu Lab spausdintuvą"
+
+# AI Translated
+msgid "Open an issue for the developers"
+msgstr "Pranešti apie problemą kūrėjams"
+
+# AI Translated
+#. TRN %1% is what the print is for, %2% the plan's headline, both in the AI's words.
+#, boost-format
+msgid "Record what this print is for: %1%; plan: %2%"
+msgstr "Įrašyti, kam skirtas spaudinys: %1%; planas: %2%"
+
+# AI Translated
+#. TRN %1% is what the print is for, in the AI's words.
+#, boost-format
+msgid "Record what this print is for: %1%"
+msgstr "Įrašyti, kam skirtas spaudinys: %1%"
+
+# AI Translated
+#. TRN %1% is the plan's headline, in the AI's words.
+#, boost-format
+msgid "Record the plan: %1%"
+msgstr "Įrašyti planą: %1%"
+
+# AI Translated
+msgid "Record the plan"
+msgstr "Įrašyti planą"
+
+# AI Translated
+#. TRN %1% is how many settings, %2% their keys.
+#, boost-format
+msgid "Change %1% object setting: %2%"
+msgid_plural "Change %1% object settings: %2%"
+msgstr[0] "Pakeisti %1% objekto nustatymą: %2%"
+msgstr[1] "Pakeisti %1% objekto nustatymus: %2%"
+msgstr[2] "Pakeisti %1% objekto nustatymų: %2%"
+
+# AI Translated
+#. TRN %1% is how many settings, %2% their keys.
+#, boost-format
+msgid "Change %1% filament setting: %2%"
+msgid_plural "Change %1% filament settings: %2%"
+msgstr[0] "Pakeisti %1% gijos nustatymą: %2%"
+msgstr[1] "Pakeisti %1% gijos nustatymus: %2%"
+msgstr[2] "Pakeisti %1% gijos nustatymų: %2%"
+
+# AI Translated
+#. TRN %1% is how many settings, %2% their keys.
+#, boost-format
+msgid "Change %1% printer setting: %2%"
+msgid_plural "Change %1% printer settings: %2%"
+msgstr[0] "Pakeisti %1% spausdintuvo nustatymą: %2%"
+msgstr[1] "Pakeisti %1% spausdintuvo nustatymus: %2%"
+msgstr[2] "Pakeisti %1% spausdintuvo nustatymų: %2%"
+
+# AI Translated
+#. TRN %1% is how many settings, %2% their keys.
+#, boost-format
+msgid "Change %1% process setting: %2%"
+msgid_plural "Change %1% process settings: %2%"
+msgstr[0] "Pakeisti %1% proceso nustatymą: %2%"
+msgstr[1] "Pakeisti %1% proceso nustatymus: %2%"
+msgstr[2] "Pakeisti %1% proceso nustatymų: %2%"
 
 # AI Translated
 msgid "Drop a model here or add one"
@@ -713,6 +1593,12 @@ msgid "Client configuration changed while preparing the write. Original file ret
 msgstr "Kliento konfigūracija pasikeitė ruošiant įrašymą. Pradinis failas paliktas; peržiūrėkite dar kartą."
 
 # AI Translated
+# Needs human review: Cowork connects in its local sessions only; check the wording 'tik vietinės sesijos'
+#. TRN Under Cowork's name in the list of AI apps: it connects in its local sessions only.
+msgid "local sessions"
+msgstr "tik vietinės sesijos"
+
+# AI Translated
 msgid "JusPrin couldn't close the project, so it didn't restart. Your project stays open, and JusPrin will use the new language the next time it starts."
 msgstr "JusPrin nepavyko uždaryti projekto, todėl programa nebuvo paleista iš naujo. Jūsų projektas lieka atvertas, o naują kalbą JusPrin naudos kitą kartą paleista."
 
@@ -815,6 +1701,31 @@ msgid "Slicing plate %1%"
 msgstr "Sluoksniuojama plokštė %1%"
 
 # AI Translated
+#. TRN %1% is a printer's name.
+#, boost-format
+msgid "Waiting for the access code for %1%"
+msgstr "Laukiama spausdintuvo %1% prieigos kodo"
+
+# AI Translated
+#. TRN %1% is a print host's address, such as 192.168.1.20.
+#. TRN %1% is a printer's name or a print host's address.
+#, boost-format
+msgid "Checking %1%"
+msgstr "Tikrinama: %1%"
+
+# AI Translated
+#. TRN %1% is a print host's address. The key the app holds was refused.
+#, boost-format
+msgid "Waiting for a different API key for %1%"
+msgstr "Laukiama kito API rakto, skirto %1%"
+
+# AI Translated
+#. TRN %1% is a print host's address.
+#, boost-format
+msgid "Waiting for an API key for %1%"
+msgstr "Laukiama API rakto, skirto %1%"
+
+# AI Translated
 msgid "The form was out of date. Choose the printer again."
 msgstr "Forma buvo pasenusi. Pasirinkite spausdintuvą dar kartą."
 
@@ -846,6 +1757,18 @@ msgstr "Naršyti visą spausdintuvų sąrašą"
 # AI Translated
 msgid "Open printer settings"
 msgstr "Atverti spausdintuvo nustatymus"
+
+# AI Translated
+#. TRN The filament chat's first line. %1% is a filament slot's number.
+#, boost-format
+msgid "I can help with settings for the filament in slot %1%. What would you like to change?"
+msgstr "Galiu padėti su %1% lizde esančios gijos nustatymais. Ką norėtumėte pakeisti?"
+
+# AI Translated
+#. TRN The filament chat's first line. %1% is a filament's name, %2% its slot's number.
+#, boost-format
+msgid "I can help with settings for %1% in slot %2%. What would you like to change?"
+msgstr "Galiu padėti su gijos %1% (%2% lizdas) nustatymais. Ką norėtumėte pakeisti?"
 
 # AI Translated
 #. TRN %1% is the profile loader's own error, in English.
@@ -1752,8 +2675,22 @@ msgid "Saving the MCP entry using the client's own CLI..."
 msgstr "MCP įrašas išsaugomas naudojant paties kliento CLI..."
 
 # AI Translated
+msgid "Could not start the client CLI. Use Copy or check its installation."
+msgstr "Nepavyko paleisti kliento CLI. Naudokite „Kopijuoti“ arba patikrinkite, ar jis tinkamai įdiegtas."
+
+# AI Translated
 msgid "The setup command timed out. Stopping it..."
 msgstr "Sąrankos komandai baigėsi laikas. Ji stabdoma..."
+
+# AI Translated
+msgid "Setup timed out; the client config may have changed. Inspect it before trying again."
+msgstr "Baigėsi sąrankos laikas; kliento konfigūracija galėjo pasikeisti. Prieš bandydami dar kartą, ją patikrinkite."
+
+# AI Translated
+#. TRN %1% is the exit code of an AI app's command-line tool, a number.
+#, boost-format
+msgid "Client CLI exited with code %1%."
+msgstr "Kliento CLI baigė darbą su kodu %1%."
 
 # AI Translated
 msgid "Select printer"
@@ -2153,12 +3090,107 @@ msgid "Printer connection required"
 msgstr "Reikalingas spausdintuvo ryšys"
 
 # AI Translated
+msgid "No more plates can be added"
+msgstr "Daugiau plokščių pridėti negalima"
+
+# AI Translated
+msgid "Annotate regions"
+msgstr "Sričių žymėjimas"
+
+# AI Translated
+msgid "Remove regions"
+msgstr "Sričių pašalinimas"
+
+# AI Translated
+#. TRN The name of a plate the person has not named. %1% is its number, counting from 1.
+#, boost-format
+msgid "Plate %1%"
+msgstr "Plokštė %1%"
+
+# AI Translated
+msgid "Filament slot"
+msgstr "Gijos lizdas"
+
+# AI Translated
+msgid "The app did not start slicing this plate."
+msgstr "Programa nepradėjo sluoksniuoti šios plokštės."
+
+# AI Translated
+msgid "The slice stopped with an error."
+msgstr "Sluoksniavimas sustojo dėl klaidos."
+
+# AI Translated
+msgid "Object name cannot be empty"
+msgstr "Objekto pavadinimas negali būti tuščias"
+
+# AI Translated
+msgid "Lay out plates"
+msgstr "Plokščių išdėstymas"
+
+# AI Translated
+msgid "Place object"
+msgstr "Objekto padėjimas"
+
+# AI Translated
+msgid "Import model"
+msgstr "Modelio importavimas"
+
+# AI Translated
+msgid "Delete items"
+msgstr "Elementų ištrynimas"
+
+# AI Translated
+msgid "Change object settings"
+msgstr "Objekto nustatymų keitimas"
+
+# AI Translated
 msgid "This project was saved by a newer version of JusPrin. Get the new version to open it."
 msgstr "Šis projektas išsaugotas naujesne JusPrin versija. Kad jį atvertumėte, gaukite naują versiją."
 
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "Nepavyko atverti projekto. Bandykite dar kartą."
+
+# AI Translated
+#. TRN A setting's text value, such as custom G-code, described by its length.
+#, boost-format
+msgid "%1% line"
+msgid_plural "%1% lines"
+msgstr[0] "%1% eilutė"
+msgstr[1] "%1% eilutės"
+msgstr[2] "%1% eilučių"
+
+# AI Translated
+#. TRN A setting's text value, described by its length.
+#, boost-format
+msgid "%1% character"
+msgid_plural "%1% characters"
+msgstr[0] "%1% simbolis"
+msgstr[1] "%1% simboliai"
+msgstr[2] "%1% simbolių"
+
+# AI Translated
+#. TRN A setting's value: it takes the value of another preset.
+msgid "Not set"
+msgstr "Nenustatyta"
+
+# AI Translated
+#. TRN A setting that holds a list of texts, described by how many.
+#, boost-format
+msgid "%1% entry"
+msgid_plural "%1% entries"
+msgstr[0] "%1% įrašas"
+msgstr[1] "%1% įrašai"
+msgstr[2] "%1% įrašų"
+
+# AI Translated
+#. TRN A setting that holds a shape, such as the bed's outline, described by its points.
+#, boost-format
+msgid "%1% point"
+msgid_plural "%1% points"
+msgstr[0] "%1% taškas"
+msgstr[1] "%1% taškai"
+msgstr[2] "%1% taškų"
 
 # AI Translated
 #~ msgid "JusPrin's view couldn't be opened."

@@ -1505,7 +1505,8 @@ struct WorkspaceEdit
     EditActor   actor{EditActor::Person};
     std::string label;
     // Setting only: the value before and after, written as a person reads
-    // them ("Outer brim only", "8 mm"), and the preset it was edited in.
+    // them ("Outer brim only", "8 mm"), and the preset it was edited in, in
+    // English for the model.
     std::string before, after, preset;
     // Setting only. Optional so stored edits from older builds stay valid.
     std::string key;
@@ -1514,6 +1515,9 @@ struct WorkspaceEdit
     std::string location;
     // ExternalTool only: the MCP client's name for itself, when it gave one.
     std::string client;
+    // Setting only: before and after in the person's language, for the change
+    // log and the setup card. Empty where no shown form was made.
+    std::string before_shown, after_shown;
 };
 
 using WorkspaceEditCallback = std::function<void(const WorkspaceEdit&)>;

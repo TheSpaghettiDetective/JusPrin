@@ -89,7 +89,8 @@ target_include_directories(tool_call_check PRIVATE
     ${CMAKE_SOURCE_DIR}/src
 )
 target_include_directories(tool_call_check SYSTEM PRIVATE ${CMAKE_SOURCE_DIR}/deps_src)
-target_link_libraries(tool_call_check PRIVATE nlohmann_json)
+# boost_headeronly for libslic3r/format.hpp, which the activity titles use.
+target_link_libraries(tool_call_check PRIVATE nlohmann_json boost_headeronly)
 
 # Live smoke against real providers. It links the GUI library for the app's
 # own HTTP transport. Every case is hidden and skips without a key, and none

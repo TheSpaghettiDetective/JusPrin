@@ -425,6 +425,11 @@ msgid "{minutes}m left"
 msgstr "Quedan {minutes} min"
 
 # AI Translated
+#: src/components/TurnActivity.tsx
+msgid "{more, plural, one {… # more character} other {… # more characters}}"
+msgstr "{more, plural, one {… # carácter más} many {… # caracteres más} other {… # caracteres más}}"
+
+# AI Translated
 #: src/components/SetupCard.tsx
 msgid "{more, plural, one {{preset} with {filament} and # other filament.} other {{preset} with {filament} and # other filaments.}}"
 msgstr "{more, plural, one {{preset} con {filament} y # filamento más.} many {{preset} con {filament} y # filamentos más.} other {{preset} con {filament} y # filamentos más.}}"
@@ -1373,6 +1378,11 @@ msgid "Check plan"
 msgstr "Revisar el plan"
 
 # AI Translated
+#: src/App.tsx
+msgid "Check the plan against what changed."
+msgstr "Revisa el plan teniendo en cuenta lo que ha cambiado."
+
+# AI Translated
 #: src/components/Guide.tsx
 msgid "Check the spelling or try other words. You can also ask AI: choose Ask AI… in the Help menu."
 msgstr "Compruebe la ortografía o pruebe con otras palabras. También puede preguntar a la IA: elija Preguntar a la IA… en el menú Ayuda."
@@ -2125,6 +2135,11 @@ msgid "How did it come out?"
 msgstr "¿Cómo salió?"
 
 # AI Translated
+#: src/printerWords.ts
+msgid "How do I check?"
+msgstr "¿Cómo lo compruebo?"
+
+# AI Translated
 #: src/components/OrcaImport.tsx
 msgid "If {app} keeps its settings somewhere else, choose that folder."
 msgstr "Si {app} guarda sus ajustes en otro lugar, elija esa carpeta."
@@ -2463,6 +2478,26 @@ msgstr "Arrastrar con el botón izquierdo"
 #: src/components/AgentConnection.tsx
 msgid "Let an AI app on this computer, such as Claude Desktop, work with the open project. JusPrin adds itself to that app’s settings."
 msgstr "Permita que una aplicación de IA de este ordenador, como Claude Desktop, trabaje con el proyecto abierto. JusPrin se añade a los ajustes de esa aplicación."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect {name}. Is it turned on, in LAN mode, and on the same network as this computer?"
+msgstr "Vamos a conectar {name}. ¿Está encendida, en modo LAN y en la misma red que este ordenador?"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect {name}. What address do you use to open it in a browser? It’s usually its IP address, like 192.168.1.20."
+msgstr "Vamos a conectar {name}. ¿Qué dirección usa para abrirla en un navegador? Suele ser su dirección IP, como 192.168.1.20."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect this printer. Is it turned on, in LAN mode, and on the same network as this computer?"
+msgstr "Vamos a conectar esta impresora. ¿Está encendida, en modo LAN y en la misma red que este ordenador?"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect this printer. What address do you use to open it in a browser? It’s usually its IP address, like 192.168.1.20."
+msgstr "Vamos a conectar esta impresora. ¿Qué dirección usa para abrirla en un navegador? Suele ser su dirección IP, como 192.168.1.20."
 
 # AI Translated
 #: src/components/Preferences.tsx
@@ -4352,6 +4387,16 @@ msgid "This is an internal connection inside JusPrin, not a network service. The
 msgstr "Es una conexión interna dentro de JusPrin, no un servicio de red. El lienzo 3D y todos los demás controles siguen funcionando."
 
 # AI Translated
+#: src/printerWords.ts
+msgid "This is the {name}. Tell me what changed on it, or ask anything about it."
+msgstr "Esta es {name}. Dígame qué ha cambiado en ella o pregúnteme lo que quiera sobre ella."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "This is your printer. Tell me what changed on it, or ask anything about it."
+msgstr "Esta es su impresora. Dígame qué ha cambiado en ella o pregúnteme lo que quiera sobre ella."
+
+# AI Translated
 #: src/components/AllSettings.tsx
 msgid "This JusPrin build cannot list the settings."
 msgstr "Esta versión de JusPrin no puede mostrar la lista de ajustes."
@@ -4386,6 +4431,16 @@ msgstr "Recalculando las estimaciones de tiempo y material…"
 #: src/components/SetupLocalTool.tsx
 msgid "Timed out."
 msgstr "Se ha agotado el tiempo de espera."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "To connect {name}, JusPrin first needs Bambu’s network plug-in, which isn’t installed on this computer yet. {name} already works for preparing prints."
+msgstr "Para conectar {name}, JusPrin necesita primero el plugin de red de Bambu, que aún no está instalado en este ordenador. {name} ya funciona para preparar impresiones."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "To connect this printer, JusPrin first needs Bambu’s network plug-in, which isn’t installed on this computer yet. This printer already works for preparing prints."
+msgstr "Para conectar esta impresora, JusPrin necesita primero el plugin de red de Bambu, que aún no está instalado en este ordenador. Esta impresora ya funciona para preparar impresiones."
 
 # AI Translated
 #: ../HomeUI/src/history.ts
@@ -4638,6 +4693,11 @@ msgid "Which printer do you have?"
 msgstr "¿Qué impresora tiene?"
 
 # AI Translated
+#: src/printerWords.ts
+msgid "Which printer do you have? Tell me the brand and model, or share a photo of its label. Not sure? Tell me what you know, and I'll help you find it."
+msgstr "¿Qué impresora tiene? Dígame la marca y el modelo, o comparta una foto de su etiqueta. ¿No está seguro? Dígame lo que sepa y le ayudaré a encontrarla."
+
+# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Which printer?"
 msgstr "¿Qué impresora?"
@@ -4673,6 +4733,12 @@ msgstr "Trabajando en ello…"
 #: src/components/SetupLocalTool.tsx
 msgid "Writing settings…"
 msgstr "Escribiendo los ajustes…"
+
+# AI Translated
+#. An answer to tap: the printer is on, in LAN mode and on this network.
+#: src/printerWords.ts
+msgid "Yes, it is"
+msgstr "Sí, lo está"
 
 # AI Translated
 #: src/components/Preferences.tsx

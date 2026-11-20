@@ -35,12 +35,13 @@ UPSTREAM_I18N = ROOT / "localization" / "i18n"
 NATIVE = HERE / "native"
 PAGES = HERE / "pages"
 
-# The keywords upstream's scripts/run_gettext.sh passes, and
-# translated_plural from Support/Translate.hpp.
+# The keywords upstream's scripts/run_gettext.sh passes, translated_plural
+# from Support/Translate.hpp, plural_title from Agent/ActivityTitle.hpp and
+# plural_words from Workspace/SettingDisplay.hpp.
 XGETTEXT_KEYWORDS = [
     "--keyword=L", "--keyword=_L", "--keyword=_u8L",
     "--keyword=L_CONTEXT:1,2c", "--keyword=_L_CONTEXT:1,2c", "--keyword=_u8L_CONTEXT:1,2c",
-    "--keyword=_L_PLURAL:1,2", "--keyword=translated_plural:1,2",
+    "--keyword=_L_PLURAL:1,2", "--keyword=translated_plural:1,2", "--keyword=plural_title:1,2", "--keyword=plural_words:1,2",
 ]
 # Test doubles and the page projects are not native interface text.
 SKIP_DIRS = {"Testing", "AgentUI", "HomeUI", "WebShared", "node_modules", "Localization"}

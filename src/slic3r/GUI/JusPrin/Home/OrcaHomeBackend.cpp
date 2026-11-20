@@ -43,6 +43,7 @@
 #include "slic3r/GUI/JusPrin/Agent/CloudAccount.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ManufacturingHistory.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ToolExecution.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/UtcTime.hpp"
 #include "slic3r/GUI/MsgDialog.hpp"
 #include "slic3r/GUI/format.hpp"
@@ -538,7 +539,7 @@ public:
 
     // No thread and no model: no tool call to finish.
     bool finish_tool(const std::string&, const Agent::ToolExecutionCoordinator::ExtensionResult&) override { return false; }
-    bool update_tool(const std::string&, const std::string&, bool) override { return false; }
+    bool update_tool(const std::string&, const Agent::ActivityTitle&, bool) override { return false; }
     bool open_in_browser(const std::string& url) override { return wxLaunchDefaultBrowser(wxString::FromUTF8(url)); }
     std::string app_version() const override { return Updates::version_label(); }
     std::string post_note(const std::string&) override { return "home-note-" + std::to_string(++m_notes); }

@@ -5,6 +5,9 @@
 
 #include <iostream>
 #include <random>
+#include <string>
+
+#include "slic3r/GUI/JusPrin/Support/Translate.hpp"
 
 using namespace Slic3r;
 using namespace Slic3r::GUI::JusPrin::Workspace;
@@ -91,6 +94,24 @@ TEST_CASE("A change says the unit once", "[setting_display]")
     CHECK(display_change(definition("boolean"), "0", "1") == "Off \xE2\x86\x92 On");
     CHECK(display_change(definition("float_or_percent", "mm or %"), "0.42", "110%") == "0.42 mm \xE2\x86\x92 110%");
     CHECK(display_change(definition("float[]", "mm"), "0.4,0.6", "0.4,0.8") == "0.4 mm, 0.6 mm \xE2\x86\x92 0.4 mm, 0.8 mm");
+}
+
+// The person sees values in their language; the model always reads English.
+TEST_CASE("Shown values are translated, English ones are not", "[setting_display]")
+{
+    using Slic3r::GUI::JusPrin::install_plural_translator;
+    using Slic3r::GUI::JusPrin::install_translator;
+    install_translator([](const char* english) { return "<" + std::string(english) + ">"; });
+    install_plural_translator([](const char* singular, const char*, unsigned) { return "<" + std::string(singular) + ">"; });
+
+    CHECK(display_value(definition("boolean"), "1", ValueWords::Shown) == "<On>");
+    CHECK(display_value(definition("boolean"), "1") == "On");
+    CHECK(display_value(definition("string"), "G28\\nG1 Z5 F3000\\n", ValueWords::Shown) == "<2 line>");
+    CHECK(display_value(definition("string"), "G28\\nG1 Z5 F3000\\n") == "2 lines");
+    CHECK(display_change(definition("boolean"), "0", "1", ValueWords::Shown) == "<Off> \xE2\x86\x92 <On>");
+
+    install_translator(nullptr);
+    install_plural_translator(nullptr);
 }
 
 // The rules above are written against types. This is what stops them from

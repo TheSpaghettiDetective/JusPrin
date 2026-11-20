@@ -17,6 +17,7 @@
 #include "slic3r/GUI/GLCanvas3D.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/GUI_ObjectList.hpp"
+#include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmosManager.hpp"
 #include "slic3r/GUI/Plater.hpp"
 
@@ -380,7 +381,7 @@ CommandResult OrcaWorkspaceAdapter::apply_regions(const std::vector<RegionRecord
                                                   std::vector<RegionRecord>& applied)
 {
     wxASSERT(wxIsMainThread());
-    const CommandResult result = change_regions(replaced, planned, "Annotate regions");
+    const CommandResult result = change_regions(replaced, planned, L("Annotate regions"));
     if (result.succeeded())
         applied = planned;
     return result;
@@ -389,7 +390,7 @@ CommandResult OrcaWorkspaceAdapter::apply_regions(const std::vector<RegionRecord
 CommandResult OrcaWorkspaceAdapter::remove_regions(const std::vector<RegionRecord>& records)
 {
     wxASSERT(wxIsMainThread());
-    return change_regions(records, {}, "Remove regions");
+    return change_regions(records, {}, L("Remove regions"));
 }
 
 std::vector<RegionStatus> OrcaWorkspaceAdapter::region_status(const std::vector<RegionRecord>& records) const

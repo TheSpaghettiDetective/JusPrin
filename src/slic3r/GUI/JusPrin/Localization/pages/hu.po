@@ -426,6 +426,11 @@ msgid "{minutes}m left"
 msgstr "még {minutes} p"
 
 # AI Translated
+#: src/components/TurnActivity.tsx
+msgid "{more, plural, one {… # more character} other {… # more characters}}"
+msgstr "{more, plural, one {… még # karakter} other {… még # karakter}}"
+
+# AI Translated
 #: src/components/SetupCard.tsx
 msgid "{more, plural, one {{preset} with {filament} and # other filament.} other {{preset} with {filament} and # other filaments.}}"
 msgstr "{more, plural, one {{preset}, {filament} és # további filament.} other {{preset}, {filament} és # további filament.}}"
@@ -1371,6 +1376,11 @@ msgid "Check plan"
 msgstr "Terv ellenőrzése"
 
 # AI Translated
+#: src/App.tsx
+msgid "Check the plan against what changed."
+msgstr "Ellenőrizd a tervet aszerint, ami megváltozott."
+
+# AI Translated
 #: src/components/Guide.tsx
 msgid "Check the spelling or try other words. You can also ask AI: choose Ask AI… in the Help menu."
 msgstr "Ellenőrizd a helyesírást, vagy próbálj más szavakat. Az AI-t is megkérdezheted: válaszd a Segítség menü Kérdezd az AI-t… parancsát."
@@ -2120,6 +2130,11 @@ msgid "How did it come out?"
 msgstr "Hogyan sikerült?"
 
 # AI Translated
+#: src/printerWords.ts
+msgid "How do I check?"
+msgstr "Hogyan ellenőrizzem?"
+
+# AI Translated
 #: src/components/OrcaImport.tsx
 msgid "If {app} keeps its settings somewhere else, choose that folder."
 msgstr "Ha a(z) {app} máshol tárolja a beállításait, azt a mappát válaszd."
@@ -2457,6 +2472,26 @@ msgstr "Húzás bal gombbal"
 #: src/components/AgentConnection.tsx
 msgid "Let an AI app on this computer, such as Claude Desktop, work with the open project. JusPrin adds itself to that app’s settings."
 msgstr "Engedd, hogy egy ezen a számítógépen futó AI-alkalmazás, például a Claude Desktop, dolgozzon a megnyitott projekttel. A JusPrin felveszi magát az alkalmazás beállításai közé."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect {name}. Is it turned on, in LAN mode, and on the same network as this computer?"
+msgstr "Csatlakoztassuk a(z) {name} nyomtatót. Be van kapcsolva, LAN módban van, és ugyanazon a hálózaton van, mint ez a számítógép?"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect {name}. What address do you use to open it in a browser? It’s usually its IP address, like 192.168.1.20."
+msgstr "Csatlakoztassuk a(z) {name} nyomtatót. Milyen címen nyitod meg böngészőben? Ez általában az IP-címe, például 192.168.1.20."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect this printer. Is it turned on, in LAN mode, and on the same network as this computer?"
+msgstr "Csatlakoztassuk ezt a nyomtatót. Be van kapcsolva, LAN módban van, és ugyanazon a hálózaton van, mint ez a számítógép?"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect this printer. What address do you use to open it in a browser? It’s usually its IP address, like 192.168.1.20."
+msgstr "Csatlakoztassuk ezt a nyomtatót. Milyen címen nyitod meg böngészőben? Ez általában az IP-címe, például 192.168.1.20."
 
 # AI Translated
 #: src/components/Preferences.tsx
@@ -4342,6 +4377,16 @@ msgid "This is an internal connection inside JusPrin, not a network service. The
 msgstr "Ez a JusPrinen belüli kapcsolat, nem hálózati szolgáltatás. A 3D-vászon és minden más vezérlő tovább működik."
 
 # AI Translated
+#: src/printerWords.ts
+msgid "This is the {name}. Tell me what changed on it, or ask anything about it."
+msgstr "Ez a(z) {name}. Mondd el, mi változott rajta, vagy kérdezz róla bármit."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "This is your printer. Tell me what changed on it, or ask anything about it."
+msgstr "Ez a te nyomtatód. Mondd el, mi változott rajta, vagy kérdezz róla bármit."
+
+# AI Translated
 #: src/components/AllSettings.tsx
 msgid "This JusPrin build cannot list the settings."
 msgstr "Ez a JusPrin-verzió nem tudja kilistázni a beállításokat."
@@ -4376,6 +4421,16 @@ msgstr "Idő- és anyagbecslés újraszámolása…"
 #: src/components/SetupLocalTool.tsx
 msgid "Timed out."
 msgstr "Időtúllépés."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "To connect {name}, JusPrin first needs Bambu’s network plug-in, which isn’t installed on this computer yet. {name} already works for preparing prints."
+msgstr "A(z) {name} csatlakoztatásához a JusPrinnek először a Bambu hálózati bővítményére van szüksége, amely még nincs telepítve ezen a számítógépen. A(z) {name} már most használható nyomatok előkészítésére."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "To connect this printer, JusPrin first needs Bambu’s network plug-in, which isn’t installed on this computer yet. This printer already works for preparing prints."
+msgstr "A nyomtató csatlakoztatásához a JusPrinnek először a Bambu hálózati bővítményére van szüksége, amely még nincs telepítve ezen a számítógépen. Ez a nyomtató már most használható nyomatok előkészítésére."
 
 # AI Translated
 #: ../HomeUI/src/history.ts
@@ -4627,6 +4682,11 @@ msgid "Which printer do you have?"
 msgstr "Milyen nyomtatód van?"
 
 # AI Translated
+#: src/printerWords.ts
+msgid "Which printer do you have? Tell me the brand and model, or share a photo of its label. Not sure? Tell me what you know, and I'll help you find it."
+msgstr "Milyen nyomtatód van? Add meg a márkát és a modellt, vagy ossz meg egy fotót a címkéjéről. Nem vagy biztos benne? Mondd el, amit tudsz, és segítek megtalálni."
+
+# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Which printer?"
 msgstr "Melyik nyomtató?"
@@ -4662,6 +4722,12 @@ msgstr "Dolgozom rajta…"
 #: src/components/SetupLocalTool.tsx
 msgid "Writing settings…"
 msgstr "Beállítások írása…"
+
+# AI Translated
+#. An answer to tap: the printer is on, in LAN mode and on this network.
+#: src/printerWords.ts
+msgid "Yes, it is"
+msgstr "Igen, így van"
 
 # AI Translated
 #: src/components/Preferences.tsx

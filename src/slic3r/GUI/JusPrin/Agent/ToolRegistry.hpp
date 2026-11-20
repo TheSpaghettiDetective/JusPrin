@@ -124,7 +124,7 @@ public:
 
     ToolValidationResult validate_call(const ToolDefinition& definition, const std::string& arguments_json) const;
     bool validate_output(const ToolDefinition& definition, const nlohmann::json& result) const;
-    std::string activity_title(const ToolDefinition& definition, const std::string& normalized_arguments_json) const;
+    ActivityTitle activity_title(const ToolDefinition& definition, const std::string& normalized_arguments_json) const;
 
 private:
     ToolRegistry();

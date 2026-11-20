@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-20 08:46-0800\n"
+"POT-Creation-Date: 2026-11-20 10:49-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -58,16 +58,89 @@ msgid "Document (PDF)"
 msgstr "文档（PDF）"
 
 # AI Translated
-#. TRN A calibration chat's first line. %1%: where it was started from, %2%: a printer.
+#. TRN A calibration chat's first line. %1%: a printer.
+#, boost-format
+msgid "From Home · %1% · filament not chosen · temporary test settings"
+msgstr "来自主页 · %1% · 未选择耗材丝 · 临时测试设置"
+
+# AI Translated
+#. TRN A calibration chat's first line. %1%: the project it was started from, %2%: a printer.
 #, boost-format
 msgid "From %1% · %2% · filament not chosen · temporary test settings"
 msgstr "来自 %1% · %2% · 未选择耗材丝 · 临时测试设置"
 
 # AI Translated
-#. TRN A calibration chat's first line. %1%: where it was started from, %2%: a filament, %3%: a printer.
+#. TRN A calibration chat's first line. %1%: a filament, %2%: a printer.
+#, boost-format
+msgid "From Home · %1% on %2% · temporary test settings"
+msgstr "来自主页 · %1%，用于 %2% · 临时测试设置"
+
+# AI Translated
+#. TRN A calibration chat's first line. %1%: the project it was started from, %2%: a filament, %3%: a printer.
 #, boost-format
 msgid "From %1% · %2% on %3% · temporary test settings"
 msgstr "来自 %1% · %2%，用于 %3% · 临时测试设置"
+
+# AI Translated
+#. TRN A date: %1% is the day of the month, %2% the year.
+#, boost-format
+msgid "%1% Jan %2%"
+msgstr "%2%年1月%1%日"
+
+# AI Translated
+#, boost-format
+msgid "%1% Feb %2%"
+msgstr "%2%年2月%1%日"
+
+# AI Translated
+#, boost-format
+msgid "%1% Mar %2%"
+msgstr "%2%年3月%1%日"
+
+# AI Translated
+#, boost-format
+msgid "%1% Apr %2%"
+msgstr "%2%年4月%1%日"
+
+# AI Translated
+#, boost-format
+msgid "%1% May %2%"
+msgstr "%2%年5月%1%日"
+
+# AI Translated
+#, boost-format
+msgid "%1% Jun %2%"
+msgstr "%2%年6月%1%日"
+
+# AI Translated
+#, boost-format
+msgid "%1% Jul %2%"
+msgstr "%2%年7月%1%日"
+
+# AI Translated
+#, boost-format
+msgid "%1% Aug %2%"
+msgstr "%2%年8月%1%日"
+
+# AI Translated
+#, boost-format
+msgid "%1% Sep %2%"
+msgstr "%2%年9月%1%日"
+
+# AI Translated
+#, boost-format
+msgid "%1% Oct %2%"
+msgstr "%2%年10月%1%日"
+
+# AI Translated
+#, boost-format
+msgid "%1% Nov %2%"
+msgstr "%2%年11月%1%日"
+
+# AI Translated
+#, boost-format
+msgid "%1% Dec %2%"
+msgstr "%2%年12月%1%日"
 
 # AI Translated
 #. TRN A reopened calibration test's line. %1%: the day it was made, as "21 Oct 2026".
@@ -76,7 +149,13 @@ msgid "Reopened · generated %1%"
 msgstr "已重新打开 · 生成于 %1%"
 
 # AI Translated
-#. TRN %1%: where the test was opened from, %2%: the day it was made, as "21 Oct 2026".
+#. TRN A reopened calibration test's line. %1%: the day it was made, as "21 Oct 2026".
+#, boost-format
+msgid "Opened from Home · generated %1%"
+msgstr "从主页打开 · 生成于 %1%"
+
+# AI Translated
+#. TRN %1%: the project the test was opened from, %2%: the day it was made, as "21 Oct 2026".
 #, boost-format
 msgid "Opened from %1% · generated %2%"
 msgstr "从 %1% 打开 · 生成于 %2%"
@@ -276,8 +355,134 @@ msgid "JusPrin has no AI model for this account right now. Try again later."
 msgstr "JusPrin 目前没有可供此账户使用的 AI 模型。请稍后重试。"
 
 # AI Translated
+msgid "another app"
+msgstr "其他应用"
+
+# AI Translated
+#. TRN %1% is a printer preset's name; %2%, in the second form, the app that changed it.
+#, boost-format
+msgid "Printer changed to %1% by hand"
+msgstr "已手动将打印机更改为 %1%"
+
+# AI Translated
+#, boost-format
+msgid "Printer changed to %1% by %2%"
+msgstr "%2% 已将打印机更改为 %1%"
+
+# AI Translated
+#. TRN %1% is a filament preset's name; %2%, in the second form, the app that changed it.
+#, boost-format
+msgid "Filament changed to %1% by hand"
+msgstr "已手动将耗材丝更改为 %1%"
+
+# AI Translated
+#, boost-format
+msgid "Filament changed to %1% by %2%"
+msgstr "%2% 已将耗材丝更改为 %1%"
+
+# AI Translated
+#. TRN %1% is a process preset's name; %2%, in the second form, the app that changed it.
+#, boost-format
+msgid "Print settings changed to %1% by hand"
+msgstr "已手动将打印设置更改为 %1%"
+
+# AI Translated
+#, boost-format
+msgid "Print settings changed to %1% by %2%"
+msgstr "%2% 已将打印设置更改为 %1%"
+
+# AI Translated
+#. TRN %1% is a setting's name; %2%, in the second form, the app that changed it.
+#, boost-format
+msgid "%1% changed by hand"
+msgstr "已手动更改 %1%"
+
+# AI Translated
+#, boost-format
+msgid "%1% changed by %2%"
+msgstr "%2% 已更改 %1%"
+
+# AI Translated
+#. TRN %1% is a setting's name, %2% its new value; %3%, in the second form, the app that changed it.
+#, boost-format
+msgid "%1% changed to %2% by hand"
+msgstr "已手动将 %1% 更改为 %2%"
+
+# AI Translated
+#, boost-format
+msgid "%1% changed to %2% by %3%"
+msgstr "%3% 已将 %1% 更改为 %2%"
+
+# AI Translated
+#. TRN %1%, in the second form, is the app that undid the last change.
+msgid "Undone by hand"
+msgstr "已手动撤销"
+
+# AI Translated
+#, boost-format
+msgid "Undone by %1%"
+msgstr "%1% 已撤销"
+
+# AI Translated
+#. TRN %1% is the change that was undone; %2%, in the second form, the app that undid it.
+#, boost-format
+msgid "%1% undone by hand"
+msgstr "已手动撤销 %1%"
+
+# AI Translated
+#, boost-format
+msgid "%1% undone by %2%"
+msgstr "%2% 已撤销 %1%"
+
+# AI Translated
+#. TRN %1%, in the second form, is the app that redid the last change.
+msgid "Redone by hand"
+msgstr "已手动重做"
+
+# AI Translated
+#, boost-format
+msgid "Redone by %1%"
+msgstr "%1% 已重做"
+
+# AI Translated
+#. TRN %1% is the change that was redone; %2%, in the second form, the app that redid it.
+#, boost-format
+msgid "%1% redone by hand"
+msgstr "已手动重做 %1%"
+
+# AI Translated
+#, boost-format
+msgid "%1% redone by %2%"
+msgstr "%2% 已重做 %1%"
+
+# AI Translated
+#. TRN %1%, in the second form, is the app that changed the project.
+msgid "The project changed by hand"
+msgstr "已手动更改项目"
+
+# AI Translated
+#, boost-format
+msgid "The project changed by %1%"
+msgstr "%1% 已更改项目"
+
+# AI Translated
+#. TRN %1% is what changed, such as Move; %2%, in the second form, the app that changed it.
+#, boost-format
+msgid "%1%, by hand"
+msgstr "%1%（手动）"
+
+# AI Translated
+#, boost-format
+msgid "%1%, by %2%"
+msgstr "%1%（由 %2%）"
+
+# AI Translated
 msgid "Restored an earlier project version"
 msgstr "已恢复较早的项目版本"
+
+# AI Translated
+msgid "An earlier model version was restored"
+msgstr "已恢复较早的模型版本"
 
 # AI Translated
 msgid "Restored this chat's saved project setup"
@@ -317,6 +522,65 @@ msgstr[0] "这条消息需要 %1% 积分；您有 %2% 积分。"
 #, boost-format
 msgid "The %1% API key was rejected. Update the AI configuration and try again."
 msgstr "%1% API 密钥被拒绝。请更新 AI 配置后重试。"
+
+# AI Translated
+#. TRN %1% is how many settings, %2% an object's name or a preset's name in quotes, %3% the settings' keys.
+#, boost-format
+msgid "Change %1% setting of %2%: %3%"
+msgid_plural "Change %1% settings of %2%: %3%"
+msgstr[0] "更改 %2% 的 %1% 项设置：%3%"
+
+# AI Translated
+#. TRN %1% is how many settings, %2% a preset's name in quotes, %3% the settings' keys. The preset is saved with them.
+#, boost-format
+msgid "Change %1% setting of %2%: %3%; save it"
+msgid_plural "Change %1% settings of %2%: %3%; save it"
+msgstr[0] "更改 %2% 的 %1% 项设置：%3%；并保存"
+
+# AI Translated
+#. TRN %1% is how many settings, %2% a preset's name in quotes, %3% the settings' keys, %4% the new preset's name.
+#, boost-format
+msgid "Change %1% setting of %2%: %3%; save as \"%4%\""
+msgid_plural "Change %1% settings of %2%: %3%; save as \"%4%\""
+msgstr[0] "更改 %2% 的 %1% 项设置：%3%；另存为 \"%4%\""
+
+# AI Translated
+#. TRN %1% and %2% are the tower's first and last temperatures.
+#, boost-format
+msgid "Make a temperature tower, %1% °C to %2% °C"
+msgstr "制作温度塔，%1% °C 至 %2% °C"
+
+# AI Translated
+#. TRN YOLO is the name of OrcaSlicer's quicker flow-ratio test; %1% is its pass, 1 or 2.
+#, boost-format
+msgid "Make a flow-ratio test, YOLO pass %1%"
+msgstr "制作流量比例测试，YOLO 第 %1% 轮"
+
+# AI Translated
+#. TRN %1% is the test's pass, 1 or 2.
+#, boost-format
+msgid "Make a flow-ratio test, classic pass %1%"
+msgstr "制作流量比例测试，经典模式第 %1% 轮"
+
+# AI Translated
+# Needs human review: check the names for the PA line and PA pattern tests (Orca: 划线模式, V形模式)
+#. TRN %1% and %2% are the first and last pressure-advance values.
+#, boost-format
+msgid "Make a pressure-advance line, %1% to %2%"
+msgstr "制作 PA 划线测试，%1% 至 %2%"
+
+# AI Translated
+# Needs human review: check the names for the PA line and PA pattern tests (Orca: 划线模式, V形模式)
+#. TRN %1% and %2% are the first and last pressure-advance values.
+#, boost-format
+msgid "Make a pressure-advance pattern, %1% to %2%"
+msgstr "制作 PA V形测试，%1% 至 %2%"
+
+# AI Translated
+#. TRN %1% and %2% are the first and last pressure-advance values.
+#, boost-format
+msgid "Make a pressure-advance tower, %1% to %2%"
+msgstr "制作 PA 塔，%1% 至 %2%"
 
 # AI Translated
 # Needs human review: Calibration test button; check 区块 (block) and 色块 (tile, next entry) are told apart the way the test pattern names them.
@@ -364,6 +628,24 @@ msgid "%1% itself is unchanged"
 msgstr "%1% 本身保持不变"
 
 # AI Translated
+#. TRN The saved preset's receipt: %1% lists the settings saved, such as "Nozzle temperature 215 °C".
+#, boost-format
+msgid "Filament preset · %1%"
+msgstr "耗材丝预设 · %1%"
+
+# AI Translated
+#. TRN The saved preset's receipt: %1% lists the settings saved.
+#, boost-format
+msgid "Printer preset · %1%"
+msgstr "打印机预设 · %1%"
+
+# AI Translated
+#. TRN The saved preset's receipt: %1% lists the settings saved.
+#, boost-format
+msgid "Process preset · %1%"
+msgstr "工艺预设 · %1%"
+
+# AI Translated
 #. TRN %1% is a setting's new value, such as 215 °C.
 #, boost-format
 msgid "Save %1% as a new filament preset"
@@ -386,6 +668,584 @@ msgstr "将 %1% 保存为新的工艺预设"
 #, boost-format
 msgid "Save %1% to %2%"
 msgstr "将 %1% 保存到 %2%"
+
+# AI Translated
+msgid "Unknown tool request"
+msgstr "未知的工具请求"
+
+# AI Translated
+#. TRN %1% is a file's path.
+#, boost-format
+msgid "Import %1%"
+msgstr "导入 %1%"
+
+# AI Translated
+#. TRN %1% is an object's id, a number.
+#, boost-format
+msgid "object %1%"
+msgstr "对象 %1%"
+
+# AI Translated
+#. TRN %1% is a plate's id, a number.
+#, boost-format
+msgid "plate %1%"
+msgstr "盘 %1%"
+
+# AI Translated
+#. TRN A piece's size: width, depth and height in millimetres.
+#, boost-format
+msgid "%1% x %2% x %3% mm"
+msgstr "%1% x %2% x %3% mm"
+
+# AI Translated
+# Needs human review: check the word for shell: a separate, unconnected piece of the mesh (Orca's 抽壳 means hollowing, not used here)
+#. TRN %1% is how many shells, %2% an object's name, %3% the pieces' sizes.
+#, boost-format
+msgid "Split %2% into its %1% shell as parts of one object: %3%"
+msgid_plural "Split %2% into its %1% shells as parts of one object: %3%"
+msgstr[0] "将 %2% 按其 %1% 个独立部分拆分为同一对象的零件：%3%"
+
+# AI Translated
+# Needs human review: check the word for shell: a separate, unconnected piece of the mesh (Orca's 抽壳 means hollowing, not used here)
+#. TRN %1% is how many shells, %2% an object's name, %3% the pieces' sizes.
+#, boost-format
+msgid "Split %2% into its %1% shell as separate objects: %3%"
+msgid_plural "Split %2% into its %1% shells as separate objects: %3%"
+msgstr[0] "将 %2% 按其 %1% 个独立部分拆分为单独的对象：%3%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+#, boost-format
+msgid "Cut %1% by the plane through (%2%) facing (%3%), keeping both pieces as parts: %4%"
+msgstr "用经过 (%2%)、朝向 (%3%) 的平面切割 %1%，将两部分都保留为零件：%4%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+#, boost-format
+msgid "Cut %1% by the plane through (%2%) facing (%3%), keeping both pieces: %4%"
+msgstr "用经过 (%2%)、朝向 (%3%) 的平面切割 %1%，保留两部分：%4%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+#, boost-format
+msgid "Cut %1% by the plane through (%2%) facing (%3%), keeping the upper piece as parts: %4%"
+msgstr "用经过 (%2%)、朝向 (%3%) 的平面切割 %1%，将上半部分保留为零件：%4%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+#, boost-format
+msgid "Cut %1% by the plane through (%2%) facing (%3%), keeping the upper piece: %4%"
+msgstr "用经过 (%2%)、朝向 (%3%) 的平面切割 %1%，保留上半部分：%4%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+#, boost-format
+msgid "Cut %1% by the plane through (%2%) facing (%3%), keeping the lower piece as parts: %4%"
+msgstr "用经过 (%2%)、朝向 (%3%) 的平面切割 %1%，将下半部分保留为零件：%4%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+#, boost-format
+msgid "Cut %1% by the plane through (%2%) facing (%3%), keeping the lower piece: %4%"
+msgstr "用经过 (%2%)、朝向 (%3%) 的平面切割 %1%，保留下半部分：%4%"
+
+# AI Translated
+#. TRN %1% is a file's path.
+#, boost-format
+msgid "Export the G-code to %1%, replacing it"
+msgstr "将 G-code 导出到 %1%（覆盖）"
+
+# AI Translated
+#, boost-format
+msgid "Export the G-code to %1%"
+msgstr "将 G-code 导出到 %1%"
+
+# AI Translated
+#. TRN %1% is a file's path.
+#, boost-format
+msgid "Export the sliced plate to %1%, replacing it"
+msgstr "将已切片的盘导出到 %1%（覆盖）"
+
+# AI Translated
+#, boost-format
+msgid "Export the sliced plate to %1%"
+msgstr "将已切片的盘导出到 %1%"
+
+# AI Translated
+#. TRN %1% is a file's path.
+#, boost-format
+msgid "Export the project to %1%, replacing it"
+msgstr "将项目导出到 %1%（覆盖）"
+
+# AI Translated
+#, boost-format
+msgid "Export the project to %1%"
+msgstr "将项目导出到 %1%"
+
+# AI Translated
+#. TRN %1% is a file's path.
+#, boost-format
+msgid "Export an STL to %1%, replacing it"
+msgstr "将 STL 导出到 %1%（覆盖）"
+
+# AI Translated
+#, boost-format
+msgid "Export an STL to %1%"
+msgstr "将 STL 导出到 %1%"
+
+# AI Translated
+#. TRN %1% is a file's path.
+#, boost-format
+msgid "Export the presets in use to %1%"
+msgstr "将正在使用的预设导出到 %1%"
+
+# AI Translated
+#. TRN %1% is a license's name, such as CC BY-NC.
+#, boost-format
+msgid "the project's license is %1%"
+msgstr "项目的许可证为 %1%"
+
+# AI Translated
+#. TRN %1% is how many warnings, %2% the first one, in OrcaSlicer's words.
+#, boost-format
+msgid "the slice has %1% warning: %2%"
+msgid_plural "the slice has %1% warnings, first: %2%"
+msgstr[0] "切片有 %1% 个警告，第一个：%2%"
+
+# AI Translated
+#. TRN %1% is a list of objects' names, %2% the last name.
+#, boost-format
+msgid "Merge %1% and %2% into one object"
+msgstr "将 %1% 和 %2% 合并为一个对象"
+
+# AI Translated
+#. TRN %1% is an object's name.
+#, boost-format
+msgid "Repair the mesh of %1%"
+msgstr "修复 %1% 的网格"
+
+# AI Translated
+#. TRN %1% is a list of regions, each its id and a description.
+#, boost-format
+msgid "Annotate %1%"
+msgstr "标注 %1%"
+
+# AI Translated
+#. TRN %1% is a region's id.
+#, boost-format
+msgid "region %1%"
+msgstr "区域 %1%"
+
+# AI Translated
+#. TRN %1% is a region's id, %2% its description.
+#, boost-format
+msgid "region %1% (%2%)"
+msgstr "区域 %1%（%2%）"
+
+# AI Translated
+#. TRN %1% is an object's name.
+#, boost-format
+msgid "a part of %1%"
+msgstr "%1% 的一个零件"
+
+# AI Translated
+#. TRN %1% is which copy, counting from 1, %2% an object's name.
+#, boost-format
+msgid "copy %1% of %2%"
+msgstr "%2% 的副本 %1%"
+
+# AI Translated
+#. TRN %1% is a list of what is deleted: objects, copies, parts, plates or regions.
+#, boost-format
+msgid "Delete %1%"
+msgstr "删除 %1%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% how many copies it will have.
+#, boost-format
+msgid "%1% x%2%"
+msgstr "%1% x%2%"
+
+# AI Translated
+#. TRN %1% is an object's name.
+#, boost-format
+msgid "print %1%"
+msgstr "打印 %1%"
+
+# AI Translated
+#. TRN %1% is an object's name.
+#, boost-format
+msgid "skip %1%"
+msgstr "跳过 %1%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% a plate's name.
+#, boost-format
+msgid "move %1% to %2%"
+msgstr "将 %1% 移到 %2%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% its new name.
+#, boost-format
+msgid "rename %1% to %2%"
+msgstr "将 %1% 重命名为 %2%"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% a filament slot's number.
+#, boost-format
+msgid "%1% on filament %2%"
+msgstr "%1% 使用耗材丝 %2%"
+
+# AI Translated
+msgid "add a plate"
+msgstr "添加一个盘"
+
+# AI Translated
+#. TRN %1% is a plate's name, %2% its new name.
+#, boost-format
+msgid "name %1% %2%"
+msgstr "将 %1% 命名为 %2%"
+
+# AI Translated
+#. TRN %1% is the new plate's name.
+#, boost-format
+msgid "name a new plate %1%"
+msgstr "将新盘命名为 %1%"
+
+# AI Translated
+#. TRN %1% is a plate's name, %2% a build plate type, such as Textured PEI Plate.
+#, boost-format
+msgid "%1% on %2%"
+msgstr "%1% 使用 %2%"
+
+# AI Translated
+#. TRN %1% is a build plate type, such as Textured PEI Plate.
+#, boost-format
+msgid "a new plate on %1%"
+msgstr "使用 %1% 的新盘"
+
+# AI Translated
+#. TRN %1% is a plate's name.
+#, boost-format
+msgid "arrange %1%"
+msgstr "自动摆放 %1%"
+
+# AI Translated
+msgid "arrange all plates"
+msgstr "自动摆放所有盘"
+
+# AI Translated
+#. TRN %1% is a list of changes to the plates, such as "move Cube to Plate 2, arrange all plates".
+#, boost-format
+msgid "Lay out: %1%"
+msgstr "布置盘：%1%"
+
+# AI Translated
+#. TRN %1% is a unit, inches or meters.
+#, boost-format
+msgid "convert from %1%"
+msgstr "从 %1% 转换"
+
+# AI Translated
+#. TRN %1%, %2% and %3% are scale factors along x, y and z.
+#, boost-format
+msgid "scale x%1% y%2% z%3%"
+msgstr "缩放 x%1% y%2% z%3%"
+
+# AI Translated
+#. TRN %1% is a size in millimetres, %2% an axis: x, y or z.
+#, boost-format
+msgid "scale to %1% mm in %2%"
+msgstr "沿 %2% 方向缩放到 %1% mm"
+
+# AI Translated
+#. TRN %1% is an axis: x, y or z.
+#, boost-format
+msgid "mirror in %1%"
+msgstr "沿 %1% 方向镜像"
+
+# AI Translated
+msgid "put a chosen face down"
+msgstr "将选定的面朝下"
+
+# AI Translated
+#. TRN %1%, %2% and %3% are angles about x, y and z.
+#, boost-format
+msgid "rotate %1%/%2%/%3% degrees"
+msgstr "旋转 %1%/%2%/%3% 度"
+
+# AI Translated
+msgid "auto-orient"
+msgstr "自动朝向"
+
+# AI Translated
+#. TRN %1% and %2% are a position's x and y on the plate.
+#, boost-format
+msgid "move to %1%, %2%"
+msgstr "移到 %1%, %2%"
+
+# AI Translated
+msgid "drop to the bed"
+msgstr "落到热床上"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% a list of what is done to it, such as "rotate 0/0/90 degrees, drop to the bed".
+#, boost-format
+msgid "Place %1%: %2%"
+msgstr "放置 %1%：%2%"
+
+# AI Translated
+#. TRN %1% is a list of presets: the printer, then its plate, process and filaments.
+#, boost-format
+msgid "Set up %1%"
+msgstr "设置 %1%"
+
+# AI Translated
+#. TRN %1% is the name of the filament preset that is replaced.
+#, boost-format
+msgid "replaces filament %1%"
+msgstr "替换耗材丝 %1%"
+
+# AI Translated
+#. TRN %1% is the name of the process preset that is replaced.
+#, boost-format
+msgid "replaces process %1%"
+msgstr "替换工艺 %1%"
+
+# AI Translated
+#. TRN %1% is the build plate type that is replaced, such as Textured PEI Plate.
+#, boost-format
+msgid "replaces plate %1%"
+msgstr "替换热床 %1%"
+
+# AI Translated
+#. TRN %1% is how many edits, %2% a preset's name.
+#, boost-format
+msgid "discards %1% unsaved edit in %2%"
+msgid_plural "discards %1% unsaved edits in %2%"
+msgstr[0] "放弃 %2% 中 %1% 项未保存的编辑"
+
+# AI Translated
+msgid "Record printer facts"
+msgstr "记录打印机信息"
+
+# AI Translated
+#. TRN %1% is a project's name.
+#, boost-format
+msgid "Continue %1%"
+msgstr "继续 %1%"
+
+# AI Translated
+#. TRN %1% is a file's path.
+#, boost-format
+msgid "Open %1%"
+msgstr "打开 %1%"
+
+# AI Translated
+msgid "Search settings"
+msgstr "搜索设置"
+
+# AI Translated
+msgid "Read settings"
+msgstr "读取设置"
+
+# AI Translated
+msgid "Preview settings"
+msgstr "预览设置"
+
+# AI Translated
+msgid "Change settings"
+msgstr "更改设置"
+
+# AI Translated
+msgid "Record what this print is for and how to print it"
+msgstr "记录本次打印的用途和打印方式"
+
+# AI Translated
+msgid "List the printers this app knows"
+msgstr "列出本应用已知的打印机"
+
+# AI Translated
+msgid "Open a project"
+msgstr "打开项目"
+
+# AI Translated
+msgid "Make a calibration test"
+msgstr "制作校准测试"
+
+# AI Translated
+msgid "Set up the printer"
+msgstr "设置打印机"
+
+# AI Translated
+msgid "Preview a printer setup"
+msgstr "预览打印机设置"
+
+# AI Translated
+msgid "Import an attached model"
+msgstr "导入附加的模型"
+
+# AI Translated
+msgid "Import a model file"
+msgstr "导入模型文件"
+
+# AI Translated
+msgid "Delete from the project"
+msgstr "从项目中删除"
+
+# AI Translated
+msgid "Lay out the plates"
+msgstr "布置盘"
+
+# AI Translated
+msgid "Place an object"
+msgstr "放置对象"
+
+# AI Translated
+msgid "Read a skill"
+msgstr "读取技能"
+
+# AI Translated
+msgid "Picture a plate"
+msgstr "生成盘的图像"
+
+# AI Translated
+msgid "Read a project attachment"
+msgstr "读取项目附件"
+
+# AI Translated
+msgid "Inspect a slice in detail"
+msgstr "详细检查切片"
+
+# AI Translated
+msgid "Cancel a run"
+msgstr "取消正在运行的任务"
+
+# AI Translated
+msgid "Export a file"
+msgstr "导出文件"
+
+# AI Translated
+msgid "Preview dividing an object"
+msgstr "预览拆分对象"
+
+# AI Translated
+msgid "Divide an object"
+msgstr "拆分对象"
+
+# AI Translated
+msgid "Merge objects"
+msgstr "合并对象"
+
+# AI Translated
+msgid "Repair an object's mesh"
+msgstr "修复对象的网格"
+
+# AI Translated
+msgid "Mark what parts of an object mean"
+msgstr "标注对象各部分的含义"
+
+# AI Translated
+msgid "Analyze an object"
+msgstr "分析对象"
+
+# AI Translated
+msgid "List printer, filament, or process presets"
+msgstr "列出打印机、耗材丝或工艺预设"
+
+# AI Translated
+msgid "Check the sliced plate"
+msgstr "检查已切片的盘"
+
+# AI Translated
+msgid "Slice the plate"
+msgstr "切片此盘"
+
+# AI Translated
+msgid "Open the print dialog"
+msgstr "打开打印对话框"
+
+# AI Translated
+msgid "Inspect the live workspace"
+msgstr "检查当前工作区"
+
+# AI Translated
+msgid "Show the printers you mean"
+msgstr "显示您指的打印机"
+
+# AI Translated
+msgid "Add this printer"
+msgstr "添加此打印机"
+
+# AI Translated
+msgid "Change this printer"
+msgstr "更改此打印机"
+
+# AI Translated
+msgid "Check a printer's connection"
+msgstr "检查打印机的连接"
+
+# AI Translated
+msgid "Connect a print host"
+msgstr "连接打印主机"
+
+# AI Translated
+msgid "Connect a Bambu Lab printer"
+msgstr "连接 Bambu Lab 打印机"
+
+# AI Translated
+msgid "Open an issue for the developers"
+msgstr "为开发者提交问题"
+
+# AI Translated
+#. TRN %1% is what the print is for, %2% the plan's headline, both in the AI's words.
+#, boost-format
+msgid "Record what this print is for: %1%; plan: %2%"
+msgstr "记录本次打印的用途：%1%；方案：%2%"
+
+# AI Translated
+#. TRN %1% is what the print is for, in the AI's words.
+#, boost-format
+msgid "Record what this print is for: %1%"
+msgstr "记录本次打印的用途：%1%"
+
+# AI Translated
+#. TRN %1% is the plan's headline, in the AI's words.
+#, boost-format
+msgid "Record the plan: %1%"
+msgstr "记录方案：%1%"
+
+# AI Translated
+msgid "Record the plan"
+msgstr "记录方案"
+
+# AI Translated
+#. TRN %1% is how many settings, %2% their keys.
+#, boost-format
+msgid "Change %1% object setting: %2%"
+msgid_plural "Change %1% object settings: %2%"
+msgstr[0] "更改 %1% 项对象设置：%2%"
+
+# AI Translated
+#. TRN %1% is how many settings, %2% their keys.
+#, boost-format
+msgid "Change %1% filament setting: %2%"
+msgid_plural "Change %1% filament settings: %2%"
+msgstr[0] "更改 %1% 项耗材丝设置：%2%"
+
+# AI Translated
+#. TRN %1% is how many settings, %2% their keys.
+#, boost-format
+msgid "Change %1% printer setting: %2%"
+msgid_plural "Change %1% printer settings: %2%"
+msgstr[0] "更改 %1% 项打印机设置：%2%"
+
+# AI Translated
+#. TRN %1% is how many settings, %2% their keys.
+#, boost-format
+msgid "Change %1% process setting: %2%"
+msgid_plural "Change %1% process settings: %2%"
+msgstr[0] "更改 %1% 项工艺设置：%2%"
 
 # AI Translated
 msgid "Drop a model here or add one"
@@ -710,6 +1570,11 @@ msgid "Client configuration changed while preparing the write. Original file ret
 msgstr "客户端配置在准备写入时发生了变化。已保留原始文件；请重新检查。"
 
 # AI Translated
+#. TRN Under Cowork's name in the list of AI apps: it connects in its local sessions only.
+msgid "local sessions"
+msgstr "本地会话"
+
+# AI Translated
 msgid "JusPrin couldn't close the project, so it didn't restart. Your project stays open, and JusPrin will use the new language the next time it starts."
 msgstr "JusPrin 无法关闭项目，因此没有重启。您的项目保持打开，JusPrin 将在下次启动时使用新语言。"
 
@@ -805,6 +1670,31 @@ msgid "Slicing plate %1%"
 msgstr "正在切片盘 %1%"
 
 # AI Translated
+#. TRN %1% is a printer's name.
+#, boost-format
+msgid "Waiting for the access code for %1%"
+msgstr "正在等待 %1% 的访问码"
+
+# AI Translated
+#. TRN %1% is a print host's address, such as 192.168.1.20.
+#. TRN %1% is a printer's name or a print host's address.
+#, boost-format
+msgid "Checking %1%"
+msgstr "正在检查 %1%"
+
+# AI Translated
+#. TRN %1% is a print host's address. The key the app holds was refused.
+#, boost-format
+msgid "Waiting for a different API key for %1%"
+msgstr "正在等待 %1% 的另一个 API 密钥"
+
+# AI Translated
+#. TRN %1% is a print host's address.
+#, boost-format
+msgid "Waiting for an API key for %1%"
+msgstr "正在等待 %1% 的 API 密钥"
+
+# AI Translated
 msgid "The form was out of date. Choose the printer again."
 msgstr "表单已过期。请重新选择打印机。"
 
@@ -835,6 +1725,18 @@ msgstr "浏览完整的打印机列表"
 # AI Translated
 msgid "Open printer settings"
 msgstr "打开打印机设置"
+
+# AI Translated
+#. TRN The filament chat's first line. %1% is a filament slot's number.
+#, boost-format
+msgid "I can help with settings for the filament in slot %1%. What would you like to change?"
+msgstr "我可以帮您调整槽位 %1% 中耗材丝的设置。您想更改什么？"
+
+# AI Translated
+#. TRN The filament chat's first line. %1% is a filament's name, %2% its slot's number.
+#, boost-format
+msgid "I can help with settings for %1% in slot %2%. What would you like to change?"
+msgstr "我可以帮您调整槽位 %2% 中 %1% 的设置。您想更改什么？"
 
 # AI Translated
 #. TRN %1% is the profile loader's own error, in English.
@@ -1713,8 +2615,22 @@ msgid "Saving the MCP entry using the client's own CLI..."
 msgstr "正在使用客户端自己的 CLI 保存 MCP 条目..."
 
 # AI Translated
+msgid "Could not start the client CLI. Use Copy or check its installation."
+msgstr "无法启动客户端 CLI。请使用“复制”，或检查其安装情况。"
+
+# AI Translated
 msgid "The setup command timed out. Stopping it..."
 msgstr "设置命令超时。正在停止..."
+
+# AI Translated
+msgid "Setup timed out; the client config may have changed. Inspect it before trying again."
+msgstr "设置超时；客户端配置可能已更改。请先检查后再重试。"
+
+# AI Translated
+#. TRN %1% is the exit code of an AI app's command-line tool, a number.
+#, boost-format
+msgid "Client CLI exited with code %1%."
+msgstr "客户端 CLI 已退出，代码为 %1%。"
 
 # AI Translated
 msgid "Select printer"
@@ -2103,12 +3019,99 @@ msgid "Printer connection required"
 msgstr "需要打印机连接"
 
 # AI Translated
+msgid "No more plates can be added"
+msgstr "无法再添加更多盘"
+
+# AI Translated
+msgid "Annotate regions"
+msgstr "标注区域"
+
+# AI Translated
+msgid "Remove regions"
+msgstr "移除区域"
+
+# AI Translated
+#. TRN The name of a plate the person has not named. %1% is its number, counting from 1.
+#, boost-format
+msgid "Plate %1%"
+msgstr "盘 %1%"
+
+# AI Translated
+msgid "Filament slot"
+msgstr "耗材丝槽位"
+
+# AI Translated
+msgid "The app did not start slicing this plate."
+msgstr "本应用未开始切片此盘。"
+
+# AI Translated
+msgid "The slice stopped with an error."
+msgstr "切片因错误而停止。"
+
+# AI Translated
+msgid "Object name cannot be empty"
+msgstr "对象名称不能为空"
+
+# AI Translated
+msgid "Lay out plates"
+msgstr "布置盘"
+
+# AI Translated
+msgid "Place object"
+msgstr "放置对象"
+
+# AI Translated
+msgid "Import model"
+msgstr "导入模型"
+
+# AI Translated
+msgid "Delete items"
+msgstr "删除条目"
+
+# AI Translated
+msgid "Change object settings"
+msgstr "更改对象设置"
+
+# AI Translated
 msgid "This project was saved by a newer version of JusPrin. Get the new version to open it."
 msgstr "此项目由更新版本的 JusPrin 保存。请获取新版本以打开它。"
 
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "无法打开项目。请重试。"
+
+# AI Translated
+#. TRN A setting's text value, such as custom G-code, described by its length.
+#, boost-format
+msgid "%1% line"
+msgid_plural "%1% lines"
+msgstr[0] "%1% 行"
+
+# AI Translated
+#. TRN A setting's text value, described by its length.
+#, boost-format
+msgid "%1% character"
+msgid_plural "%1% characters"
+msgstr[0] "%1% 个字符"
+
+# AI Translated
+#. TRN A setting's value: it takes the value of another preset.
+msgid "Not set"
+msgstr "未设置"
+
+# AI Translated
+#. TRN A setting that holds a list of texts, described by how many.
+#, boost-format
+msgid "%1% entry"
+msgid_plural "%1% entries"
+msgstr[0] "%1% 个条目"
+
+# AI Translated
+#. TRN A setting that holds a shape, such as the bed's outline, described by its points.
+#, boost-format
+msgid "%1% point"
+msgid_plural "%1% points"
+msgstr[0] "%1% 个点"
 
 # AI Translated
 #~ msgid "JusPrin's view couldn't be opened."

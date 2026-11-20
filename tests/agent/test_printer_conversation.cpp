@@ -13,6 +13,7 @@
 #include "slic3r/GUI/JusPrin/Agent/ToolRegistry.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterCatalog.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ToolExecution.hpp"
 #include "../jusprin_support/FakeWorkspace.hpp"
 #include "kept_turn.hpp"
 
@@ -266,9 +267,9 @@ public:
     }
     // Each retitle of a waiting call, and whether its dialogs were answered from then on.
     std::vector<std::tuple<std::string, std::string, bool>> updates;
-    bool update_tool(const std::string& action_id, const std::string& title, bool answer_dialogs) override
+    bool update_tool(const std::string& action_id, const Agent::ActivityTitle& title, bool answer_dialogs) override
     {
-        updates.emplace_back(action_id, title, answer_dialogs);
+        updates.emplace_back(action_id, title.english, answer_dialogs);
         return finishes;
     }
     void session_changed() override { ++states; }
@@ -2614,7 +2615,7 @@ public:
     {
         return host->tools().finish_pending(action_id, outcome);
     }
-    bool        update_tool(const std::string& action_id, const std::string& title, bool answer_dialogs) override
+    bool        update_tool(const std::string& action_id, const Agent::ActivityTitle& title, bool answer_dialogs) override
     {
         Agent::ToolExecutionCoordinator& tools = host->tools();
         return tools.retitle_pending(action_id, title) && (!answer_dialogs || tools.answer_dialogs_while_pending(action_id));

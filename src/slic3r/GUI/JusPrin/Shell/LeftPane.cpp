@@ -14,6 +14,7 @@
 #include <wx/graphics.h>
 #include <wx/msgdlg.h>
 #include <wx/textdlg.h>
+#include <wx/translation.h>
 
 #include <boost/log/trivial.hpp>
 
@@ -223,7 +224,9 @@ void LeftPane::show_refusal(const CommandResult& result, WorkspaceError refusal,
     if (result.error != refusal)
         return run_command(result, what);
     BOOST_LOG_TRIVIAL(error) << "Plates pane: " << what << " failed: " << result.message;
-    OrcaMessages::show_own_message(nullptr, wxString::FromUTF8(result.message), _L("Couldn't do that"));
+    // The two refusals shown here are marked where the workspace writes them
+    // and translated here, where they are shown.
+    OrcaMessages::show_own_message(nullptr, wxGetTranslation(wxString::FromUTF8(result.message)), _L("Couldn't do that"));
 }
 
 void LeftPane::activate_row(const PaneRow& row)

@@ -14,9 +14,11 @@
 #include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProjectStateDocument.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ToolExecution.hpp"
 #include "slic3r/GUI/JusPrin/Printers/PrinterNames.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
 #include "libslic3r/PresetBundle.hpp"
+#include "libslic3r/format.hpp"
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/log/trivial.hpp>
@@ -149,10 +151,15 @@ void PrinterPanel::build_runtime()
                     m_web_view->host().refresh_page_state();
             }));
         });
-        host.post_assistant_message("I can help with settings for " +
-                                    (m_filament_name.empty() ? "the filament" : m_filament_name) +
-                                    " in slot " + std::to_string(m_filament_slot + 1) +
-                                    ". What would you like to change?");
+        // The chat's first line, in the person's language: the model reads it
+        // as its own and goes on in the language the person writes in.
+        host.post_assistant_message(m_filament_name.empty() ?
+                                        // TRN The filament chat's first line. %1% is a filament slot's number.
+                                        Slic3r::format(_u8L("I can help with settings for the filament in slot %1%. What would you like to change?"),
+                                                       m_filament_slot + 1) :
+                                        // TRN The filament chat's first line. %1% is a filament's name, %2% its slot's number.
+                                        Slic3r::format(_u8L("I can help with settings for %1% in slot %2%. What would you like to change?"),
+                                                       m_filament_name, m_filament_slot + 1));
     }
     m_pump.Start(kPumpIntervalMs);
 }
@@ -405,7 +412,7 @@ bool PrinterPanel::finish_tool(const std::string& action_id, const Agent::ToolEx
     return m_web_view && m_web_view->host().tools().finish_pending(action_id, outcome);
 }
 
-bool PrinterPanel::update_tool(const std::string& action_id, const std::string& title, bool answer_dialogs)
+bool PrinterPanel::update_tool(const std::string& action_id, const Agent::ActivityTitle& title, bool answer_dialogs)
 {
     if (!m_web_view)
         return false;

@@ -423,6 +423,11 @@ msgid "{minutes}m left"
 msgstr "{minutes} min restantes"
 
 # AI Translated
+#: src/components/TurnActivity.tsx
+msgid "{more, plural, one {… # more character} other {… # more characters}}"
+msgstr "{more, plural, one {… # caractère de plus} many {… # caractères de plus} other {… # caractères de plus}}"
+
+# AI Translated
 #: src/components/SetupCard.tsx
 msgid "{more, plural, one {{preset} with {filament} and # other filament.} other {{preset} with {filament} and # other filaments.}}"
 msgstr "{more, plural, one {{preset} avec {filament} et # autre filament.} many {{preset} avec {filament} et # autres filaments.} other {{preset} avec {filament} et # autres filaments.}}"
@@ -1368,6 +1373,11 @@ msgid "Check plan"
 msgstr "Vérifier le forfait"
 
 # AI Translated
+#: src/App.tsx
+msgid "Check the plan against what changed."
+msgstr "Vérifiez le plan par rapport à ce qui a changé."
+
+# AI Translated
 #: src/components/Guide.tsx
 msgid "Check the spelling or try other words. You can also ask AI: choose Ask AI… in the Help menu."
 msgstr "Vérifiez l’orthographe ou essayez d’autres mots. Vous pouvez aussi demander à l’IA : choisissez Demander à l’IA… dans le menu Aide."
@@ -2118,6 +2128,11 @@ msgid "How did it come out?"
 msgstr "Quel est le résultat ?"
 
 # AI Translated
+#: src/printerWords.ts
+msgid "How do I check?"
+msgstr "Comment vérifier ?"
+
+# AI Translated
 #: src/components/OrcaImport.tsx
 msgid "If {app} keeps its settings somewhere else, choose that folder."
 msgstr "Si {app} conserve ses réglages ailleurs, choisissez ce dossier."
@@ -2456,6 +2471,26 @@ msgstr "Glisser avec le bouton gauche"
 #: src/components/AgentConnection.tsx
 msgid "Let an AI app on this computer, such as Claude Desktop, work with the open project. JusPrin adds itself to that app’s settings."
 msgstr "Permettez à une application d’IA de cet ordinateur, comme Claude Desktop, de travailler avec le projet ouvert. JusPrin s’ajoute aux réglages de cette application."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect {name}. Is it turned on, in LAN mode, and on the same network as this computer?"
+msgstr "Connectons {name}. Est-elle allumée, en mode LAN et sur le même réseau que cet ordinateur ?"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect {name}. What address do you use to open it in a browser? It’s usually its IP address, like 192.168.1.20."
+msgstr "Connectons {name}. Quelle adresse utilisez-vous pour l’ouvrir dans un navigateur ? C’est généralement son adresse IP, par exemple 192.168.1.20."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect this printer. Is it turned on, in LAN mode, and on the same network as this computer?"
+msgstr "Connectons cette imprimante. Est-elle allumée, en mode LAN et sur le même réseau que cet ordinateur ?"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect this printer. What address do you use to open it in a browser? It’s usually its IP address, like 192.168.1.20."
+msgstr "Connectons cette imprimante. Quelle adresse utilisez-vous pour l’ouvrir dans un navigateur ? C’est généralement son adresse IP, par exemple 192.168.1.20."
 
 # AI Translated
 #: src/components/Preferences.tsx
@@ -4341,6 +4376,16 @@ msgid "This is an internal connection inside JusPrin, not a network service. The
 msgstr "Il s’agit d’une connexion interne à JusPrin, pas d’un service réseau. Le canevas 3D et toutes les autres commandes continuent de fonctionner."
 
 # AI Translated
+#: src/printerWords.ts
+msgid "This is the {name}. Tell me what changed on it, or ask anything about it."
+msgstr "Voici {name}. Dites-moi ce qui a changé sur cette imprimante, ou posez-moi n’importe quelle question à son sujet."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "This is your printer. Tell me what changed on it, or ask anything about it."
+msgstr "Voici votre imprimante. Dites-moi ce qui a changé dessus, ou posez-moi n’importe quelle question à son sujet."
+
+# AI Translated
 #: src/components/AllSettings.tsx
 msgid "This JusPrin build cannot list the settings."
 msgstr "Cette version de JusPrin ne peut pas lister les réglages."
@@ -4375,6 +4420,16 @@ msgstr "Recalcul des estimations de durée et de matériau…"
 #: src/components/SetupLocalTool.tsx
 msgid "Timed out."
 msgstr "Délai dépassé."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "To connect {name}, JusPrin first needs Bambu’s network plug-in, which isn’t installed on this computer yet. {name} already works for preparing prints."
+msgstr "Pour connecter {name}, JusPrin a d’abord besoin du plug-in réseau de Bambu, qui n’est pas encore installé sur cet ordinateur. {name} fonctionne déjà pour préparer des impressions."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "To connect this printer, JusPrin first needs Bambu’s network plug-in, which isn’t installed on this computer yet. This printer already works for preparing prints."
+msgstr "Pour connecter cette imprimante, JusPrin a d’abord besoin du plug-in réseau de Bambu, qui n’est pas encore installé sur cet ordinateur. Cette imprimante fonctionne déjà pour préparer des impressions."
 
 # AI Translated
 #: ../HomeUI/src/history.ts
@@ -4626,6 +4681,11 @@ msgid "Which printer do you have?"
 msgstr "Quelle imprimante avez-vous ?"
 
 # AI Translated
+#: src/printerWords.ts
+msgid "Which printer do you have? Tell me the brand and model, or share a photo of its label. Not sure? Tell me what you know, and I'll help you find it."
+msgstr "Quelle imprimante avez-vous ? Indiquez-moi la marque et le modèle, ou partagez une photo de son étiquette. Vous n’êtes pas sûr ? Dites-moi ce que vous savez, et je vous aiderai à la trouver."
+
+# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Which printer?"
 msgstr "Quelle imprimante ?"
@@ -4661,6 +4721,12 @@ msgstr "En cours…"
 #: src/components/SetupLocalTool.tsx
 msgid "Writing settings…"
 msgstr "Écriture des réglages…"
+
+# AI Translated
+#. An answer to tap: the printer is on, in LAN mode and on this network.
+#: src/printerWords.ts
+msgid "Yes, it is"
+msgstr "Oui, elle l’est"
 
 # AI Translated
 #: src/components/Preferences.tsx

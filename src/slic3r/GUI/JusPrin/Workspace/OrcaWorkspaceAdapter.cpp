@@ -13,6 +13,7 @@
 #include "HostLocale.hpp"
 #include "SliceResultWarnings.hpp"
 #include "SliceWarnings.hpp"
+#include "Workspace.hpp"
 
 #include "libslic3r/ClipperUtils.hpp"
 #include "libslic3r/Format/bbs_3mf.hpp"
@@ -20,6 +21,7 @@
 #include "libslic3r/Orient.hpp"
 #include "libslic3r/Model.hpp"
 #include "libslic3r/PresetBundle.hpp"
+#include "libslic3r/format.hpp"
 #include "libslic3r/miniz_extension.hpp"
 #include "slic3r/GUI/BackgroundSlicingProcess.hpp"
 #include "slic3r/GUI/GLCanvas3D.hpp"
@@ -63,8 +65,15 @@
 #include <limits>
 #include <memory>
 #include <set>
+#include <string>
 
 namespace Slic3r::GUI::JusPrin::Workspace {
+
+std::string default_plate_name(int index)
+{
+    // TRN The name of a plate the person has not named. %1% is its number, counting from 1.
+    return Slic3r::format(_u8L("Plate %1%"), index + 1);
+}
 
 namespace {
 
@@ -261,15 +270,29 @@ OwnSettingAction own_setting_action(const std::string& kind, const std::string& 
     return OwnSettingAction::UseProjectValue;
 }
 
+// Text for the All settings panel in the app's language, through
+// OrcaSlicer's catalog. Empty stays empty: the catalog's empty entry is its
+// header.
+std::string shown_text(const std::string& english)
+{
+    return english.empty() ? english : I18N::translate_utf8(english);
+}
+
 // Everything one object prints with that the project's settings do not say:
 // its own settings, its height ranges', its parts' and modifiers', and the
 // customizations with no value to quote (paint, a blocker, a variable-height
 // profile). `object_index` is what each override's `object` field is set to.
-// Returns whether the object has a variable layer height profile.
-bool add_object_customizations(const ModelObject& object, std::size_t object_index, std::vector<SetupLocalOverride>& overrides)
+// Returns whether the object has a variable layer height profile. Labels and
+// values are in `words`: English for the setup the model reads, the person's
+// language for the All settings panel.
+bool add_object_customizations(const ModelObject& object, std::size_t object_index, std::vector<SetupLocalOverride>& overrides,
+                               ValueWords words)
 {
-    const auto add_local = [&overrides, object_index](const std::string& target, const std::string& kind,
-                                                      const DynamicPrintConfig& config) {
+    const auto shown = [words](const std::string& english) {
+        return words == ValueWords::Shown ? shown_text(english) : english;
+    };
+    const auto add_local = [&overrides, object_index, words, &shown](const std::string& target, const std::string& kind,
+                                                                     const DynamicPrintConfig& config) {
         for (const std::string& key : config.keys()) {
             const ConfigOption* option = config.option(key);
             const ConfigOptionDef* definition = print_config_def.get(key);
@@ -279,21 +302,21 @@ bool add_object_customizations(const ModelObject& object, std::size_t object_ind
             // It is the inherited/default filament, not a local override.
             if (key == "extruder") {
                 if (option->serialize() != "1")
-                    overrides.push_back({target, kind, key, option->serialize(), object_index, "Filament slot", option->serialize(),
-                                         own_setting_action(kind, key)});
+                    overrides.push_back({target, kind, key, option->serialize(), object_index, shown(L("Filament slot")),
+                                         option->serialize(), own_setting_action(kind, key)});
             } else if (definition != nullptr) {
                 const SettingDefinition display_definition = setting_definition(key);
-                overrides.push_back({target, kind, key, option->serialize(), object_index, display_definition.label,
-                                     display_value(display_definition, option->serialize()), own_setting_action(kind, key)});
+                overrides.push_back({target, kind, key, option->serialize(), object_index, shown(display_definition.label),
+                                     display_value(display_definition, option->serialize(), words), own_setting_action(kind, key)});
             }
         }
     };
-    const auto add_artifact = [&overrides, object_index](const std::string& target, const std::string& kind,
-                                                         const std::string& key = {}) {
+    const auto add_artifact = [&overrides, object_index, &shown](const std::string& target, const std::string& kind,
+                                                                 const std::string& key = {}) {
         const ConfigOptionDef* definition = key.empty() ? nullptr : print_config_def.get(key);
         overrides.push_back({target, kind, key, {}, object_index,
                              definition == nullptr ? std::string() :
-                                 (definition->full_label.empty() ? definition->label : definition->full_label),
+                                 shown(definition->full_label.empty() ? definition->label : definition->full_label),
                              {}, own_setting_action(kind, key)});
     };
 
@@ -347,18 +370,10 @@ AppliedSetup applied_setup_of(ProjectSessionId session, Plater& plater, PartPlat
         if (!prints_on(object, index, plate)) continue;
         ++result.printable_objects;
         result.objects.push_back(object.name);
-        if (add_object_customizations(object, result.objects.size() - 1, result.local_overrides))
+        if (add_object_customizations(object, result.objects.size() - 1, result.local_overrides, ValueWords::English))
             result.variable_layer_height = true;
     }
     return result;
-}
-
-// Text for the All settings panel in the app's language, through
-// OrcaSlicer's catalog. Empty stays empty: the catalog's empty entry is its
-// header.
-std::string shown_text(const std::string& english)
-{
-    return english.empty() ? english : I18N::translate_utf8(english);
 }
 
 // Every setting a preset holds, in Orca's order, under its tab's page and
@@ -393,11 +408,11 @@ std::vector<CatalogSetting> catalog_settings(const PresetCollection& collection,
         row.page_label = shown_text(row.page);
         row.group      = shown_text(into_u8(location.group));
         row.value      = option->serialize();
-        row.display    = shown_text(display_value(definition, row.value));
+        row.display    = display_value(definition, row.value, ValueWords::Shown);
         if (saved != nullptr && dirty.count(key) > 0)
             if (const ConfigOption* before = saved->option(key); before != nullptr && before->serialize() != row.value) {
                 row.preset         = before->serialize();
-                row.preset_display = shown_text(display_value(definition, *row.preset));
+                row.preset_display = display_value(definition, *row.preset, ValueWords::Shown);
             }
         result.push_back(std::move(row));
     }
@@ -424,7 +439,7 @@ void mark_inherited(std::vector<CatalogSetting>& settings, const DynamicPrintCon
         const ConfigOption* in_force    = printer_config.option(printer_key);
         if (in_force == nullptr || print_config_def.get(printer_key) == nullptr) continue;
         row.inherited         = true;
-        row.inherited_display = shown_text(display_value(setting_definition(printer_key), in_force->serialize()));
+        row.inherited_display = display_value(setting_definition(printer_key), in_force->serialize(), ValueWords::Shown);
     }
 }
 
@@ -445,12 +460,13 @@ std::vector<CatalogSetting> plate_own_settings(PartPlate& plate, Search::Options
         const SettingDefinition display_definition = setting_definition(key);
         CatalogSetting row;
         row.key   = key;
-        row.label = display_definition.label.empty() ? key : display_definition.label;
+        // Only the All settings panel reads a plate's own settings.
+        row.label = display_definition.label.empty() ? key : shown_text(display_definition.label);
         const Search::GroupAndCategory location = tab_location(searcher, key, Preset::TYPE_PLATE);
         row.page    = into_u8(location.category);
         row.group   = into_u8(location.group);
         row.value   = option->serialize();
-        row.display = display_value(display_definition, row.value);
+        row.display = display_value(display_definition, row.value, ValueWords::Shown);
         result.push_back(std::move(row));
     }
     return result;
@@ -466,8 +482,11 @@ std::vector<WorkspaceEdit> setting_edits(const std::vector<PresetDelta>& before,
     const std::string& preset = collection.get_edited_preset().name;
     const auto edit = [&](const PresetDelta& delta, const std::string& was, const std::string& now) {
         const SettingDefinition definition = setting_definition(delta.key);
-        return WorkspaceEdit{EditKind::Setting, EditActor::Person, delta.label, display_value(definition, was),
-                             display_value(definition, now), preset, delta.key};
+        WorkspaceEdit edit{EditKind::Setting, EditActor::Person, delta.label, display_value(definition, was),
+                           display_value(definition, now), preset, delta.key};
+        edit.before_shown = display_value(definition, was, ValueWords::Shown);
+        edit.after_shown  = display_value(definition, now, ValueWords::Shown);
+        return edit;
     };
     const auto find = [](const std::vector<PresetDelta>& deltas, const std::string& key) {
         const auto found = std::find_if(deltas.begin(), deltas.end(), [&key](const PresetDelta& delta) { return delta.key == key; });
@@ -1036,8 +1055,9 @@ bool OrcaWorkspaceAdapter::record_slice_failure(SliceFailureKind kind)
     if (failure.message.empty()) {
         failure.kind     = kind;
         failure.severity = "blocker";
-        failure.message  = kind == SliceFailureKind::Refused ? "The app did not start slicing this plate." :
-                               m_failed_run_message.empty() ? "The slice stopped with an error." : m_failed_run_message;
+        // In English, for the model; the chat's note shows them translated.
+        failure.message  = kind == SliceFailureKind::Refused ? L("The app did not start slicing this plate.") :
+                               m_failed_run_message.empty() ? L("The slice stopped with an error.") : m_failed_run_message;
     }
     const auto known = m_slice_failures.find(plate);
     if (known != m_slice_failures.end() && known->second.same_reason(failure))
@@ -1129,7 +1149,7 @@ WorkspaceSnapshot OrcaWorkspaceAdapter::snapshot() const
         PartPlate* plate = plate_list.get_plate(index);
         WorkspacePlate projected_plate;
         projected_plate.id     = PlateId(m_session, plate->id().id);
-        projected_plate.name   = plate->get_plate_name().empty() ? "Plate " + std::to_string(index + 1) : plate->get_plate_name();
+        projected_plate.name   = plate->get_plate_name().empty() ? default_plate_name(index) : plate->get_plate_name();
         projected_plate.active = index == active_index;
         projected_plate.bed_type = plate_label(plate->get_bed_type(true));
         projected_plate.sliced = plate->is_slice_result_valid();
@@ -1232,7 +1252,7 @@ CommandResult OrcaWorkspaceAdapter::rename_object(ObjectId id, const std::string
 {
     wxASSERT(wxIsMainThread());
     if (blank(name))
-        return CommandResult::failure(WorkspaceError::InvalidArgument, "Object name cannot be empty");
+        return CommandResult::failure(WorkspaceError::InvalidArgument, L("Object name cannot be empty"));
     const auto object = resolve(id);
     if (!object)
         return id_error(id);
@@ -1700,7 +1720,7 @@ CommandResult OrcaWorkspaceAdapter::lay_out(const LayoutRequest& request, const 
 
     {
         const ProjectStateTransaction transaction = m_plater.project_state_transaction();
-        Plater::TakeSnapshot snapshot(&m_plater, "Lay out plates");
+        Plater::TakeSnapshot snapshot(&m_plater, L("Lay out plates"));
 
         for (const LayoutPlate& row : request.plates) {
             int index = row.id ? plate_index(*row.id) : -1;
@@ -1853,7 +1873,7 @@ CommandResult OrcaWorkspaceAdapter::place_object(ObjectId id, const PlacementReq
         const ProjectStateTransaction transaction = m_plater.project_state_transaction();
         // One undo step for everything below; the canvas's own snapshots are
         // suppressed inside it.
-        Plater::TakeSnapshot snapshot(&m_plater, "Place object");
+        Plater::TakeSnapshot snapshot(&m_plater, L("Place object"));
         select();
 
         if (!request.units_fix.empty()) {
@@ -2797,7 +2817,7 @@ CommandResult OrcaWorkspaceAdapter::import_objects(const ImportRequest& request,
         // geometry-only strategy Import uses; a new object lands on the
         // current plate, so the target plate is selected first.
         ProjectStateTransaction transaction = m_plater.project_state_transaction();
-        m_plater.take_snapshot("Import model");
+        m_plater.take_snapshot(L("Import model"));
         if (plate >= 0)
             m_plater.select_plate(plate);
         LoadStrategy strategy = LoadStrategy::LoadModel;
@@ -2892,7 +2912,7 @@ CommandResult OrcaWorkspaceAdapter::delete_items(const std::vector<DeleteItem>& 
 
     {
         const ProjectStateTransaction transaction = m_plater.project_state_transaction();
-        Plater::TakeSnapshot snapshot(&m_plater, "Delete items");
+        Plater::TakeSnapshot snapshot(&m_plater, L("Delete items"));
         // The card named a cut object's broken correspondence already. Orca
         // asks before deleting a cut object and, on Delete, invalidates the
         // cut; doing that first is the same change, with nothing left to ask.
@@ -3407,7 +3427,7 @@ SettingsCatalog OrcaWorkspaceAdapter::settings_catalog() const
         if (plate == nullptr) continue;
         CatalogPlate entry;
         entry.id     = PlateId(m_session, plate->id().id);
-        entry.name   = plate->get_plate_name().empty() ? "Plate " + std::to_string(index + 1) : plate->get_plate_name();
+        entry.name   = plate->get_plate_name().empty() ? default_plate_name(index) : plate->get_plate_name();
         entry.active = index == active_index;
         // Its own plate type, else the project's: the one it prints with.
         const BedType in_force     = plate->get_bed_type(true);
@@ -3428,7 +3448,7 @@ SettingsCatalog OrcaWorkspaceAdapter::settings_catalog() const
         for (int plate_index = 0; plate_index < plate_list.get_plate_count() && !entry.plate; ++plate_index)
             if (PartPlate* plate = plate_list.get_plate(plate_index); plate != nullptr && prints_on(object, index, *plate))
                 entry.plate = PlateId(m_session, plate->id().id);
-        add_object_customizations(object, 0, entry.overrides);
+        add_object_customizations(object, 0, entry.overrides, ValueWords::Shown);
         result.objects.push_back(std::move(entry));
     }
     return result;
@@ -3616,7 +3636,7 @@ CommandResult OrcaWorkspaceAdapter::apply_settings(const SettingsPatch& patch, c
         // ObjectSettings' write, as an undo step: the override lands in the
         // object's ModelConfig, the list shows its settings item, and the
         // object's slicing is invalidated.
-        Plater::TakeSnapshot snapshot(&m_plater, "Change object settings");
+        Plater::TakeSnapshot snapshot(&m_plater, L("Change object settings"));
         for (const auto& change : applied.changes) {
             DynamicPrintConfig value;
             value.set_deserialize_strict(change.key, change.after);

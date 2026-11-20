@@ -423,6 +423,11 @@ msgid "{minutes}m left"
 msgstr "zbývá {minutes} min"
 
 # AI Translated
+#: src/components/TurnActivity.tsx
+msgid "{more, plural, one {… # more character} other {… # more characters}}"
+msgstr "{more, plural, one {… ještě # znak} few {… ještě # znaky} many {… ještě # znaku} other {… ještě # znaků}}"
+
+# AI Translated
 #: src/components/SetupCard.tsx
 msgid "{more, plural, one {{preset} with {filament} and # other filament.} other {{preset} with {filament} and # other filaments.}}"
 msgstr "{more, plural, one {{preset} s filamentem {filament} a # dalším filamentem.} few {{preset} s filamentem {filament} a # dalšími filamenty.} many {{preset} s filamentem {filament} a # dalšího filamentu.} other {{preset} s filamentem {filament} a # dalšími filamenty.}}"
@@ -1368,6 +1373,11 @@ msgid "Check plan"
 msgstr "Zkontrolovat plán"
 
 # AI Translated
+#: src/App.tsx
+msgid "Check the plan against what changed."
+msgstr "Porovnej plán s tím, co se změnilo."
+
+# AI Translated
 #: src/components/Guide.tsx
 msgid "Check the spelling or try other words. You can also ask AI: choose Ask AI… in the Help menu."
 msgstr "Zkontrolujte pravopis nebo zkuste jiná slova. Můžete se také zeptat AI: v nabídce Nápověda zvolte Zeptat se AI…."
@@ -2117,6 +2127,11 @@ msgid "How did it come out?"
 msgstr "Jak tisk dopadl?"
 
 # AI Translated
+#: src/printerWords.ts
+msgid "How do I check?"
+msgstr "Jak to mám zkontrolovat?"
+
+# AI Translated
 #: src/components/OrcaImport.tsx
 msgid "If {app} keeps its settings somewhere else, choose that folder."
 msgstr "Pokud má {app} nastavení uložené jinde, vyberte tuto složku."
@@ -2456,6 +2471,26 @@ msgstr "Tažení levým tlačítkem"
 #: src/components/AgentConnection.tsx
 msgid "Let an AI app on this computer, such as Claude Desktop, work with the open project. JusPrin adds itself to that app’s settings."
 msgstr "Umožněte aplikaci AI v tomto počítači, například Claude Desktop, pracovat s otevřeným projektem. JusPrin se přidá do nastavení této aplikace."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect {name}. Is it turned on, in LAN mode, and on the same network as this computer?"
+msgstr "Pojďme připojit {name}. Je zapnutá, v režimu LAN a ve stejné síti jako tento počítač?"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect {name}. What address do you use to open it in a browser? It’s usually its IP address, like 192.168.1.20."
+msgstr "Pojďme připojit {name}. Jakou adresu používáte, když ji otevíráte v prohlížeči? Obvykle je to její IP adresa, například 192.168.1.20."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect this printer. Is it turned on, in LAN mode, and on the same network as this computer?"
+msgstr "Pojďme připojit tuto tiskárnu. Je zapnutá, v režimu LAN a ve stejné síti jako tento počítač?"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect this printer. What address do you use to open it in a browser? It’s usually its IP address, like 192.168.1.20."
+msgstr "Pojďme připojit tuto tiskárnu. Jakou adresu používáte, když ji otevíráte v prohlížeči? Obvykle je to její IP adresa, například 192.168.1.20."
 
 # AI Translated
 #: src/components/Preferences.tsx
@@ -4342,6 +4377,16 @@ msgid "This is an internal connection inside JusPrin, not a network service. The
 msgstr "Jde o interní spojení uvnitř JusPrinu, nikoli o síťovou službu. 3D plátno a všechny ostatní ovládací prvky fungují dál."
 
 # AI Translated
+#: src/printerWords.ts
+msgid "This is the {name}. Tell me what changed on it, or ask anything about it."
+msgstr "Toto je {name}. Řekněte mi, co se na ní změnilo, nebo se zeptejte na cokoli, co se jí týká."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "This is your printer. Tell me what changed on it, or ask anything about it."
+msgstr "Toto je vaše tiskárna. Řekněte mi, co se na ní změnilo, nebo se zeptejte na cokoli, co se jí týká."
+
+# AI Translated
 #: src/components/AllSettings.tsx
 msgid "This JusPrin build cannot list the settings."
 msgstr "Tato verze JusPrinu nemůže zobrazit seznam nastavení."
@@ -4376,6 +4421,16 @@ msgstr "Odhady času a materiálu se přepočítávají…"
 #: src/components/SetupLocalTool.tsx
 msgid "Timed out."
 msgstr "Vypršel časový limit."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "To connect {name}, JusPrin first needs Bambu’s network plug-in, which isn’t installed on this computer yet. {name} already works for preparing prints."
+msgstr "Aby mohl JusPrin připojit {name}, potřebuje nejdřív síťový zásuvný modul Bambu, který v tomto počítači zatím není nainstalovaný. Pro {name} už teď můžete připravovat tisky."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "To connect this printer, JusPrin first needs Bambu’s network plug-in, which isn’t installed on this computer yet. This printer already works for preparing prints."
+msgstr "Aby mohl JusPrin připojit tuto tiskárnu, potřebuje nejdřív síťový zásuvný modul Bambu, který v tomto počítači zatím není nainstalovaný. Pro tuto tiskárnu už teď můžete připravovat tisky."
 
 # AI Translated
 #: ../HomeUI/src/history.ts
@@ -4627,6 +4682,11 @@ msgid "Which printer do you have?"
 msgstr "Jakou máte tiskárnu?"
 
 # AI Translated
+#: src/printerWords.ts
+msgid "Which printer do you have? Tell me the brand and model, or share a photo of its label. Not sure? Tell me what you know, and I'll help you find it."
+msgstr "Jakou máte tiskárnu? Napište značku a model, nebo pošlete fotku jejího štítku. Nejste si jistí? Napište, co víte, a pomohu vám ji najít."
+
+# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Which printer?"
 msgstr "Jaká tiskárna?"
@@ -4662,6 +4722,12 @@ msgstr "Pracuji na tom…"
 #: src/components/SetupLocalTool.tsx
 msgid "Writing settings…"
 msgstr "Zapisování nastavení…"
+
+# AI Translated
+#. An answer to tap: the printer is on, in LAN mode and on this network.
+#: src/printerWords.ts
+msgid "Yes, it is"
+msgstr "Ano, je"
 
 # AI Translated
 #: src/components/Preferences.tsx

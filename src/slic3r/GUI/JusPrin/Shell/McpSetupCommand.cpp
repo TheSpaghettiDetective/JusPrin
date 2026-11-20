@@ -5,6 +5,8 @@
 
 #include "McpSetupCommand.hpp"
 
+#include "libslic3r/format.hpp"
+
 #include <algorithm>
 #include <chrono>
 #include <stdexcept>
@@ -34,7 +36,7 @@ McpSetupResult run_mcp_setup_command(wxWindow* parent, const std::vector<std::st
     for (const auto& value : values) argv.push_back(value.wc_str());
     argv.push_back(nullptr);
     const auto pid = wxExecute(argv.data(), wxEXEC_ASYNC | wxEXEC_HIDE_CONSOLE, &process);
-    if (pid <= 0) return {false, "Could not start the client CLI. Use Copy or check its installation."};
+    if (pid <= 0) return {false, _u8L("Could not start the client CLI. Use Copy or check its installation.")};
     process.CloseOutput();
     std::string output;
     bool timed_out = false;
@@ -72,8 +74,9 @@ McpSetupResult run_mcp_setup_command(wxWindow* parent, const std::vector<std::st
     });
     timer.Start(30);
     progress.ShowModal();
-    if (timed_out) return {false, "Setup timed out; the client config may have changed. Inspect it before trying again.\n" + output};
-    return {exit_code == 0, "Client CLI exited with code " + std::to_string(exit_code) + ".\n" + output};
+    if (timed_out) return {false, _u8L("Setup timed out; the client config may have changed. Inspect it before trying again.") + "\n" + output};
+    return {exit_code == 0, // TRN %1% is the exit code of an AI app's command-line tool, a number.
+           Slic3r::format(_u8L("Client CLI exited with code %1%."), exit_code) + "\n" + output};
 }
 
 void start_mcp_setup_command(wxWindow* parent, const std::vector<std::string>& arguments,
@@ -125,7 +128,7 @@ void start_mcp_setup_command(wxWindow* parent, const std::vector<std::string>& a
     argv.push_back(nullptr);
     watch->pid = wxExecute(argv.data(), wxEXEC_ASYNC | wxEXEC_HIDE_CONSOLE, &watch->process);
     if (watch->pid <= 0) {
-        watch->finish({false, "Could not start the client CLI. Use Copy or check its installation."});
+        watch->finish({false, _u8L("Could not start the client CLI. Use Copy or check its installation.")});
         return;
     }
     watch->process.CloseOutput();
@@ -142,10 +145,11 @@ void start_mcp_setup_command(wxWindow* parent, const std::vector<std::string>& a
         if (event.GetPid() != watch->pid) { event.Skip(); return; }
         watch->drain();
         if (watch->timed_out)
-            watch->finish({false, "Setup timed out; the client config may have changed. Inspect it before trying again.\n" + watch->output});
+            watch->finish({false, _u8L("Setup timed out; the client config may have changed. Inspect it before trying again.") + "\n" + watch->output});
         else
             watch->finish({event.GetExitCode() == 0,
-                           "Client CLI exited with code " + std::to_string(event.GetExitCode()) + ".\n" + watch->output});
+                           // TRN %1% is the exit code of an AI app's command-line tool, a number.
+                           Slic3r::format(_u8L("Client CLI exited with code %1%."), event.GetExitCode()) + "\n" + watch->output});
     });
     watch->timer.Start(30);
 }

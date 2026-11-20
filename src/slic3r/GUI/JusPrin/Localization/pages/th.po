@@ -424,6 +424,11 @@ msgid "{minutes}m left"
 msgstr "เหลือ {minutes} น."
 
 # AI Translated
+#: src/components/TurnActivity.tsx
+msgid "{more, plural, one {… # more character} other {… # more characters}}"
+msgstr "{more, plural, one {… อีก # อักขระ} other {… อีก # อักขระ}}"
+
+# AI Translated
 #: src/components/SetupCard.tsx
 msgid "{more, plural, one {{preset} with {filament} and # other filament.} other {{preset} with {filament} and # other filaments.}}"
 msgstr "{more, plural, other {{preset} กับ {filament} และเส้นพลาสติกอื่นอีก # รายการ}}"
@@ -1374,6 +1379,11 @@ msgid "Check plan"
 msgstr "ตรวจสอบแผน"
 
 # AI Translated
+#: src/App.tsx
+msgid "Check the plan against what changed."
+msgstr "ตรวจสอบแผนเทียบกับสิ่งที่เปลี่ยนไป"
+
+# AI Translated
 #: src/components/Guide.tsx
 msgid "Check the spelling or try other words. You can also ask AI: choose Ask AI… in the Help menu."
 msgstr "ตรวจสอบการสะกดหรือลองใช้คำอื่น คุณยังถาม AI ได้ด้วย: เลือก ถาม AI… ในเมนูช่วยเหลือ"
@@ -2127,6 +2137,11 @@ msgid "How did it come out?"
 msgstr "ผลออกมาเป็นอย่างไร?"
 
 # AI Translated
+#: src/printerWords.ts
+msgid "How do I check?"
+msgstr "ตรวจสอบอย่างไร?"
+
+# AI Translated
 #: src/components/OrcaImport.tsx
 msgid "If {app} keeps its settings somewhere else, choose that folder."
 msgstr "หาก {app} เก็บการตั้งค่าไว้ที่อื่น โปรดเลือกโฟลเดอร์นั้น"
@@ -2465,6 +2480,26 @@ msgstr "ลากด้วยปุ่มซ้าย"
 #: src/components/AgentConnection.tsx
 msgid "Let an AI app on this computer, such as Claude Desktop, work with the open project. JusPrin adds itself to that app’s settings."
 msgstr "ให้แอป AI บนคอมพิวเตอร์เครื่องนี้ เช่น Claude Desktop ทำงานกับโปรเจกต์ที่เปิดอยู่ JusPrin จะเพิ่มตัวเองลงในการตั้งค่าของแอปนั้น"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect {name}. Is it turned on, in LAN mode, and on the same network as this computer?"
+msgstr "มาเชื่อมต่อ {name} กัน เครื่องเปิดอยู่ อยู่ในโหมด LAN และอยู่ในเครือข่ายเดียวกับคอมพิวเตอร์เครื่องนี้หรือไม่?"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect {name}. What address do you use to open it in a browser? It’s usually its IP address, like 192.168.1.20."
+msgstr "มาเชื่อมต่อ {name} กัน คุณใช้ที่อยู่อะไรเปิดเครื่องในเบราว์เซอร์? ปกติจะเป็นที่อยู่ IP ของเครื่อง เช่น 192.168.1.20"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect this printer. Is it turned on, in LAN mode, and on the same network as this computer?"
+msgstr "มาเชื่อมต่อเครื่องพิมพ์นี้กัน เครื่องเปิดอยู่ อยู่ในโหมด LAN และอยู่ในเครือข่ายเดียวกับคอมพิวเตอร์เครื่องนี้หรือไม่?"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect this printer. What address do you use to open it in a browser? It’s usually its IP address, like 192.168.1.20."
+msgstr "มาเชื่อมต่อเครื่องพิมพ์นี้กัน คุณใช้ที่อยู่อะไรเปิดเครื่องในเบราว์เซอร์? ปกติจะเป็นที่อยู่ IP ของเครื่อง เช่น 192.168.1.20"
 
 # AI Translated
 #: src/components/Preferences.tsx
@@ -4359,6 +4394,16 @@ msgid "This is an internal connection inside JusPrin, not a network service. The
 msgstr "นี่คือการเชื่อมต่อภายใน JusPrin ไม่ใช่บริการเครือข่าย มุมมอง 3 มิติและตัวควบคุมอื่นทั้งหมดยังทำงานได้ตามปกติ"
 
 # AI Translated
+#: src/printerWords.ts
+msgid "This is the {name}. Tell me what changed on it, or ask anything about it."
+msgstr "นี่คือ {name} บอกฉันได้ว่ามีอะไรเปลี่ยนไปบ้าง หรือถามอะไรเกี่ยวกับเครื่องนี้ก็ได้"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "This is your printer. Tell me what changed on it, or ask anything about it."
+msgstr "นี่คือเครื่องพิมพ์ของคุณ บอกฉันได้ว่ามีอะไรเปลี่ยนไปบ้าง หรือถามอะไรเกี่ยวกับเครื่องนี้ก็ได้"
+
+# AI Translated
 #: src/components/AllSettings.tsx
 msgid "This JusPrin build cannot list the settings."
 msgstr "บิลด์ JusPrin นี้แสดงรายการการตั้งค่าไม่ได้"
@@ -4394,6 +4439,16 @@ msgstr "กำลังคำนวณเวลาและวัสดุโด
 #: src/components/SetupLocalTool.tsx
 msgid "Timed out."
 msgstr "หมดเวลา"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "To connect {name}, JusPrin first needs Bambu’s network plug-in, which isn’t installed on this computer yet. {name} already works for preparing prints."
+msgstr "ในการเชื่อมต่อ {name} JusPrin ต้องใช้ปลั๊กอินเครือข่ายของ Bambu ก่อน ซึ่งยังไม่ได้ติดตั้งบนคอมพิวเตอร์เครื่องนี้ ตอนนี้ {name} ใช้เตรียมงานพิมพ์ได้แล้ว"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "To connect this printer, JusPrin first needs Bambu’s network plug-in, which isn’t installed on this computer yet. This printer already works for preparing prints."
+msgstr "ในการเชื่อมต่อเครื่องพิมพ์นี้ JusPrin ต้องใช้ปลั๊กอินเครือข่ายของ Bambu ก่อน ซึ่งยังไม่ได้ติดตั้งบนคอมพิวเตอร์เครื่องนี้ ตอนนี้เครื่องพิมพ์นี้ใช้เตรียมงานพิมพ์ได้แล้ว"
 
 # AI Translated
 #: ../HomeUI/src/history.ts
@@ -4646,6 +4701,11 @@ msgid "Which printer do you have?"
 msgstr "คุณมีเครื่องพิมพ์รุ่นใด?"
 
 # AI Translated
+#: src/printerWords.ts
+msgid "Which printer do you have? Tell me the brand and model, or share a photo of its label. Not sure? Tell me what you know, and I'll help you find it."
+msgstr "คุณมีเครื่องพิมพ์รุ่นไหน? บอกยี่ห้อและรุ่น หรือแชร์รูปฉลากของเครื่อง ไม่แน่ใจใช่ไหม? บอกสิ่งที่คุณรู้ แล้วฉันจะช่วยหาให้"
+
+# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Which printer?"
 msgstr "เครื่องพิมพ์รุ่นใด?"
@@ -4682,6 +4742,12 @@ msgstr "กำลังดำเนินการ…"
 #: src/components/SetupLocalTool.tsx
 msgid "Writing settings…"
 msgstr "กำลังเขียนการตั้งค่า…"
+
+# AI Translated
+#. An answer to tap: the printer is on, in LAN mode and on this network.
+#: src/printerWords.ts
+msgid "Yes, it is"
+msgstr "ใช่"
 
 # AI Translated
 #: src/components/Preferences.tsx

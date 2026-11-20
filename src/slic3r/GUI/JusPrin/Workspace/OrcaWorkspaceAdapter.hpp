@@ -6,6 +6,7 @@
 
 #include <map>
 #include <set>
+#include <string>
 
 class wxCommandEvent;
 
@@ -23,6 +24,10 @@ class PartPlate;
 namespace Slic3r::GUI::JusPrin::Workspace {
 
 class ScopedLeastChangeAnswers;
+
+// The name a plate the person never named goes by, "Plate 2" for index 1, in
+// the person's language: the plates pane, the chat and the model all use it.
+std::string default_plate_name(int index);
 
 class OrcaWorkspaceAdapter final : public IWorkspace, private FileLoadObserver
 {

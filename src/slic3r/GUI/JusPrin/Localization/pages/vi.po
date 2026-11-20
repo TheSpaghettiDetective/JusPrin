@@ -423,6 +423,11 @@ msgid "{minutes}m left"
 msgstr "còn {minutes} phút"
 
 # AI Translated
+#: src/components/TurnActivity.tsx
+msgid "{more, plural, one {… # more character} other {… # more characters}}"
+msgstr "{more, plural, one {… thêm # ký tự} other {… thêm # ký tự}}"
+
+# AI Translated
 #: src/components/SetupCard.tsx
 msgid "{more, plural, one {{preset} with {filament} and # other filament.} other {{preset} with {filament} and # other filaments.}}"
 msgstr "{more, plural, other {{preset} với {filament} và # filament khác.}}"
@@ -1368,6 +1373,11 @@ msgid "Check plan"
 msgstr "Kiểm tra kế hoạch"
 
 # AI Translated
+#: src/App.tsx
+msgid "Check the plan against what changed."
+msgstr "Hãy kiểm tra kế hoạch so với những gì đã thay đổi."
+
+# AI Translated
 #: src/components/Guide.tsx
 msgid "Check the spelling or try other words. You can also ask AI: choose Ask AI… in the Help menu."
 msgstr "Hãy kiểm tra chính tả hoặc thử từ khác. Bạn cũng có thể hỏi AI: chọn Hỏi AI… trong menu Trợ giúp."
@@ -2117,6 +2127,11 @@ msgid "How did it come out?"
 msgstr "Kết quả in thế nào?"
 
 # AI Translated
+#: src/printerWords.ts
+msgid "How do I check?"
+msgstr "Kiểm tra bằng cách nào?"
+
+# AI Translated
 #: src/components/OrcaImport.tsx
 msgid "If {app} keeps its settings somewhere else, choose that folder."
 msgstr "Nếu {app} lưu cài đặt ở nơi khác, hãy chọn thư mục đó."
@@ -2454,6 +2469,26 @@ msgstr "Kéo chuột trái"
 #: src/components/AgentConnection.tsx
 msgid "Let an AI app on this computer, such as Claude Desktop, work with the open project. JusPrin adds itself to that app’s settings."
 msgstr "Cho phép một ứng dụng AI trên máy tính này, chẳng hạn Claude Desktop, làm việc với dự án đang mở. JusPrin sẽ tự thêm vào cài đặt của ứng dụng đó."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect {name}. Is it turned on, in LAN mode, and on the same network as this computer?"
+msgstr "Hãy kết nối {name}. Máy đã bật, đang ở chế độ LAN và cùng mạng với máy tính này chưa?"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect {name}. What address do you use to open it in a browser? It’s usually its IP address, like 192.168.1.20."
+msgstr "Hãy kết nối {name}. Bạn dùng địa chỉ nào để mở nó trong trình duyệt? Thường đó là địa chỉ IP của nó, như 192.168.1.20."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect this printer. Is it turned on, in LAN mode, and on the same network as this computer?"
+msgstr "Hãy kết nối máy in này. Máy đã bật, đang ở chế độ LAN và cùng mạng với máy tính này chưa?"
+
+# AI Translated
+#: src/printerWords.ts
+msgid "Let’s connect this printer. What address do you use to open it in a browser? It’s usually its IP address, like 192.168.1.20."
+msgstr "Hãy kết nối máy in này. Bạn dùng địa chỉ nào để mở nó trong trình duyệt? Thường đó là địa chỉ IP của nó, như 192.168.1.20."
 
 # AI Translated
 #: src/components/Preferences.tsx
@@ -4339,6 +4374,16 @@ msgid "This is an internal connection inside JusPrin, not a network service. The
 msgstr "Đây là kết nối nội bộ bên trong JusPrin, không phải dịch vụ mạng. Khung 3D và mọi điều khiển khác vẫn hoạt động."
 
 # AI Translated
+#: src/printerWords.ts
+msgid "This is the {name}. Tell me what changed on it, or ask anything about it."
+msgstr "Đây là {name}. Hãy cho tôi biết điều gì đã thay đổi trên máy, hoặc hỏi bất cứ điều gì về nó."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "This is your printer. Tell me what changed on it, or ask anything about it."
+msgstr "Đây là máy in của bạn. Hãy cho tôi biết điều gì đã thay đổi trên máy, hoặc hỏi bất cứ điều gì về nó."
+
+# AI Translated
 #: src/components/AllSettings.tsx
 msgid "This JusPrin build cannot list the settings."
 msgstr "Bản dựng JusPrin này không thể liệt kê các cài đặt."
@@ -4373,6 +4418,16 @@ msgstr "Đang tính lại ước tính thời gian & vật liệu…"
 #: src/components/SetupLocalTool.tsx
 msgid "Timed out."
 msgstr "Đã hết thời gian chờ."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "To connect {name}, JusPrin first needs Bambu’s network plug-in, which isn’t installed on this computer yet. {name} already works for preparing prints."
+msgstr "Để kết nối {name}, trước tiên JusPrin cần plug-in mạng của Bambu, hiện chưa được cài trên máy tính này. {name} đã có thể dùng để chuẩn bị bản in."
+
+# AI Translated
+#: src/printerWords.ts
+msgid "To connect this printer, JusPrin first needs Bambu’s network plug-in, which isn’t installed on this computer yet. This printer already works for preparing prints."
+msgstr "Để kết nối máy in này, trước tiên JusPrin cần plug-in mạng của Bambu, hiện chưa được cài trên máy tính này. Máy in này đã có thể dùng để chuẩn bị bản in."
 
 # AI Translated
 #: ../HomeUI/src/history.ts
@@ -4624,6 +4679,11 @@ msgid "Which printer do you have?"
 msgstr "Bạn có máy in nào?"
 
 # AI Translated
+#: src/printerWords.ts
+msgid "Which printer do you have? Tell me the brand and model, or share a photo of its label. Not sure? Tell me what you know, and I'll help you find it."
+msgstr "Bạn có máy in nào? Hãy cho tôi biết hãng và mẫu máy, hoặc chia sẻ ảnh nhãn của nó. Không chắc? Hãy cho tôi biết những gì bạn biết, tôi sẽ giúp bạn tìm ra."
+
+# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Which printer?"
 msgstr "Máy in nào?"
@@ -4659,6 +4719,12 @@ msgstr "Đang xử lý…"
 #: src/components/SetupLocalTool.tsx
 msgid "Writing settings…"
 msgstr "Đang ghi cài đặt…"
+
+# AI Translated
+#. An answer to tap: the printer is on, in LAN mode and on this network.
+#: src/printerWords.ts
+msgid "Yes, it is"
+msgstr "Đúng vậy"
 
 # AI Translated
 #: src/components/Preferences.tsx

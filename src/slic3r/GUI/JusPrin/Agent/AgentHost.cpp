@@ -123,6 +123,10 @@ json message_json(const ConversationMessage& message)
     return result;
 }
 
+// Where a calibration test was started or opened from, as the shell names
+// it (ShellController): Home, or a project's name.
+constexpr const char* kFromHome = "Home";
+
 const char* action_class_name(ActionClass action_class)
 {
     switch (action_class) {
@@ -146,7 +150,7 @@ json activity_json(const ToolActivity& activity)
                 {"correlationId", activity.correlation_id},
                 {"server", activity.server},
                 {"tool", activity.tool},
-                {"title", activity.title},
+                {"title", activity.shown_title.empty() ? activity.title : activity.shown_title},
                 {"arguments", parsed_or_object(activity.arguments_json)},
                 {"actionClass", action_class_name(activity.action_class)},
                 {"sessionId", std::to_string(activity.session)},
@@ -188,8 +192,10 @@ json change_json(const ChangeEntry& change)
                 {"kind", change.kind},
                 {"actor", change.actor},
                 // A restore's label is one of the app's own English lines
-                // (ProjectPersistence), shown in the person's language.
-                {"label", change.kind == "restore" ? translated(change.label.c_str()) : change.label},
+                // (ProjectPersistence), a step's an undo step's name and a
+                // setting's OrcaSlicer's label: each is shown in the person's
+                // language where a catalog has it. A preset's is its name.
+                {"label", change.kind == "preset" || change.label.empty() ? change.label : translated(change.label.c_str())},
                 {"location", change.location},
                 {"conversationId", change.conversation_id},
                 {"afterId", change.after_id}};
@@ -594,7 +600,7 @@ json card_context(json context, const ProjectStateDocument& document, const std:
     context["setupIntent"]       = document.setup_intent(conversation_id);
     context["planHeadline"]      = plan.headline;
     context["planValidity"]      = plan.validity;
-    context["planInvalidatedBy"] = plan.invalidated_by;
+    context["planInvalidatedBy"] = plan.invalidated_shown.empty() ? plan.invalidated_by : plan.invalidated_shown;
     if (const auto calibration = document.calibration())
         context["calibration"] = *calibration;
     return context;
@@ -1737,13 +1743,22 @@ void AgentHost::open_calibration_chat(const CalibrationHandover& handover, bool 
     note.id    = document.allocate_message_id();
     note.role  = MessageRole::Note;
     note.state = MessageState::Complete;
-    note.text  = handover.filament.empty() ?
-                     // TRN A calibration chat's first line. %1%: where it was started from, %2%: a printer.
-                     Slic3r::format(translated(L("From %1% · %2% · filament not chosen · temporary test settings")),
-                                    handover.started_from, handover.printer) :
-                     // TRN A calibration chat's first line. %1%: where it was started from, %2%: a filament, %3%: a printer.
-                     Slic3r::format(translated(L("From %1% · %2% on %3% · temporary test settings")), handover.started_from,
-                                    handover.filament, handover.printer);
+    const bool home = handover.started_from == kFromHome;
+    if (handover.filament.empty())
+        note.text = home ?
+                        // TRN A calibration chat's first line. %1%: a printer.
+                        Slic3r::format(translated(L("From Home · %1% · filament not chosen · temporary test settings")), handover.printer) :
+                        // TRN A calibration chat's first line. %1%: the project it was started from, %2%: a printer.
+                        Slic3r::format(translated(L("From %1% · %2% · filament not chosen · temporary test settings")),
+                                       handover.started_from, handover.printer);
+    else
+        note.text = home ?
+                        // TRN A calibration chat's first line. %1%: a filament, %2%: a printer.
+                        Slic3r::format(translated(L("From Home · %1% on %2% · temporary test settings")), handover.filament,
+                                       handover.printer) :
+                        // TRN A calibration chat's first line. %1%: the project it was started from, %2%: a filament, %3%: a printer.
+                        Slic3r::format(translated(L("From %1% · %2% on %3% · temporary test settings")), handover.started_from,
+                                       handover.filament, handover.printer);
     if (!handover.symptom.empty())
         note.text += " · " + handover.symptom;
     std::string spools;
@@ -1808,12 +1823,19 @@ void AgentHost::on_calibration_finished(bool made, bool by_agent)
 }
 
 namespace {
-// "21 Oct 2026", from a stored timestamp's date.
-std::string day_month_year(const std::string& timestamp)
+// "21 Oct 2026", from a stored timestamp's date: in English for the model,
+// or as the person's language writes a date.
+std::string day_month_year(const std::string& timestamp, bool shown)
 {
-    static const char* const months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
-    const int month = std::stoi(timestamp.substr(5, 2));
-    return std::to_string(std::stoi(timestamp.substr(8, 2))) + " " + months[month - 1] + " " + timestamp.substr(0, 4);
+    // One whole date per month, so a translator can order the day, the
+    // month and the year as their language does.
+    static const char* const dates[] = {
+        // TRN A date: %1% is the day of the month, %2% the year.
+        L("%1% Jan %2%"), L("%1% Feb %2%"), L("%1% Mar %2%"), L("%1% Apr %2%"), L("%1% May %2%"), L("%1% Jun %2%"),
+        L("%1% Jul %2%"), L("%1% Aug %2%"), L("%1% Sep %2%"), L("%1% Oct %2%"), L("%1% Nov %2%"), L("%1% Dec %2%")};
+    const int   month  = std::stoi(timestamp.substr(5, 2));
+    const char* format = dates[month - 1];
+    return Slic3r::format(shown ? translated(format) : std::string(format), std::stoi(timestamp.substr(8, 2)), timestamp.substr(0, 4));
 }
 
 // A number as a person writes it: 230, 0.002.
@@ -1846,7 +1868,8 @@ void AgentHost::tell_reopened_test()
     const auto snapshot = m_workspace.snapshot();
     if (std::any_of(snapshot.plates.begin(), snapshot.plates.end(), [](const Workspace::WorkspacePlate& plate) { return plate.calibration; }))
         return;
-    const std::string generated = day_month_year(test->value("generatedAt", ""));
+    const std::string generated = day_month_year(test->value("generatedAt", ""), false);
+    const std::string generated_shown = day_month_year(test->value("generatedAt", ""), true);
     const std::string result    = test->value("result", "");
     const bool        temperature = kind == "temperature";
     const std::string unit        = temperature ? " °C" : "";
@@ -1857,9 +1880,11 @@ void AgentHost::tell_reopened_test()
     note.role  = MessageRole::Note;
     note.state = MessageState::Complete;
     // TRN A reopened calibration test's line. %1%: the day it was made, as "21 Oct 2026".
-    note.text = opened_from.empty() ? Slic3r::format(translated(L("Reopened · generated %1%")), generated) :
-                                      // TRN %1%: where the test was opened from, %2%: the day it was made, as "21 Oct 2026".
-                                      Slic3r::format(translated(L("Opened from %1% · generated %2%")), opened_from, generated);
+    note.text = opened_from.empty()        ? Slic3r::format(translated(L("Reopened · generated %1%")), generated_shown) :
+                opened_from == kFromHome ? // TRN A reopened calibration test's line. %1%: the day it was made, as "21 Oct 2026".
+                                             Slic3r::format(translated(L("Opened from Home · generated %1%")), generated_shown) :
+                                             // TRN %1%: the project the test was opened from, %2%: the day it was made, as "21 Oct 2026".
+                                             Slic3r::format(translated(L("Opened from %1% · generated %2%")), opened_from, generated_shown);
     if (!result.empty())
         // TRN %1% is a calibration result, such as 215 °C.
         note.text += " · " + Slic3r::format(translated(L("result %1% saved")), result);
@@ -1894,7 +1919,9 @@ void AgentHost::on_proposal_saved(const std::string& apply_action_id)
     note.role       = MessageRole::Note;
     note.state      = MessageState::Complete;
     note.text       = "The person pressed Save preset on your proposal. Saved " + name + ": " + detail + ".";
-    json receipt{{"name", name}, {"detail", detail}, {"actionId", apply->action_id}};
+    // The receipt's line, in the person's language; a proposal saved before
+    // receipts were translated has only the English.
+    json receipt{{"name", name}, {"detail", proposal.value("receiptShown", detail)}, {"actionId", apply->action_id}};
     // The result the project's record carries, until Undo takes it back.
     if (auto calibration = document.calibration()) {
         (*calibration)["result"]  = proposal.value("value", "");
@@ -1950,8 +1977,11 @@ bool AgentHost::slice_ended(const std::string& action_id)
             const char* words = refused ? L("The app did not slice %1%: %2%") :
                                           // TRN %1% is a plate's name, %2% why the slice did not succeed.
                                           L("The app stopped the slice of %1%: %2%");
-            text  = Slic3r::format(words, plate.name, plate.slice_failure->message);
-            shown = Slic3r::format(translated(words), plate.name, plate.slice_failure->message);
+            // The app's own reasons are marked where the workspace writes
+            // them; OrcaSlicer's come as its catalog wrote them.
+            const std::string& reason = plate.slice_failure->message;
+            text  = Slic3r::format(words, plate.name, reason);
+            shown = Slic3r::format(translated(words), plate.name, reason.empty() ? reason : translated(reason.c_str()));
         }
     }
     // A run that neither sliced nor failed was stopped: nothing to tell.
@@ -4190,7 +4220,7 @@ void AgentHost::handle_mcp_catalog(const std::string& envelope_id)
                   {"detected", item.detected},
                   {"cli", item.entry.cli},
                   {"text", item.entry.text}};
-        if (!item.entry.subtitle.empty()) tool["subtitle"] = item.entry.subtitle;
+        if (!item.entry.subtitle.empty()) tool["subtitle"] = translated(item.entry.subtitle.c_str());
         if (!item.config_path.empty()) tool["configPath"] = item.config_path.u8string();
         tools.push_back(std::move(tool));
     }

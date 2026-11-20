@@ -13,6 +13,7 @@
 // Also built into tests that have no GUI: the printer form's own text is
 // marked with L() and translated with translated() (Localization/README.md).
 // Everything the model reads stays English.
+#include "slic3r/GUI/JusPrin/Agent/ActivityTitle.hpp"
 #include "slic3r/GUI/JusPrin/Support/Translate.hpp"
 #include "libslic3r/Exception.hpp"
 
@@ -543,7 +544,8 @@ std::optional<ToolError> PrinterConversation::preflight_tool(ToolHandler handler
         });
         if (found == info.candidates.end())
             return unknown_device_error(info, device);
-        activity.title = "Waiting for the access code for " + found->name;
+        // TRN %1% is a printer's name.
+        Agent::set_title(activity, Agent::title_of(L("Waiting for the access code for %1%"), found->name));
         arguments["deviceId"] = found->id;
         arguments["target"]   = found->name;
     } else if (info.provider == "host") {
@@ -551,7 +553,8 @@ std::optional<ToolError> PrinterConversation::preflight_tool(ToolHandler handler
             return ToolError{"address_needed", "This printer connects through a print host at an address, not as a Bambu Lab device: "
                                                "call printer_host_connect with hostType and the print host's address."};
         m_host_type = arguments["hostType"].get<std::string>();
-        activity.title      = "Checking " + arguments["address"].get<std::string>();
+        // TRN %1% is a print host's address, such as 192.168.1.20.
+        Agent::set_title(activity, Agent::title_of(L("Checking %1%"), arguments["address"].get<std::string>()));
         arguments["target"] = arguments["address"];
     } else
         return ToolError{"connection_unavailable", info.message};
@@ -860,8 +863,13 @@ void PrinterConversation::host_tested(const std::string& action_id, const json& 
     // The host wants a key: the call waits while the person types one in
     // the form, never in chat, and its result says what the host said.
     m_connect_said = outcome.message;
-    m_host.update_tool(action_id, std::string("Waiting for ") + (outcome.key == "saved" ? "a different" : "an") + " API key for " +
-                                      arguments.at("address").get<std::string>(),
+    const std::string address = arguments.at("address").get<std::string>();
+    m_host.update_tool(action_id,
+                       outcome.key == "saved" ?
+                           // TRN %1% is a print host's address. The key the app holds was refused.
+                           Agent::title_of(L("Waiting for a different API key for %1%"), address) :
+                           // TRN %1% is a print host's address.
+                           Agent::title_of(L("Waiting for an API key for %1%"), address),
                        false);
     ask_credential(arguments);
 }
@@ -880,7 +888,8 @@ void PrinterConversation::connect(const json& arguments, const std::string& cred
     const std::string target = arguments.at("target");
     const bool        host   = arguments.at("provider") == "host";
     // From here the app's own work runs, and its dialogs belong to the call.
-    m_host.update_tool(m_connect_call, "Checking " + target, true);
+    // TRN %1% is a printer's name or a print host's address.
+    m_host.update_tool(m_connect_call, Agent::title_of(L("Checking %1%"), target), true);
     const std::string problem =
         host ? m_backend.connect_host(name, arguments.at("hostType"), arguments.at("address"), credential,
                                       [this](const HostTestOutcome& outcome) { form_tested(outcome); }) :

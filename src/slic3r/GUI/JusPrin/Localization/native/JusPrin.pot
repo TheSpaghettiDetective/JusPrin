@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-20 08:46-0800\n"
+"POT-Creation-Date: 2026-11-20 10:49-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -48,14 +48,73 @@ msgstr ""
 msgid "Document (PDF)"
 msgstr ""
 
-#. TRN A calibration chat's first line. %1%: where it was started from, %2%: a printer.
+#. TRN A calibration chat's first line. %1%: a printer.
+#, boost-format
+msgid "From Home · %1% · filament not chosen · temporary test settings"
+msgstr ""
+
+#. TRN A calibration chat's first line. %1%: the project it was started from, %2%: a printer.
 #, boost-format
 msgid "From %1% · %2% · filament not chosen · temporary test settings"
 msgstr ""
 
-#. TRN A calibration chat's first line. %1%: where it was started from, %2%: a filament, %3%: a printer.
+#. TRN A calibration chat's first line. %1%: a filament, %2%: a printer.
+#, boost-format
+msgid "From Home · %1% on %2% · temporary test settings"
+msgstr ""
+
+#. TRN A calibration chat's first line. %1%: the project it was started from, %2%: a filament, %3%: a printer.
 #, boost-format
 msgid "From %1% · %2% on %3% · temporary test settings"
+msgstr ""
+
+#. TRN A date: %1% is the day of the month, %2% the year.
+#, boost-format
+msgid "%1% Jan %2%"
+msgstr ""
+
+#, boost-format
+msgid "%1% Feb %2%"
+msgstr ""
+
+#, boost-format
+msgid "%1% Mar %2%"
+msgstr ""
+
+#, boost-format
+msgid "%1% Apr %2%"
+msgstr ""
+
+#, boost-format
+msgid "%1% May %2%"
+msgstr ""
+
+#, boost-format
+msgid "%1% Jun %2%"
+msgstr ""
+
+#, boost-format
+msgid "%1% Jul %2%"
+msgstr ""
+
+#, boost-format
+msgid "%1% Aug %2%"
+msgstr ""
+
+#, boost-format
+msgid "%1% Sep %2%"
+msgstr ""
+
+#, boost-format
+msgid "%1% Oct %2%"
+msgstr ""
+
+#, boost-format
+msgid "%1% Nov %2%"
+msgstr ""
+
+#, boost-format
+msgid "%1% Dec %2%"
 msgstr ""
 
 #. TRN A reopened calibration test's line. %1%: the day it was made, as "21 Oct 2026".
@@ -63,7 +122,12 @@ msgstr ""
 msgid "Reopened · generated %1%"
 msgstr ""
 
-#. TRN %1%: where the test was opened from, %2%: the day it was made, as "21 Oct 2026".
+#. TRN A reopened calibration test's line. %1%: the day it was made, as "21 Oct 2026".
+#, boost-format
+msgid "Opened from Home · generated %1%"
+msgstr ""
+
+#. TRN %1%: the project the test was opened from, %2%: the day it was made, as "21 Oct 2026".
 #, boost-format
 msgid "Opened from %1% · generated %2%"
 msgstr ""
@@ -219,7 +283,109 @@ msgstr ""
 msgid "JusPrin has no AI model for this account right now. Try again later."
 msgstr ""
 
+msgid "another app"
+msgstr ""
+
+#. TRN %1% is a printer preset's name; %2%, in the second form, the app that changed it.
+#, boost-format
+msgid "Printer changed to %1% by hand"
+msgstr ""
+
+#, boost-format
+msgid "Printer changed to %1% by %2%"
+msgstr ""
+
+#. TRN %1% is a filament preset's name; %2%, in the second form, the app that changed it.
+#, boost-format
+msgid "Filament changed to %1% by hand"
+msgstr ""
+
+#, boost-format
+msgid "Filament changed to %1% by %2%"
+msgstr ""
+
+#. TRN %1% is a process preset's name; %2%, in the second form, the app that changed it.
+#, boost-format
+msgid "Print settings changed to %1% by hand"
+msgstr ""
+
+#, boost-format
+msgid "Print settings changed to %1% by %2%"
+msgstr ""
+
+#. TRN %1% is a setting's name; %2%, in the second form, the app that changed it.
+#, boost-format
+msgid "%1% changed by hand"
+msgstr ""
+
+#, boost-format
+msgid "%1% changed by %2%"
+msgstr ""
+
+#. TRN %1% is a setting's name, %2% its new value; %3%, in the second form, the app that changed it.
+#, boost-format
+msgid "%1% changed to %2% by hand"
+msgstr ""
+
+#, boost-format
+msgid "%1% changed to %2% by %3%"
+msgstr ""
+
+#. TRN %1%, in the second form, is the app that undid the last change.
+msgid "Undone by hand"
+msgstr ""
+
+#, boost-format
+msgid "Undone by %1%"
+msgstr ""
+
+#. TRN %1% is the change that was undone; %2%, in the second form, the app that undid it.
+#, boost-format
+msgid "%1% undone by hand"
+msgstr ""
+
+#, boost-format
+msgid "%1% undone by %2%"
+msgstr ""
+
+#. TRN %1%, in the second form, is the app that redid the last change.
+msgid "Redone by hand"
+msgstr ""
+
+#, boost-format
+msgid "Redone by %1%"
+msgstr ""
+
+#. TRN %1% is the change that was redone; %2%, in the second form, the app that redid it.
+#, boost-format
+msgid "%1% redone by hand"
+msgstr ""
+
+#, boost-format
+msgid "%1% redone by %2%"
+msgstr ""
+
+#. TRN %1%, in the second form, is the app that changed the project.
+msgid "The project changed by hand"
+msgstr ""
+
+#, boost-format
+msgid "The project changed by %1%"
+msgstr ""
+
+#. TRN %1% is what changed, such as Move; %2%, in the second form, the app that changed it.
+#, boost-format
+msgid "%1%, by hand"
+msgstr ""
+
+#, boost-format
+msgid "%1%, by %2%"
+msgstr ""
+
 msgid "Restored an earlier project version"
+msgstr ""
+
+msgid "An earlier model version was restored"
 msgstr ""
 
 msgid "Restored this chat's saved project setup"
@@ -253,6 +419,57 @@ msgstr[1] ""
 #. TRN %1% is an AI provider, such as OpenAI.
 #, boost-format
 msgid "The %1% API key was rejected. Update the AI configuration and try again."
+msgstr ""
+
+#. TRN %1% is how many settings, %2% an object's name or a preset's name in quotes, %3% the settings' keys.
+#, boost-format
+msgid "Change %1% setting of %2%: %3%"
+msgid_plural "Change %1% settings of %2%: %3%"
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRN %1% is how many settings, %2% a preset's name in quotes, %3% the settings' keys. The preset is saved with them.
+#, boost-format
+msgid "Change %1% setting of %2%: %3%; save it"
+msgid_plural "Change %1% settings of %2%: %3%; save it"
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRN %1% is how many settings, %2% a preset's name in quotes, %3% the settings' keys, %4% the new preset's name.
+#, boost-format
+msgid "Change %1% setting of %2%: %3%; save as \"%4%\""
+msgid_plural "Change %1% settings of %2%: %3%; save as \"%4%\""
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRN %1% and %2% are the tower's first and last temperatures.
+#, boost-format
+msgid "Make a temperature tower, %1% °C to %2% °C"
+msgstr ""
+
+#. TRN YOLO is the name of OrcaSlicer's quicker flow-ratio test; %1% is its pass, 1 or 2.
+#, boost-format
+msgid "Make a flow-ratio test, YOLO pass %1%"
+msgstr ""
+
+#. TRN %1% is the test's pass, 1 or 2.
+#, boost-format
+msgid "Make a flow-ratio test, classic pass %1%"
+msgstr ""
+
+#. TRN %1% and %2% are the first and last pressure-advance values.
+#, boost-format
+msgid "Make a pressure-advance line, %1% to %2%"
+msgstr ""
+
+#. TRN %1% and %2% are the first and last pressure-advance values.
+#, boost-format
+msgid "Make a pressure-advance pattern, %1% to %2%"
+msgstr ""
+
+#. TRN %1% and %2% are the first and last pressure-advance values.
+#, boost-format
+msgid "Make a pressure-advance tower, %1% to %2%"
 msgstr ""
 
 #. TRN A button that asks the AI to choose another block of a calibration test.
@@ -290,6 +507,21 @@ msgstr ""
 msgid "%1% itself is unchanged"
 msgstr ""
 
+#. TRN The saved preset's receipt: %1% lists the settings saved, such as "Nozzle temperature 215 °C".
+#, boost-format
+msgid "Filament preset · %1%"
+msgstr ""
+
+#. TRN The saved preset's receipt: %1% lists the settings saved.
+#, boost-format
+msgid "Printer preset · %1%"
+msgstr ""
+
+#. TRN The saved preset's receipt: %1% lists the settings saved.
+#, boost-format
+msgid "Process preset · %1%"
+msgstr ""
+
 #. TRN %1% is a setting's new value, such as 215 °C.
 #, boost-format
 msgid "Save %1% as a new filament preset"
@@ -309,6 +541,479 @@ msgstr ""
 #, boost-format
 msgid "Save %1% to %2%"
 msgstr ""
+
+msgid "Unknown tool request"
+msgstr ""
+
+#. TRN %1% is a file's path.
+#, boost-format
+msgid "Import %1%"
+msgstr ""
+
+#. TRN %1% is an object's id, a number.
+#, boost-format
+msgid "object %1%"
+msgstr ""
+
+#. TRN %1% is a plate's id, a number.
+#, boost-format
+msgid "plate %1%"
+msgstr ""
+
+#. TRN A piece's size: width, depth and height in millimetres.
+#, boost-format
+msgid "%1% x %2% x %3% mm"
+msgstr ""
+
+#. TRN %1% is how many shells, %2% an object's name, %3% the pieces' sizes.
+#, boost-format
+msgid "Split %2% into its %1% shell as parts of one object: %3%"
+msgid_plural "Split %2% into its %1% shells as parts of one object: %3%"
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRN %1% is how many shells, %2% an object's name, %3% the pieces' sizes.
+#, boost-format
+msgid "Split %2% into its %1% shell as separate objects: %3%"
+msgid_plural "Split %2% into its %1% shells as separate objects: %3%"
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+#, boost-format
+msgid "Cut %1% by the plane through (%2%) facing (%3%), keeping both pieces as parts: %4%"
+msgstr ""
+
+#. TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+#, boost-format
+msgid "Cut %1% by the plane through (%2%) facing (%3%), keeping both pieces: %4%"
+msgstr ""
+
+#. TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+#, boost-format
+msgid "Cut %1% by the plane through (%2%) facing (%3%), keeping the upper piece as parts: %4%"
+msgstr ""
+
+#. TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+#, boost-format
+msgid "Cut %1% by the plane through (%2%) facing (%3%), keeping the upper piece: %4%"
+msgstr ""
+
+#. TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+#, boost-format
+msgid "Cut %1% by the plane through (%2%) facing (%3%), keeping the lower piece as parts: %4%"
+msgstr ""
+
+#. TRN %1% is an object's name, %2% and %3% a point and a direction as x, y, z, %4% the pieces' sizes.
+#, boost-format
+msgid "Cut %1% by the plane through (%2%) facing (%3%), keeping the lower piece: %4%"
+msgstr ""
+
+#. TRN %1% is a file's path.
+#, boost-format
+msgid "Export the G-code to %1%, replacing it"
+msgstr ""
+
+#, boost-format
+msgid "Export the G-code to %1%"
+msgstr ""
+
+#. TRN %1% is a file's path.
+#, boost-format
+msgid "Export the sliced plate to %1%, replacing it"
+msgstr ""
+
+#, boost-format
+msgid "Export the sliced plate to %1%"
+msgstr ""
+
+#. TRN %1% is a file's path.
+#, boost-format
+msgid "Export the project to %1%, replacing it"
+msgstr ""
+
+#, boost-format
+msgid "Export the project to %1%"
+msgstr ""
+
+#. TRN %1% is a file's path.
+#, boost-format
+msgid "Export an STL to %1%, replacing it"
+msgstr ""
+
+#, boost-format
+msgid "Export an STL to %1%"
+msgstr ""
+
+#. TRN %1% is a file's path.
+#, boost-format
+msgid "Export the presets in use to %1%"
+msgstr ""
+
+#. TRN %1% is a license's name, such as CC BY-NC.
+#, boost-format
+msgid "the project's license is %1%"
+msgstr ""
+
+#. TRN %1% is how many warnings, %2% the first one, in OrcaSlicer's words.
+#, boost-format
+msgid "the slice has %1% warning: %2%"
+msgid_plural "the slice has %1% warnings, first: %2%"
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRN %1% is a list of objects' names, %2% the last name.
+#, boost-format
+msgid "Merge %1% and %2% into one object"
+msgstr ""
+
+#. TRN %1% is an object's name.
+#, boost-format
+msgid "Repair the mesh of %1%"
+msgstr ""
+
+#. TRN %1% is a list of regions, each its id and a description.
+#, boost-format
+msgid "Annotate %1%"
+msgstr ""
+
+#. TRN %1% is a region's id.
+#, boost-format
+msgid "region %1%"
+msgstr ""
+
+#. TRN %1% is a region's id, %2% its description.
+#, boost-format
+msgid "region %1% (%2%)"
+msgstr ""
+
+#. TRN %1% is an object's name.
+#, boost-format
+msgid "a part of %1%"
+msgstr ""
+
+#. TRN %1% is which copy, counting from 1, %2% an object's name.
+#, boost-format
+msgid "copy %1% of %2%"
+msgstr ""
+
+#. TRN %1% is a list of what is deleted: objects, copies, parts, plates or regions.
+#, boost-format
+msgid "Delete %1%"
+msgstr ""
+
+#. TRN %1% is an object's name, %2% how many copies it will have.
+#, boost-format
+msgid "%1% x%2%"
+msgstr ""
+
+#. TRN %1% is an object's name.
+#, boost-format
+msgid "print %1%"
+msgstr ""
+
+#. TRN %1% is an object's name.
+#, boost-format
+msgid "skip %1%"
+msgstr ""
+
+#. TRN %1% is an object's name, %2% a plate's name.
+#, boost-format
+msgid "move %1% to %2%"
+msgstr ""
+
+#. TRN %1% is an object's name, %2% its new name.
+#, boost-format
+msgid "rename %1% to %2%"
+msgstr ""
+
+#. TRN %1% is an object's name, %2% a filament slot's number.
+#, boost-format
+msgid "%1% on filament %2%"
+msgstr ""
+
+msgid "add a plate"
+msgstr ""
+
+#. TRN %1% is a plate's name, %2% its new name.
+#, boost-format
+msgid "name %1% %2%"
+msgstr ""
+
+#. TRN %1% is the new plate's name.
+#, boost-format
+msgid "name a new plate %1%"
+msgstr ""
+
+#. TRN %1% is a plate's name, %2% a build plate type, such as Textured PEI Plate.
+#, boost-format
+msgid "%1% on %2%"
+msgstr ""
+
+#. TRN %1% is a build plate type, such as Textured PEI Plate.
+#, boost-format
+msgid "a new plate on %1%"
+msgstr ""
+
+#. TRN %1% is a plate's name.
+#, boost-format
+msgid "arrange %1%"
+msgstr ""
+
+msgid "arrange all plates"
+msgstr ""
+
+#. TRN %1% is a list of changes to the plates, such as "move Cube to Plate 2, arrange all plates".
+#, boost-format
+msgid "Lay out: %1%"
+msgstr ""
+
+#. TRN %1% is a unit, inches or meters.
+#, boost-format
+msgid "convert from %1%"
+msgstr ""
+
+#. TRN %1%, %2% and %3% are scale factors along x, y and z.
+#, boost-format
+msgid "scale x%1% y%2% z%3%"
+msgstr ""
+
+#. TRN %1% is a size in millimetres, %2% an axis: x, y or z.
+#, boost-format
+msgid "scale to %1% mm in %2%"
+msgstr ""
+
+#. TRN %1% is an axis: x, y or z.
+#, boost-format
+msgid "mirror in %1%"
+msgstr ""
+
+msgid "put a chosen face down"
+msgstr ""
+
+#. TRN %1%, %2% and %3% are angles about x, y and z.
+#, boost-format
+msgid "rotate %1%/%2%/%3% degrees"
+msgstr ""
+
+msgid "auto-orient"
+msgstr ""
+
+#. TRN %1% and %2% are a position's x and y on the plate.
+#, boost-format
+msgid "move to %1%, %2%"
+msgstr ""
+
+msgid "drop to the bed"
+msgstr ""
+
+#. TRN %1% is an object's name, %2% a list of what is done to it, such as "rotate 0/0/90 degrees, drop to the bed".
+#, boost-format
+msgid "Place %1%: %2%"
+msgstr ""
+
+#. TRN %1% is a list of presets: the printer, then its plate, process and filaments.
+#, boost-format
+msgid "Set up %1%"
+msgstr ""
+
+#. TRN %1% is the name of the filament preset that is replaced.
+#, boost-format
+msgid "replaces filament %1%"
+msgstr ""
+
+#. TRN %1% is the name of the process preset that is replaced.
+#, boost-format
+msgid "replaces process %1%"
+msgstr ""
+
+#. TRN %1% is the build plate type that is replaced, such as Textured PEI Plate.
+#, boost-format
+msgid "replaces plate %1%"
+msgstr ""
+
+#. TRN %1% is how many edits, %2% a preset's name.
+#, boost-format
+msgid "discards %1% unsaved edit in %2%"
+msgid_plural "discards %1% unsaved edits in %2%"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Record printer facts"
+msgstr ""
+
+#. TRN %1% is a project's name.
+#, boost-format
+msgid "Continue %1%"
+msgstr ""
+
+#. TRN %1% is a file's path.
+#, boost-format
+msgid "Open %1%"
+msgstr ""
+
+msgid "Search settings"
+msgstr ""
+
+msgid "Read settings"
+msgstr ""
+
+msgid "Preview settings"
+msgstr ""
+
+msgid "Change settings"
+msgstr ""
+
+msgid "Record what this print is for and how to print it"
+msgstr ""
+
+msgid "List the printers this app knows"
+msgstr ""
+
+msgid "Open a project"
+msgstr ""
+
+msgid "Make a calibration test"
+msgstr ""
+
+msgid "Set up the printer"
+msgstr ""
+
+msgid "Preview a printer setup"
+msgstr ""
+
+msgid "Import an attached model"
+msgstr ""
+
+msgid "Import a model file"
+msgstr ""
+
+msgid "Delete from the project"
+msgstr ""
+
+msgid "Lay out the plates"
+msgstr ""
+
+msgid "Place an object"
+msgstr ""
+
+msgid "Read a skill"
+msgstr ""
+
+msgid "Picture a plate"
+msgstr ""
+
+msgid "Read a project attachment"
+msgstr ""
+
+msgid "Inspect a slice in detail"
+msgstr ""
+
+msgid "Cancel a run"
+msgstr ""
+
+msgid "Export a file"
+msgstr ""
+
+msgid "Preview dividing an object"
+msgstr ""
+
+msgid "Divide an object"
+msgstr ""
+
+msgid "Merge objects"
+msgstr ""
+
+msgid "Repair an object's mesh"
+msgstr ""
+
+msgid "Mark what parts of an object mean"
+msgstr ""
+
+msgid "Analyze an object"
+msgstr ""
+
+msgid "List printer, filament, or process presets"
+msgstr ""
+
+msgid "Check the sliced plate"
+msgstr ""
+
+msgid "Slice the plate"
+msgstr ""
+
+msgid "Open the print dialog"
+msgstr ""
+
+msgid "Inspect the live workspace"
+msgstr ""
+
+msgid "Show the printers you mean"
+msgstr ""
+
+msgid "Add this printer"
+msgstr ""
+
+msgid "Change this printer"
+msgstr ""
+
+msgid "Check a printer's connection"
+msgstr ""
+
+msgid "Connect a print host"
+msgstr ""
+
+msgid "Connect a Bambu Lab printer"
+msgstr ""
+
+msgid "Open an issue for the developers"
+msgstr ""
+
+#. TRN %1% is what the print is for, %2% the plan's headline, both in the AI's words.
+#, boost-format
+msgid "Record what this print is for: %1%; plan: %2%"
+msgstr ""
+
+#. TRN %1% is what the print is for, in the AI's words.
+#, boost-format
+msgid "Record what this print is for: %1%"
+msgstr ""
+
+#. TRN %1% is the plan's headline, in the AI's words.
+#, boost-format
+msgid "Record the plan: %1%"
+msgstr ""
+
+msgid "Record the plan"
+msgstr ""
+
+#. TRN %1% is how many settings, %2% their keys.
+#, boost-format
+msgid "Change %1% object setting: %2%"
+msgid_plural "Change %1% object settings: %2%"
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRN %1% is how many settings, %2% their keys.
+#, boost-format
+msgid "Change %1% filament setting: %2%"
+msgid_plural "Change %1% filament settings: %2%"
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRN %1% is how many settings, %2% their keys.
+#, boost-format
+msgid "Change %1% printer setting: %2%"
+msgid_plural "Change %1% printer settings: %2%"
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRN %1% is how many settings, %2% their keys.
+#, boost-format
+msgid "Change %1% process setting: %2%"
+msgid_plural "Change %1% process settings: %2%"
+msgstr[0] ""
+msgstr[1] ""
 
 msgid "Drop a model here or add one"
 msgstr ""
@@ -562,6 +1267,10 @@ msgstr ""
 msgid "Client configuration changed while preparing the write. Original file retained; review again."
 msgstr ""
 
+#. TRN Under Cowork's name in the list of AI apps: it connects in its local sessions only.
+msgid "local sessions"
+msgstr ""
+
 msgid "JusPrin couldn't close the project, so it didn't restart. Your project stays open, and JusPrin will use the new language the next time it starts."
 msgstr ""
 
@@ -639,6 +1348,27 @@ msgstr ""
 msgid "Slicing plate %1%"
 msgstr ""
 
+#. TRN %1% is a printer's name.
+#, boost-format
+msgid "Waiting for the access code for %1%"
+msgstr ""
+
+#. TRN %1% is a print host's address, such as 192.168.1.20.
+#. TRN %1% is a printer's name or a print host's address.
+#, boost-format
+msgid "Checking %1%"
+msgstr ""
+
+#. TRN %1% is a print host's address. The key the app holds was refused.
+#, boost-format
+msgid "Waiting for a different API key for %1%"
+msgstr ""
+
+#. TRN %1% is a print host's address.
+#, boost-format
+msgid "Waiting for an API key for %1%"
+msgstr ""
+
 msgid "The form was out of date. Choose the printer again."
 msgstr ""
 
@@ -661,6 +1391,16 @@ msgid "Browse the full printer list"
 msgstr ""
 
 msgid "Open printer settings"
+msgstr ""
+
+#. TRN The filament chat's first line. %1% is a filament slot's number.
+#, boost-format
+msgid "I can help with settings for the filament in slot %1%. What would you like to change?"
+msgstr ""
+
+#. TRN The filament chat's first line. %1% is a filament's name, %2% its slot's number.
+#, boost-format
+msgid "I can help with settings for %1% in slot %2%. What would you like to change?"
 msgstr ""
 
 #. TRN %1% is the profile loader's own error, in English.
@@ -1350,7 +2090,18 @@ msgstr ""
 msgid "Saving the MCP entry using the client's own CLI..."
 msgstr ""
 
+msgid "Could not start the client CLI. Use Copy or check its installation."
+msgstr ""
+
 msgid "The setup command timed out. Stopping it..."
+msgstr ""
+
+msgid "Setup timed out; the client config may have changed. Inspect it before trying again."
+msgstr ""
+
+#. TRN %1% is the exit code of an AI app's command-line tool, a number.
+#, boost-format
+msgid "Client CLI exited with code %1%."
 msgstr ""
 
 msgid "Select printer"
@@ -1656,8 +2407,81 @@ msgstr ""
 msgid "Printer connection required"
 msgstr ""
 
+msgid "No more plates can be added"
+msgstr ""
+
+msgid "Annotate regions"
+msgstr ""
+
+msgid "Remove regions"
+msgstr ""
+
+#. TRN The name of a plate the person has not named. %1% is its number, counting from 1.
+#, boost-format
+msgid "Plate %1%"
+msgstr ""
+
+msgid "Filament slot"
+msgstr ""
+
+msgid "The app did not start slicing this plate."
+msgstr ""
+
+msgid "The slice stopped with an error."
+msgstr ""
+
+msgid "Object name cannot be empty"
+msgstr ""
+
+msgid "Lay out plates"
+msgstr ""
+
+msgid "Place object"
+msgstr ""
+
+msgid "Import model"
+msgstr ""
+
+msgid "Delete items"
+msgstr ""
+
+msgid "Change object settings"
+msgstr ""
+
 msgid "This project was saved by a newer version of JusPrin. Get the new version to open it."
 msgstr ""
 
 msgid "The project couldn't be opened. Try again."
 msgstr ""
+
+#. TRN A setting's text value, such as custom G-code, described by its length.
+#, boost-format
+msgid "%1% line"
+msgid_plural "%1% lines"
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRN A setting's text value, described by its length.
+#, boost-format
+msgid "%1% character"
+msgid_plural "%1% characters"
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRN A setting's value: it takes the value of another preset.
+msgid "Not set"
+msgstr ""
+
+#. TRN A setting that holds a list of texts, described by how many.
+#, boost-format
+msgid "%1% entry"
+msgid_plural "%1% entries"
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRN A setting that holds a shape, such as the bed's outline, described by its points.
+#, boost-format
+msgid "%1% point"
+msgid_plural "%1% points"
+msgstr[0] ""
+msgstr[1] ""

@@ -13,6 +13,7 @@
 #include "slic3r/GUI/GLToolbar.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/GUI_ObjectList.hpp"
+#include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmosManager.hpp"
 #include "slic3r/GUI/PartPlate.hpp"
 #include "slic3r/GUI/Plater.hpp"
@@ -123,7 +124,7 @@ ProjectOutline OrcaWorkspaceAdapter::outline() const
         PartPlate* plate = plate_list.get_plate(index);
         OutlinePlate projected;
         projected.id              = PlateId(m_session, plate->id().id);
-        projected.name            = plate->get_plate_name().empty() ? "Plate " + std::to_string(index + 1) : plate->get_plate_name();
+        projected.name            = plate->get_plate_name().empty() ? default_plate_name(index) : plate->get_plate_name();
         projected.active          = index == active;
         projected.sliced          = plate->is_slice_result_valid();
         projected.locked          = plate->is_locked();
@@ -433,7 +434,7 @@ CommandResult OrcaWorkspaceAdapter::add_plate()
 {
     wxASSERT(wxIsMainThread());
     if (!m_plater.can_add_plate())
-        return CommandResult::failure(WorkspaceError::Refused, "No more plates can be added");
+        return CommandResult::failure(WorkspaceError::Refused, L("No more plates can be added"));
     const int before = m_plater.get_partplate_list().get_plate_count();
     // The event the toolbar's Add plate button posts: it takes the undo
     // snapshot, creates and selects the plate, and updates the scene.

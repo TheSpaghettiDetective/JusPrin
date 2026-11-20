@@ -55,6 +55,7 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Agent/ToolRegistry.hpp
     GUI/JusPrin/Agent/ToolResults.cpp
     GUI/JusPrin/Agent/ToolResults.hpp
+    GUI/JusPrin/Agent/ActivityTitle.hpp
     GUI/JusPrin/Agent/WebViewRelease.cpp
     GUI/JusPrin/Agent/WebViewRelease.hpp
     GUI/JusPrin/Support/AppFolders.cpp

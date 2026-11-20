@@ -488,7 +488,7 @@ export function App({
         });
       }}
       onViewSetup={() => setView('allSettings')}
-      onCheckPlan={historical ? undefined : () => sendMessage('Check the plan against what changed.', false)} />
+      onCheckPlan={historical ? undefined : () => sendMessage(t`Check the plan against what changed.`, false)} />
   </div>;
   const pendingAction = state.toolActivities.some((activity) =>
     state.messages.some((message) => message.id === activity.correlationId) &&

@@ -345,6 +345,10 @@ msgstr "{minutes}m {seconds}s"
 msgid "{minutes}m left"
 msgstr "{minutes}m left"
 
+#: src/components/TurnActivity.tsx
+msgid "{more, plural, one {… # more character} other {… # more characters}}"
+msgstr "{more, plural, one {… # more character} other {… # more characters}}"
+
 #: src/components/SetupCard.tsx
 msgid "{more, plural, one {{preset} with {filament} and # other filament.} other {{preset} with {filament} and # other filaments.}}"
 msgstr "{more, plural, one {{preset} with {filament} and # other filament.} other {{preset} with {filament} and # other filaments.}}"
@@ -1111,6 +1115,10 @@ msgstr "Check now"
 msgid "Check plan"
 msgstr "Check plan"
 
+#: src/App.tsx
+msgid "Check the plan against what changed."
+msgstr "Check the plan against what changed."
+
 #: src/components/Guide.tsx
 msgid "Check the spelling or try other words. You can also ask AI: choose Ask AI… in the Help menu."
 msgstr "Check the spelling or try other words. You can also ask AI: choose Ask AI… in the Help menu."
@@ -1721,6 +1729,10 @@ msgstr "history"
 msgid "How did it come out?"
 msgstr "How did it come out?"
 
+#: src/printerWords.ts
+msgid "How do I check?"
+msgstr "How do I check?"
+
 #: src/components/OrcaImport.tsx
 msgid "If {app} keeps its settings somewhere else, choose that folder."
 msgstr "If {app} keeps its settings somewhere else, choose that folder."
@@ -1994,6 +2006,22 @@ msgstr "Left-drag"
 #: src/components/AgentConnection.tsx
 msgid "Let an AI app on this computer, such as Claude Desktop, work with the open project. JusPrin adds itself to that app’s settings."
 msgstr "Let an AI app on this computer, such as Claude Desktop, work with the open project. JusPrin adds itself to that app’s settings."
+
+#: src/printerWords.ts
+msgid "Let’s connect {name}. Is it turned on, in LAN mode, and on the same network as this computer?"
+msgstr "Let’s connect {name}. Is it turned on, in LAN mode, and on the same network as this computer?"
+
+#: src/printerWords.ts
+msgid "Let’s connect {name}. What address do you use to open it in a browser? It’s usually its IP address, like 192.168.1.20."
+msgstr "Let’s connect {name}. What address do you use to open it in a browser? It’s usually its IP address, like 192.168.1.20."
+
+#: src/printerWords.ts
+msgid "Let’s connect this printer. Is it turned on, in LAN mode, and on the same network as this computer?"
+msgstr "Let’s connect this printer. Is it turned on, in LAN mode, and on the same network as this computer?"
+
+#: src/printerWords.ts
+msgid "Let’s connect this printer. What address do you use to open it in a browser? It’s usually its IP address, like 192.168.1.20."
+msgstr "Let’s connect this printer. What address do you use to open it in a browser? It’s usually its IP address, like 192.168.1.20."
 
 #: src/components/Preferences.tsx
 msgid "Light"
@@ -3518,6 +3546,14 @@ msgstr "This G-code is no longer kept. Open the project and slice it to print it
 msgid "This is an internal connection inside JusPrin, not a network service. The 3D canvas and all other controls keep working."
 msgstr "This is an internal connection inside JusPrin, not a network service. The 3D canvas and all other controls keep working."
 
+#: src/printerWords.ts
+msgid "This is the {name}. Tell me what changed on it, or ask anything about it."
+msgstr "This is the {name}. Tell me what changed on it, or ask anything about it."
+
+#: src/printerWords.ts
+msgid "This is your printer. Tell me what changed on it, or ask anything about it."
+msgstr "This is your printer. Tell me what changed on it, or ask anything about it."
+
 #: src/components/AllSettings.tsx
 msgid "This JusPrin build cannot list the settings."
 msgstr "This JusPrin build cannot list the settings."
@@ -3546,6 +3582,14 @@ msgstr "Time & material estimates recomputing…"
 #: src/components/SetupLocalTool.tsx
 msgid "Timed out."
 msgstr "Timed out."
+
+#: src/printerWords.ts
+msgid "To connect {name}, JusPrin first needs Bambu’s network plug-in, which isn’t installed on this computer yet. {name} already works for preparing prints."
+msgstr "To connect {name}, JusPrin first needs Bambu’s network plug-in, which isn’t installed on this computer yet. {name} already works for preparing prints."
+
+#: src/printerWords.ts
+msgid "To connect this printer, JusPrin first needs Bambu’s network plug-in, which isn’t installed on this computer yet. This printer already works for preparing prints."
+msgstr "To connect this printer, JusPrin first needs Bambu’s network plug-in, which isn’t installed on this computer yet. This printer already works for preparing prints."
 
 #: ../HomeUI/src/history.ts
 #: ../HomeUI/src/savedDate.ts
@@ -3748,6 +3792,10 @@ msgstr "Which plate is on it?"
 msgid "Which printer do you have?"
 msgstr "Which printer do you have?"
 
+#: src/printerWords.ts
+msgid "Which printer do you have? Tell me the brand and model, or share a photo of its label. Not sure? Tell me what you know, and I'll help you find it."
+msgstr "Which printer do you have? Tell me the brand and model, or share a photo of its label. Not sure? Tell me what you know, and I'll help you find it."
+
 #: src/components/AddPrinterForm.tsx
 msgid "Which printer?"
 msgstr "Which printer?"
@@ -3777,6 +3825,11 @@ msgstr "Working on it…"
 #: src/components/SetupLocalTool.tsx
 msgid "Writing settings…"
 msgstr "Writing settings…"
+
+#. An answer to tap: the printer is on, in LAN mode and on this network.
+#: src/printerWords.ts
+msgid "Yes, it is"
+msgstr "Yes, it is"
 
 #: src/components/Preferences.tsx
 msgid "yesterday"
