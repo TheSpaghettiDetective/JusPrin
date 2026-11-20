@@ -20,7 +20,11 @@ std::string percent_encoded(const std::string& text)
 {
     std::string encoded;
     for (const unsigned char c : text) {
-        if (std::isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+        // Not isalnum(): under a Latin-1 C locale it also passes bytes of
+        // UTF-8 characters, such as the 0xC3 of "è".
+        const bool unreserved = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') ||
+                                c == '-' || c == '_' || c == '.' || c == '~';
+        if (unreserved) {
             encoded += static_cast<char>(c);
         } else {
             char escaped[4];

@@ -19,6 +19,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <clocale>
 #include <map>
 #include <memory>
 #include <set>
@@ -871,6 +872,23 @@ TEST_CASE("every gateway reply carries its chat's title, percent-encoded, for Bi
     // A chat with no title yet, and a request of no chat, send none.
     CHECK(title_header("p-1/c-1", "").empty());
     CHECK(title_header("", "Orphan").empty());
+}
+
+TEST_CASE("a title is percent-encoded the same whatever the C locale", "[agent][account]")
+{
+    // wxLocale sets the C locale to the person's language. Under a Latin-1
+    // code page, isalnum() calls the first byte of "è" (0xC3, "Ã") a letter;
+    // JusPrin 2.0.1 then sent it raw, and the gateway could not read the title.
+    const std::string previous = std::setlocale(LC_ALL, nullptr);
+    const char*       latin1   = nullptr;
+    for (const char* name : {"fr_FR.ISO8859-1", "es_ES.ISO8859-1", "fr_FR.iso88591", "es_ES.iso88591", "French_France.1252", ".1252"})
+        if ((latin1 = std::setlocale(LC_ALL, name)) != nullptr)
+            break;
+    if (latin1 == nullptr)
+        SKIP("no Latin-1 locale is installed");
+    const std::string encoded = percent_encoded("Problème d'importation");
+    std::setlocale(LC_ALL, previous.c_str());
+    CHECK(encoded == "Probl%C3%A8me%20d%27importation");
 }
 
 TEST_CASE("the gateway's answers a person can act on are read by their code, and every other is thrown", "[agent][account][errors]")
