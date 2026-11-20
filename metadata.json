@@ -1,0 +1,52 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7X5KJBDRGH92D7PXKD6N4AN",
+  "strategy": "manual-commit",
+  "branch": "expected-errors-three",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/AgentUI/src/PreferencesApp.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/SetupLocalTool.tsx",
+    "src/slic3r/GUI/JusPrin/Localization/pages/ca.po",
+    "src/slic3r/GUI/JusPrin/Localization/pages/cs.po",
+    "src/slic3r/GUI/JusPrin/Localization/pages/de.po",
+    "src/slic3r/GUI/JusPrin/Localization/pages/en.po",
+    "src/slic3r/GUI/JusPrin/Localization/pages/es.po",
+    "src/slic3r/GUI/JusPrin/Localization/pages/eu.po",
+    "src/slic3r/GUI/JusPrin/Localization/pages/fr.po",
+    "src/slic3r/GUI/JusPrin/Localization/pages/hu.po",
+    "src/slic3r/GUI/JusPrin/Localization/pages/it.po",
+    "src/slic3r/GUI/JusPrin/Localization/pages/ja.po",
+    "src/slic3r/GUI/JusPrin/Localization/pages/ko.po",
+    "src/slic3r/GUI/JusPrin/Localization/pages/lt.po",
+    "src/slic3r/GUI/JusPrin/Localization/pages/nl.po",
+    "src/slic3r/GUI/JusPrin/Localization/pages/pl.po",
+    "src/slic3r/GUI/JusPrin/Localization/pages/pt_BR.po",
+    "src/slic3r/GUI/JusPrin/Localization/pages/ru.po",
+    "src/slic3r/GUI/JusPrin/Localization/pages/sv.po",
+    "src/slic3r/GUI/JusPrin/Localization/pages/th.po",
+    "src/slic3r/GUI/JusPrin/Localization/pages/tr.po",
+    "src/slic3r/GUI/JusPrin/Localization/pages/uk.po",
+    "src/slic3r/GUI/JusPrin/Localization/pages/vi.po",
+    "src/slic3r/GUI/JusPrin/Localization/pages/zh_CN.po",
+    "src/slic3r/GUI/JusPrin/Localization/pages/zh_TW.po",
+    "tests/shell/preferences_capture_scenario.inc",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 404,
+    "cache_creation_tokens": 440079,
+    "cache_read_tokens": 44514618,
+    "output_tokens": 134546,
+    "api_call_count": 202
+  }
+}
