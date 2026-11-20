@@ -1,0 +1,29 @@
+Background (from the session that started this one):
+JusPrin 2 is a free, open-source 3D-printing slicer (a fork of OrcaSlicer 2.5.0) with an AI chat beside each project, released on 2026-11-13; Kenneth is deciding whether and how to post it on Hacker News. Earlier research is in the untracked file `jusprin2-marketing-research.md` in `/Users/kenneth/Projects/JusPrin`; its "Hacker News scores" section was corrected on 2026-11-18. The corrections matter here: a recount of about 1,300 Hacker News stories since 2022 with a 3D-printing word in the title found a median of 2 points, with 17% reaching 10 points and 5% reaching 100, so a low score is the normal outcome and says little about a topic; and browser slicers scored once in three tries, so "a slicer people can try in the browser scores well" was one story, not a pattern. The collected stories are in `/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/8af6a821-53b0-4e8a-8f95-de7ba7489e02/scratchpad/hn.json`, a scratch file that may have been cleaned up (a dict keyed by story id with `t` title, `p` points, `c` comments, `d` date, `u` URL); if it is gone, rebuild what you need from the open `hn.algolia.com` API. Kenneth rejects conclusions stated as facts without support: say what was measured, label a hypothesis as a hypothesis, and say what would disprove it.
+
+Task:
+Work out, with evidence, why one browser-based slicer post did very well on Hacker News while two others did not.
+
+The three stories (ids are Hacker News item ids):
+- `46817813`, 2026-01-29, 398 points, 131 comments: "Grid: Free, local-first, browser-based 3D printing/CNC/laser slicer", https://grid.space/stem/
+- `49508763`, 2026-08-31, 4 points, 2 comments: "Show HN: Three Slicer, I ported OrcaSlicer to run in the browser", https://slicer.kimgh06.com/
+- `49953441`, 2026-10-04, 1 point, 0 comments: "Show HN: A complete web build of OrcaSlicer for 3D printing", https://cubbycad.com/slicer/
+
+What to do:
+1. Read all 131 comments on the Grid story (`https://hn.algolia.com/api/v1/items/46817813` returns the whole tree). Code every top-level comment and the larger sub-threads by what the commenter responds to (for example local-first and privacy, no account, open source, the author's history, CNC or laser rather than printing, the education angle of the `/stem/` page, comparisons with other slicers, complaints). Report the count per category.
+2. Compare the three posts on everything that can be checked: the title wording, the linked page as a first-time visitor sees it, who submitted it and that account's history and karma, whether the author answered in the thread, day and hour of posting, whether it was a "Show HN", whether it had been posted before, how long the project had existed and whether it was already known (GitHub stars, earlier Hacker News stories about Kiri:Moto or grid.space), and what each offers beyond slicing.
+3. Put the result against the base rate from the background, and look for other 3D-printing stories since 2022 above 100 points to see which of your candidate reasons also hold for them. A reason that only fits Grid is weaker than one that fits several high scorers.
+4. State one main hypothesis and the alternatives you considered. For each, give the evidence for it, the evidence against it, and what observation would disprove it. Three stories is a small sample, and timing and luck are real explanations on Hacker News; say how much of the difference you think the evidence can and cannot explain.
+5. Close with what this suggests for a JusPrin post, written as a hypothesis and not as a recommendation Kenneth has agreed to. JusPrin is a desktop download, not a browser tool, so say plainly which of Grid's advantages it has and which it lacks.
+
+Output: one new untracked file, `jusprin2-hn-grid-analysis.md`, in `/Users/kenneth/Projects/JusPrin`, opening with a summary of under 250 words that a reader who saw none of the work can follow, then the comment counts, the comparison table, the hypotheses with evidence, and the limits.
+
+Rules for working in this folder: other sessions share this checkout. Create and edit only `jusprin2-hn-grid-analysis.md`; keep downloads and scripts in your scratchpad directory; commit nothing; switch no branch; do not add the file to `.gitignore`. Read web pages only; do not post, vote or sign in anywhere.
+
+Done means the file exists, each claim in it points to the comment, page or count it rests on, and your final message gives the summary and what remains uncertain.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_9e485764-3d67-4413-b061-31068610c61a
+
+---
+
+It sounds like this is this was a well-orchestrated Hacker News marketing campaign, no?
