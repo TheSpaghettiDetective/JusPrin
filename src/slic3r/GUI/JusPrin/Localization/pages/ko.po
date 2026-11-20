@@ -4177,6 +4177,7 @@ msgid "The action could not be completed."
 msgstr "작업을 완료할 수 없습니다."
 
 # AI Translated
+#: src/components/ProposalCard.tsx
 #: src/components/ToolActivityCard.tsx
 msgid "The action failed."
 msgstr "작업이 실패했습니다."
@@ -4262,6 +4263,7 @@ msgid "the printer profile’s default, until your preset is saved"
 msgstr "사전 설정이 저장될 때까지 프린터 프로필의 기본값"
 
 # AI Translated
+#: src/components/ProposalCard.tsx
 #: src/components/ToolActivityCard.tsx
 msgid "The project changed before this could run. Ask AI again."
 msgstr "실행하기 전에 프로젝트가 변경되었습니다. AI에게 다시 요청하세요."

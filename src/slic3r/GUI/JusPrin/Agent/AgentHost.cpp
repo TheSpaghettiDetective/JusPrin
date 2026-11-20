@@ -28,6 +28,7 @@
 #include <set>
 #include <sstream>
 #include <stdexcept>
+#include <string>
 #include <string_view>
 #include <system_error>
 #include <utility>
@@ -871,8 +872,14 @@ void AgentHost::send_state(const std::string& correlation_id)
             *existing = live;
     }
     json tool_activities = json::array();
-    for (const ToolActivity& activity : merged)
-        tool_activities.push_back(activity_json(activity));
+    for (const ToolActivity& activity : merged) {
+        json entry = activity_json(activity);
+        // A proposal saves through its live preview, which a reopen or a
+        // restart leaves behind: its card says it was not saved.
+        if (entry.contains("proposal") && m_tools.find(activity.action_id) == nullptr)
+            entry["proposal"]["closed"] = true;
+        tool_activities.push_back(std::move(entry));
+    }
 
     json attachments = json::array();
     for (const AttachmentRecord& record : document.attachments()) {
@@ -1099,9 +1106,11 @@ void AgentHost::dispatch_page_message(const std::string& envelope_json, std::str
         constexpr std::size_t kProjectInstructionsLimit = 32 * 1024;
         const json parsed = json::parse(payload, nullptr, false);
         const std::string text = parsed.is_object() ? parsed.value("text", std::string()) : std::string();
+        // The page's own file, so a missing or oversized one is a broken page.
         if (text.empty() || text.size() > kProjectInstructionsLimit)
-            send_bridge_error("invalid_payload", "The project instructions are missing or too long.", envelope_id);
-        else if (m_session_profile.tool_names.empty()) {
+            throw RuntimeError("jusprin-agent-bridge: project_instructions carries " +
+                               (text.empty() ? std::string("no text") : std::to_string(text.size()) + " bytes, over the limit"));
+        if (m_session_profile.tool_names.empty()) {
             m_session_profile.instructions = text;
             // A turn the app started before the page had sent them waited
             // in the queue; see begin_reply.
@@ -1109,7 +1118,7 @@ void AgentHost::dispatch_page_message(const std::string& envelope_json, std::str
         }
     }
     else if (!(m_page_message_handler && m_page_message_handler(type, json::parse(payload, nullptr, false))))
-        send_bridge_error("unknown_type", "The message type \"" + type + "\" is not part of this protocol version.", envelope_id);
+        throw RuntimeError("jusprin-agent-bridge: the message type \"" + type + "\" is not part of this protocol version");
 }
 
 void AgentHost::handle_skills(const std::string& envelope_id, const std::string& payload_json)
@@ -1150,10 +1159,10 @@ void AgentHost::handle_skills(const std::string& envelope_id, const std::string&
             }
             received.push_back(std::move(skill));
         }
-    if (!valid) {
-        send_bridge_error("invalid_payload", "The project skills are invalid.", envelope_id);
-        return;
-    }
+    // The page sends its own bundled skills, so one that breaks a rule is a
+    // broken page.
+    if (!valid)
+        throw RuntimeError("jusprin-agent-bridge: skills breaks a rule (" + std::to_string(payload_json.size()) + " bytes)");
     m_skills          = std::move(received);
     m_skills_received = true;
     // A turn the app started before the page had sent them waited in the
@@ -1371,16 +1380,14 @@ bool AgentHost::accept_user_message(ConversationMessage message, const std::stri
 
 void AgentHost::handle_user_message(const std::string& envelope_id, const std::string& payload_json)
 {
-    if (const std::optional<AgentError> refusal = user_message_refusal()) {
-        send_bridge_error(refusal->code, refusal->message, envelope_id);
-        return;
-    }
+    // The composer is read-only in each state that refuses a message.
+    if (const std::optional<AgentError> refusal = user_message_refusal())
+        throw RuntimeError("jusprin-agent-bridge: user_message refused: " + refusal->code);
     const json payload = json::parse(payload_json);
-    if (payload.contains("conversationId") && payload["conversationId"] !=
-        m_persistence.document().active_conversation_id()) {
-        send_bridge_error("stale_conversation", translated(L("This message belongs to a different chat.")), envelope_id);
-        return;
-    }
+    // The page sends a message to the chat it shows as active.
+    if (payload.contains("conversationId") && payload["conversationId"] != m_persistence.document().active_conversation_id())
+        throw RuntimeError("jusprin-agent-bridge: user_message for chat " + payload["conversationId"].dump() + " while " +
+                           m_persistence.document().active_conversation_id() + " is active");
     const std::string client_id = payload.at("clientMessageId").get<std::string>();
     const std::string text      = payload.at("text").get<std::string>();
 
@@ -1391,10 +1398,9 @@ void AgentHost::handle_user_message(const std::string& envelope_id, const std::s
                 requested_attachments.push_back(id.get<std::string>());
 
     // A message must carry text or at least one attachment.
-    if (text.empty() && requested_attachments.empty()) {
-        send_bridge_error("invalid_payload", translated(L("A message needs text or an attachment.")), envelope_id);
-        return;
-    }
+    // The composer cannot send one with neither.
+    if (text.empty() && requested_attachments.empty())
+        throw RuntimeError("jusprin-agent-bridge: user_message carries neither text nor an attachment");
 
     ProjectStateDocument& document = m_persistence.document();
 
@@ -1445,10 +1451,9 @@ void AgentHost::handle_attach_file(const std::string& envelope_id, const std::st
     std::string       source    = payload.value("source", "picker");
     if (source != "picker" && source != "drop" && source != "clipboard" && source != "project")
         source = "picker";
-    if (name.empty() && source != "project") {
-        send_bridge_error("invalid_payload", "attach_file requires a file name.", envelope_id);
-        return;
-    }
+    // The page names every file it reads.
+    if (name.empty() && source != "project")
+        throw RuntimeError("jusprin-agent-bridge: attach_file from " + source + " carries no file name");
 
     ProjectStateDocument& document = m_persistence.document();
 
@@ -1548,10 +1553,8 @@ void AgentHost::handle_pick_attachment(const std::string& envelope_id, const std
         // The page offers a fixed list; any other kind is a broken page.
         throw RuntimeError("jusprin-agent-bridge: pick_attachment names an unknown kind: " + kind);
     }
-    if (!m_file_picker) {
-        send_bridge_error("unsupported", translated(L("This build cannot open a file dialog.")), envelope_id);
-        return;
-    }
+    if (!m_file_picker)
+        throw std::logic_error("jusprin-agent-bridge: pick_attachment reached a host with no file picker");
     m_file_picker(request, [this, envelope_id](std::vector<std::string> paths) {
         for (const std::string& path : paths)
             attach_file_from_disk(path, "picker", envelope_id);
@@ -2003,37 +2006,37 @@ void AgentHost::end_stream(MessageState state, const char* envelope)
 
 void AgentHost::handle_retry(const std::string& envelope_id, const std::string& payload_json)
 {
-    if (m_chat_transition_blocked) {
-        send_bridge_error("recovery_required", translated(L("Project chat is blocked until restoration is recovered.")), envelope_id);
-        return;
-    }
-    if (m_persistence.document().viewed_conversation_id() != m_persistence.document().active_conversation_id()) {
-        send_bridge_error("inactive_conversation", translated(L("Historical replies cannot be retried.")), envelope_id);
-        return;
-    }
-    cancel_conversation_title();
+    // The page draws a blocked project chat read-only.
+    if (m_chat_transition_blocked)
+        throw RuntimeError("jusprin-agent-bridge: retry_message while the project chat waits to be restored");
+    // An earlier chat is drawn read-only, with no Retry.
+    if (m_persistence.document().viewed_conversation_id() != m_persistence.document().active_conversation_id())
+        throw RuntimeError("jusprin-agent-bridge: retry_message for an earlier chat");
     const json payload = json::parse(payload_json, nullptr, false);
     const std::string message_id = payload.is_object() ? payload.value("messageId", "") : std::string();
 
     std::string conversation_id;
     const std::optional<ConversationMessage> message = find_stored_message(message_id, &conversation_id);
-    if (!message || message->role != MessageRole::Assistant ||
-        (message->state != MessageState::Failed && message->state != MessageState::Stopped) ||
-        conversation_id != m_persistence.document().active_conversation_id()) {
-        send_bridge_error("invalid_retry", translated(L("Only a failed or stopped assistant message in the active conversation can be retried.")),
-                          envelope_id);
+    const bool active = conversation_id == m_persistence.document().active_conversation_id();
+    // A second press before the page redrew the first: that retry is under way.
+    if (message && message->role == MessageRole::Assistant && message->state == MessageState::Streaming && active)
         return;
-    }
-    // Only the chat's last reply: its record goes on past an earlier one,
-    // which nothing could be added after.
+    // Retry is drawn only on a failed or stopped reply.
+    if (!message || message->role != MessageRole::Assistant ||
+        (message->state != MessageState::Failed && message->state != MessageState::Stopped) || !active)
+        throw RuntimeError("jusprin-agent-bridge: retry_message for " + message_id +
+                           ", which is not a failed or stopped reply of the active chat");
+    cancel_conversation_title();
+    // Retry is drawn only on the chat's last reply: its record goes on past
+    // an earlier one, which nothing could be added after.
     const std::vector<ConversationMessage> messages = m_persistence.document().messages(conversation_id);
     if (std::any_of(std::find_if(messages.begin(), messages.end(), [&](const auto& stored) { return stored.id == message_id; }),
-                    messages.end(), [&](const auto& stored) { return stored.role == MessageRole::Assistant && stored.id != message_id; })) {
-        send_bridge_error("invalid_retry", translated(L("Only the chat's last reply can be retried.")), envelope_id);
-        return;
-    }
+                    messages.end(), [&](const auto& stored) { return stored.role == MessageRole::Assistant && stored.id != message_id; }))
+        throw RuntimeError("jusprin-agent-bridge: retry_message for " + message_id + ", which is not the chat's last reply");
+    // Drawn greyed out while the app is busy: a press the page sent before
+    // it heard the app had become busy does nothing, and the page redraws.
     if (agent_busy() || m_setup_pending) {
-        send_bridge_error("busy", translated(L("Another reply is currently streaming.")), envelope_id);
+        send_state(envelope_id);
         return;
     }
     ConversationMessage retried = *message;
@@ -2096,7 +2099,9 @@ void AgentHost::send_work(const WorkEntry& work)
     const json entry = live == m_live_work.end() ? work_json(work, nullptr, nullptr, nullptr, false) :
                                                    work_json(work, &live->second.current, &live->second.total, &live->second.detail,
                                                              live->second.cancellable);
-    send_envelope(Protocol::kWorkUpdated, json{{"work", entry}}.dump());
+    // Starting and ending work moves the document's revision, which the
+    // page sends back with Resume: it travels with the entry.
+    send_envelope(Protocol::kWorkUpdated, json{{"work", entry}, {"docRevision", m_persistence.document().doc_revision()}}.dump());
 }
 
 void AgentHost::handle_work_cancel(const std::string& envelope_id, const std::string& payload_json)
@@ -2111,8 +2116,7 @@ void AgentHost::handle_work_cancel(const std::string& envelope_id, const std::st
                 send_work(entry);
                 return;
             }
-        send_bridge_error("unknown_work", "No work \"" + id + "\" exists.", envelope_id);
-        return;
+        throw RuntimeError("jusprin-agent-bridge: work_cancel names no work: " + id);
     }
     if (m_work_cancel)
         m_work_cancel(id);
@@ -2120,20 +2124,17 @@ void AgentHost::handle_work_cancel(const std::string& envelope_id, const std::st
 
 void AgentHost::handle_tool_cancel(const std::string& envelope_id, const std::string& payload_json)
 {
-    if (m_chat_transition_blocked) {
-        send_bridge_error("recovery_required", translated(L("Project chat is blocked until restoration is recovered.")), envelope_id);
-        return;
-    }
+    // The page draws a blocked project chat read-only.
+    if (m_chat_transition_blocked)
+        throw RuntimeError("jusprin-agent-bridge: tool_cancel while the project chat waits to be restored");
     if (m_persistence.document().viewed_conversation_id() != m_persistence.document().active_conversation_id()) {
-        send_bridge_error("inactive_conversation", translated(L("Historical tool actions cannot be changed.")), envelope_id);
-        return;
+        throw RuntimeError("jusprin-agent-bridge: tool_cancel for an earlier chat");
     }
     const json        payload   = json::parse(payload_json, nullptr, false);
     const std::string action_id = payload.is_object() ? payload.value("actionId", "") : std::string();
-    if (m_tools.find(action_id) == nullptr) {
-        send_bridge_error("unknown_action", "No tool action \"" + action_id + "\" exists.", envelope_id);
-        return;
-    }
+    // Cancel is drawn only on a running action.
+    if (m_tools.find(action_id) == nullptr)
+        throw RuntimeError("jusprin-agent-bridge: tool_cancel names no action: " + action_id);
     if (!m_tools.cancel(action_id)) {
         // Cancelling an already-finished action is a benign race; answer with
         // the authoritative record.
@@ -2144,22 +2145,19 @@ void AgentHost::handle_tool_cancel(const std::string& envelope_id, const std::st
 
 void AgentHost::handle_save_proposal(const std::string& envelope_id, const std::string& payload_json)
 {
-    if (m_chat_transition_blocked) {
-        send_bridge_error("recovery_required", translated(L("Project chat is blocked until restoration is recovered.")), envelope_id);
-        return;
-    }
+    // The page draws a blocked project chat read-only.
+    if (m_chat_transition_blocked)
+        throw RuntimeError("jusprin-agent-bridge: save_proposal while the project chat waits to be restored");
     ProjectStateDocument& document = m_persistence.document();
     if (document.viewed_conversation_id() != document.active_conversation_id()) {
-        send_bridge_error("inactive_conversation", translated(L("Historical tool actions cannot be changed.")), envelope_id);
-        return;
+        throw RuntimeError("jusprin-agent-bridge: save_proposal for an earlier chat");
     }
     const json          payload   = json::parse(payload_json, nullptr, false);
     const std::string   action_id = payload.is_object() ? payload.value("actionId", "") : std::string();
     const ToolActivity* preview   = m_tools.find(action_id);
-    if (preview == nullptr) {
-        send_bridge_error("unknown_action", "No tool action \"" + action_id + "\" exists.", envelope_id);
-        return;
-    }
+    // The card of a proposal with no live preview reads "Not saved", with no Save.
+    if (preview == nullptr)
+        throw RuntimeError("jusprin-agent-bridge: save_proposal names no live preview: " + action_id);
     // A message of the person's after the proposal answered it another way:
     // the card says it was not saved, and a stale press saves nothing.
     const auto messages = document.messages(document.active_conversation_id());
@@ -2167,24 +2165,22 @@ void AgentHost::handle_save_proposal(const std::string& envelope_id, const std::
                                        [preview](const ConversationMessage& message) { return message.id == preview->correlation_id; });
     if (proposed == messages.end() ||
         std::any_of(std::next(proposed), messages.end(), [](const ConversationMessage& message) { return message.role == MessageRole::User; })) {
-        send_bridge_error("proposal_closed", translated(L("This proposal is no longer open. Ask AI again.")), envelope_id);
-        return;
+        // The card of an answered proposal reads "Not saved", with no Save.
+        throw RuntimeError("jusprin-agent-bridge: save_proposal for a proposal a later message answered: " + action_id);
     }
-    if (const std::string refusal = m_tools.approve_proposal(action_id); !refusal.empty())
-        send_bridge_error("proposal_closed", refusal, envelope_id);
+    // A second press before the page redrew the first: the save is under way.
+    m_tools.approve_proposal(action_id);
 }
 
 void AgentHost::handle_undo_receipt(const std::string& envelope_id, const std::string& payload_json)
 {
-    if (m_chat_transition_blocked) {
-        send_bridge_error("recovery_required", translated(L("Project chat is blocked until restoration is recovered.")), envelope_id);
-        return;
-    }
+    // The page draws a blocked project chat read-only.
+    if (m_chat_transition_blocked)
+        throw RuntimeError("jusprin-agent-bridge: undo_receipt while the project chat waits to be restored");
     ProjectStateDocument& document = m_persistence.document();
     const std::string     chat     = document.active_conversation_id();
     if (document.viewed_conversation_id() != chat) {
-        send_bridge_error("inactive_conversation", translated(L("Historical tool actions cannot be changed.")), envelope_id);
-        return;
+        throw RuntimeError("jusprin-agent-bridge: undo_receipt for an earlier chat");
     }
     const json        payload    = json::parse(payload_json, nullptr, false);
     const std::string message_id = payload.is_object() ? payload.value("messageId", "") : std::string();
@@ -2193,16 +2189,13 @@ void AgentHost::handle_undo_receipt(const std::string& envelope_id, const std::s
         return message.id == message_id && message.role == MessageRole::Note && !message.receipt.empty();
     });
     if (found == messages.end()) {
-        send_bridge_error("unknown_message", "No receipt \"" + message_id + "\" exists in this chat.", envelope_id);
-        return;
+        throw RuntimeError("jusprin-agent-bridge: undo_receipt names no receipt in this chat: " + message_id);
     }
     ConversationMessage receipt_note = *found;
     json                receipt      = json::parse(receipt_note.receipt);
     // A second press that arrived before the page redrew the first.
-    if (!receipt.contains("undo") || receipt.value("undone", false)) {
-        send_bridge_error("receipt_closed", translated(L("This save can no longer be undone.")), envelope_id);
+    if (!receipt.contains("undo") || receipt.value("undone", false))
         return;
-    }
     const json&       undo = receipt["undo"];
     const std::string name = receipt["name"];
     const std::string base = undo["base"];
@@ -2228,10 +2221,10 @@ void AgentHost::handle_undo_receipt(const std::string& envelope_id, const std::s
                                : Workspace::CommandResult::failure(Workspace::WorkspaceError::InvalidSettings, preview.issues.front().message);
     }
     document.set_change_anchor({});
-    if (!result.succeeded()) {
-        send_bridge_error("undo_failed", result.message, envelope_id);
-        return;
-    }
+    // The person can do nothing about an undo that cannot run, such as one
+    // of a copy deleted in the meantime.
+    if (!result.succeeded())
+        throw RuntimeError("jusprin-agent-bridge: undo_receipt could not undo " + name + ": " + result.message);
     receipt["undone"]    = true;
     receipt_note.receipt = receipt.dump();
     if (auto calibration = document.calibration(); calibration && calibration->contains("result")) {
@@ -2274,13 +2267,14 @@ bool AgentHost::checkpoint_active_chat()
 
 void AgentHost::handle_create_conversation(const std::string& envelope_id, const std::string& payload_json)
 {
-    if (m_chat_transition_blocked) {
-        send_bridge_error("recovery_required", translated(L("Project chat is blocked until restoration is recovered.")), envelope_id);
-        return;
-    }
+    // The page draws a blocked project chat read-only.
+    if (m_chat_transition_blocked)
+        throw RuntimeError("jusprin-agent-bridge: create_conversation while the project chat waits to be restored");
     cancel_conversation_title();
+    // Drawn greyed out while the app is busy: a press the page sent before
+    // it heard the app had become busy does nothing, and the page redraws.
     if (transition_busy()) {
-        send_bridge_error("busy", translated(L("Finish or resolve pending work before creating a chat.")), envelope_id);
+        send_state(envelope_id);
         return;
     }
     checkpoint_active_chat();
@@ -2316,8 +2310,7 @@ void AgentHost::handle_switch_conversation(const std::string& envelope_id, const
     const std::string conversation_id = payload.is_object() ? payload.value("conversationId", "") : std::string();
     ProjectStateDocument& document = m_persistence.document();
     if (!document.set_viewed_conversation(conversation_id)) {
-        send_bridge_error("unknown_conversation", "No conversation \"" + conversation_id + "\" exists.", envelope_id);
-        return;
+        throw RuntimeError("jusprin-agent-bridge: switch_conversation names no chat: " + conversation_id);
     }
     cancel_conversation_title();
     const auto checkpoint = document.chat_checkpoint(conversation_id);
@@ -2342,34 +2335,35 @@ void AgentHost::handle_switch_conversation(const std::string& envelope_id, const
 
 void AgentHost::handle_restore_conversation(const std::string& envelope_id, const std::string& payload_json)
 {
-    if (m_chat_transition_blocked) {
-        send_bridge_error("recovery_required", translated(L("Project chat is blocked until restoration is recovered.")), envelope_id);
-        return;
-    }
+    // The page draws a blocked project chat read-only.
+    if (m_chat_transition_blocked)
+        throw RuntimeError("jusprin-agent-bridge: restore_conversation while the project chat waits to be restored");
     const json payload = json::parse(payload_json, nullptr, false);
     ProjectStateDocument& document = m_persistence.document();
     if (!payload.is_object() || payload.value("conversationId", "") != document.viewed_conversation_id() ||
         payload.value("activeConversationId", "") != document.active_conversation_id() ||
         payload.value("docRevision", std::uint64_t(0)) != document.doc_revision()) {
-        send_bridge_error("stale_transition", translated(L("The project or selected chat changed. Review it again.")), envelope_id);
-        send_state();
+        // A press on what the page drew before the project or the chat moved
+        // on: the page redraws from the current state.
+        send_state(envelope_id);
         return;
     }
+    // Drawn greyed out while the app is busy: a press the page sent before
+    // it heard the app had become busy does nothing, and the page redraws.
     if (transition_busy()) {
-        send_bridge_error("busy", translated(L("Finish or resolve pending work before resuming a chat.")), envelope_id);
+        send_state(envelope_id);
         return;
     }
     const std::string target = document.viewed_conversation_id();
-    if (target == document.active_conversation_id()) {
-        send_bridge_error("invalid_transition", translated(L("This chat is already active.")), envelope_id);
-        return;
-    }
+    // Resume is drawn only on an earlier chat.
+    if (target == document.active_conversation_id())
+        throw RuntimeError("jusprin-agent-bridge: restore_conversation for the active chat");
     const auto checkpoint = document.chat_checkpoint(target);
     if (!checkpoint || !m_chat_version_exists ||
         !m_chat_version_exists(checkpoint->value("versionId", "")) || !m_restore_chat_version) {
-        send_bridge_error("checkpoint_unavailable", translated(L("JusPrin can't find the project version this chat was working on.")), envelope_id);
-        send_state();
-        return;
+        // Resume is drawn only while the chat's version exists.
+        throw RuntimeError("jusprin-agent-bridge: restore_conversation for chat " + target +
+                           ", whose saved project version is gone");
     }
     checkpoint_active_chat();
     // A restore that fails part way may leave the project between versions:
@@ -2389,8 +2383,9 @@ void AgentHost::handle_rename_conversation(const std::string& envelope_id, const
     const std::string id = payload.at("conversationId").get<std::string>();
     const std::string title = payload.at("title").get<std::string>();
     if (!is_valid_utf8(title) || !m_persistence.document().rename_conversation(id, title)) {
-        send_bridge_error("rename_failed", translated(L("Use a non-empty, single-line title of at most 120 characters for an existing chat.")),
-                          envelope_id);
+        // The rename box checks the same rule, and lists only existing chats.
+        throw RuntimeError("jusprin-agent-bridge: rename_conversation refused for " + id + ", a title of " +
+                           std::to_string(title.size()) + " bytes");
         return;
     }
     if (m_title && m_title->conversation_id == id) cancel_conversation_title();
@@ -2414,15 +2409,16 @@ void AgentHost::handle_delete_conversation(const std::string& envelope_id, const
         std::any_of(m_tools.activities().begin(), m_tools.activities().end(), [&](const auto& activity) {
             return belongs_to_chat(activity) && !tool_state_terminal(activity.state);
         })) {
-        send_bridge_error("busy", translated(L("This chat is still working. Stop it or let it finish, then delete it.")), envelope_id);
+        // Delete is greyed out while the chat works: a press the page sent
+        // before it heard so does nothing, and the page redraws.
+        send_state(envelope_id);
         return;
     }
     ProjectStateDocument& document = m_persistence.document();
     const std::string previous_active = document.active_conversation_id();
     const auto removed = document.delete_conversation(id, m_persistence.timestamp());
     if (!removed) {
-        send_bridge_error("unknown_conversation", translated(L("This chat no longer exists.")), envelope_id);
-        return;
+        throw RuntimeError("jusprin-agent-bridge: delete_conversation names no chat: " + id);
     }
     if (document.active_conversation_id() != previous_active)
         checkpoint_active_chat();
@@ -2434,10 +2430,9 @@ void AgentHost::handle_delete_conversation(const std::string& envelope_id, const
 
 void AgentHost::handle_draft_update(const std::string& payload_json)
 {
-    if (m_persistence.document().viewed_conversation_id() != m_persistence.document().active_conversation_id()) {
-        send_bridge_error("inactive_conversation", translated(L("Historical chats cannot edit the current draft.")));
-        return;
-    }
+    // The draft is the active chat's. An earlier chat's composer is locked,
+    // so an update that arrives while one is open is the active chat's last
+    // keystrokes, sent as the person opened the earlier chat.
     const json payload = json::parse(payload_json, nullptr, false);
     bool updated = false;
     if (payload.is_object() && payload.contains("text") && payload["text"].is_string()) {
@@ -2477,14 +2472,11 @@ void AgentHost::send_setup_status(const std::string&               phase,
 void AgentHost::handle_setup_check_key(const std::string& envelope_id, const std::string& payload_json)
 {
     cancel_conversation_title();
-    if (agent_busy()) {
-        send_bridge_error("busy", translated(L("Finish or stop the current reply before configuring AI.")), envelope_id);
-        return;
-    }
-    if (!m_setup) {
-        send_bridge_error("setup_unavailable", translated(L("This build cannot configure an AI provider.")), envelope_id);
-        return;
-    }
+    // Only Preferences sends this, and its host runs no reply.
+    if (agent_busy())
+        throw RuntimeError("jusprin-agent-bridge: configuring AI asked while a reply runs");
+    if (!m_setup)
+        throw std::logic_error("jusprin-agent-bridge: AI setup asked of a host with none");
     const json payload = json::parse(payload_json);
 
     SetupCredentials credentials;
@@ -2493,10 +2485,9 @@ void AgentHost::handle_setup_check_key(const std::string& envelope_id, const std
     credentials.model    = payload.value("model", "");
     credentials.endpoint = payload.value("endpoint", "");
 
-    if (credentials.api_key.empty()) {
-        send_bridge_error("invalid_payload", "setup_check_key requires an apiKey.", envelope_id);
-        return;
-    }
+    // The key field sends nothing while empty.
+    if (credentials.api_key.empty())
+        throw RuntimeError("jusprin-agent-bridge: setup_check_key carries no key");
     if (m_setup->busy()) {
         send_bridge_error("setup_busy", translated(L("A credential check is already running.")), envelope_id);
         return;
@@ -2529,29 +2520,21 @@ void AgentHost::handle_setup_remove_key(const std::string& envelope_id, const st
     // A chat title being written is not a reply; it gives way, as it does to
     // a key check.
     cancel_conversation_title();
-    if (!m_setup) {
-        send_bridge_error("setup_unavailable", translated(L("This build cannot configure an AI provider.")), envelope_id);
-        return;
-    }
-    if (agent_busy()) {
-        send_bridge_error("busy", translated(L("Finish or stop the current reply before removing a key.")), envelope_id);
-        return;
-    }
-    if (m_setup->busy()) {
-        send_bridge_error("setup_busy", translated(L("Finish or cancel the key check before removing a key.")), envelope_id);
-        return;
-    }
-    if (!remove_saved_key(json::parse(payload_json).value("provider", ""))) {
-        send_bridge_error("remove_failed", translated(L("That key could not be removed.")), envelope_id);
-        return;
-    }
+    if (!m_setup)
+        throw std::logic_error("jusprin-agent-bridge: AI setup asked of a host with none");
+    // Only Preferences sends this, and its host runs no reply.
+    if (agent_busy())
+        throw RuntimeError("jusprin-agent-bridge: removing a key asked while a reply runs");
+    // Remove is greyed out while a key is checked.
+    if (m_setup->busy())
+        throw RuntimeError("jusprin-agent-bridge: setup_remove_key while a key check runs");
+    remove_saved_key(json::parse(payload_json).value("provider", ""));
     send_setup_keys(envelope_id);
 }
 
-bool AgentHost::remove_saved_key(const std::string& provider)
+void AgentHost::remove_saved_key(const std::string& provider)
 {
-    if (!m_setup->remove_key(provider))
-        return false;
+    m_setup->remove_key(provider);
     m_rejected_keys.erase(provider);
 
     // The agent in use may hold the removed key. It is rebuilt from the keys
@@ -2565,7 +2548,6 @@ bool AgentHost::remove_saved_key(const std::string& provider)
     } else if (m_setup->saved_keys().empty()) {
         set_agent(nullptr, AgentAvailability::Unavailable);
     }
-    return true;
 }
 
 void AgentHost::handle_delete_account(const std::string& envelope_id)
@@ -2658,24 +2640,19 @@ void AgentHost::send_account_status(const std::string&               phase,
 void AgentHost::handle_account_sign_in(const std::string& envelope_id, bool stored)
 {
     ICloudSignIn* cloud = m_setup ? m_setup->cloud_sign_in() : nullptr;
-    if (cloud == nullptr) {
-        send_bridge_error("setup_unavailable", translated(L("This build cannot sign in to a JusPrin account.")), envelope_id);
-        return;
-    }
-    if (agent_busy()) {
-        send_bridge_error("busy", translated(L("Finish or stop the current reply before signing in.")), envelope_id);
-        return;
-    }
+    if (cloud == nullptr)
+        throw std::logic_error("jusprin-agent-bridge: a sign-in asked of a host with no account sign-in");
+    // Only Preferences sends this, and its host runs no reply.
+    if (agent_busy())
+        throw RuntimeError("jusprin-agent-bridge: signing in asked while a reply runs");
     if (m_setup->busy() || cloud->phase() != CloudSignInPhase::Idle) {
         send_bridge_error("setup_busy", translated(L("A sign-in or key check is already running.")), envelope_id);
         return;
     }
     cancel_conversation_title();
     if (stored) {
-        if (!cloud->check_stored()) {
-            send_bridge_error("not_signed_in", translated(L("There is no JusPrin account on this computer to check.")), envelope_id);
-            return;
-        }
+        if (!cloud->check_stored())
+            throw RuntimeError("jusprin-agent-bridge: account_check with no account on this computer");
         send_account_status("checking", envelope_id);
         return;
     }
@@ -2689,14 +2666,11 @@ void AgentHost::handle_account_sign_in(const std::string& envelope_id, bool stor
 void AgentHost::handle_account_email(const std::string& envelope_id, const std::string& payload_json)
 {
     ICloudSignIn* cloud = m_setup ? m_setup->cloud_sign_in() : nullptr;
-    if (cloud == nullptr) {
-        send_bridge_error("setup_unavailable", translated(L("This build cannot sign in to a JusPrin account.")), envelope_id);
-        return;
-    }
-    if (agent_busy()) {
-        send_bridge_error("busy", translated(L("Finish or stop the current reply before signing in.")), envelope_id);
-        return;
-    }
+    if (cloud == nullptr)
+        throw std::logic_error("jusprin-agent-bridge: a sign-in asked of a host with no account sign-in");
+    // Only Preferences sends this, and its host runs no reply.
+    if (agent_busy())
+        throw RuntimeError("jusprin-agent-bridge: signing in asked while a reply runs");
     if (m_setup->busy() || cloud->phase() != CloudSignInPhase::Idle) {
         send_bridge_error("setup_busy", translated(L("A sign-in or key check is already running.")), envelope_id);
         return;
@@ -2736,13 +2710,17 @@ void AgentHost::handle_account_open_link(const std::string& type, const std::str
 {
     ICloudSignIn* cloud = m_setup ? m_setup->cloud_sign_in() : nullptr;
     if (cloud == nullptr || !m_open_url)
-        return;
+        throw std::logic_error("jusprin-agent-bridge: " + type + " asked of a host with no account sign-in");
     std::string url;
     if (type == Protocol::kAccountReopen) {
         url = cloud->browser_url();
     } else {
-        const json payload = json::parse(payload_json, nullptr, false);
-        url = cloud->link_url(payload.is_object() ? payload.value("link", std::string()) : std::string());
+        // The page names only the links sign-in has.
+        const json        payload = json::parse(payload_json, nullptr, false);
+        const std::string link    = payload.is_object() ? payload.value("link", std::string()) : std::string();
+        url                       = cloud->link_url(link);
+        if (url.empty())
+            throw RuntimeError("jusprin-agent-bridge: account_open_link names no link sign-in has: " + link);
     }
     // Nothing to reopen once the browser is done, and no other page: the page
     // names a link, never a URL.
@@ -3525,10 +3503,9 @@ void AgentHost::start_conversation_title(const std::string& conversation_id)
         request.user_text = std::move(text);
     }
     if (!has_reply) return;
-    if (!m_agent->start(request)) {
-        send_bridge_error("title_generation_failed", translated(L("The automatic chat title could not be generated. You can rename the chat.")));
-        return;
-    }
+    // The reply that asked for it has just finished, so the service is free.
+    if (!m_agent->start(request))
+        throw std::logic_error("The AI service refused a chat title request right after a reply");
     m_title = PendingTitle{conversation_id, {}};
 }
 
@@ -3553,10 +3530,11 @@ void AgentHost::pump_conversation_title()
         send_conversations();
         return;
     }
-    // The reply remains usable when this optional metadata request fails;
-    // report that failure separately so it is visible and manually recoverable.
+    // A failure the person can act on (an unexpected one throws from poll,
+    // for the pump's report), or an answer that is no title: the chat stays
+    // untitled and asks again after its next reply, whose own request meets
+    // the same cause and says so.
     cancel_conversation_title();
-    send_bridge_error("title_generation_failed", translated(L("The automatic chat title could not be generated. You can rename the chat.")));
 }
 
 void AgentHost::start_next_queued_reply()
@@ -4189,16 +4167,17 @@ void AgentHost::handle_settings_action(const std::string& envelope_id, const std
     const auto digits = [](const std::string& value) {
         return !value.empty() && value.size() <= 20 && std::all_of(value.begin(), value.end(), [](char c) { return c >= '0' && c <= '9'; });
     };
-    if (edit.action == Workspace::OwnSettingAction::None || edit.kind.empty() || !digits(session) || !digits(object)) {
-        send_bridge_error("invalid_payload", "The settings action names no object or action.", envelope_id);
-        return;
-    }
+    // The All settings panel builds this payload itself.
+    if (edit.action == Workspace::OwnSettingAction::None || edit.kind.empty() || !digits(session) || !digits(object))
+        throw RuntimeError("jusprin-agent-bridge: settings_action names no object or action");
     // The person's own press: no AgentEdit scope, so the step it records in
     // the change log is the person's.
     const Workspace::CommandResult result = m_workspace.edit_own_setting(
         Workspace::ObjectId(Workspace::ProjectSessionId(std::stoull(session)), std::stoull(object)), edit);
-    if (!result.succeeded())
-        send_bridge_error("settings_action_failed", result.message, envelope_id);
+    // A second press before the table redrew the first finds nothing left
+    // to do; any other refusal is the app's.
+    if (!result.succeeded() && result.error != Workspace::WorkspaceError::NoChange)
+        throw RuntimeError("jusprin-agent-bridge: settings_action failed: " + result.message);
 }
 
 void AgentHost::handle_mcp_catalog(const std::string& envelope_id)
@@ -4343,10 +4322,8 @@ void AgentHost::handle_reveal_path(const std::string& envelope_id, const std::st
     const auto found = std::find_if(items.begin(), items.end(), [&](const auto& item) { return item.entry.id == tool_id; });
     if (found == items.end())
         throw RuntimeError("jusprin-agent-bridge: reveal_path names an unknown tool: " + tool_id);
-    if (!m_reveal_path) {
-        send_bridge_error("unsupported", translated(L("This build cannot open a file manager.")), envelope_id);
-        return;
-    }
+    if (!m_reveal_path)
+        throw std::logic_error("jusprin-agent-bridge: reveal_path reached a host with no file manager");
     m_reveal_path(found->config_path.u8string());
 }
 

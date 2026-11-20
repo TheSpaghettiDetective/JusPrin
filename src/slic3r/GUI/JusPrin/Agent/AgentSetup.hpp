@@ -76,9 +76,9 @@ public:
     // Every provider with a stored key, in provider_profiles() order.
     virtual std::vector<SavedKey> saved_keys() const = 0;
 
-    // Deletes one provider's stored key. False when there was none or it
+    // Deletes one provider's stored key; throws when there is none or it
     // could not be removed. For an account provider this is signing out.
-    virtual bool remove_key(const std::string& provider) = 0;
+    virtual void remove_key(const std::string& provider) = 0;
 
     // Signing in to a JusPrin account, where this build can; null otherwise.
     virtual ICloudSignIn* cloud_sign_in() { return nullptr; }
@@ -105,7 +105,7 @@ public:
     struct KeyStore
     {
         std::function<std::string(const std::string& provider)> load;
-        std::function<bool(const std::string& provider)>        remove;
+        std::function<void(const std::string& provider)>        remove;
     };
     using Clock            = std::function<std::chrono::steady_clock::time_point()>;
 
@@ -126,7 +126,7 @@ public:
     std::optional<SetupOutcome> poll() override;
     void                        commit(const SetupCredentials& credentials) override;
     std::vector<SavedKey>       saved_keys() const override;
-    bool                        remove_key(const std::string& provider) override;
+    void                        remove_key(const std::string& provider) override;
     ICloudSignIn*               cloud_sign_in() override { return m_cloud.get(); }
 
 private:

@@ -9,6 +9,7 @@
 #include "PreferencesSettings.hpp"
 
 #include "libslic3r/AppConfig.hpp"
+#include "libslic3r/Exception.hpp"
 #include "libslic3r/Utils.hpp"
 #include "libslic3r_version.h"
 #include "slic3r/GUI/GUI.hpp"
@@ -258,8 +259,9 @@ bool PreferencesWindow::on_page_message(const std::string& type, const json& pay
     const Outcome outcome = apply_action(*wxGetApp().app_config, payload);
     // Crashes go only while automatic reports are on.
     sentry_follow_setting(wxGetApp().app_config->get_bool(kReportErrorsKey));
+    // The page sends only the settings and actions this window has.
     if (!outcome.error.empty())
-        BOOST_LOG_TRIVIAL(warning) << "JusPrin Preferences refused an action: " << outcome.error;
+        throw RuntimeError("jusprin-preferences: refused " + payload.dump() + ": " + outcome.error);
     // The page draws what is stored, so a refused change springs back.
     push_state();
     if (outcome.error.empty() && outcome.effect != Effect::None) {

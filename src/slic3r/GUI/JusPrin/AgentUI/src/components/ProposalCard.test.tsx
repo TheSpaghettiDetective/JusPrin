@@ -66,7 +66,7 @@ describe('the proposal card', () => {
     expect(onSaveProposal).toHaveBeenCalledWith('a-1');
   });
 
-  it('waits while the save runs, says why it failed, and goes once saved', () => {
+  it('waits while the save runs, says that it failed, and goes once saved', () => {
     const save = activity('a-2', 'm-2', { tool: 'settings_apply_patch', approves: 'a-1', state: 'running' });
     const { rerender } = thread([photo, called, spoke], [preview, save]);
     expect(screen.getByRole('button', { name: 'Saving…' })).toBeDisabled();
@@ -77,7 +77,9 @@ describe('the proposal card', () => {
       <MessageList messages={[photo, called, spoke]} attachments={[]} streamingMessageId={null} toolActivities={[preview, failed]}
         gcodeMarkers={[]} changes={[]} onRetry={noop} onToolCancel={noop} onSend={noop} />,
     );
-    expect(screen.getByRole('alert')).toHaveTextContent('The workspace changed.');
+    // The error is the model's; the card says the project changed first.
+    expect(screen.getByRole('alert')).toHaveTextContent('The project changed before this could run. Ask AI again.');
+    expect(screen.queryByText(/Read and preview/)).toBeNull();
     expect(screen.getByRole('button', { name: 'Save preset' })).toBeEnabled();
     rerender(
       <MessageList messages={[photo, called, spoke]} attachments={[]} streamingMessageId={null}
@@ -89,6 +91,13 @@ describe('the proposal card', () => {
 
   it('says it was not saved once the person answered another way', () => {
     thread([photo, called, spoke, message('m-4', 'user', 'Pick another block')], [preview]);
+    const card = screen.getByRole('group', { name: proposal.title });
+    expect(card).toHaveTextContent('Not saved');
+    expect(card.querySelector('button')).toBeNull();
+  });
+
+  it('says it was not saved once the app no longer holds its preview', () => {
+    thread([photo, called, spoke], [{ ...preview, proposal: { ...proposal, closed: true } }]);
     const card = screen.getByRole('group', { name: proposal.title });
     expect(card).toHaveTextContent('Not saved');
     expect(card.querySelector('button')).toBeNull();

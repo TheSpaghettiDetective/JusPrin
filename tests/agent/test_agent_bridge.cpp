@@ -9,6 +9,7 @@
 #include <catch2/catch_all.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers.hpp>
+#include <catch2/matchers/catch_matchers_string.hpp>
 #include <catch2/generators/catch_generators.hpp>
 
 #include "slic3r/GUI/JusPrin/Agent/AgentHost.hpp"
@@ -520,25 +521,31 @@ TEST_CASE("settings_action makes the panel's edit as the person's own step", "[a
     CHECK((*harness.last_of_type("change_added"))["payload"]["change"]["label"] == "Remove support blocker");
     CHECK(harness.workspace.catalog.objects[0].overrides.size() == 1);
 
-    SECTION("a refusal comes back as a bridge error, and changes nothing")
+    SECTION("a second press of what is already done changes nothing and says nothing")
     {
         harness.deliver("settings_action", json{{"sessionId", session}, {"objectId", std::to_string(id.value())},
                                                 {"action", "remove"}, {"kind", "support blocker"}});
-        const json* error = harness.last_of_type("bridge_error");
-        REQUIRE(error != nullptr);
-        CHECK((*error)["payload"]["code"] == "settings_action_failed");
-        CHECK((*error)["payload"]["message"] == "bracket v3 no longer sets that itself");
+        CHECK(harness.last_of_type("bridge_error") == nullptr);
         CHECK(harness.of_type("change_added").size() == changes + 2);
     }
 
-    SECTION("a payload without an object or a known action is refused before the workspace sees it")
+    SECTION("an action the app cannot do stops, with the workspace's own words, for the report")
+    {
+        CHECK_THROWS_WITH(harness.deliver("settings_action", json{{"sessionId", session}, {"objectId", "999"},
+                                                                  {"action", "remove"}, {"kind", "support blocker"}}),
+                          Catch::Matchers::ContainsSubstring("Object does not exist in the current project session"));
+        CHECK(harness.last_of_type("bridge_error") == nullptr);
+    }
+
+    SECTION("a payload without an object or a known action stops before the workspace sees it")
     {
         const std::size_t seen = harness.workspace.own_setting_edits.size();
-        harness.deliver("settings_action", json{{"sessionId", session}, {"objectId", std::to_string(id.value())},
-                                                {"action", "rename"}, {"kind", "modifier"}});
-        CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "invalid_payload");
-        harness.deliver("settings_action", json{{"action", "remove"}, {"kind", "support blocker"}});
-        CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "invalid_payload");
+        CHECK_THROWS_AS(harness.deliver("settings_action", json{{"sessionId", session}, {"objectId", std::to_string(id.value())},
+                                                                {"action", "rename"}, {"kind", "modifier"}}),
+                        Slic3r::RuntimeError);
+        CHECK_THROWS_AS(harness.deliver("settings_action", json{{"action", "remove"}, {"kind", "support blocker"}}),
+                        Slic3r::RuntimeError);
+        CHECK(harness.last_of_type("bridge_error") == nullptr);
         CHECK(harness.workspace.own_setting_edits.size() == seen);
     }
 }
@@ -609,10 +616,11 @@ TEST_CASE("an unsupported page version is rejected and other traffic requires th
         CHECK(harness.sent.size() == before);
     }
 
-    SECTION("an unknown message type is still answered") {
+    SECTION("an unknown message type stops for the report") {
         harness.handshake();
-        harness.deliver("launch_missiles");
-        CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "unknown_type");
+        CHECK_THROWS_WITH(harness.deliver("launch_missiles"),
+                          Catch::Matchers::ContainsSubstring("\"launch_missiles\" is not part of this protocol version"));
+        CHECK(harness.last_of_type("bridge_error") == nullptr);
     }
 
     SECTION("an error the page did not catch reaches the web view's reporter") {
@@ -780,18 +788,22 @@ TEST_CASE("failure and retry follow the deterministic scenarios", "[agent][conve
         const std::string reply_id = (*harness.last_of_type("assistant_failed"))["payload"]["messageId"].get<std::string>();
 
         harness.deliver("retry_message", json{{"messageId", reply_id}});
+        // A second press before the page redrew the first: the retry is
+        // already under way, and nothing more happens.
+        harness.deliver("retry_message", json{{"messageId", reply_id}});
+        CHECK(harness.last_of_type("bridge_error") == nullptr);
         harness.pump_all();
         REQUIRE(harness.last_of_type("assistant_completed") != nullptr);
         CHECK(harness.host.conversation().back().state == MessageState::Complete);
         CHECK_THAT(harness.host.conversation().back().text, Catch::Matchers::ContainsSubstring("attempt 2"));
     }
 
-    SECTION("retrying a completed message is refused") {
+    SECTION("retrying a completed message stops: the page offers Retry only on a failed or stopped reply") {
         harness.send_user_message("hello", "c-ok");
         harness.pump_all();
         const std::string reply_id = (*harness.last_of_type("assistant_completed"))["payload"]["messageId"].get<std::string>();
-        harness.deliver("retry_message", json{{"messageId", reply_id}});
-        CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "invalid_retry");
+        CHECK_THROWS_AS(harness.deliver("retry_message", json{{"messageId", reply_id}}), Slic3r::RuntimeError);
+        CHECK(harness.last_of_type("bridge_error") == nullptr);
     }
 }
 
@@ -1491,12 +1503,11 @@ TEST_CASE("a project request carries the page's instructions, unchanged on every
     harness.pump_all();
 
     // Neither empty nor too long replaces what the page sent before.
-    const std::size_t errors = harness.of_type("bridge_error").size();
-    harness.deliver("project_instructions", json{{"text", ""}});
-    REQUIRE(harness.of_type("bridge_error").size() == errors + 1);
-    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "invalid_payload");
-    harness.deliver("project_instructions", json{{"text", std::string(32 * 1024 + 1, 'x')}});
-    CHECK(harness.of_type("bridge_error").size() == errors + 2);
+    // The page's own file never sends either, so each stops, for the report.
+    CHECK_THROWS_AS(harness.deliver("project_instructions", json{{"text", ""}}), Slic3r::RuntimeError);
+    CHECK_THROWS_AS(harness.deliver("project_instructions", json{{"text", std::string(32 * 1024 + 1, 'x')}}),
+                    Slic3r::RuntimeError);
+    CHECK(harness.last_of_type("bridge_error") == nullptr);
     harness.send_user_message("Thanks.", "c-third");
     harness.pump_all();
 
@@ -1790,21 +1801,27 @@ TEST_CASE("conversations are created and switched over the bridge", "[agent][con
     CHECK((*switched)["payload"]["viewedConversationId"] == first);
     CHECK((*switched)["payload"]["conversation"][0]["text"] == "hello in the first conversation");
 
-    harness.send_user_message("should not land in history", "c-old");
-    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "inactive_conversation");
+    // The page draws an earlier chat read-only, so a message for it stops.
+    CHECK_THROWS_AS(harness.send_user_message("should not land in history", "c-old"), Slic3r::RuntimeError);
     CHECK(harness.persistence.document().messages(first).size() == 2);
 
-    SECTION("switching to an unknown conversation is refused") {
-        harness.deliver("switch_conversation", json{{"conversationId", "c-999"}});
-        CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "unknown_conversation");
+    SECTION("switching to an unknown conversation stops") {
+        CHECK_THROWS_AS(harness.deliver("switch_conversation", json{{"conversationId", "c-999"}}), Slic3r::RuntimeError);
     }
 
     SECTION("changing conversations is refused while a reply streams") {
         harness.deliver("switch_conversation", json{{"conversationId", second}});
         harness.send_user_message("/slow tell me more", "c-c3");
         REQUIRE(harness.host.stream_active());
+        // New chat is greyed out while a reply streams: a press the page sent
+        // before it heard does nothing, and the page redraws.
+        const std::size_t chats = harness.persistence.document().conversations().size();
+        const std::size_t sent = harness.sent.size();
         harness.deliver("create_conversation", json::object());
-        CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "busy");
+        CHECK(harness.last_of_type("bridge_error") == nullptr);
+        CHECK(harness.persistence.document().conversations().size() == chats);
+        REQUIRE(harness.sent.size() > sent);
+        CHECK(harness.sent.back()["type"] == "state");
         harness.deliver("switch_conversation", json{{"conversationId", first}});
         CHECK((*harness.last_of_type("state"))["payload"]["viewedConversationId"] == first);
         CHECK((*harness.last_of_type("state"))["payload"]["activeConversationId"] == second);
@@ -1994,7 +2011,8 @@ TEST_CASE("inactive chat resume checks authority and revision, and each chat kee
     harness.deliver("restore_conversation", json{{"conversationId", first},
                                                   {"activeConversationId", second},
                                                   {"docRevision", payload["docRevision"].get<std::uint64_t>() - 1}});
-    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "stale_transition");
+    // A press on what the page drew before the project moved on: it redraws.
+    CHECK(harness.last_of_type("bridge_error") == nullptr);
     CHECK(harness.persistence.document().active_conversation_id() == second);
 
     const json fresh = (*harness.last_of_type("state"))["payload"];
@@ -2010,6 +2028,45 @@ TEST_CASE("inactive chat resume checks authority and revision, and each chat kee
     CHECK(document.plan(second).headline == "Four walls and gyroid infill for strength");
     CHECK((*harness.last_of_type("state"))["payload"]["context"]["planHeadline"] ==
           "Coarse layers and low infill for a quick fit check");
+}
+
+// Requests the chat page never sends stop for the report, with no sentence of
+// their own.
+TEST_CASE("requests the chat page never sends stop for the report", "[agent][conversations]")
+{
+    Harness harness;
+    std::string current_version = "v-1";
+    bool version_kept = true;
+    harness.host.set_chat_checkpoint_callbacks(
+        [&] { return current_version; }, [&] { return current_version; },
+        [&version_kept](const std::string&) { return version_kept; }, [] {},
+        [](const std::string&, const std::string&) {});
+    harness.handshake();
+    harness.host.checkpoint_active_chat();
+    const std::string first = harness.persistence.document().active_conversation_id();
+    harness.deliver("create_conversation", json::object());
+    const std::string second = harness.persistence.document().active_conversation_id();
+    REQUIRE(second != first);
+    // The project moved on after the first chat, so opening it again does
+    // not make it active.
+    current_version = "v-2";
+
+    // The page names every file it reads.
+    CHECK_THROWS_WITH(harness.deliver("attach_file", json{{"clientAttachmentId", "a-1"}, {"name", ""}, {"source", "clipboard"},
+                                                          {"dataBase64", "data:image/png;base64,AAAA"}}),
+                      Catch::Matchers::ContainsSubstring("carries no file name"));
+    // The page sends a message to the chat it shows as active.
+    CHECK_THROWS_WITH(harness.deliver("user_message", json{{"clientMessageId", "c-1"}, {"text", "Hello."}, {"conversationId", first}}),
+                      Catch::Matchers::ContainsSubstring("while " + second + " is active"));
+    // Resume is drawn only while the chat's saved version exists.
+    harness.deliver("switch_conversation", json{{"conversationId", first}});
+    version_kept = false;
+    const json state = (*harness.last_of_type("state"))["payload"];
+    CHECK_THROWS_WITH(harness.deliver("restore_conversation", json{{"conversationId", first}, {"activeConversationId", second},
+                                                                   {"docRevision", state["docRevision"]}}),
+                      Catch::Matchers::ContainsSubstring("whose saved project version is gone"));
+    CHECK(harness.last_of_type("bridge_error") == nullptr);
+    CHECK(harness.persistence.document().active_conversation_id() == second);
 }
 
 TEST_CASE("failed chat restoration keeps project input blocked", "[agent][conversations]")
@@ -2039,9 +2096,9 @@ TEST_CASE("failed chat restoration keeps project input blocked", "[agent][conver
     harness.deliver("switch_conversation", json{{"conversationId", first}});
     CHECK(harness.persistence.document().active_conversation_id() == second);
     harness.deliver("switch_conversation", json{{"conversationId", second}});
-    harness.deliver("user_message", json{{"clientMessageId", "blocked-send"},
-                                         {"text", "try to continue"}});
-    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "recovery_required");
+    // The page draws a blocked project chat read-only, so a message stops.
+    CHECK_THROWS_AS(harness.deliver("user_message", json{{"clientMessageId", "blocked-send"}, {"text", "try to continue"}}),
+                    Slic3r::RuntimeError);
 }
 
 // What the host sends the page is built from its own stored records: one that
@@ -2118,9 +2175,11 @@ TEST_CASE("the draft is kept until it is sent", "[agent][draft]")
     const std::string first = harness.persistence.document().active_conversation_id();
     harness.deliver("create_conversation", json::object());
     harness.deliver("switch_conversation", json{{"conversationId", first}});
-    harness.deliver("draft_update", json{{"text", "forged historical draft"}});
-    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "inactive_conversation");
-    CHECK(harness.persistence.draft() == "half-typed thought\n\nFrom earlier chat: saved excerpt");
+    // The active chat's last keystrokes, sent as the person opened the
+    // earlier chat: kept, with nothing said.
+    harness.deliver("draft_update", json{{"text", "typed just before"}});
+    CHECK(harness.last_of_type("bridge_error") == nullptr);
+    CHECK(harness.persistence.draft() == "typed just before");
     harness.deliver("switch_conversation", json{{"conversationId", harness.persistence.document().active_conversation_id()}});
 
     harness.send_user_message("half-typed thought, finished", "c-d1");
@@ -3050,14 +3109,12 @@ TEST_CASE("a dropped file is attached only when the page answers for the latest 
     CHECK(h.sent.size() == before);
 }
 
-TEST_CASE("pick_attachment without a dialog says so", "[agent][attachments]")
+TEST_CASE("pick_attachment on a host with no file dialog is a bug in the app", "[agent][attachments]")
 {
     Harness h;
     h.handshake();
-    h.deliver("pick_attachment", json{{"kind", "image"}});
-    const json* error = h.last_of_type("bridge_error");
-    REQUIRE(error != nullptr);
-    CHECK((*error)["payload"]["code"] == "unsupported");
+    CHECK_THROWS_AS(h.deliver("pick_attachment", json{{"kind", "image"}}), std::logic_error);
+    CHECK(h.last_of_type("bridge_error") == nullptr);
     CHECK(h.last_of_type("attachment_updated") == nullptr);
 }
 
@@ -3293,11 +3350,9 @@ TEST_CASE("an attachment-only message is accepted but an empty one is not", "[ag
         h.deliver("user_message", json{{"clientMessageId", "c-1"}, {"text", ""}, {"attachmentIds", json::array({attached["id"]})}});
         CHECK(h.last_of_type("message_added") != nullptr);
     }
-    SECTION("a message with neither text nor attachment is refused") {
-        const std::size_t before = h.of_type("bridge_error").size();
-        h.deliver("user_message", json{{"clientMessageId", "c-2"}, {"text", ""}});
-        REQUIRE(h.of_type("bridge_error").size() == before + 1);
-        CHECK(h.of_type("bridge_error").back()["payload"]["code"] == "invalid_payload");
+    SECTION("a message with neither text nor attachment stops: the composer cannot send one") {
+        CHECK_THROWS_AS(h.deliver("user_message", json{{"clientMessageId", "c-2"}, {"text", ""}}), Slic3r::RuntimeError);
+        CHECK(h.last_of_type("bridge_error") == nullptr);
     }
 }
 
@@ -3610,7 +3665,11 @@ public:
         return saved;
     }
 
-    bool remove_key(const std::string& provider) override { return stored.erase(provider) > 0; }
+    void remove_key(const std::string& provider) override
+    {
+        if (stored.erase(provider) == 0)
+            throw std::runtime_error("no key stored for " + provider);
+    }
     ICloudSignIn* cloud_sign_in() override { return cloud; }
 
     void answer_verified(int elapsed_ms = 800)
@@ -3700,7 +3759,7 @@ public:
         return link == "terms" ? "https://www.obico.io/terms.html" : std::string();
     }
     std::optional<CloudAccountRecord> account() const override { return std::nullopt; }
-    bool                              sign_out() override { return false; }
+    void                              sign_out() override { throw std::runtime_error("no account stored"); }
 
     // The server's answer, which the next poll reads: the step is no longer
     // busy, and is now `step`.
@@ -3806,9 +3865,11 @@ TEST_CASE("the account signs in by email inside the page, step by step, as first
     harness.host.pump_setup();
     CHECK((*harness.last_of_type("account_status"))["payload"]["email"]["refusal"] == "wrong_code");
 
-    // The page names a link, never a URL; an unknown name opens nothing.
+    // The page names a link, never a URL; an unknown name opens nothing and
+    // stops for the report.
     harness.deliver("account_open_link", json{{"link", "terms"}});
-    harness.deliver("account_open_link", json{{"link", "https://elsewhere.test/"}});
+    CHECK_THROWS_WITH(harness.deliver("account_open_link", json{{"link", "https://elsewhere.test/"}}),
+                      Catch::Matchers::ContainsSubstring("names no link sign-in has"));
     CHECK(opened == std::vector<std::string>{"https://www.obico.io/terms.html"});
 
     harness.deliver("account_cancel");
@@ -3953,9 +4014,8 @@ TEST_CASE("setup rejects an empty key and a second concurrent check", "[agent][s
     Harness harness(setup);
     harness.handshake();
 
-    harness.deliver("setup_check_key", json{{"provider", "openai"}, {"apiKey", ""}});
-    REQUIRE(harness.last_of_type("bridge_error") != nullptr);
-    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "invalid_payload");
+    // The key field sends nothing while empty.
+    CHECK_THROWS_AS(harness.deliver("setup_check_key", json{{"provider", "openai"}, {"apiKey", ""}}), Slic3r::RuntimeError);
     CHECK(setup->started.empty());
 
     harness.deliver("setup_check_key", check_key_payload());
@@ -3982,15 +4042,13 @@ TEST_CASE("cancelling a check returns the dock to its offer", "[agent][setup]")
     REQUIRE(setup->started.size() == 2);
 }
 
-TEST_CASE("a build with no setup service says so rather than accepting the key", "[agent][setup]")
+TEST_CASE("a key sent to a host with no setup service is a bug in the app, not accepted", "[agent][setup]")
 {
     Harness harness(AgentAvailability::Unavailable);
     harness.handshake();
 
-    harness.deliver("setup_check_key", check_key_payload());
-    const json* error = harness.last_of_type("bridge_error");
-    REQUIRE(error != nullptr);
-    CHECK((*error)["payload"]["code"] == "setup_unavailable");
+    CHECK_THROWS_AS(harness.deliver("setup_check_key", check_key_payload()), std::logic_error);
+    CHECK(harness.last_of_type("bridge_error") == nullptr);
     CHECK(harness.last_of_type("setup_status") == nullptr);
 }
 
@@ -4157,9 +4215,10 @@ TEST_CASE("Remove deletes the provider's key and rebuilds the Agent from the key
     harness.pump_all();
     CHECK(harness.last_of_type("assistant_completed") != nullptr);
 
-    // A provider with no key, or none this build knows, is refused.
-    harness.deliver("setup_remove_key", json{{"provider", "openai"}});
-    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "remove_failed");
+    // Remove is drawn only on a stored key: removing one that is not there
+    // stops for the report, with no sentence of its own.
+    CHECK_THROWS(harness.deliver("setup_remove_key", json{{"provider", "openai"}}));
+    CHECK(harness.last_of_type("bridge_error") == nullptr);
 
     // The last key goes: nothing is left to talk to.
     harness.deliver("setup_remove_key", json{{"provider", "anthropic"}});
@@ -4179,8 +4238,8 @@ TEST_CASE("a key is not removed while a reply or a key check is running", "[agen
     {
         harness.handshake();
         harness.deliver("setup_check_key", json{{"provider", "openai"}, {"apiKey", "sk-proj-TESTONLY-new-key-000000"}});
-        harness.deliver("setup_remove_key", json{{"provider", "openai"}});
-        CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "setup_busy");
+        // Remove is greyed out while a key is checked.
+        CHECK_THROWS_AS(harness.deliver("setup_remove_key", json{{"provider", "openai"}}), Slic3r::RuntimeError);
         CHECK(setup->stored.count("openai") == 1);
     }
     SECTION("a reply")
@@ -4191,8 +4250,8 @@ TEST_CASE("a key is not removed while a reply or a key check is running", "[agen
         harness.handshake();
         harness.send_user_message("hello", "c-streaming");
         REQUIRE(harness.host.stream_active());
-        harness.deliver("setup_remove_key", json{{"provider", "openai"}});
-        CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "busy");
+        // Only Preferences removes a key, and its host runs no reply.
+        CHECK_THROWS_AS(harness.deliver("setup_remove_key", json{{"provider", "openai"}}), Slic3r::RuntimeError);
         CHECK(setup->stored.count("openai") == 1);
         // The reply that was streaming finishes on the agent it started on.
         harness.pump_all();
@@ -4403,8 +4462,10 @@ TEST_CASE("chat deletion validates state and cannot affect another project", "[a
     harness.handshake();
     const auto id = harness.persistence.document().active_conversation_id();
     harness.send_user_message("Print this frame", "delete-user");
+    // Delete is greyed out while the chat works: a press the page sent
+    // before it heard does nothing.
     harness.deliver("delete_conversation", json{{"conversationId", id}});
-    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "busy");
+    CHECK(harness.last_of_type("bridge_error") == nullptr);
     CHECK(harness.persistence.document().conversations().size() == 1);
     harness.pump_all();
     const auto revision = harness.workspace.snapshot().revision;
@@ -4413,10 +4474,11 @@ TEST_CASE("chat deletion validates state and cannot affect another project", "[a
     CHECK(harness.persistence.document().active_conversation_id() != id);
     CHECK(harness.host.conversation().empty());
     CHECK(harness.workspace.snapshot().revision == revision);
-    harness.deliver("rename_conversation", json{{"conversationId", id}, {"title", "Old chat"}});
-    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "rename_failed");
-    harness.deliver("delete_conversation", json{{"conversationId", "another-project-chat"}});
-    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "unknown_conversation");
+    // The page offers neither for a chat it no longer lists.
+    CHECK_THROWS_AS(harness.deliver("rename_conversation", json{{"conversationId", id}, {"title", "Old chat"}}),
+                    Slic3r::RuntimeError);
+    CHECK_THROWS_AS(harness.deliver("delete_conversation", json{{"conversationId", "another-project-chat"}}),
+                    Slic3r::RuntimeError);
     CHECK(harness.persistence.document().conversations().size() == 1);
 }
 
@@ -4447,7 +4509,11 @@ TEST_CASE("a title failure stays separate from a successful conversation", "[age
     harness.host.pump_stream();
     CHECK(harness.host.conversation().size() == 2);
     CHECK(harness.host.conversation().back().state == MessageState::Complete);
-    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "title_generation_failed");
+    // A title is the app's own extra: a request for one that fails, for a
+    // cause the person can act on, says nothing, and their next message
+    // meets the cause with its own sentence. The chat keeps no title.
+    CHECK(harness.last_of_type("bridge_error") == nullptr);
+    CHECK(harness.persistence.document().needs_conversation_title(harness.persistence.document().active_conversation_id()));
     harness.deliver("rename_conversation", json{{"conversationId", harness.persistence.document().active_conversation_id()},
                                               {"title", "My print"}});
     CHECK(harness.persistence.document().conversations().front().title == "My print");
@@ -4905,6 +4971,16 @@ json state_work(Harness& harness)
 
 } // namespace
 
+TEST_CASE("starting and ending work tells the page the document revision it moved to", "[agent][work]")
+{
+    Harness harness{std::make_unique<RecordingAgent>()};
+    harness.handshake();
+    const std::string id = harness.host.begin_work("slice", "Slicing plate 1", true);
+    CHECK((*harness.last_of_type("work_updated"))["payload"]["docRevision"] == harness.persistence.document().doc_revision());
+    harness.host.finish_work(id, "succeeded");
+    CHECK((*harness.last_of_type("work_updated"))["payload"]["docRevision"] == harness.persistence.document().doc_revision());
+}
+
 TEST_CASE("work the app runs is saved where it started and completed in place", "[agent][work]")
 {
     Harness harness{std::make_unique<RecordingAgent>()};
@@ -5080,11 +5156,10 @@ TEST_CASE("the skills message is taken whole or refused whole", "[agent][skills]
     };
     for (std::size_t index = 0; index < refused.size(); ++index) {
         INFO("payload " << index << ": " << refused[index].dump().substr(0, 200));
-        const std::size_t errors = harness.of_type("bridge_error").size();
-        harness.deliver("skills", refused[index]);
-        REQUIRE(harness.of_type("bridge_error").size() == errors + 1);
-        CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "invalid_payload");
+        // The page sends only its own bundled skills, so a bad one stops.
+        CHECK_THROWS_AS(harness.deliver("skills", refused[index]), Slic3r::RuntimeError);
     }
+    CHECK(harness.last_of_type("bridge_error") == nullptr);
 
     // None of them replaced the skills received with the handshake.
     harness.host.on_file_loaded(prusa_open());
@@ -5693,9 +5768,12 @@ TEST_CASE("the skills message takes described skills and refuses bad description
     Harness harness;
     harness.handshake();
     const auto refused = [&harness](const json& skill) {
-        const std::size_t errors = harness.of_type("bridge_error").size();
-        harness.deliver("skills", json{{"skills", json::array({skill})}});
-        return harness.of_type("bridge_error").size() == errors + 1;
+        try {
+            harness.deliver("skills", json{{"skills", json::array({skill})}});
+        } catch (const Slic3r::RuntimeError&) {
+            return harness.last_of_type("bridge_error") == nullptr;
+        }
+        return false;
     };
     CHECK(refused(json{{"name", "neither"}, {"text", "No trigger, no description."}}));
     CHECK(refused(json{{"name", "two-lines"}, {"description", "One\nTwo"}, {"text", "x"}}));
@@ -6777,10 +6855,12 @@ TEST_CASE("a preset the Agent proposes is saved by the person's Save preset, wit
     CHECK(undo_note.rfind("Fixture PLA") > copy_named);
     CHECK(last_reply(*agent).source == note["id"]);
     CHECK(last_reply(*agent).note == undo_note);
-    // A second press has nothing left to undo.
+    // A second press, before the page redrew the first, has nothing left
+    // to undo and says nothing.
+    const std::size_t notes = harness.host.conversation().size();
     harness.deliver("undo_receipt", json{{"messageId", note["id"]}});
-    REQUIRE(harness.last_of_type("bridge_error") != nullptr);
-    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "receipt_closed");
+    CHECK(harness.last_of_type("bridge_error") == nullptr);
+    CHECK(harness.host.conversation().size() == notes);
 }
 
 TEST_CASE("a proposal the person answered another way saves nothing", "[agent][tools][settings]")
@@ -6798,12 +6878,45 @@ TEST_CASE("a proposal the person answered another way saves nothing", "[agent][t
     REQUIRE(preview != activities.end());
     const std::string preview_id = preview->action_id;
     run_reply(harness, *agent, "Pick another block");
-    harness.deliver("save_proposal", json{{"actionId", preview_id}});
-    const json* error = harness.last_of_type("bridge_error");
-    REQUIRE(error != nullptr);
-    CHECK((*error)["payload"]["code"] == "proposal_closed");
+    // The page draws the card "Not saved" with no Save, so a press stops.
+    CHECK_THROWS_AS(harness.deliver("save_proposal", json{{"actionId", preview_id}}), Slic3r::RuntimeError);
+    CHECK(harness.last_of_type("bridge_error") == nullptr);
     pump_tools_to_completion(harness);
     CHECK(harness.workspace.settings_for_testing().filaments.count("Fixture PLA · MK4 calibrated") == 0);
+}
+
+// The preview a proposal saves through lives only while the project stays
+// open. A reopen or a restart leaves only its record in the project's
+// document, and that card says it was not saved, with no Save.
+TEST_CASE("a proposal with no live preview offers no Save", "[agent][tools][settings]")
+{
+    auto agent_owner = std::make_unique<OneCallAgent>();
+    OneCallAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    const json patch{{"scope", "filament"}, {"target", {{"preset", "Fixture PLA"}}}, {"changes", {{"nozzle_temperature", "225"}}},
+                     {"persistAs", "Fixture PLA · MK4 calibrated"}};
+    run_call(harness, *agent, ToolRequest{"settings_preview_patch", patch.dump()}, "Here it is.");
+    const auto& activities = harness.host.tools().activities();
+    const auto live = std::find_if(activities.begin(), activities.end(),
+                                   [](const ToolActivity& item) { return item.tool == "settings_preview_patch"; });
+    REQUIRE(live != activities.end());
+    // The same proposal as an earlier opening of the project stored it.
+    ToolActivity stored = *live;
+    stored.action_id = "a-earlier-opening";
+    harness.persistence.document().upsert_activity(stored, harness.persistence.timestamp());
+    harness.host.refresh_page_state();
+    const auto card = [&harness](const std::string& id) {
+        for (const json& activity : (*harness.last_of_type("state"))["payload"]["toolActivities"])
+            if (activity["actionId"] == id)
+                return activity["proposal"];
+        return json();
+    };
+    CHECK_FALSE(card(live->action_id).value("closed", false));
+    CHECK(card("a-earlier-opening").value("closed", false));
+    CHECK_THROWS_WITH(harness.deliver("save_proposal", json{{"actionId", "a-earlier-opening"}}),
+                      Catch::Matchers::ContainsSubstring("names no live preview"));
+    CHECK(harness.last_of_type("bridge_error") == nullptr);
 }
 
 // A second test's result saved into the calibrated copy it already made:
@@ -6876,6 +6989,38 @@ TEST_CASE("an undo whose preview refuses without a reason is an unexpected error
     CHECK_THROWS_AS(harness.deliver("undo_receipt", json{{"messageId", receipt["id"]}}), std::logic_error);
     CHECK(harness.sent.size() == sent);
     CHECK(harness.workspace.settings_for_testing().filaments.at(copy).saved.at("nozzle_temperature") == "220");
+}
+
+// The person can do nothing about an undo that cannot run, such as one of a
+// saved copy deleted in the meantime: it stops with the workspace's own
+// words, for the report, and the chat shows none of them.
+TEST_CASE("an undo the workspace refuses stops, with the workspace's words", "[agent][tools][settings]")
+{
+    auto agent_owner = std::make_unique<OneCallAgent>();
+    OneCallAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    const std::string copy = "Fixture PLA · MK4 calibrated";
+    run_call(harness, *agent,
+             ToolRequest{"settings_preview_patch",
+                         json{{"scope", "filament"}, {"target", {{"preset", "Fixture PLA"}}}, {"changes", {{"nozzle_temperature", "225"}}},
+                              {"persistAs", copy}}.dump()},
+             "Here it is.");
+    const auto& activities = harness.host.tools().activities();
+    const auto  preview    = std::find_if(activities.rbegin(), activities.rend(),
+                                          [](const ToolActivity& item) { return item.tool == "settings_preview_patch"; });
+    REQUIRE(preview != activities.rend());
+    harness.deliver("save_proposal", json{{"actionId", preview->action_id}});
+    pump_tools_to_completion(harness);
+    harness.host.pump_tools();
+    harness.pump_all();
+    const json receipt = (*harness.last_of_type("message_added"))["payload"]["message"];
+    REQUIRE(receipt["receipt"]["undo"]["newCopy"] == true);
+
+    harness.workspace.settings_for_testing().filaments.erase(copy);
+    CHECK_THROWS_WITH(harness.deliver("undo_receipt", json{{"messageId", receipt["id"]}}),
+                      Catch::Matchers::ContainsSubstring(copy));
+    CHECK(harness.last_of_type("bridge_error") == nullptr);
 }
 
 // The history guard. A provider bills the part of a request it has seen
@@ -7358,16 +7503,18 @@ TEST_CASE("a retry after the provider took the turn's request sends that request
 }
 
 // The record goes on past a reply; nothing can be added after an earlier one.
+// The page draws Retry only on the last reply, so a retry of an earlier one is
+// the page's mistake and goes to the top handler.
 TEST_CASE("only the chat's last reply can be retried", "[agent][record]")
 {
     PrefixChat chat(responses_wire());
     chat.turn({{"", {}, {}, json::object(), 503}}, [&] { chat.harness->send_user_message("Hello.", "c-down"); });
     const std::string failed = reply_id_of_last(*chat.harness, "assistant_failed");
     chat.person_turn("Hello again.", {{"Hello."}});
-    chat.harness->deliver("retry_message", json{{"messageId", failed}});
+    CHECK_THROWS_WITH(chat.harness->deliver("retry_message", json{{"messageId", failed}}),
+                      Catch::Matchers::ContainsSubstring("which is not the chat's last reply"));
     chat.harness->pump_all();
-    REQUIRE(chat.harness->last_of_type("bridge_error") != nullptr);
-    CHECK((*chat.harness->last_of_type("bridge_error"))["payload"]["code"] == "invalid_retry");
+    CHECK(chat.harness->last_of_type("bridge_error") == nullptr);
     CHECK(chat.provider->replies.size() == 2);
 }
 

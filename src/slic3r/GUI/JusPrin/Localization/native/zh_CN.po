@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-18 20:27-0800\n"
+"POT-Creation-Date: 2026-11-20 08:46-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -34,14 +34,6 @@ msgid "Finish or cancel AI configuration before sending a message."
 msgstr "请先完成或取消 AI 配置，然后再发送消息。"
 
 # AI Translated
-msgid "This message belongs to a different chat."
-msgstr "此消息属于另一个对话。"
-
-# AI Translated
-msgid "A message needs text or an attachment."
-msgstr "消息需要包含文字或附件。"
-
-# AI Translated
 msgid "This file is too large to attach."
 msgstr "此文件太大，无法作为附件。"
 
@@ -64,10 +56,6 @@ msgstr "3D 模型"
 # AI Translated
 msgid "Document (PDF)"
 msgstr "文档（PDF）"
-
-# AI Translated
-msgid "This build cannot open a file dialog."
-msgstr "此版本无法打开文件对话框。"
 
 # AI Translated
 #. TRN A calibration chat's first line. %1%: where it was started from, %2%: a printer.
@@ -122,80 +110,8 @@ msgid "The slice of %1% finished."
 msgstr "%1% 的切片已完成。"
 
 # AI Translated
-msgid "Historical replies cannot be retried."
-msgstr "无法重试历史回复。"
-
-# AI Translated
-msgid "Only a failed or stopped assistant message in the active conversation can be retried."
-msgstr "只能重试当前对话中失败或已停止的助手消息。"
-
-# AI Translated
-msgid "Only the chat's last reply can be retried."
-msgstr "只能重试对话的最后一条回复。"
-
-# AI Translated
-msgid "Another reply is currently streaming."
-msgstr "另一条回复正在生成中。"
-
-# AI Translated
-msgid "Historical tool actions cannot be changed."
-msgstr "无法更改历史工具操作。"
-
-# AI Translated
-msgid "This proposal is no longer open. Ask AI again."
-msgstr "此提议已失效。请再次询问 AI。"
-
-# AI Translated
-msgid "This save can no longer be undone."
-msgstr "此次保存已无法撤销。"
-
-# AI Translated
-msgid "Finish or resolve pending work before creating a chat."
-msgstr "请先完成或处理待办工作，然后再新建对话。"
-
-# AI Translated
-msgid "The project or selected chat changed. Review it again."
-msgstr "项目或所选对话已更改。请重新检查。"
-
-# AI Translated
-msgid "Finish or resolve pending work before resuming a chat."
-msgstr "请先完成或处理待办工作，然后再继续对话。"
-
-# AI Translated
-msgid "This chat is already active."
-msgstr "此对话已处于活动状态。"
-
-# AI Translated
-msgid "JusPrin can't find the project version this chat was working on."
-msgstr "JusPrin 找不到此对话当时所用的项目版本。"
-
-# AI Translated
 msgid "Restored this chat's saved project setup. Check the current printer and material before printing."
 msgstr "已恢复此对话保存的项目设置。打印前请检查当前的打印机和材料。"
-
-# AI Translated
-msgid "Use a non-empty, single-line title of at most 120 characters for an existing chat."
-msgstr "现有对话的标题不能为空，只能有一行，且最多 120 个字符。"
-
-# AI Translated
-msgid "This chat is still working. Stop it or let it finish, then delete it."
-msgstr "此对话仍在进行中。请先停止或等待其完成，然后再删除。"
-
-# AI Translated
-msgid "This chat no longer exists."
-msgstr "此对话已不存在。"
-
-# AI Translated
-msgid "Historical chats cannot edit the current draft."
-msgstr "历史对话无法编辑当前草稿。"
-
-# AI Translated
-msgid "Finish or stop the current reply before configuring AI."
-msgstr "请先完成或停止当前回复，然后再配置 AI。"
-
-# AI Translated
-msgid "This build cannot configure an AI provider."
-msgstr "此版本无法配置 AI 服务商。"
 
 # AI Translated
 msgid "A credential check is already running."
@@ -206,32 +122,8 @@ msgid "This build cannot verify a key for that provider yet."
 msgstr "此版本暂时无法验证该服务商的密钥。"
 
 # AI Translated
-msgid "Finish or stop the current reply before removing a key."
-msgstr "请先完成或停止当前回复，然后再移除密钥。"
-
-# AI Translated
-msgid "Finish or cancel the key check before removing a key."
-msgstr "请先完成或取消密钥检查，然后再移除密钥。"
-
-# AI Translated
-msgid "That key could not be removed."
-msgstr "无法移除该密钥。"
-
-# AI Translated
-msgid "This build cannot sign in to a JusPrin account."
-msgstr "此版本无法登录 JusPrin 账户。"
-
-# AI Translated
-msgid "Finish or stop the current reply before signing in."
-msgstr "请先完成或停止当前回复，然后再登录。"
-
-# AI Translated
 msgid "A sign-in or key check is already running."
 msgstr "登录或密钥检查已在进行中。"
-
-# AI Translated
-msgid "There is no JusPrin account on this computer to check."
-msgstr "此计算机上没有可检查的 JusPrin 账户。"
 
 # AI Translated
 msgid "JusPrin couldn't sign you in. Try again."
@@ -252,10 +144,6 @@ msgstr "AI 无法接收原生工具结果。"
 # AI Translated
 msgid "The AI request failed."
 msgstr "AI 请求失败。"
-
-# AI Translated
-msgid "The automatic chat title could not be generated. You can rename the chat."
-msgstr "无法自动生成对话标题。您可以重命名该对话。"
 
 # AI Translated
 #. TRN %1% is an AI provider's account, such as JusPrin.
@@ -304,10 +192,6 @@ msgstr "%1% 未安装。请安装，或复制命令稍后运行。"
 # AI Translated
 msgid "This build cannot run the client CLI."
 msgstr "此版本无法运行客户端 CLI。"
-
-# AI Translated
-msgid "This build cannot open a file manager."
-msgstr "此版本无法打开文件管理器。"
 
 # AI Translated
 msgid "The provider did not answer."
@@ -502,10 +386,6 @@ msgstr "将 %1% 保存为新的工艺预设"
 #, boost-format
 msgid "Save %1% to %2%"
 msgstr "将 %1% 保存到 %2%"
-
-# AI Translated
-msgid "This proposal is already saved."
-msgstr "此提议已保存。"
 
 # AI Translated
 msgid "Drop a model here or add one"
@@ -1933,22 +1813,6 @@ msgid "Drag to resize the AI panel"
 msgstr "拖动以调整 AI 面板大小"
 
 # AI Translated
-msgid "The setup changed. Review the current plate and try again."
-msgstr "设置已更改。请检查当前盘后重试。"
-
-# AI Translated
-msgid "Couldn't slice"
-msgstr "无法切片"
-
-# AI Translated
-msgid "This saved version couldn't be restored. Try again from Version history."
-msgstr "无法恢复此保存的版本。请从版本历史中重试。"
-
-# AI Translated
-msgid "Revert failed"
-msgstr "还原失败"
-
-# AI Translated
 msgid "Your saved projects couldn't be read, so JusPrin can't check whether you've opened this file before. The file wasn't opened. Try again once JusPrin can read its projects folder."
 msgstr "无法读取您保存的项目，因此 JusPrin 无法确认您以前是否打开过此文件。文件未打开。请在 JusPrin 能够读取其项目文件夹后重试。"
 
@@ -2085,10 +1949,6 @@ msgstr "无法打开项目"
 # AI Translated
 msgid "Get the new version…"
 msgstr "获取新版本…"
-
-# AI Translated
-msgid "JusPrin's view couldn't be opened."
-msgstr "无法打开 JusPrin 视图。"
 
 # AI Translated
 msgid "Show the Plates and Project panel"
@@ -2249,6 +2109,146 @@ msgstr "此项目由更新版本的 JusPrin 保存。请获取新版本以打开
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "无法打开项目。请重试。"
+
+# AI Translated
+#~ msgid "JusPrin's view couldn't be opened."
+#~ msgstr "无法打开 JusPrin 视图。"
+
+# AI Translated
+#~ msgid "That key could not be removed."
+#~ msgstr "无法移除该密钥。"
+
+# AI Translated
+#~ msgid "This message belongs to a different chat."
+#~ msgstr "此消息属于另一个对话。"
+
+# AI Translated
+#~ msgid "Another reply is currently streaming."
+#~ msgstr "另一条回复正在生成中。"
+
+# AI Translated
+#~ msgid "Finish or resolve pending work before creating a chat."
+#~ msgstr "请先完成或处理待办工作，然后再新建对话。"
+
+# AI Translated
+#~ msgid "The project or selected chat changed. Review it again."
+#~ msgstr "项目或所选对话已更改。请重新检查。"
+
+# AI Translated
+#~ msgid "Finish or resolve pending work before resuming a chat."
+#~ msgstr "请先完成或处理待办工作，然后再继续对话。"
+
+# AI Translated
+#~ msgid "JusPrin can't find the project version this chat was working on."
+#~ msgstr "JusPrin 找不到此对话当时所用的项目版本。"
+
+# AI Translated
+#~ msgid "This chat is still working. Stop it or let it finish, then delete it."
+#~ msgstr "此对话仍在进行中。请先停止或等待其完成，然后再删除。"
+
+# AI Translated
+#~ msgid "Historical chats cannot edit the current draft."
+#~ msgstr "历史对话无法编辑当前草稿。"
+
+# AI Translated
+#~ msgid "Only the chat's last reply can be retried."
+#~ msgstr "只能重试对话的最后一条回复。"
+
+# AI Translated
+#~ msgid "This saved version couldn't be restored. Try again from Version history."
+#~ msgstr "无法恢复此保存的版本。请从版本历史中重试。"
+
+# AI Translated
+#~ msgid "Revert failed"
+#~ msgstr "还原失败"
+
+# AI Translated
+#~ msgid "The setup changed. Review the current plate and try again."
+#~ msgstr "设置已更改。请检查当前盘后重试。"
+
+# AI Translated
+#~ msgid "Couldn't slice"
+#~ msgstr "无法切片"
+
+# AI Translated
+#~ msgid "A message needs text or an attachment."
+#~ msgstr "消息需要包含文字或附件。"
+
+# AI Translated
+#~ msgid "This build cannot open a file dialog."
+#~ msgstr "此版本无法打开文件对话框。"
+
+# AI Translated
+#~ msgid "Historical replies cannot be retried."
+#~ msgstr "无法重试历史回复。"
+
+# AI Translated
+#~ msgid "Only a failed or stopped assistant message in the active conversation can be retried."
+#~ msgstr "只能重试当前对话中失败或已停止的助手消息。"
+
+# AI Translated
+#~ msgid "Historical tool actions cannot be changed."
+#~ msgstr "无法更改历史工具操作。"
+
+# AI Translated
+#~ msgid "This proposal is no longer open. Ask AI again."
+#~ msgstr "此提议已失效。请再次询问 AI。"
+
+# AI Translated
+#~ msgid "This save can no longer be undone."
+#~ msgstr "此次保存已无法撤销。"
+
+# AI Translated
+#~ msgid "This chat is already active."
+#~ msgstr "此对话已处于活动状态。"
+
+# AI Translated
+#~ msgid "Use a non-empty, single-line title of at most 120 characters for an existing chat."
+#~ msgstr "现有对话的标题不能为空，只能有一行，且最多 120 个字符。"
+
+# AI Translated
+#~ msgid "This chat no longer exists."
+#~ msgstr "此对话已不存在。"
+
+# AI Translated
+#~ msgid "Finish or stop the current reply before configuring AI."
+#~ msgstr "请先完成或停止当前回复，然后再配置 AI。"
+
+# AI Translated
+#~ msgid "This build cannot configure an AI provider."
+#~ msgstr "此版本无法配置 AI 服务商。"
+
+# AI Translated
+#~ msgid "Finish or stop the current reply before removing a key."
+#~ msgstr "请先完成或停止当前回复，然后再移除密钥。"
+
+# AI Translated
+#~ msgid "Finish or cancel the key check before removing a key."
+#~ msgstr "请先完成或取消密钥检查，然后再移除密钥。"
+
+# AI Translated
+#~ msgid "This build cannot sign in to a JusPrin account."
+#~ msgstr "此版本无法登录 JusPrin 账户。"
+
+# AI Translated
+#~ msgid "Finish or stop the current reply before signing in."
+#~ msgstr "请先完成或停止当前回复，然后再登录。"
+
+# AI Translated
+#~ msgid "There is no JusPrin account on this computer to check."
+#~ msgstr "此计算机上没有可检查的 JusPrin 账户。"
+
+# AI Translated
+#~ msgid "The automatic chat title could not be generated. You can rename the chat."
+#~ msgstr "无法自动生成对话标题。您可以重命名该对话。"
+
+# AI Translated
+#~ msgid "This build cannot open a file manager."
+#~ msgstr "此版本无法打开文件管理器。"
+
+# AI Translated
+#~ msgid "This proposal is already saved."
+#~ msgstr "此提议已保存。"
 
 # AI Translated
 #, c-format, boost-format

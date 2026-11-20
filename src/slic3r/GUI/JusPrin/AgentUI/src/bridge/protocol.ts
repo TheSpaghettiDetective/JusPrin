@@ -744,6 +744,9 @@ export interface Proposal {
   save: string;
   other?: string; // the other choice, which the person sends as their reply
   receipt: string;
+  // The host no longer holds the preview it would save (the project was
+  // reopened or the app restarted): the card says it was not saved.
+  closed?: boolean;
 }
 
 // A call that did not run because the project changed after it was made.

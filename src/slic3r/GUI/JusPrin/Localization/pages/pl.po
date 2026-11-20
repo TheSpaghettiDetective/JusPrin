@@ -4176,6 +4176,7 @@ msgid "The action could not be completed."
 msgstr "Nie udało się wykonać działania."
 
 # AI Translated
+#: src/components/ProposalCard.tsx
 #: src/components/ToolActivityCard.tsx
 msgid "The action failed."
 msgstr "Działanie nie powiodło się."
@@ -4261,6 +4262,7 @@ msgid "the printer profile’s default, until your preset is saved"
 msgstr "domyślny z profilu drukarki, dopóki twój profil nie zostanie zapisany"
 
 # AI Translated
+#: src/components/ProposalCard.tsx
 #: src/components/ToolActivityCard.tsx
 msgid "The project changed before this could run. Ask AI again."
 msgstr "Projekt zmienił się, zanim można było to uruchomić. Zapytaj AI ponownie."

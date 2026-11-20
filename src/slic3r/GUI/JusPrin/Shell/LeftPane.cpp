@@ -5,10 +5,12 @@
 #include "SetupCommands.hpp"
 
 #include "slic3r/GUI/GUI_App.hpp"
+#include "libslic3r/Exception.hpp"
 #include "slic3r/GUI/I18N.hpp"
 
 #include <wx/dcbuffer.h>
 #include <wx/dcmemory.h>
+#include <wx/event.h>
 #include <wx/graphics.h>
 #include <wx/msgdlg.h>
 #include <wx/textdlg.h>
@@ -16,6 +18,7 @@
 #include <boost/log/trivial.hpp>
 
 #include <algorithm>
+#include <string>
 
 namespace Slic3r::GUI::JusPrin {
 
@@ -74,12 +77,14 @@ LeftPane::LeftPane(wxWindow* parent, const ShellTheme& theme, IWorkspace& worksp
     });
 
     Bind(wxEVT_PAINT, &LeftPane::paint, this);
-    Bind(wxEVT_LEFT_DOWN, &LeftPane::on_left_down, this);
+    // A click or a key runs the pane's commands, and a command that fails
+    // goes up to here, to be reported.
+    Bind(wxEVT_LEFT_DOWN, reported("using the plates pane", [this](wxMouseEvent& event) { on_left_down(event); }));
     Bind(wxEVT_RIGHT_DOWN, &LeftPane::on_right_down, this);
     Bind(wxEVT_MOTION, &LeftPane::on_motion, this);
     Bind(wxEVT_LEAVE_WINDOW, &LeftPane::on_leave, this);
     Bind(wxEVT_MOUSEWHEEL, &LeftPane::on_wheel, this);
-    Bind(wxEVT_KEY_DOWN, &LeftPane::on_key_down, this);
+    Bind(wxEVT_KEY_DOWN, reported("using the plates pane", [this](wxKeyEvent& event) { on_key_down(event); }));
     Bind(wxEVT_SET_FOCUS, [this](wxFocusEvent& event) { Refresh(); event.Skip(); });
     Bind(wxEVT_KILL_FOCUS, [this](wxFocusEvent& event) { Refresh(); event.Skip(); });
     Bind(wxEVT_SIZE, [this](wxSizeEvent& event) { layout_header(); clamp_scroll(); Refresh(); event.Skip(); });
@@ -208,6 +213,15 @@ void LeftPane::run_command(const CommandResult& result, const char* what) const
     // Choosing what is already chosen is not an error.
     if (result.succeeded() || result.error == WorkspaceError::NoChange)
         return;
+    // Nobody decided what the person is told: the failure goes up to the
+    // handler the pane's click, key or menu row runs under, which reports it.
+    throw RuntimeError(std::string("Plates pane: ") + what + " failed: " + result.message);
+}
+
+void LeftPane::show_refusal(const CommandResult& result, WorkspaceError refusal, const char* what) const
+{
+    if (result.error != refusal)
+        return run_command(result, what);
     BOOST_LOG_TRIVIAL(error) << "Plates pane: " << what << " failed: " << result.message;
     OrcaMessages::show_own_message(nullptr, wxString::FromUTF8(result.message), _L("Couldn't do that"));
 }
@@ -233,7 +247,7 @@ void LeftPane::toggle_row(const PaneRow& row)
 
 void LeftPane::add_plate()
 {
-    run_command(m_workspace.add_plate(), "add plate");
+    show_refusal(m_workspace.add_plate(), WorkspaceError::Refused, "add plate");
 }
 
 void LeftPane::add_model()
@@ -372,7 +386,8 @@ std::vector<HeaderMenuItem> LeftPane::object_menu(const PaneRow& row)
         wxTextEntryDialog dialog(this, _L("Name"), _L("Rename object"), wxString::FromUTF8(name));
         if (dialog.ShowModal() != wxID_OK)
             return;
-        run_command(m_workspace.rename_object(object, std::string(dialog.GetValue().ToUTF8())), "rename object");
+        show_refusal(m_workspace.rename_object(object, std::string(dialog.GetValue().ToUTF8())), WorkspaceError::InvalidArgument,
+                     "rename object");
     };
     items.push_back(std::move(rename));
 

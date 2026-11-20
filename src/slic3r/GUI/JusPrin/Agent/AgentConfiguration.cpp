@@ -6,6 +6,7 @@
 #include "OpenAIResponsesAgent.hpp"
 #include "ProviderFactory.hpp"
 #include "libslic3r/AppConfig.hpp"
+#include "libslic3r/Exception.hpp"
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/JusPrin/Support/PageLanguage.hpp"
 
@@ -92,13 +93,18 @@ std::string stored_format(const AppConfig* config, const std::string& provider, 
     return {};
 }
 
+void save_now(AppConfig& config);
+
 // Deletes a provider's stored key, and an account's email and formats with
 // it. A chat without a choice of its own talks to the recorded provider; once
-// its key is gone, that is the first provider that still has one.
-bool remove_provider_key(AppConfig* config, const std::string& provider)
+// its key is gone, that is the first provider that still has one. Remove and
+// Sign out are drawn only on a stored key.
+void remove_provider_key(AppConfig* config, const std::string& provider)
 {
-    if (config == nullptr || config->get(kSection, api_key_item_for(provider)).empty())
-        return false;
+    if (config == nullptr)
+        throw std::logic_error("jusprin-agent-setup: removing a key with no settings");
+    if (config->get(kSection, api_key_item_for(provider)).empty())
+        throw RuntimeError("jusprin-agent-setup: removing the key of " + provider + ", which has none stored");
     config->erase(kSection, api_key_item_for(provider));
     config->erase(kSection, account_item_for(provider));
     config->erase(kSection, formats_item_for(provider));
@@ -109,8 +115,7 @@ bool remove_provider_key(AppConfig* config, const std::string& provider)
                 break;
             }
     // Saved now, as a stored key is: the person was just told it is gone.
-    config->save();
-    return true;
+    save_now(*config);
 }
 
 ProviderListeners logging_listeners()
@@ -188,7 +193,7 @@ AgentSetupServicePtr make_agent_setup(AppConfig* config)
     };
     ProviderKeySetup::KeyStore keys;
     keys.load   = [config](const std::string& provider) { return load_provider_api_key(config, provider); };
-    keys.remove = [config](const std::string& provider) { return remove_provider_key(config, provider); };
+    keys.remove = [config](const std::string& provider) { remove_provider_key(config, provider); };
     return std::make_shared<ProviderKeySetup>(&make_openai_http_transport, std::move(commit), std::move(keys),
                                               agent_endpoint_override(), ProviderKeySetup::Clock{},
                                               make_cloud_sign_in(config));
@@ -252,7 +257,7 @@ CloudSignInPtr make_cloud_sign_in(AppConfig* config)
         config->set(kSection, "cloud_consent", "true");
         save_now(*config);
     };
-    store.erase = [config, id = row.id]() { return remove_provider_key(config, id); };
+    store.erase = [config, id = row.id]() { remove_provider_key(config, id); };
     auto agents = [row, gateway](const std::string& token, const std::string& model, const std::string& format) -> AgentServicePtr {
         const std::optional<ProviderProfile> served = account_profile(row, gateway, format);
         if (!served)
@@ -388,7 +393,7 @@ public:
                                      for (const ModelOption& option : result.models)
                                          formats.emplace_back(option.id, option.format);
                                      store_formats(config, provider, formats);
-                                     config->save();
+                                     save_now(*config);
                                  }
                                  done(result.ok, std::move(result.models), result.refused,
                                       std::move(result.update_message));

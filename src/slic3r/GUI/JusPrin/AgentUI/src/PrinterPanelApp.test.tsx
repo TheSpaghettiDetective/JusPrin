@@ -418,16 +418,15 @@ describe('the printer panel page', () => {
     expect(screen.queryByLabelText('Access code')).toBeNull();
   });
 
-  it('shows the card its own line when the refusal is written for the model', () => {
+  it('shows only that the action failed, keeping the error the model reads off the card', () => {
     const refused: ToolActivityInfo = {
       actionId: 't-connect', correlationId: 'm-1', server: 'jusprin', tool: 'printer_bambu_connect', title: 'Connect Workshop',
       arguments: { printerName: 'Lab Printer', deviceId: 'Workshop?', provider: 'bambu' }, actionClass: 'mutation',
       sessionId: '1', expectedRevision: 1, state: 'failed', progress: { current: 0, total: 1 },
-      error: { code: 'unknown_device', message: 'Pass the deviceId of one of these printers in LAN mode: 01P00A3B (Workshop).',
-        details: { shown: 'Pick one of these printers to connect.' } },
+      error: { code: 'unknown_device', message: 'Pass the deviceId of one of these printers in LAN mode: 01P00A3B (Workshop).' },
     };
     open(state({ toolActivities: [refused], session: session({}) }));
-    expect(screen.getByText('Pick one of these printers to connect.')).toBeInTheDocument();
+    expect(screen.getByText('The action failed.')).toBeInTheDocument();
     expect(screen.queryByText(/deviceId/)).toBeNull();
   });
 });

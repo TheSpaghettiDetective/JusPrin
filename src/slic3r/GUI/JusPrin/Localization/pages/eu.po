@@ -4178,6 +4178,7 @@ msgid "The action could not be completed."
 msgstr "Ezin izan da ekintza osatu."
 
 # AI Translated
+#: src/components/ProposalCard.tsx
 #: src/components/ToolActivityCard.tsx
 msgid "The action failed."
 msgstr "Ekintzak huts egin du."
@@ -4264,6 +4265,7 @@ msgid "the printer profile’s default, until your preset is saved"
 msgstr "inprimagailu-profilaren lehenetsia, zure aurrezarpena gorde arte"
 
 # AI Translated
+#: src/components/ProposalCard.tsx
 #: src/components/ToolActivityCard.tsx
 msgid "The project changed before this could run. Ask AI again."
 msgstr "Proiektua aldatu egin da hau exekutatu aurretik. Galdetu berriro AAri."

@@ -118,7 +118,9 @@ struct CloudAccountStore
     // Stores a verified account and records the choices that make it the
     // Agent's provider; throws when it could not be written.
     std::function<void(const CloudAccountRecord&)> save;
-    std::function<bool()> erase;
+    // Forgets the stored account; throws when there is none or it could not
+    // be written.
+    std::function<void()> erase;
 };
 
 enum class CloudSignInPhase { Idle, Browser, Email, Checking };
@@ -201,9 +203,9 @@ public:
 
     // The stored account, or nothing when signed out.
     virtual std::optional<CloudAccountRecord> account() const = 0;
-    // Forgets the account on this computer and revokes its token. False when
-    // there was none or it could not be removed.
-    virtual bool sign_out() = 0;
+    // Forgets the account on this computer and revokes its token. Throws
+    // when there was none or it could not be removed.
+    virtual void sign_out() = 0;
 };
 
 using CloudSignInPtr = std::shared_ptr<ICloudSignIn>;
@@ -236,7 +238,7 @@ public:
     bool                              send_code() override;
     std::string                       link_url(const std::string& link) const override;
     std::optional<CloudAccountRecord> account() const override;
-    bool                              sign_out() override;
+    void                              sign_out() override;
 
 private:
     struct Inbox;

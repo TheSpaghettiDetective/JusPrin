@@ -4179,6 +4179,7 @@ msgid "The action could not be completed."
 msgstr "Nepavyko atlikti veiksmo."
 
 # AI Translated
+#: src/components/ProposalCard.tsx
 #: src/components/ToolActivityCard.tsx
 msgid "The action failed."
 msgstr "Veiksmas nepavyko."
@@ -4265,6 +4266,7 @@ msgid "the printer profile’s default, until your preset is saved"
 msgstr "spausdintuvo profilio numatytoji reikšmė, kol bus išsaugotas jūsų profilis"
 
 # AI Translated
+#: src/components/ProposalCard.tsx
 #: src/components/ToolActivityCard.tsx
 msgid "The project changed before this could run. Ask AI again."
 msgstr "Projektas pasikeitė anksčiau, nei tai buvo paleista. Paklauskite DI dar kartą."

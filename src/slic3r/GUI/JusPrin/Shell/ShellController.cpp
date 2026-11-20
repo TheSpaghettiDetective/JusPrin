@@ -14,11 +14,13 @@
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterPanel.hpp"
 #include "StatusRow.hpp"
 
+#include "libslic3r/Exception.hpp"
 #include "libslic3r/PresetBundle.hpp"
 #include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 #include "slic3r/GUI/JusPrin/Home/HomeWebView.hpp"
 #include "slic3r/GUI/JusPrin/Preferences/PreferencesWindow.hpp"
 #include "slic3r/GUI/JusPrin/Home/OrcaImportWindow.hpp"
@@ -235,22 +237,23 @@ std::optional<ShellController::OpenProject>& left_project()
     return left;
 }
 
-// Builds a controller over the attach point and installs it. On failure the
-// stock presentation is untouched and the logged reason is returned.
-std::optional<std::string> install_shell()
+// Builds a controller over the attach point and installs it; false when it
+// could not be installed.
+bool install_shell()
 {
     const AttachPoint& point = attach_point();
     auto controller = std::make_unique<ShellController>();
     try {
         controller->install(*point.frame, *point.tabpanel, *point.main_sizer, left_project());
-    } catch (const std::exception& error) {
-        BOOST_LOG_TRIVIAL(error) << "JusPrin shell could not be installed, keeping the standard "
-                                    "presentation: " << error.what();
-        return std::string(error.what());
+    } catch (...) {
+        // The top of the JusPrin view's start (AGENTS.md, Error handling):
+        // the failure is reported, and the caller puts classic view up.
+        report_unexpected_error("opening JusPrin's view", describe_current_exception());
+        return false;
     }
     shell_slot() = std::move(controller);
     left_project().reset();
-    return std::nullopt;
+    return true;
 }
 
 void install_classic_view()
@@ -564,14 +567,16 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 const bool same_project = payload.value("sessionId", std::string()) == std::to_string(snapshot.session.value());
                 const bool same_plate = snapshot.active_plate &&
                     payload.value("plateId", std::string()) == std::to_string(snapshot.active_plate->value());
-                if (!active_chat || !same_project || !same_plate) {
-                    OrcaMessages::show_own_message(m_frame, _L("The setup changed. Review the current plate and try again."),
-                                                   _L("Couldn't slice"), wxOK | wxICON_WARNING);
+                // A press for the plate the page drew before the project or
+                // the chat moved on: the page redraws with the current plate,
+                // and with its button.
+                if (!active_chat || !same_project || !same_plate)
                     return true;
-                }
                 const auto result = m_workspace->start_slice(snapshot.active_plate, false);
-                if (!result.succeeded())
-                    OrcaMessages::show_own_message(m_frame, wxString::FromUTF8(result.message), _L("Couldn't slice"));
+                // A second press that finds the slice running: what it asks
+                // for is under way.
+                if (!result.succeeded() && result.error != Workspace::WorkspaceError::Busy)
+                    throw RuntimeError("Slicing for the setup card's estimates failed: " + result.message);
                 return true;
             }
             if (action != "revert_to_here")
@@ -581,10 +586,10 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
             const auto found = std::find_if(versions.begin(), versions.end(), [&id](const auto& version) {
                 return version.id == id && version.change_seq != 0;
             });
-            if (found == versions.end() || !m_autosave->restore(id)) {
-                OrcaMessages::show_own_message(m_frame, _L("This saved version couldn't be restored. Try again from Version history."),
-                                               _L("Revert failed"));
-            }
+            // A version the page drew before the history dropped it: the
+            // page redraws from the current history.
+            if (found != versions.end() && !m_autosave->restore(id))
+                throw RuntimeError("Restoring the saved version \"" + id + "\" failed: " + m_autosave->error());
             m_agent_pane->web_view().host().refresh_page_state();
             return true;
         });
@@ -2164,7 +2169,7 @@ void attach_shell(MainFrame& frame, Notebook* tabpanel, wxSizer* main_sizer)
         install_classic_view();
         return;
     }
-    if (install_shell())
+    if (!install_shell())
         install_classic_view();
 }
 
@@ -2232,12 +2237,8 @@ void reattach_shell()
     if (classic == nullptr)
         throw std::logic_error("the JusPrin view was asked back while it is not in classic view");
     classic.reset();
-    if (const std::optional<std::string> failure = install_shell()) {
+    if (!install_shell())
         install_classic_view();
-        // A person pressed a button; unlike a failed start, this one is told.
-        OrcaMessages::show_own_message(attach_point().frame, _L("JusPrin's view couldn't be opened.") + "\n" + wxString::FromUTF8(*failure),
-                                       wxEmptyString);
-    }
 }
 
 ClassicViewReturn* installed_classic_view()

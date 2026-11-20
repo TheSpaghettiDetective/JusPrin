@@ -5,8 +5,8 @@
 #include "slic3r/GUI/JusPrin/Home/OrcaHomeBackend.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpCatalog.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpRuntime.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 
-#include <boost/system/system_error.hpp>
 #include <wx/sizer.h>
 #include <wx/stdpaths.h>
 #include <wx/utils.h>
@@ -37,12 +37,12 @@ AgentPane::AgentPane(wxWindow*                  parent,
         // machine's printers, not the open project.
         m_web_view->host().set_printer_facts_path(
             (std::filesystem::u8path(discovery_path).parent_path() / "printer_facts.json").u8string());
-    } catch (const boost::system::system_error& error) {
-        startup_error = error.what();
-    } catch (const std::filesystem::filesystem_error& error) {
-        startup_error = error.what();
-    } catch (const std::ios_base::failure& error) {
-        startup_error = "Could not write MCP discovery at " + discovery_path + ": " + error.what();
+    } catch (...) {
+        // The top of the local tool server's start (AGENTS.md, Error
+        // handling): the failure is reported, and the rest of the view starts
+        // without the server, so outside AI apps cannot connect.
+        startup_error = describe_current_exception();
+        report_unexpected_error("starting the local tool server", startup_error);
     }
 #ifdef _WIN32
     const std::string helper_name = "jusprin-mcp.exe";

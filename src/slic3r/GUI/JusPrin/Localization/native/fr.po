@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-18 20:27-0800\n"
+"POT-Creation-Date: 2026-11-20 08:46-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -34,14 +34,6 @@ msgid "Finish or cancel AI configuration before sending a message."
 msgstr "Terminez ou annulez la configuration de l'IA avant d'envoyer un message."
 
 # AI Translated
-msgid "This message belongs to a different chat."
-msgstr "Ce message appartient à une autre conversation."
-
-# AI Translated
-msgid "A message needs text or an attachment."
-msgstr "Un message doit contenir du texte ou une pièce jointe."
-
-# AI Translated
 msgid "This file is too large to attach."
 msgstr "Ce fichier est trop volumineux pour être joint."
 
@@ -64,10 +56,6 @@ msgstr "Modèle 3D"
 # AI Translated
 msgid "Document (PDF)"
 msgstr "Document (PDF)"
-
-# AI Translated
-msgid "This build cannot open a file dialog."
-msgstr "Cette version ne peut pas ouvrir de boîte de dialogue de fichier."
 
 # AI Translated
 #. TRN A calibration chat's first line. %1%: where it was started from, %2%: a printer.
@@ -122,80 +110,8 @@ msgid "The slice of %1% finished."
 msgstr "La découpe de %1% est terminée."
 
 # AI Translated
-msgid "Historical replies cannot be retried."
-msgstr "Les réponses de l'historique ne peuvent pas être relancées."
-
-# AI Translated
-msgid "Only a failed or stopped assistant message in the active conversation can be retried."
-msgstr "Seul un message de l'assistant ayant échoué ou été arrêté dans la conversation active peut être relancé."
-
-# AI Translated
-msgid "Only the chat's last reply can be retried."
-msgstr "Seule la dernière réponse de la conversation peut être relancée."
-
-# AI Translated
-msgid "Another reply is currently streaming."
-msgstr "Une autre réponse est en cours de diffusion."
-
-# AI Translated
-msgid "Historical tool actions cannot be changed."
-msgstr "Les actions d'outils de l'historique ne peuvent pas être modifiées."
-
-# AI Translated
-msgid "This proposal is no longer open. Ask AI again."
-msgstr "Cette proposition n'est plus ouverte. Redemandez à l'IA."
-
-# AI Translated
-msgid "This save can no longer be undone."
-msgstr "Cet enregistrement ne peut plus être annulé."
-
-# AI Translated
-msgid "Finish or resolve pending work before creating a chat."
-msgstr "Terminez ou résolvez le travail en attente avant de créer une conversation."
-
-# AI Translated
-msgid "The project or selected chat changed. Review it again."
-msgstr "Le projet ou la conversation sélectionnée a changé. Vérifiez-le à nouveau."
-
-# AI Translated
-msgid "Finish or resolve pending work before resuming a chat."
-msgstr "Terminez ou résolvez le travail en attente avant de reprendre une conversation."
-
-# AI Translated
-msgid "This chat is already active."
-msgstr "Cette conversation est déjà active."
-
-# AI Translated
-msgid "JusPrin can't find the project version this chat was working on."
-msgstr "JusPrin ne trouve pas la version du projet sur laquelle travaillait cette conversation."
-
-# AI Translated
 msgid "Restored this chat's saved project setup. Check the current printer and material before printing."
 msgstr "La configuration de projet enregistrée de cette conversation a été restaurée. Vérifiez l'imprimante et le matériau actuels avant d'imprimer."
-
-# AI Translated
-msgid "Use a non-empty, single-line title of at most 120 characters for an existing chat."
-msgstr "Utilisez un titre non vide, sur une seule ligne, de 120 caractères au maximum pour une conversation existante."
-
-# AI Translated
-msgid "This chat is still working. Stop it or let it finish, then delete it."
-msgstr "Cette conversation est toujours en cours. Arrêtez-la ou laissez-la terminer, puis supprimez-la."
-
-# AI Translated
-msgid "This chat no longer exists."
-msgstr "Cette conversation n'existe plus."
-
-# AI Translated
-msgid "Historical chats cannot edit the current draft."
-msgstr "Les conversations de l'historique ne peuvent pas modifier le brouillon en cours."
-
-# AI Translated
-msgid "Finish or stop the current reply before configuring AI."
-msgstr "Terminez ou arrêtez la réponse en cours avant de configurer l'IA."
-
-# AI Translated
-msgid "This build cannot configure an AI provider."
-msgstr "Cette version ne peut pas configurer de fournisseur d'IA."
 
 # AI Translated
 msgid "A credential check is already running."
@@ -206,32 +122,8 @@ msgid "This build cannot verify a key for that provider yet."
 msgstr "Cette version ne peut pas encore vérifier de clé pour ce fournisseur."
 
 # AI Translated
-msgid "Finish or stop the current reply before removing a key."
-msgstr "Terminez ou arrêtez la réponse en cours avant de supprimer une clé."
-
-# AI Translated
-msgid "Finish or cancel the key check before removing a key."
-msgstr "Terminez ou annulez la vérification de la clé avant de supprimer une clé."
-
-# AI Translated
-msgid "That key could not be removed."
-msgstr "Cette clé n'a pas pu être supprimée."
-
-# AI Translated
-msgid "This build cannot sign in to a JusPrin account."
-msgstr "Cette version ne peut pas se connecter à un compte JusPrin."
-
-# AI Translated
-msgid "Finish or stop the current reply before signing in."
-msgstr "Terminez ou arrêtez la réponse en cours avant de vous connecter."
-
-# AI Translated
 msgid "A sign-in or key check is already running."
 msgstr "Une connexion ou une vérification de clé est déjà en cours."
-
-# AI Translated
-msgid "There is no JusPrin account on this computer to check."
-msgstr "Il n'y a aucun compte JusPrin à vérifier sur cet ordinateur."
 
 # AI Translated
 msgid "JusPrin couldn't sign you in. Try again."
@@ -252,10 +144,6 @@ msgstr "L'IA n'a pas pu recevoir le résultat de l'outil natif."
 # AI Translated
 msgid "The AI request failed."
 msgstr "La requête à l'IA a échoué."
-
-# AI Translated
-msgid "The automatic chat title could not be generated. You can rename the chat."
-msgstr "Le titre automatique de la conversation n'a pas pu être généré. Vous pouvez renommer la conversation."
 
 # AI Translated
 #. TRN %1% is an AI provider's account, such as JusPrin.
@@ -304,10 +192,6 @@ msgstr "%1% n'est pas installé. Installez-le, ou copiez la commande et exécute
 # AI Translated
 msgid "This build cannot run the client CLI."
 msgstr "Cette version ne peut pas exécuter la CLI du client."
-
-# AI Translated
-msgid "This build cannot open a file manager."
-msgstr "Cette version ne peut pas ouvrir de gestionnaire de fichiers."
 
 # AI Translated
 msgid "The provider did not answer."
@@ -501,10 +385,6 @@ msgstr "Enregistrer %1% comme nouveau préréglage de traitement"
 #, boost-format
 msgid "Save %1% to %2%"
 msgstr "Enregistrer %1% dans %2%"
-
-# AI Translated
-msgid "This proposal is already saved."
-msgstr "Cette proposition est déjà enregistrée."
 
 # AI Translated
 msgid "Drop a model here or add one"
@@ -1947,22 +1827,6 @@ msgid "Drag to resize the AI panel"
 msgstr "Faites glisser pour redimensionner le panneau IA"
 
 # AI Translated
-msgid "The setup changed. Review the current plate and try again."
-msgstr "La configuration a changé. Vérifiez la plaque actuelle et réessayez."
-
-# AI Translated
-msgid "Couldn't slice"
-msgstr "Impossible de découper"
-
-# AI Translated
-msgid "This saved version couldn't be restored. Try again from Version history."
-msgstr "Cette version enregistrée n'a pas pu être restaurée. Réessayez depuis l'historique des versions."
-
-# AI Translated
-msgid "Revert failed"
-msgstr "Échec du rétablissement"
-
-# AI Translated
 msgid "Your saved projects couldn't be read, so JusPrin can't check whether you've opened this file before. The file wasn't opened. Try again once JusPrin can read its projects folder."
 msgstr "Vos projets enregistrés n'ont pas pu être lus : JusPrin ne peut donc pas vérifier si vous avez déjà ouvert ce fichier. Le fichier n'a pas été ouvert. Réessayez quand JusPrin pourra lire son dossier de projets."
 
@@ -2099,10 +1963,6 @@ msgstr "Impossible d'ouvrir le projet"
 # AI Translated
 msgid "Get the new version…"
 msgstr "Obtenir la nouvelle version…"
-
-# AI Translated
-msgid "JusPrin's view couldn't be opened."
-msgstr "La vue de JusPrin n'a pas pu être ouverte."
 
 # AI Translated
 msgid "Show the Plates and Project panel"
@@ -2268,6 +2128,146 @@ msgstr "Ce projet a été enregistré par une version plus récente de JusPrin. 
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "Le projet n'a pas pu être ouvert. Réessayez."
+
+# AI Translated
+#~ msgid "JusPrin's view couldn't be opened."
+#~ msgstr "La vue de JusPrin n'a pas pu être ouverte."
+
+# AI Translated
+#~ msgid "That key could not be removed."
+#~ msgstr "Cette clé n'a pas pu être supprimée."
+
+# AI Translated
+#~ msgid "This message belongs to a different chat."
+#~ msgstr "Ce message appartient à une autre conversation."
+
+# AI Translated
+#~ msgid "Another reply is currently streaming."
+#~ msgstr "Une autre réponse est en cours de diffusion."
+
+# AI Translated
+#~ msgid "Finish or resolve pending work before creating a chat."
+#~ msgstr "Terminez ou résolvez le travail en attente avant de créer une conversation."
+
+# AI Translated
+#~ msgid "The project or selected chat changed. Review it again."
+#~ msgstr "Le projet ou la conversation sélectionnée a changé. Vérifiez-le à nouveau."
+
+# AI Translated
+#~ msgid "Finish or resolve pending work before resuming a chat."
+#~ msgstr "Terminez ou résolvez le travail en attente avant de reprendre une conversation."
+
+# AI Translated
+#~ msgid "JusPrin can't find the project version this chat was working on."
+#~ msgstr "JusPrin ne trouve pas la version du projet sur laquelle travaillait cette conversation."
+
+# AI Translated
+#~ msgid "This chat is still working. Stop it or let it finish, then delete it."
+#~ msgstr "Cette conversation est toujours en cours. Arrêtez-la ou laissez-la terminer, puis supprimez-la."
+
+# AI Translated
+#~ msgid "Historical chats cannot edit the current draft."
+#~ msgstr "Les conversations de l'historique ne peuvent pas modifier le brouillon en cours."
+
+# AI Translated
+#~ msgid "Only the chat's last reply can be retried."
+#~ msgstr "Seule la dernière réponse de la conversation peut être relancée."
+
+# AI Translated
+#~ msgid "This saved version couldn't be restored. Try again from Version history."
+#~ msgstr "Cette version enregistrée n'a pas pu être restaurée. Réessayez depuis l'historique des versions."
+
+# AI Translated
+#~ msgid "Revert failed"
+#~ msgstr "Échec du rétablissement"
+
+# AI Translated
+#~ msgid "The setup changed. Review the current plate and try again."
+#~ msgstr "La configuration a changé. Vérifiez la plaque actuelle et réessayez."
+
+# AI Translated
+#~ msgid "Couldn't slice"
+#~ msgstr "Impossible de découper"
+
+# AI Translated
+#~ msgid "A message needs text or an attachment."
+#~ msgstr "Un message doit contenir du texte ou une pièce jointe."
+
+# AI Translated
+#~ msgid "This build cannot open a file dialog."
+#~ msgstr "Cette version ne peut pas ouvrir de boîte de dialogue de fichier."
+
+# AI Translated
+#~ msgid "Historical replies cannot be retried."
+#~ msgstr "Les réponses de l'historique ne peuvent pas être relancées."
+
+# AI Translated
+#~ msgid "Only a failed or stopped assistant message in the active conversation can be retried."
+#~ msgstr "Seul un message de l'assistant ayant échoué ou été arrêté dans la conversation active peut être relancé."
+
+# AI Translated
+#~ msgid "Historical tool actions cannot be changed."
+#~ msgstr "Les actions d'outils de l'historique ne peuvent pas être modifiées."
+
+# AI Translated
+#~ msgid "This proposal is no longer open. Ask AI again."
+#~ msgstr "Cette proposition n'est plus ouverte. Redemandez à l'IA."
+
+# AI Translated
+#~ msgid "This save can no longer be undone."
+#~ msgstr "Cet enregistrement ne peut plus être annulé."
+
+# AI Translated
+#~ msgid "This chat is already active."
+#~ msgstr "Cette conversation est déjà active."
+
+# AI Translated
+#~ msgid "Use a non-empty, single-line title of at most 120 characters for an existing chat."
+#~ msgstr "Utilisez un titre non vide, sur une seule ligne, de 120 caractères au maximum pour une conversation existante."
+
+# AI Translated
+#~ msgid "This chat no longer exists."
+#~ msgstr "Cette conversation n'existe plus."
+
+# AI Translated
+#~ msgid "Finish or stop the current reply before configuring AI."
+#~ msgstr "Terminez ou arrêtez la réponse en cours avant de configurer l'IA."
+
+# AI Translated
+#~ msgid "This build cannot configure an AI provider."
+#~ msgstr "Cette version ne peut pas configurer de fournisseur d'IA."
+
+# AI Translated
+#~ msgid "Finish or stop the current reply before removing a key."
+#~ msgstr "Terminez ou arrêtez la réponse en cours avant de supprimer une clé."
+
+# AI Translated
+#~ msgid "Finish or cancel the key check before removing a key."
+#~ msgstr "Terminez ou annulez la vérification de la clé avant de supprimer une clé."
+
+# AI Translated
+#~ msgid "This build cannot sign in to a JusPrin account."
+#~ msgstr "Cette version ne peut pas se connecter à un compte JusPrin."
+
+# AI Translated
+#~ msgid "Finish or stop the current reply before signing in."
+#~ msgstr "Terminez ou arrêtez la réponse en cours avant de vous connecter."
+
+# AI Translated
+#~ msgid "There is no JusPrin account on this computer to check."
+#~ msgstr "Il n'y a aucun compte JusPrin à vérifier sur cet ordinateur."
+
+# AI Translated
+#~ msgid "The automatic chat title could not be generated. You can rename the chat."
+#~ msgstr "Le titre automatique de la conversation n'a pas pu être généré. Vous pouvez renommer la conversation."
+
+# AI Translated
+#~ msgid "This build cannot open a file manager."
+#~ msgstr "Cette version ne peut pas ouvrir de gestionnaire de fichiers."
+
+# AI Translated
+#~ msgid "This proposal is already saved."
+#~ msgstr "Cette proposition est déjà enregistrée."
 
 # AI Translated
 #, c-format, boost-format

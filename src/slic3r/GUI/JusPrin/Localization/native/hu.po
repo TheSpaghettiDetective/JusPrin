@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-18 20:27-0800\n"
+"POT-Creation-Date: 2026-11-20 08:46-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -35,14 +35,6 @@ msgid "Finish or cancel AI configuration before sending a message."
 msgstr "Üzenet küldése előtt fejezd be vagy szakítsd meg az AI beállítását."
 
 # AI Translated
-msgid "This message belongs to a different chat."
-msgstr "Ez az üzenet egy másik csevegéshez tartozik."
-
-# AI Translated
-msgid "A message needs text or an attachment."
-msgstr "Az üzenethez szöveg vagy melléklet szükséges."
-
-# AI Translated
 msgid "This file is too large to attach."
 msgstr "Ez a fájl túl nagy ahhoz, hogy csatolni lehessen."
 
@@ -65,10 +57,6 @@ msgstr "3D-modell"
 # AI Translated
 msgid "Document (PDF)"
 msgstr "Dokumentum (PDF)"
-
-# AI Translated
-msgid "This build cannot open a file dialog."
-msgstr "Ez a verzió nem tud fájlválasztó ablakot megnyitni."
 
 # AI Translated
 #. TRN A calibration chat's first line. %1%: where it was started from, %2%: a printer.
@@ -123,80 +111,8 @@ msgid "The slice of %1% finished."
 msgstr "A tálca (%1%) szeletelése befejeződött."
 
 # AI Translated
-msgid "Historical replies cannot be retried."
-msgstr "Korábbi válaszok nem próbálhatók újra."
-
-# AI Translated
-msgid "Only a failed or stopped assistant message in the active conversation can be retried."
-msgstr "Csak az aktív beszélgetés sikertelen vagy leállított asszisztensüzenete próbálható újra."
-
-# AI Translated
-msgid "Only the chat's last reply can be retried."
-msgstr "Csak a csevegés utolsó válasza próbálható újra."
-
-# AI Translated
-msgid "Another reply is currently streaming."
-msgstr "Egy másik válasz érkezése még folyamatban van."
-
-# AI Translated
-msgid "Historical tool actions cannot be changed."
-msgstr "A korábbi eszközműveletek nem módosíthatók."
-
-# AI Translated
-msgid "This proposal is no longer open. Ask AI again."
-msgstr "Ez a javaslat már nem érvényes. Kérdezd újra az AI-t."
-
-# AI Translated
-msgid "This save can no longer be undone."
-msgstr "Ez a mentés már nem vonható vissza."
-
-# AI Translated
-msgid "Finish or resolve pending work before creating a chat."
-msgstr "Új csevegés létrehozása előtt fejezd be vagy rendezd a függőben lévő műveleteket."
-
-# AI Translated
-msgid "The project or selected chat changed. Review it again."
-msgstr "A projekt vagy a kiválasztott csevegés megváltozott. Nézd át újra."
-
-# AI Translated
-msgid "Finish or resolve pending work before resuming a chat."
-msgstr "Csevegés folytatása előtt fejezd be vagy rendezd a függőben lévő műveleteket."
-
-# AI Translated
-msgid "This chat is already active."
-msgstr "Ez a csevegés már aktív."
-
-# AI Translated
-msgid "JusPrin can't find the project version this chat was working on."
-msgstr "A JusPrin nem találja a projektnek azt a verzióját, amelyen ez a csevegés dolgozott."
-
-# AI Translated
 msgid "Restored this chat's saved project setup. Check the current printer and material before printing."
 msgstr "A csevegés mentett projektbeállításai visszaállítva. Nyomtatás előtt ellenőrizd a nyomtatót és az anyagot."
-
-# AI Translated
-msgid "Use a non-empty, single-line title of at most 120 characters for an existing chat."
-msgstr "Meglévő csevegéshez legfeljebb 120 karakteres, egysoros, nem üres címet adj meg."
-
-# AI Translated
-msgid "This chat is still working. Stop it or let it finish, then delete it."
-msgstr "Ez a csevegés még dolgozik. Állítsd le, vagy várd meg, amíg befejezi, és utána töröld."
-
-# AI Translated
-msgid "This chat no longer exists."
-msgstr "Ez a csevegés már nem létezik."
-
-# AI Translated
-msgid "Historical chats cannot edit the current draft."
-msgstr "Korábbi csevegések nem szerkeszthetik az aktuális piszkozatot."
-
-# AI Translated
-msgid "Finish or stop the current reply before configuring AI."
-msgstr "Az AI beállítása előtt fejezd be vagy állítsd le az aktuális választ."
-
-# AI Translated
-msgid "This build cannot configure an AI provider."
-msgstr "Ez a verzió nem tud AI-szolgáltatót beállítani."
 
 # AI Translated
 msgid "A credential check is already running."
@@ -207,32 +123,8 @@ msgid "This build cannot verify a key for that provider yet."
 msgstr "Ez a verzió még nem tudja ellenőrizni az ehhez a szolgáltatóhoz tartozó kulcsot."
 
 # AI Translated
-msgid "Finish or stop the current reply before removing a key."
-msgstr "Kulcs eltávolítása előtt fejezd be vagy állítsd le az aktuális választ."
-
-# AI Translated
-msgid "Finish or cancel the key check before removing a key."
-msgstr "Kulcs eltávolítása előtt fejezd be vagy szakítsd meg a kulcs ellenőrzését."
-
-# AI Translated
-msgid "That key could not be removed."
-msgstr "A kulcsot nem sikerült eltávolítani."
-
-# AI Translated
-msgid "This build cannot sign in to a JusPrin account."
-msgstr "Ez a verzió nem tud bejelentkezni JusPrin-fiókba."
-
-# AI Translated
-msgid "Finish or stop the current reply before signing in."
-msgstr "Bejelentkezés előtt fejezd be vagy állítsd le az aktuális választ."
-
-# AI Translated
 msgid "A sign-in or key check is already running."
 msgstr "Már folyamatban van egy bejelentkezés vagy kulcsellenőrzés."
-
-# AI Translated
-msgid "There is no JusPrin account on this computer to check."
-msgstr "Ezen a számítógépen nincs ellenőrizhető JusPrin-fiók."
 
 # AI Translated
 msgid "JusPrin couldn't sign you in. Try again."
@@ -253,10 +145,6 @@ msgstr "Az AI nem kapta meg a natív eszköz eredményét."
 # AI Translated
 msgid "The AI request failed."
 msgstr "Az AI-kérés sikertelen volt."
-
-# AI Translated
-msgid "The automatic chat title could not be generated. You can rename the chat."
-msgstr "Az automatikus csevegéscímet nem sikerült létrehozni. A csevegést átnevezheted."
 
 # AI Translated
 #. TRN %1% is an AI provider's account, such as JusPrin.
@@ -305,10 +193,6 @@ msgstr "A(z) %1% nincs telepítve. Telepítsd, vagy másold ki a parancsot, és 
 # AI Translated
 msgid "This build cannot run the client CLI."
 msgstr "Ez a verzió nem tudja futtatni a kliens parancssori eszközét."
-
-# AI Translated
-msgid "This build cannot open a file manager."
-msgstr "Ez a verzió nem tud fájlkezelőt megnyitni."
 
 # AI Translated
 msgid "The provider did not answer."
@@ -502,10 +386,6 @@ msgstr "%1% mentése új folyamatbeállításként"
 #, boost-format
 msgid "Save %1% to %2%"
 msgstr "%1% mentése ide: %2%"
-
-# AI Translated
-msgid "This proposal is already saved."
-msgstr "Ez a javaslat már el van mentve."
 
 # AI Translated
 msgid "Drop a model here or add one"
@@ -1950,22 +1830,6 @@ msgid "Drag to resize the AI panel"
 msgstr "Húzd az AI-panel átméretezéséhez"
 
 # AI Translated
-msgid "The setup changed. Review the current plate and try again."
-msgstr "A beállítás megváltozott. Nézd át az aktuális tálcát, és próbáld újra."
-
-# AI Translated
-msgid "Couldn't slice"
-msgstr "A szeletelés nem sikerült"
-
-# AI Translated
-msgid "This saved version couldn't be restored. Try again from Version history."
-msgstr "Ezt a mentett verziót nem sikerült visszaállítani. Próbáld újra a Verzióelőzményekből."
-
-# AI Translated
-msgid "Revert failed"
-msgstr "A visszaállítás nem sikerült"
-
-# AI Translated
 msgid "Your saved projects couldn't be read, so JusPrin can't check whether you've opened this file before. The file wasn't opened. Try again once JusPrin can read its projects folder."
 msgstr "A mentett projektjeidet nem sikerült beolvasni, ezért a JusPrin nem tudja ellenőrizni, hogy megnyitottad-e már ezt a fájlt. A fájl nem nyílt meg. Próbáld újra, amikor a JusPrin már olvasni tudja a projektmappáját."
 
@@ -2102,10 +1966,6 @@ msgstr "A projektet nem sikerült megnyitni"
 # AI Translated
 msgid "Get the new version…"
 msgstr "Az új verzió letöltése…"
-
-# AI Translated
-msgid "JusPrin's view couldn't be opened."
-msgstr "A JusPrin nézetét nem sikerült megnyitni."
 
 # AI Translated
 msgid "Show the Plates and Project panel"
@@ -2271,6 +2131,146 @@ msgstr "Ezt a projektet a JusPrin egy újabb verziója mentette. A megnyitásáh
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "A projektet nem sikerült megnyitni. Próbáld újra."
+
+# AI Translated
+#~ msgid "JusPrin's view couldn't be opened."
+#~ msgstr "A JusPrin nézetét nem sikerült megnyitni."
+
+# AI Translated
+#~ msgid "That key could not be removed."
+#~ msgstr "A kulcsot nem sikerült eltávolítani."
+
+# AI Translated
+#~ msgid "This message belongs to a different chat."
+#~ msgstr "Ez az üzenet egy másik csevegéshez tartozik."
+
+# AI Translated
+#~ msgid "Another reply is currently streaming."
+#~ msgstr "Egy másik válasz érkezése még folyamatban van."
+
+# AI Translated
+#~ msgid "Finish or resolve pending work before creating a chat."
+#~ msgstr "Új csevegés létrehozása előtt fejezd be vagy rendezd a függőben lévő műveleteket."
+
+# AI Translated
+#~ msgid "The project or selected chat changed. Review it again."
+#~ msgstr "A projekt vagy a kiválasztott csevegés megváltozott. Nézd át újra."
+
+# AI Translated
+#~ msgid "Finish or resolve pending work before resuming a chat."
+#~ msgstr "Csevegés folytatása előtt fejezd be vagy rendezd a függőben lévő műveleteket."
+
+# AI Translated
+#~ msgid "JusPrin can't find the project version this chat was working on."
+#~ msgstr "A JusPrin nem találja a projektnek azt a verzióját, amelyen ez a csevegés dolgozott."
+
+# AI Translated
+#~ msgid "This chat is still working. Stop it or let it finish, then delete it."
+#~ msgstr "Ez a csevegés még dolgozik. Állítsd le, vagy várd meg, amíg befejezi, és utána töröld."
+
+# AI Translated
+#~ msgid "Historical chats cannot edit the current draft."
+#~ msgstr "Korábbi csevegések nem szerkeszthetik az aktuális piszkozatot."
+
+# AI Translated
+#~ msgid "Only the chat's last reply can be retried."
+#~ msgstr "Csak a csevegés utolsó válasza próbálható újra."
+
+# AI Translated
+#~ msgid "This saved version couldn't be restored. Try again from Version history."
+#~ msgstr "Ezt a mentett verziót nem sikerült visszaállítani. Próbáld újra a Verzióelőzményekből."
+
+# AI Translated
+#~ msgid "Revert failed"
+#~ msgstr "A visszaállítás nem sikerült"
+
+# AI Translated
+#~ msgid "The setup changed. Review the current plate and try again."
+#~ msgstr "A beállítás megváltozott. Nézd át az aktuális tálcát, és próbáld újra."
+
+# AI Translated
+#~ msgid "Couldn't slice"
+#~ msgstr "A szeletelés nem sikerült"
+
+# AI Translated
+#~ msgid "A message needs text or an attachment."
+#~ msgstr "Az üzenethez szöveg vagy melléklet szükséges."
+
+# AI Translated
+#~ msgid "This build cannot open a file dialog."
+#~ msgstr "Ez a verzió nem tud fájlválasztó ablakot megnyitni."
+
+# AI Translated
+#~ msgid "Historical replies cannot be retried."
+#~ msgstr "Korábbi válaszok nem próbálhatók újra."
+
+# AI Translated
+#~ msgid "Only a failed or stopped assistant message in the active conversation can be retried."
+#~ msgstr "Csak az aktív beszélgetés sikertelen vagy leállított asszisztensüzenete próbálható újra."
+
+# AI Translated
+#~ msgid "Historical tool actions cannot be changed."
+#~ msgstr "A korábbi eszközműveletek nem módosíthatók."
+
+# AI Translated
+#~ msgid "This proposal is no longer open. Ask AI again."
+#~ msgstr "Ez a javaslat már nem érvényes. Kérdezd újra az AI-t."
+
+# AI Translated
+#~ msgid "This save can no longer be undone."
+#~ msgstr "Ez a mentés már nem vonható vissza."
+
+# AI Translated
+#~ msgid "This chat is already active."
+#~ msgstr "Ez a csevegés már aktív."
+
+# AI Translated
+#~ msgid "Use a non-empty, single-line title of at most 120 characters for an existing chat."
+#~ msgstr "Meglévő csevegéshez legfeljebb 120 karakteres, egysoros, nem üres címet adj meg."
+
+# AI Translated
+#~ msgid "This chat no longer exists."
+#~ msgstr "Ez a csevegés már nem létezik."
+
+# AI Translated
+#~ msgid "Finish or stop the current reply before configuring AI."
+#~ msgstr "Az AI beállítása előtt fejezd be vagy állítsd le az aktuális választ."
+
+# AI Translated
+#~ msgid "This build cannot configure an AI provider."
+#~ msgstr "Ez a verzió nem tud AI-szolgáltatót beállítani."
+
+# AI Translated
+#~ msgid "Finish or stop the current reply before removing a key."
+#~ msgstr "Kulcs eltávolítása előtt fejezd be vagy állítsd le az aktuális választ."
+
+# AI Translated
+#~ msgid "Finish or cancel the key check before removing a key."
+#~ msgstr "Kulcs eltávolítása előtt fejezd be vagy szakítsd meg a kulcs ellenőrzését."
+
+# AI Translated
+#~ msgid "This build cannot sign in to a JusPrin account."
+#~ msgstr "Ez a verzió nem tud bejelentkezni JusPrin-fiókba."
+
+# AI Translated
+#~ msgid "Finish or stop the current reply before signing in."
+#~ msgstr "Bejelentkezés előtt fejezd be vagy állítsd le az aktuális választ."
+
+# AI Translated
+#~ msgid "There is no JusPrin account on this computer to check."
+#~ msgstr "Ezen a számítógépen nincs ellenőrizhető JusPrin-fiók."
+
+# AI Translated
+#~ msgid "The automatic chat title could not be generated. You can rename the chat."
+#~ msgstr "Az automatikus csevegéscímet nem sikerült létrehozni. A csevegést átnevezheted."
+
+# AI Translated
+#~ msgid "This build cannot open a file manager."
+#~ msgstr "Ez a verzió nem tud fájlkezelőt megnyitni."
+
+# AI Translated
+#~ msgid "This proposal is already saved."
+#~ msgstr "Ez a javaslat már el van mentve."
 
 # AI Translated
 #, c-format, boost-format

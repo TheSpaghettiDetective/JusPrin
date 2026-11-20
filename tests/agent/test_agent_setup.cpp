@@ -2,6 +2,9 @@
 // what it accepts as proof that a key works, and what it refuses.
 
 #include <catch2/catch_all.hpp>
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers.hpp>
+#include <catch2/matchers/catch_matchers_string.hpp>
 
 #include "slic3r/GUI/JusPrin/Agent/AgentSetup.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp"
@@ -10,6 +13,8 @@
 
 #include <map>
 #include <memory>
+#include <stdexcept>
+#include <string>
 #include <vector>
 
 using namespace Slic3r::GUI::JusPrin::Agent;
@@ -312,7 +317,10 @@ TEST_CASE("setup lists stored keys by hint and Remove deletes one", "[agent][set
         const auto key = stored.find(provider);
         return key == stored.end() ? std::string() : key->second;
     };
-    keys.remove = [&stored](const std::string& provider) { return stored.erase(provider) > 0; };
+    keys.remove = [&stored](const std::string& provider) {
+        if (stored.erase(provider) == 0)
+            throw std::runtime_error("no key stored for " + provider);
+    };
     TransportLog     log;
     ProviderKeySetup setup([&log]() -> std::unique_ptr<IAgentHttpTransport> { return std::make_unique<FakeTransport>(log); },
                            [](const SetupCredentials&) { return true; }, keys);
@@ -325,14 +333,15 @@ TEST_CASE("setup lists stored keys by hint and Remove deletes one", "[agent][set
     CHECK(saved[1].provider == "anthropic");
     CHECK(saved[1].hint == "sk-ant-…a3F9");
 
-    REQUIRE(setup.remove_key("anthropic"));
+    setup.remove_key("anthropic");
     CHECK(stored.count("anthropic") == 0);
     saved = setup.saved_keys();
     REQUIRE(saved.size() == 1);
     CHECK(saved[0].provider == "openai");
-    // Nothing stored, or a provider this build does not have, is not removed.
-    CHECK_FALSE(setup.remove_key("anthropic"));
-    CHECK_FALSE(setup.remove_key("openai_api_key"));
+    // Remove is drawn only on a stored key of a provider this build has:
+    // anything else stops for the report.
+    CHECK_THROWS(setup.remove_key("anthropic"));
+    CHECK_THROWS_WITH(setup.remove_key("openai_api_key"), Catch::Matchers::ContainsSubstring("no provider for"));
     CHECK(stored.count("openai") == 1);
     // No request went anywhere.
     CHECK(log.requests.empty());

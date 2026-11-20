@@ -5,6 +5,7 @@
 // actually reaches the model and what never does.
 
 #include <catch2/catch_all.hpp>
+#include <catch2/matchers/catch_matchers.hpp>
 
 #include "slic3r/GUI/JusPrin/Agent/AgentHost.hpp"
 #include "slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.hpp"
@@ -1858,13 +1859,13 @@ TEST_CASE("printer_host_connect and printer_bambu_connect each refuse the other 
     REQUIRE(bambu.has_value());
     CHECK(bambu->code == "unknown_device");
     CHECK_THAT(bambu->message, StartsWith("This is a Bambu Lab printer, connected with printer_bambu_connect."));
-    // The list in the message is the model's; the card says it in words of
-    // its own, which the model never reads.
+    // The list in the message is the model's; the card says only that the
+    // action failed, so the refusal carries no line of the card's own.
     CHECK_THAT(bambu->message, ContainsSubstring("Pass the deviceId of one of these printers in LAN mode: 01P00A3B (Workshop)."));
-    CHECK(json::parse(bambu->details_json).value("shown", "") == "Pick one of these printers to connect.");
+    CHECK_FALSE(json::parse(bambu->details_json).contains("shown"));
     const auto unknown = connect_refusal(conversation, json{{"deviceId", "NOPE"}});
     REQUIRE(unknown.has_value());
-    CHECK(json::parse(unknown->details_json).value("shown", "") == "Pick one of these printers to connect.");
+    CHECK_FALSE(json::parse(unknown->details_json).contains("shown"));
 
     backend.connection_info = PrinterConnectionInfo{"host", "not_configured"};
     const auto host = connect_refusal(conversation, json{{"deviceId", "01P00A3B"}});
@@ -2404,10 +2405,12 @@ TEST_CASE("the printer form saves nothing it did not offer, and says why", "[pri
     other_nozzle["nozzle"] = 0.6;
     refused_with(other_nozzle, "The form was out of date. Choose the printer again.");
 
-    // What stops the save is the app's to say, and the form stays open.
+    // A printer that cannot be installed is nothing the person can act on:
+    // the failure goes up to be reported, and the form says nothing of its own.
     backend.refusal = "This printer could not be installed.";
-    action(conversation, finish);
-    CHECK(form_of(conversation).at("error") == "This printer could not be installed.");
+    const json before = form_of(conversation).at("error");
+    CHECK_THROWS_WITH(action(conversation, finish), Catch::Matchers::ContainsSubstring("This printer could not be installed."));
+    CHECK(form_of(conversation).at("error") == before);
     CHECK(backend.saved.empty());
     CHECK(panel.notes.empty());
 

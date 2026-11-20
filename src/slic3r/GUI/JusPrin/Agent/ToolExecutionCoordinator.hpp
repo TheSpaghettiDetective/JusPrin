@@ -243,8 +243,9 @@ public:
     void set_saves_need_approval(bool on) { m_saves_need_approval = on; }
     // The person's Save preset on a proposal: applies exactly what the
     // preview proposed, against its session and revision, as an apply whose
-    // approves names the preview. Empty when it was queued; otherwise why not.
-    std::string approve_proposal(const std::string& preview_action_id);
+    // approves names the preview. False when a save of it is already under
+    // way: a second press. A preview that is no open proposal throws.
+    bool approve_proposal(const std::string& preview_action_id);
     // An approved save that succeeded, for the host to confirm in the chat.
     void set_proposal_saved(std::function<void(const ToolActivity& apply)> listener)
     {

@@ -151,7 +151,6 @@ struct Fixture
         store.erase = [this] {
             ++erases;
             stored.reset();
-            return true;
         };
         sign_in = std::make_unique<CloudSignIn>(cloud_server_from_gateway(kGateway), kGateway, "slicer-1", machine.deps(),
                                                 std::move(store),
@@ -430,11 +429,13 @@ TEST_CASE("cancelling a sign-in drops what the browser or server says afterwards
 TEST_CASE("signing out forgets the account and revokes its token", "[agent][account]")
 {
     Fixture f;
-    CHECK_FALSE(f.sign_in->sign_out());
+    // Sign out is drawn only while signed in.
+    CHECK_THROWS_WITH(f.sign_in->sign_out(), Catch::Matchers::ContainsSubstring("no account stored"));
+    CHECK(f.erases == 0);
     f.stored = CloudAccountRecord{"tok-1", "alex@example.com", {}};
     REQUIRE(f.sign_in->account().has_value());
     CHECK(f.sign_in->account()->email == "alex@example.com");
-    REQUIRE(f.sign_in->sign_out());
+    f.sign_in->sign_out();
     CHECK(f.erases == 1);
     CHECK_FALSE(f.sign_in->account().has_value());
     CHECK(f.machine.revoked == std::vector<std::pair<std::string, std::string>>{{"https://jusprin.test/o/revoke_token/", "tok-1"}});
@@ -470,11 +471,10 @@ public:
     bool                              submit_password(const std::string&) override { return false; }
     bool                              send_code() override { return false; }
     std::optional<CloudAccountRecord> account() const override { return record; }
-    bool                              sign_out() override
+    void                              sign_out() override
     {
         ++sign_outs;
         record.reset();
-        return true;
     }
 };
 
@@ -505,7 +505,7 @@ TEST_CASE("setup lists the account by email, signs out for Remove and never chec
     pasted.api_key  = "tok-pasted";
     CHECK_FALSE(setup.start_check(pasted));
 
-    REQUIRE(setup.remove_key("jusprin"));
+    setup.remove_key("jusprin");
     CHECK(account->sign_outs == 1);
     CHECK(keys.count("jusprin") == 1); // the sign-in's store forgets it, not the key store
 }

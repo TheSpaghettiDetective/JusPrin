@@ -10,6 +10,7 @@
 #include "slic3r/GUI/JusPrin/Support/PageLanguage.hpp"
 #include "slic3r/GUI/JusPrin/Updates/Version.hpp"
 #include "slic3r/Utils/Http.hpp"
+#include "libslic3r/Exception.hpp"
 
 #include <boost/log/trivial.hpp>
 #include <boost/system/system_error.hpp>
@@ -184,8 +185,11 @@ CloudAccountDeps make_cloud_account_deps()
             .form_add("client_id", client_id)
             .timeout_connect(10)
             .timeout_max(30)
-            .on_error(reported("signing out of JusPrin", [](std::string, std::string error, unsigned status) {
-                BOOST_LOG_TRIVIAL(warning) << "JusPrin sign-out could not revoke the token (" << status << "): " << error;
+            .on_error(reported("signing out of JusPrin", [url](std::string body, std::string error, unsigned status) {
+                // Forgotten on this computer, the token still works on the
+                // server.
+                throw RuntimeError("revoking the token at " + url + " answered " + std::to_string(status) + ": " + error +
+                                   (body.empty() ? std::string() : " " + body));
             }))
             .perform();
     };

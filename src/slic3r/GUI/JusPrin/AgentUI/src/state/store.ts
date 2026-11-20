@@ -372,9 +372,13 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
     case 'work_updated': {
       // One entry per piece of work: it is added when the work starts and
       // replaced in place as it moves on and when it ends.
+      // It carries the document's revision, which starting and ending work
+      // moves: Resume sends it back.
       const work = payload.work as WorkInfo;
       const known = state.work.some((entry) => entry.id === work.id);
-      return { ...state, work: known ? state.work.map((entry) => (entry.id === work.id ? work : entry)) : [...state.work, work] };
+      const docRevision = typeof payload.docRevision === 'number' ? payload.docRevision : state.docRevision;
+      return { ...state, docRevision,
+        work: known ? state.work.map((entry) => (entry.id === work.id ? work : entry)) : [...state.work, work] };
     }
     case 'change_added': {
       const change = payload.change as ChangeInfo;

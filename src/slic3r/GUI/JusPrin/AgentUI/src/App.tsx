@@ -5,7 +5,7 @@ import { AgentUiState, initialState, reducer } from './state/store';
 import { applyAppearance } from './tokens';
 import { SetupCard, formatMoment } from './components/SetupCard';
 import { AllSettings, AllSettingsHeader, catalogFromContext } from './components/AllSettings';
-import { AgentPaneToggle, ChatHeader, ChatList, chatTitle, Dialog, TaskHeader, printerTaskTitle } from './components/ChatNavigation';
+import { ChatHeader, ChatList, chatTitle, Dialog, TaskHeader, printerTaskTitle } from './components/ChatNavigation';
 import { MessageList } from './components/MessageList';
 import { Composer, ComposerCredits } from './components/Composer';
 import { PrinterCredentialForm } from './components/PrinterPanel';
@@ -126,10 +126,11 @@ export function App({
       onEnvelope: (envelope: Envelope) => {
         if (envelope.type === 'bridge_error') {
           const payload = envelope.payload as { code?: string; message?: string };
-          setCommandError(payload.message ?? t`The action could not be completed.`);
           // The host restarts after a reload on its side; if it forgot us,
-          // simply shake hands again.
+          // simply shake hands again. Nothing went wrong the person needs to
+          // hear about.
           if (payload.code === 'handshake_required') created.retry();
+          else setCommandError(payload.message ?? t`The action could not be completed.`);
         }
         // A file the app took from a drop the page never saw. Only the
         // message box takes it; anywhere else it is dropped silently.
@@ -699,12 +700,12 @@ export function App({
     <div className={state.navigation.focused ? 'app app--focused-chat' : 'app'}>
       {errorNotice}
       {view === 'list' && !state.navigation.focused && chatList}
-      {/* A chat that fills the window heads the window, above its reading column. */}
+      {/* A chat that fills the window heads the window, above its reading
+          column. It is no panel, so it offers no way to hide one. */}
       {state.navigation.focused && <TaskHeader title={filamentTaskTitle}
         closeTip={state.navigation.returnLabel} onClose={returnToWorkspace}>
         <button type="button" className="panel-link-button"
           onClick={() => client.send('shell_action', { action: 'open_filament_settings' })}><Trans>Open filament settings</Trans></button>
-        <AgentPaneToggle onCollapse={collapseAgentPane} />
       </TaskHeader>}
       <div className="chat-content" hidden={view === 'list'}>
       {notConfigured && state.conversations.length === 1 && view !== 'allSettings' && !state.navigation.focused ? (

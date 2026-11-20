@@ -528,9 +528,9 @@ private:
     void handle_setup_check_key(const std::string& envelope_id, const std::string& payload_json);
     void handle_setup_cancel();
     void handle_delete_account(const std::string& envelope_id);
-    // Removes a stored key and puts the agent on the keys still stored; false
-    // when setup would not remove it.
-    bool remove_saved_key(const std::string& provider);
+    // Removes a stored key and puts the agent on the keys still stored;
+    // throws when setup could not remove it.
+    void remove_saved_key(const std::string& provider);
     void handle_setup_remove_key(const std::string& envelope_id, const std::string& payload_json);
     void handle_account_sign_in(const std::string& envelope_id, bool stored);
     void handle_account_cancel();

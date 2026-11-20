@@ -116,7 +116,7 @@ public:
     void ask_agent_for_printer() override;
     void choose_printers_way(const std::string& way) override;
     std::string import_printers(const std::string& app, const std::vector<std::string>& printers) override;
-    std::string assume_default_printer() override;
+    void assume_default_printer() override;
     void finish_import() override;
     void printer_form_message(const nlohmann::json& payload) override;
     void dismiss_account_card() override;

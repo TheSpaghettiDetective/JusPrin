@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-18 20:27-0800\n"
+"POT-Creation-Date: 2026-11-20 08:46-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -35,14 +35,6 @@ msgid "Finish or cancel AI configuration before sending a message."
 msgstr "Завершіть або скасуйте налаштування ШІ, перш ніж надсилати повідомлення."
 
 # AI Translated
-msgid "This message belongs to a different chat."
-msgstr "Це повідомлення належить до іншого чату."
-
-# AI Translated
-msgid "A message needs text or an attachment."
-msgstr "Повідомлення має містити текст або вкладення."
-
-# AI Translated
 msgid "This file is too large to attach."
 msgstr "Цей файл завеликий для вкладення."
 
@@ -65,10 +57,6 @@ msgstr "3D-модель"
 # AI Translated
 msgid "Document (PDF)"
 msgstr "Документ (PDF)"
-
-# AI Translated
-msgid "This build cannot open a file dialog."
-msgstr "Ця збірка програми не може відкрити вікно вибору файлу."
 
 # AI Translated
 # Needs human review: %1% is where the calibration was started from; check 'Звідки:' reads right with the real values.
@@ -125,80 +113,8 @@ msgid "The slice of %1% finished."
 msgstr "Нарізку %1% завершено."
 
 # AI Translated
-msgid "Historical replies cannot be retried."
-msgstr "Відповіді з історії не можна повторити."
-
-# AI Translated
-msgid "Only a failed or stopped assistant message in the active conversation can be retried."
-msgstr "Повторити можна лише невдале або зупинене повідомлення асистента в активній розмові."
-
-# AI Translated
-msgid "Only the chat's last reply can be retried."
-msgstr "Повторити можна лише останню відповідь чату."
-
-# AI Translated
-msgid "Another reply is currently streaming."
-msgstr "Зараз надходить інша відповідь."
-
-# AI Translated
-msgid "Historical tool actions cannot be changed."
-msgstr "Дії інструментів з історії не можна змінити."
-
-# AI Translated
-msgid "This proposal is no longer open. Ask AI again."
-msgstr "Ця пропозиція вже закрита. Запитайте ШІ ще раз."
-
-# AI Translated
-msgid "This save can no longer be undone."
-msgstr "Це збереження вже не можна скасувати."
-
-# AI Translated
-msgid "Finish or resolve pending work before creating a chat."
-msgstr "Завершіть або вирішіть незавершені дії, перш ніж створювати чат."
-
-# AI Translated
-msgid "The project or selected chat changed. Review it again."
-msgstr "Проєкт або вибраний чат змінився. Перегляньте його ще раз."
-
-# AI Translated
-msgid "Finish or resolve pending work before resuming a chat."
-msgstr "Завершіть або вирішіть незавершені дії, перш ніж продовжити чат."
-
-# AI Translated
-msgid "This chat is already active."
-msgstr "Цей чат уже активний."
-
-# AI Translated
-msgid "JusPrin can't find the project version this chat was working on."
-msgstr "JusPrin не може знайти версію проєкту, з якою працював цей чат."
-
-# AI Translated
 msgid "Restored this chat's saved project setup. Check the current printer and material before printing."
 msgstr "Відновлено збережені налаштування проєкту цього чату. Перед друком перевірте поточний принтер і матеріал."
-
-# AI Translated
-msgid "Use a non-empty, single-line title of at most 120 characters for an existing chat."
-msgstr "Для наявного чату вкажіть непорожню однорядкову назву довжиною до 120 символів."
-
-# AI Translated
-msgid "This chat is still working. Stop it or let it finish, then delete it."
-msgstr "Цей чат ще працює. Зупиніть його або дочекайтеся завершення, а потім видаліть."
-
-# AI Translated
-msgid "This chat no longer exists."
-msgstr "Цього чату більше не існує."
-
-# AI Translated
-msgid "Historical chats cannot edit the current draft."
-msgstr "Чати з історії не можуть змінювати поточну чернетку."
-
-# AI Translated
-msgid "Finish or stop the current reply before configuring AI."
-msgstr "Завершіть або зупиніть поточну відповідь, перш ніж налаштовувати ШІ."
-
-# AI Translated
-msgid "This build cannot configure an AI provider."
-msgstr "Ця збірка програми не може налаштувати постачальника ШІ."
 
 # AI Translated
 msgid "A credential check is already running."
@@ -209,32 +125,8 @@ msgid "This build cannot verify a key for that provider yet."
 msgstr "Ця збірка програми поки не може перевірити ключ для цього постачальника."
 
 # AI Translated
-msgid "Finish or stop the current reply before removing a key."
-msgstr "Завершіть або зупиніть поточну відповідь, перш ніж видаляти ключ."
-
-# AI Translated
-msgid "Finish or cancel the key check before removing a key."
-msgstr "Завершіть або скасуйте перевірку ключа, перш ніж видаляти ключ."
-
-# AI Translated
-msgid "That key could not be removed."
-msgstr "Не вдалося видалити цей ключ."
-
-# AI Translated
-msgid "This build cannot sign in to a JusPrin account."
-msgstr "У цій збірці програми не можна увійти в обліковий запис JusPrin."
-
-# AI Translated
-msgid "Finish or stop the current reply before signing in."
-msgstr "Завершіть або зупиніть поточну відповідь, перш ніж входити."
-
-# AI Translated
 msgid "A sign-in or key check is already running."
 msgstr "Вхід або перевірка ключа вже виконується."
-
-# AI Translated
-msgid "There is no JusPrin account on this computer to check."
-msgstr "На цьому компʼютері немає облікового запису JusPrin, який можна перевірити."
 
 # AI Translated
 msgid "JusPrin couldn't sign you in. Try again."
@@ -255,10 +147,6 @@ msgstr "ШІ не вдалося отримати результат інстр�
 # AI Translated
 msgid "The AI request failed."
 msgstr "Запит до ШІ не вдався."
-
-# AI Translated
-msgid "The automatic chat title could not be generated. You can rename the chat."
-msgstr "Не вдалося автоматично створити назву чату. Ви можете перейменувати чат."
 
 # AI Translated
 #. TRN %1% is an AI provider's account, such as JusPrin.
@@ -307,10 +195,6 @@ msgstr "%1% не встановлено. Установіть його або с
 # AI Translated
 msgid "This build cannot run the client CLI."
 msgstr "Ця збірка програми не може запустити CLI клієнта."
-
-# AI Translated
-msgid "This build cannot open a file manager."
-msgstr "Ця збірка програми не може відкрити файловий менеджер."
 
 # AI Translated
 msgid "The provider did not answer."
@@ -506,10 +390,6 @@ msgstr "Зберегти %1% як новий пресет процесу"
 #, boost-format
 msgid "Save %1% to %2%"
 msgstr "Зберегти %1% у %2%"
-
-# AI Translated
-msgid "This proposal is already saved."
-msgstr "Цю пропозицію вже збережено."
 
 # AI Translated
 msgid "Drop a model here or add one"
@@ -1978,22 +1858,6 @@ msgid "Drag to resize the AI panel"
 msgstr "Перетягніть, щоб змінити розмір панелі ШІ"
 
 # AI Translated
-msgid "The setup changed. Review the current plate and try again."
-msgstr "Налаштування змінилися. Перегляньте поточну пластину й спробуйте ще раз."
-
-# AI Translated
-msgid "Couldn't slice"
-msgstr "Не вдалося нарізати"
-
-# AI Translated
-msgid "This saved version couldn't be restored. Try again from Version history."
-msgstr "Не вдалося відновити цю збережену версію. Спробуйте ще раз з історії версій."
-
-# AI Translated
-msgid "Revert failed"
-msgstr "Не вдалося повернути"
-
-# AI Translated
 msgid "Your saved projects couldn't be read, so JusPrin can't check whether you've opened this file before. The file wasn't opened. Try again once JusPrin can read its projects folder."
 msgstr "Не вдалося прочитати ваші збережені проєкти, тому JusPrin не може перевірити, чи ви вже відкривали цей файл. Файл не відкрито. Спробуйте ще раз, коли JusPrin зможе прочитати теку проєктів."
 
@@ -2130,10 +1994,6 @@ msgstr "Не вдалося відкрити проєкт"
 # AI Translated
 msgid "Get the new version…"
 msgstr "Отримати нову версію…"
-
-# AI Translated
-msgid "JusPrin's view couldn't be opened."
-msgstr "Не вдалося відкрити вигляд JusPrin."
 
 # AI Translated
 msgid "Show the Plates and Project panel"
@@ -2310,6 +2170,146 @@ msgstr "Цей проєкт збережено новішою версією Jus
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "Не вдалося відкрити проєкт. Спробуйте ще раз."
+
+# AI Translated
+#~ msgid "JusPrin's view couldn't be opened."
+#~ msgstr "Не вдалося відкрити вигляд JusPrin."
+
+# AI Translated
+#~ msgid "That key could not be removed."
+#~ msgstr "Не вдалося видалити цей ключ."
+
+# AI Translated
+#~ msgid "This message belongs to a different chat."
+#~ msgstr "Це повідомлення належить до іншого чату."
+
+# AI Translated
+#~ msgid "Another reply is currently streaming."
+#~ msgstr "Зараз надходить інша відповідь."
+
+# AI Translated
+#~ msgid "Finish or resolve pending work before creating a chat."
+#~ msgstr "Завершіть або вирішіть незавершені дії, перш ніж створювати чат."
+
+# AI Translated
+#~ msgid "The project or selected chat changed. Review it again."
+#~ msgstr "Проєкт або вибраний чат змінився. Перегляньте його ще раз."
+
+# AI Translated
+#~ msgid "Finish or resolve pending work before resuming a chat."
+#~ msgstr "Завершіть або вирішіть незавершені дії, перш ніж продовжити чат."
+
+# AI Translated
+#~ msgid "JusPrin can't find the project version this chat was working on."
+#~ msgstr "JusPrin не може знайти версію проєкту, з якою працював цей чат."
+
+# AI Translated
+#~ msgid "This chat is still working. Stop it or let it finish, then delete it."
+#~ msgstr "Цей чат ще працює. Зупиніть його або дочекайтеся завершення, а потім видаліть."
+
+# AI Translated
+#~ msgid "Historical chats cannot edit the current draft."
+#~ msgstr "Чати з історії не можуть змінювати поточну чернетку."
+
+# AI Translated
+#~ msgid "Only the chat's last reply can be retried."
+#~ msgstr "Повторити можна лише останню відповідь чату."
+
+# AI Translated
+#~ msgid "This saved version couldn't be restored. Try again from Version history."
+#~ msgstr "Не вдалося відновити цю збережену версію. Спробуйте ще раз з історії версій."
+
+# AI Translated
+#~ msgid "Revert failed"
+#~ msgstr "Не вдалося повернути"
+
+# AI Translated
+#~ msgid "The setup changed. Review the current plate and try again."
+#~ msgstr "Налаштування змінилися. Перегляньте поточну пластину й спробуйте ще раз."
+
+# AI Translated
+#~ msgid "Couldn't slice"
+#~ msgstr "Не вдалося нарізати"
+
+# AI Translated
+#~ msgid "A message needs text or an attachment."
+#~ msgstr "Повідомлення має містити текст або вкладення."
+
+# AI Translated
+#~ msgid "This build cannot open a file dialog."
+#~ msgstr "Ця збірка програми не може відкрити вікно вибору файлу."
+
+# AI Translated
+#~ msgid "Historical replies cannot be retried."
+#~ msgstr "Відповіді з історії не можна повторити."
+
+# AI Translated
+#~ msgid "Only a failed or stopped assistant message in the active conversation can be retried."
+#~ msgstr "Повторити можна лише невдале або зупинене повідомлення асистента в активній розмові."
+
+# AI Translated
+#~ msgid "Historical tool actions cannot be changed."
+#~ msgstr "Дії інструментів з історії не можна змінити."
+
+# AI Translated
+#~ msgid "This proposal is no longer open. Ask AI again."
+#~ msgstr "Ця пропозиція вже закрита. Запитайте ШІ ще раз."
+
+# AI Translated
+#~ msgid "This save can no longer be undone."
+#~ msgstr "Це збереження вже не можна скасувати."
+
+# AI Translated
+#~ msgid "This chat is already active."
+#~ msgstr "Цей чат уже активний."
+
+# AI Translated
+#~ msgid "Use a non-empty, single-line title of at most 120 characters for an existing chat."
+#~ msgstr "Для наявного чату вкажіть непорожню однорядкову назву довжиною до 120 символів."
+
+# AI Translated
+#~ msgid "This chat no longer exists."
+#~ msgstr "Цього чату більше не існує."
+
+# AI Translated
+#~ msgid "Finish or stop the current reply before configuring AI."
+#~ msgstr "Завершіть або зупиніть поточну відповідь, перш ніж налаштовувати ШІ."
+
+# AI Translated
+#~ msgid "This build cannot configure an AI provider."
+#~ msgstr "Ця збірка програми не може налаштувати постачальника ШІ."
+
+# AI Translated
+#~ msgid "Finish or stop the current reply before removing a key."
+#~ msgstr "Завершіть або зупиніть поточну відповідь, перш ніж видаляти ключ."
+
+# AI Translated
+#~ msgid "Finish or cancel the key check before removing a key."
+#~ msgstr "Завершіть або скасуйте перевірку ключа, перш ніж видаляти ключ."
+
+# AI Translated
+#~ msgid "This build cannot sign in to a JusPrin account."
+#~ msgstr "У цій збірці програми не можна увійти в обліковий запис JusPrin."
+
+# AI Translated
+#~ msgid "Finish or stop the current reply before signing in."
+#~ msgstr "Завершіть або зупиніть поточну відповідь, перш ніж входити."
+
+# AI Translated
+#~ msgid "There is no JusPrin account on this computer to check."
+#~ msgstr "На цьому компʼютері немає облікового запису JusPrin, який можна перевірити."
+
+# AI Translated
+#~ msgid "The automatic chat title could not be generated. You can rename the chat."
+#~ msgstr "Не вдалося автоматично створити назву чату. Ви можете перейменувати чат."
+
+# AI Translated
+#~ msgid "This build cannot open a file manager."
+#~ msgstr "Ця збірка програми не може відкрити файловий менеджер."
+
+# AI Translated
+#~ msgid "This proposal is already saved."
+#~ msgstr "Цю пропозицію вже збережено."
 
 # AI Translated
 #, c-format, boost-format

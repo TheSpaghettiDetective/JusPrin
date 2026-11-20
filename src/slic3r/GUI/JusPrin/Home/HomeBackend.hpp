@@ -131,11 +131,12 @@ public:
     virtual void choose_printers_way(const std::string& way) = 0;
     // "Can't find your printer? Ask the agent": Home, with the printer chat.
     virtual void ask_agent_for_printer()          = 0;
-    // Each returns a message for the person when it could not finish.
+    // Returns a message for the person when it could not finish.
     // `printers` names the printers the person left chosen, as the import
     // screen of `app` ("jusprin1" or "orcaslicer") lists them.
     virtual std::string import_printers(const std::string& app, const std::vector<std::string>& printers) = 0;
-    virtual std::string assume_default_printer()  = 0;
+    // Skip for now: the bundled printer that belongs to no manufacturer.
+    virtual void assume_default_printer() = 0;
     // The import's result: Continue, which leaves for the add-printer form
     // when no printer came.
     virtual void finish_import()                  = 0;

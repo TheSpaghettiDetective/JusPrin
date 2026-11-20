@@ -5,12 +5,14 @@
 
 #include <catch2/catch_all.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers.hpp>
 
 #include <nlohmann/json.hpp>
 
 #include <array>
 #include <cstddef>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -101,10 +103,11 @@ public:
         chosen_printers = printers;
         return refusal;
     }
-    std::string assume_default_printer() override
+    void assume_default_printer() override
     {
         onboarding_calls.push_back("assume_default");
-        return refusal;
+        if (skip_fails)
+            throw std::runtime_error("Installing the bundled generic printer failed");
     }
     void finish_import() override { onboarding_calls.push_back("import_continue"); }
     void printer_form_message(const json& payload) override { form_messages.push_back(payload); }
@@ -123,6 +126,7 @@ public:
     std::vector<std::pair<std::string, std::string>> renamed;
     std::vector<std::string>                         removed;
     std::string                                      refusal; // what every printer action answers
+    bool                                             skip_fails = false;
 
     std::string open_printer_settings(const std::string& id) override
     {
@@ -507,6 +511,19 @@ TEST_CASE("a printer the first launch could not bring says why and keeps the ste
     REQUIRE(errors.size() == 1);
     CHECK(errors.front().at("payload").at("message") == backend.refusal);
     CHECK(wire.of_type("state").size() == 2);
+}
+
+TEST_CASE("Skip for now that cannot install the printer leaves the failure to the top handler", "[home][onboarding]")
+{
+    FakeBackend backend;
+    backend.skip_fails = true;
+    Wire wire;
+    HomeHost host(backend, wire.sink());
+    host.on_page_message(hello());
+
+    CHECK_THROWS_WITH(host.on_page_message(page_message("onboarding_assume_default")),
+                      "Installing the bundled generic printer failed");
+    CHECK(wire.of_type("onboarding_error").empty());
 }
 
 TEST_CASE("the import result's Continue reaches the backend", "[home][onboarding]")

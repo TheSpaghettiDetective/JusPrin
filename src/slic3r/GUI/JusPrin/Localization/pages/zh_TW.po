@@ -4203,6 +4203,7 @@ msgid "The action could not be completed."
 msgstr "無法完成此操作。"
 
 # AI Translated
+#: src/components/ProposalCard.tsx
 #: src/components/ToolActivityCard.tsx
 msgid "The action failed."
 msgstr "操作失敗。"
@@ -4288,6 +4289,7 @@ msgid "the printer profile’s default, until your preset is saved"
 msgstr "列印裝置設定檔的預設值，直到您的預設儲存為止"
 
 # AI Translated
+#: src/components/ProposalCard.tsx
 #: src/components/ToolActivityCard.tsx
 msgid "The project changed before this could run. Ask AI again."
 msgstr "專案在此操作執行前已變更。請再次詢問 AI。"

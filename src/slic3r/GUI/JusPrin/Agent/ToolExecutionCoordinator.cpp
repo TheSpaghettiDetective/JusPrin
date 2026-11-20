@@ -1033,16 +1033,16 @@ const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request,
     return stored;
 }
 
-std::string ToolExecutionCoordinator::approve_proposal(const std::string& preview_action_id)
+bool ToolExecutionCoordinator::approve_proposal(const std::string& preview_action_id)
 {
     const ToolActivity* preview = find(preview_action_id);
     if (preview == nullptr || preview->proposal_json.empty() || preview->state != ToolState::Succeeded)
-        return translated(L("This proposal is no longer open. Ask AI again."));
+        throw std::logic_error("Save preset on " + preview_action_id + ", which is no open proposal");
     const bool saving = std::any_of(m_activities.begin(), m_activities.end(), [&preview_action_id](const ToolActivity& item) {
         return item.approves == preview_action_id && item.state != ToolState::Failed && item.state != ToolState::Cancelled;
     });
     if (saving)
-        return translated(L("This proposal is already saved."));
+        return false;
     // The preview's own stamp: a settings change since it makes the save
     // stale instead of saving something the card did not show.
     json arguments = json::parse(preview->arguments_json);
@@ -1052,7 +1052,7 @@ std::string ToolExecutionCoordinator::approve_proposal(const std::string& previe
     m_approving = preview_action_id;
     submit(ToolRequest{"settings_apply_patch", arguments.dump()}, correlation);
     m_approving.clear();
-    return {};
+    return true;
 }
 
 bool ToolExecutionCoordinator::cancel(const std::string& action_id)

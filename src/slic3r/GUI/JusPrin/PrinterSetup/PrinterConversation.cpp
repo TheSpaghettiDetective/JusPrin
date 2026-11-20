@@ -14,6 +14,7 @@
 // marked with L() and translated with translated() (Localization/README.md).
 // Everything the model reads stays English.
 #include "slic3r/GUI/JusPrin/Support/Translate.hpp"
+#include "libslic3r/Exception.hpp"
 
 namespace Slic3r::GUI::JusPrin::PrinterSetup {
 
@@ -586,8 +587,7 @@ ToolError PrinterConversation::unknown_device_error(const PrinterConnectionInfo&
     const std::string tail = others + (cloud ? std::string(" ") + kPersonsChoice : std::string());
     if (listed.empty())
         return ToolError{"unknown_device", lead + search_text() + tail};
-    return ToolError{"unknown_device", lead + "Pass the deviceId of one of these printers in LAN mode: " + listed + "." + tail,
-                     json{{"shown", "Pick one of these printers to connect."}}.dump()};
+    return ToolError{"unknown_device", lead + "Pass the deviceId of one of these printers in LAN mode: " + listed + "." + tail};
 }
 
 std::string PrinterConversation::search_text() const
@@ -1368,8 +1368,10 @@ void PrinterConversation::finish_form(const json& payload)
     AddPrinterRequest request{printer->vendor_id, printer->model_id, number_text(nozzle),
                               fitting != nullptr ? fitting->name : options->default_filament, printer->display_name(), device, plate};
     SavedPrinter      added;
+    // A profile bundled with the app that cannot be installed is nothing the
+    // person can act on: the handler around the page's messages reports it.
     if (const std::string problem = m_backend.add_printer(request, added); !problem.empty())
-        return refuse_form(problem);
+        throw RuntimeError("Adding the printer from the form failed: " + problem);
     const SavedPrinter now = saved(added.name);
     if (now.name.empty())
         throw std::logic_error("A successful add did not save a printer");

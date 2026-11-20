@@ -201,6 +201,8 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Close' })).toHaveAttribute('title', 'Back to Prepare');
     expect(screen.queryByRole('button', { name: 'New chat' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Chat actions' })).not.toBeInTheDocument();
+    // The chat fills the window: it has no AI panel to hide.
+    expect(screen.queryByRole('button', { name: 'Hide the AI panel' })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Open filament settings' }));
     expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'open_filament_settings' });
     await userEvent.click(screen.getByRole('button', { name: 'Close' }));
@@ -662,6 +664,19 @@ describe('App', () => {
     expect(screen.getAllByRole('button', { name: 'Retry' })).toHaveLength(1);
   });
 
+  it('offers no Retry on a failed reply the chat went on past', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ conversation: [
+      { id: 'm-1', role: 'user', state: 'complete', text: 'one', attempt: 1 },
+      { id: 'm-2', role: 'assistant', state: 'failed', text: '', attempt: 1,
+        error: { code: 'provider_unavailable', message: 'The AI service did not answer.', retryable: true } },
+      { id: 'm-3', role: 'user', state: 'complete', text: 'two', attempt: 1 },
+      { id: 'm-4', role: 'assistant', state: 'complete', text: 'Walls are now 4.', attempt: 1 },
+    ] }));
+    expect(screen.getByText('The AI service did not answer.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+  });
+
   it('keeps history clear and provides setup from the chat list when the Agent is not configured', async () => {
     render(<App getTransport={() => host.transport} />);
     connect(
@@ -1114,6 +1129,18 @@ describe('App', () => {
     expect(screen.getByRole('menuitem', { name: 'Rename' })).toBeEnabled();
     host.deliver('bridge_error', { code: 'busy', message: 'This chat is still working. Stop it or let it finish, then delete it.' });
     expect(screen.getByRole('alert')).toHaveTextContent('This chat is still working.');
+  });
+
+  it('shakes hands again, showing nothing, when the app side restarted and forgot the page', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host);
+    const hellos = host.received.filter((envelope) => envelope.type === 'hello').length;
+    host.deliver('bridge_error', { code: 'handshake_required', message: 'A hello handshake is required before other messages.' });
+    expect(host.received.filter((envelope) => envelope.type === 'hello').length).toBe(hellos + 1);
+    // The app side answers the new hello, and the chat is back with no bar.
+    connect(host);
+    expect(screen.getByLabelText('Message AI')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('replaces the chat list when the native project changes', async () => {

@@ -3386,6 +3386,7 @@ msgstr "The account couldn’t be deleted. Check your internet connection, then 
 msgid "The action could not be completed."
 msgstr "The action could not be completed."
 
+#: src/components/ProposalCard.tsx
 #: src/components/ToolActivityCard.tsx
 msgid "The action failed."
 msgstr "The action failed."
@@ -3454,6 +3455,7 @@ msgstr "The printer hasn’t confirmed it got the file."
 msgid "the printer profile’s default, until your preset is saved"
 msgstr "the printer profile’s default, until your preset is saved"
 
+#: src/components/ProposalCard.tsx
 #: src/components/ToolActivityCard.tsx
 msgid "The project changed before this could run. Ask AI again."
 msgstr "The project changed before this could run. Ask AI again."

@@ -179,8 +179,7 @@ private:
     void   end_connect_call(const std::string& state, const std::string& message);
     static Result pending();
     // Why a connection tool refused `asked`, from what the app has observed,
-    // after `lead`. When it lists printers to pick from, its details carry
-    // the card's own line, "shown", since the message is the model's.
+    // after `lead`.
     Agent::ToolError unknown_device_error(const PrinterConnectionInfo& info, const std::string& asked,
                                           const std::string& lead = {}) const;
     // How far the network search has got, for a refusal and for the status.

@@ -6,7 +6,7 @@
 // the card then says it was not saved. Once saved it goes: the receipt note
 // that follows says so.
 
-import { ToolActivityInfo } from '../bridge/protocol';
+import { isStale, ToolActivityInfo } from '../bridge/protocol';
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 
@@ -14,7 +14,8 @@ interface Props {
   preview: ToolActivityInfo;
   // The apply Save preset started, once pressed.
   save?: ToolActivityInfo;
-  // A later message of the person's answered the card.
+  // A later message of the person's answered the card, or the app no
+  // longer holds the preview it would save.
   closed: boolean;
   disabled: boolean;
   onSave: (actionId: string) => void;
@@ -25,7 +26,11 @@ export function ProposalCard({ preview, save, closed, disabled, onSave, onSend }
   const proposal = preview.proposal!;
   if (save?.state === 'succeeded') return null;
   const saving = save?.state === 'running';
-  const failure = save?.state === 'failed' ? save.error?.message : undefined;
+  // The save's error is the AI model's to read; the card says only what
+  // happened, as an action's card does.
+  const failure = save?.state === 'failed'
+    ? isStale(save) ? t`The project changed before this could run. Ask AI again.` : t`The action failed.`
+    : undefined;
   return (
     <div className="proposal-card" role="group" aria-label={proposal.title}>
       <div className="proposal-title">{proposal.title}</div>

@@ -1,5 +1,7 @@
 // One native tool action, rendered from the authoritative activity record
-// the host pushes. The native coordinator owns the state machine.
+// the host pushes. The native coordinator owns the state machine. A failed
+// action's error is the AI model's to read: the card says only that it
+// failed, or that it did not run because the project changed first.
 
 import { ReactNode } from 'react';
 import { isStale, ToolActivityInfo, ToolStateName } from '../bridge/protocol';
@@ -39,13 +41,6 @@ export function ToolStatus({ state, children }: { state: ToolStateName; children
   );
 }
 
-// A refusal whose message is written for the model can carry the card's own
-// line in its details as "shown".
-function shownLine(activity: ToolActivityInfo): string | undefined {
-  const shown = activity.error?.details?.shown;
-  return typeof shown === 'string' && shown ? shown : undefined;
-}
-
 export function ToolActivityCard({ activity, onCancel, readOnly = false }: Props) {
   const { state } = activity;
   const stale = isStale(activity);
@@ -58,7 +53,7 @@ export function ToolActivityCard({ activity, onCancel, readOnly = false }: Props
       : state === 'failed'
         ? stale
           ? t`The project changed before this could run. Ask AI again.`
-          : shownLine(activity) ?? activity.error?.message ?? stateLabels.failed
+          : stateLabels.failed
         : stateLabels[state];
 
   return (

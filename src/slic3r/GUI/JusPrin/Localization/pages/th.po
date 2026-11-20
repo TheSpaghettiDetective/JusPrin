@@ -4193,6 +4193,7 @@ msgid "The action could not be completed."
 msgstr "ดำเนินการให้เสร็จไม่ได้"
 
 # AI Translated
+#: src/components/ProposalCard.tsx
 #: src/components/ToolActivityCard.tsx
 msgid "The action failed."
 msgstr "การดำเนินการล้มเหลว"
@@ -4279,6 +4280,7 @@ msgid "the printer profile’s default, until your preset is saved"
 msgstr "ค่าเริ่มต้นของโปรไฟล์เครื่องพิมพ์ จนกว่าจะบันทึกพรีเซ็ตของคุณ"
 
 # AI Translated
+#: src/components/ProposalCard.tsx
 #: src/components/ToolActivityCard.tsx
 msgid "The project changed before this could run. Ask AI again."
 msgstr "โปรเจกต์มีการเปลี่ยนแปลงก่อนที่จะดำเนินการนี้ได้ โปรดถาม AI อีกครั้ง"

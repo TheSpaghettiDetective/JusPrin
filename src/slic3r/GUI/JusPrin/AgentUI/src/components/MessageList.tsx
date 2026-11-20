@@ -215,7 +215,7 @@ export function MessageList({
   onScrolledChange,
 }: Props) {
   const attachmentsById = new Map(attachments.map((attachment) => [attachment.id, attachment]));
-  // Only the chat's last reply can be retried; a stopped one offers it.
+  // Only the chat's last reply can be retried, failed or stopped.
   const lastReplyId = [...messages].reverse().find((message) => message.role === 'assistant')?.id;
   // use-stick-to-bottom tells the person's scrolling from content growing
   // under them. It opens at the bottom at once and eases after the stream,
@@ -431,7 +431,7 @@ export function MessageList({
                 <button className="primary" onClick={creditActions.onSignIn}><Trans>Sign in</Trans></button>}
               {message.error.code === 'update_required' && onGetNewVersion &&
                 <button className="primary" onClick={onGetNewVersion}><Trans>Get the new version…</Trans></button>}
-              {message.error.retryable && !readOnly && (
+              {message.error.retryable && message.id === lastReplyId && !readOnly && (
                 <button className="primary" onClick={() => onRetry(message.id)}><Trans>Retry</Trans></button>
               )}
             </div>
@@ -466,7 +466,7 @@ export function MessageList({
     activities.filter((activity) => activity.proposal).map((preview) => (
       <ProposalCard key={preview.actionId} preview={preview}
         save={toolActivities.filter((activity) => activity.approves === preview.actionId).pop()}
-        closed={answeredAfter(preview.correlationId)} disabled={replyDisabled || readOnly}
+        closed={answeredAfter(preview.correlationId) || preview.proposal?.closed === true} disabled={replyDisabled || readOnly}
         onSave={(actionId) => onSaveProposal?.(actionId)} onSend={onSend} />
     ));
 

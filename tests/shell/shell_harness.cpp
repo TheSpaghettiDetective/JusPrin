@@ -327,6 +327,23 @@
 //              view: HTML whose scripts would close the window through the
 //              app's bridge is measured and shown, runs none of them, and
 //              leaves the bridge working
+//   --remove-key-fails
+//              Remove on a saved key in Preferences › Agent while the
+//              settings file cannot be written, then a removal of a key that
+//              is not there, as no page sends: each is reported, and the
+//              report's window is the only one shown
+//   --preferences-requests-fail
+//              in Preferences, signed in to an account whose server cannot be
+//              reached: a setting the app does not have, a sign-in link it
+//              does not know, and Sign out, whose token the server never
+//              revokes. Each is reported, and the report's window is the only
+//              one shown
+//   --view-start-fails
+//              the JusPrin view comes back from classic view while the local
+//              tool server cannot write its discovery file: the view stays
+//              and the failure is reported; then while the app's data folder
+//              cannot be read: classic view stays and the failure is
+//              reported. Each time the report's window is the only one shown
 //   --preferences-capture <output-directory>
 //              opens Preferences with the shortcut's command and clicks each
 //              section in its list, as a person does: prints each section's
@@ -400,8 +417,10 @@
 #include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 #include "slic3r/GUI/GUI_Init.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
+#include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProjectStateDocument.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ToolExecution.hpp"
 #include "slic3r/GUI/JusPrin/Preferences/PreferencesWindow.hpp"
 #include "slic3r/GUI/Preferences.hpp"
 #include "slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.hpp"
@@ -484,6 +503,7 @@
 #include "slic3r/GUI/Auxiliary.hpp"
 #include "slic3r/GUI/Project.hpp"
 #include "slic3r/GUI/Notebook.hpp"
+#include "slic3r/GUI/Jobs/Worker.hpp"
 #include "slic3r/GUI/PartPlate.hpp"
 #include "slic3r/GUI/Plater.hpp"
 #include "slic3r/GUI/PrinterWebView.hpp"
@@ -491,6 +511,7 @@
 #include "slic3r/GUI/Selection.hpp"
 #include "slic3r/GUI/Tab.hpp"
 #include "libslic3r/PresetBundle.hpp"
+#include "libslic3r/Preset.hpp"
 #include "libslic3r/TriangleSelector.hpp"
 #include "slic3r/GUI/Widgets/WebView.hpp"
 #include "slic3r/Utils/UndoRedo.hpp"
@@ -513,6 +534,7 @@
 #include <wx/timer.h>
 
 #include <boost/filesystem.hpp>
+#include <boost/filesystem/operations.hpp>
 #include <boost/nowide/fstream.hpp>
 
 #include <algorithm>
@@ -521,6 +543,7 @@
 #include <cctype>
 #include <chrono>
 #include <condition_variable>
+#include <cstdint>
 #include <csignal>
 #include <cstdlib>
 #include <cstring>
@@ -684,6 +707,23 @@ public:
         return wxID_CANCEL;
     }
     std::vector<std::string> titles;
+};
+
+// Writes down each window that opens, as "title | text". With
+// --dialog-witness the window is left for the witness to picture and close;
+// without it, it is closed at once, as ShownDialogs does.
+class SeenDialogs final : public Workspace::UnansweredDialogObserver
+{
+public:
+    SeenDialogs() { Register(); }
+    int Enter(wxDialog* dialog) override
+    {
+        const auto facts = Workspace::read_dialog(*dialog);
+        shown.push_back(facts.title + " | " + facts.text);
+        std::cerr << "HARNESS DIALOG SEEN '" << shown.back() << "'\n";
+        return g_dialog_witness ? wxID_NONE : wxID_CANCEL;
+    }
+    std::vector<std::string> shown;
 };
 
 // Takes away this user's access to a folder and everything in it, as a
@@ -1068,6 +1108,9 @@ public:
     // What the account's credits answer says is left, as a chat spending
     // some on the server would change it.
     void set_credits(int credits) { m_credits = credits; }
+    // Whether the account's model list is answered, or fails as an
+    // overloaded server's does.
+    void set_models_listed(bool listed) { m_models_listed = listed; }
 
 private:
     void serve()
@@ -1119,6 +1162,9 @@ private:
                 const std::string left = std::to_string(m_credits.load());
                 reply = R"({"credits":{"total":)" + left + R"(,"lots":[{"kind":"signup","credits":)" + left +
                         R"(,"granted":500,"expires_at":null}]},"plan":null,"usage_30d":{"activity":[]}})";
+            } else if (path == "/ent/jusprin/v2/models" && !m_models_listed) {
+                status = 503;
+                reply  = R"({"type":"error","error":{"code":"overloaded","message":"Overloaded"}})";
             } else if (path == "/ent/jusprin/v2/models") {
                 reply = R"({"data":[{"id":"jusprin-standard","label":"Standard","format":"responses"}]})";
             } else if (path == "/ent/jusprin/v2/account_box") {
@@ -1144,6 +1190,7 @@ private:
     boost::asio::ip::tcp::acceptor m_acceptor;
     std::atomic<bool>              m_stopping{false};
     std::atomic<int>               m_credits{500};
+    std::atomic<bool>              m_models_listed{true};
     mutable std::mutex             m_mutex;
     std::vector<std::string>       m_requests;
     std::thread                    m_thread;
@@ -1583,7 +1630,10 @@ struct HarnessState
         ServerSheetPopup,
         PrinterChatSheet,
         DeleteAccountWaits,
-        PrinterWindow
+        PrinterWindow,
+        RemoveKeyFails,
+        ViewStartFails,
+        PreferencesRequestsFail
     };
 
     std::atomic<int>  result{-1};
@@ -1716,9 +1766,10 @@ public:
             }
             verify_shell_installed();
             if (m_state->mode == HarnessState::Mode::FreshExample) {
-                verify_fresh_install_example();
-                verify_email_sign_in_from_home([self = shared_from_this()] {
-                    self->verify_home_account_follows_the_server([self] { self->finish(); });
+                verify_fresh_install_example([self = shared_from_this()] {
+                    self->verify_email_sign_in_from_home([self] {
+                        self->verify_home_account_follows_the_server([self] { self->finish(); });
+                    });
                 });
                 return;
             }
@@ -1740,7 +1791,7 @@ public:
     // form and "Skip for now", which puts the bundled printer that
     // belongs to no manufacturer in place and marks it assumed. Each step is
     // the backend's own call, as the page's message makes it.
-    void verify_fresh_install_example()
+    void verify_fresh_install_example(std::function<void()> then)
     {
         const auto& printers = wxGetApp().preset_bundle->printers;
         check(std::none_of(printers.begin(), printers.end(), [](const Preset& preset) { return preset.is_visible && !preset.is_default; }),
@@ -1764,9 +1815,106 @@ public:
         check(printers_step.printer_form.is_object() && !printers_step.printer_form.value("catalog", nlohmann::json::array()).empty(),
               "add_printer_form_lists_the_catalogue");
         check(m_app.app_config->get("jusprin_onboarding", "status") == "unfinished", "first_launch_unfinished_until_home");
+        verify_skip_when_the_printer_cannot_be_installed([self = shared_from_this(), then] {
+            self->verify_fresh_install_skip();
+            then();
+        });
+    }
 
-        const std::string assumed = backend.assume_default_printer();
-        check(assumed.empty(), "skip_use_a_default: " + assumed);
+    // Skip for now, pressed on the page, when the bundled printer's profile
+    // cannot be copied into the data folder: the person can do nothing about
+    // that, so it is reported and Home says nothing of its own.
+    void verify_skip_when_the_printer_cannot_be_installed(std::function<void()> then)
+    {
+        wxWebView* view = installed_shell()->home_view()->webview();
+        const auto run  = [view](const char* script) {
+            wxString out;
+            view->RunScript(script, &out);
+            return out.ToStdString();
+        };
+        const auto skip = "Array.from(document.querySelectorAll('button')).find(b => b.textContent === 'Skip for now')";
+        wait_until([run, skip] { return run((std::string("!!") + skip).c_str()) == "true"; }, "skip_failure_form_shown",
+                   [self = shared_from_this(), run, skip, view, then] {
+            const fs::path system = fs::path(data_dir()) / PRESET_SYSTEM_DIR;
+            fs::create_directories(system);
+            // Released by hand: the wait keeps a copy of its callback after it ran.
+            auto unavailable     = std::make_shared<std::unique_ptr<UnavailableFolder>>(std::make_unique<UnavailableFolder>(system.string()));
+            auto seen            = std::make_shared<SeenDialogs>();
+            const int reported   = unexpected_errors_logged();
+            run((std::string(skip) + ".click()").c_str());
+            const auto pressed = std::chrono::steady_clock::now();
+            self->wait_until([seen, pressed] { return !seen->shown.empty() || std::chrono::steady_clock::now() - pressed > std::chrono::seconds(3); },
+                             "skip_failure_answered", [self, run, view, then, unavailable, seen, reported]() mutable {
+                if (const char* dir = std::getenv("PRINTER_LIVE_CAPTURE_DIR")) {
+                    const std::string file = (fs::path(dir) / "skip-install-failed-light.png").string();
+                    self->check(snapshot_web_view(view->GetNativeBackend(), file.c_str()), "skip_failure_captured");
+                }
+                self->check(run("document.querySelector('.onboarding-error, [role=alert]') ? document.querySelector('.onboarding-error, [role=alert]').textContent : ''").empty(),
+                            "skip_failure_home_says_nothing_of_its_own");
+                self->check(unexpected_errors_logged() == reported + 1, "skip_failure_reported");
+                seen->Unregister();
+                unavailable->reset();
+                self->verify_form_finish_when_the_printer_cannot_be_installed(then);
+            });
+        });
+    }
+
+    // The add-printer form's Continue, sent as the page sends it, when the
+    // chosen printer's profile cannot be copied into the data folder.
+    void verify_form_finish_when_the_printer_cannot_be_installed(std::function<void()> then)
+    {
+        auto& backend = installed_shell()->home_view()->backend();
+        const nlohmann::json catalog = backend.onboarding().printer_form.value("catalog", nlohmann::json::array());
+        if (catalog.empty() || catalog.front().value("nozzles", nlohmann::json::array()).empty()) {
+            check(false, "form_failure_has_a_printer");
+            then();
+            return;
+        }
+        const std::string id     = catalog.front().at("id");
+        const double      nozzle = catalog.front().at("nozzles").front();
+        wxWebView* view = installed_shell()->home_view()->webview();
+        const auto post = [view](const nlohmann::json& payload) {
+            static int next = 0;
+            const std::string envelope = nlohmann::json{{"protocol", "jusprin-home-bridge"}, {"version", 1},
+                                                        {"id", "form-failure-" + std::to_string(++next)},
+                                                        {"type", "onboarding_printer_form"}, {"payload", payload}}.dump();
+            view->RunScript(wxString::FromUTF8("window.wx.postMessage(" + nlohmann::json(envelope).dump() + ")"));
+        };
+        post({{"action", "form_options"}, {"catalogId", id}, {"nozzle", nozzle}});
+        wait_until([&backend] { return backend.onboarding().printer_form.contains("options"); }, "form_failure_options_read",
+                   [self = shared_from_this(), &backend, post, view, id, nozzle, then] {
+            const nlohmann::json options = backend.onboarding().printer_form.at("options");
+            nlohmann::json finish{{"action", "form_finish"}, {"catalogId", id}, {"nozzle", nozzle}};
+            if (!options.value("plates", nlohmann::json::array()).empty())
+                finish["plate"] = options.at("defaultPlate");
+            // Released by hand: the wait keeps a copy of its callback after it ran.
+            auto unavailable   = std::make_shared<std::unique_ptr<UnavailableFolder>>(
+                std::make_unique<UnavailableFolder>((fs::path(data_dir()) / PRESET_SYSTEM_DIR).string()));
+            auto seen          = std::make_shared<SeenDialogs>();
+            const int reported = unexpected_errors_logged();
+            post(finish);
+            const auto pressed = std::chrono::steady_clock::now();
+            self->wait_until([seen, pressed] { return !seen->shown.empty() || std::chrono::steady_clock::now() - pressed > std::chrono::seconds(3); },
+                             "form_failure_answered", [self, &backend, view, then, unavailable, seen, reported]() mutable {
+                if (const char* dir = std::getenv("PRINTER_LIVE_CAPTURE_DIR")) {
+                    const std::string file = (fs::path(dir) / "form-install-failed-light.png").string();
+                    self->check(snapshot_web_view(view->GetNativeBackend(), file.c_str()), "form_failure_captured");
+                }
+                const std::string error = backend.onboarding().printer_form.value("error", std::string());
+                self->check(error.empty(), "form_failure_form_says_nothing_of_its_own: " + error);
+                self->check(unexpected_errors_logged() == reported + 1, "form_failure_reported");
+                seen->Unregister();
+                unavailable->reset();
+                then();
+            });
+        });
+    }
+
+    void verify_fresh_install_skip()
+    {
+        const auto& printers = wxGetApp().preset_bundle->printers;
+        auto& backend = installed_shell()->home_view()->backend();
+        backend.assume_default_printer();
         check(selected_printer() == "Generic printer", "fresh_example_printer_installed: " + selected_printer());
         check(!Printers::printer_from_file(printers.get_selected_preset()), "fresh_example_printer_not_marked_from_the_file");
         const auto listed = backend.printers();
@@ -2068,6 +2216,18 @@ public:
             }
             if (m_state->mode == HarnessState::Mode::AccountBox) {
                 verify_account_box();
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::RemoveKeyFails) {
+                verify_remove_key_fails();
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::PreferencesRequestsFail) {
+                verify_preferences_requests_fail();
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::ViewStartFails) {
+                verify_tool_server_start_fails();
                 return;
             }
             if (m_state->mode == HarnessState::Mode::PreferencesCapture) {
@@ -2747,6 +2907,39 @@ private:
         check(workspace->redo().succeeded() && plate_count() == plates_before + 1, "left_pane_add_plate_redoes");
         check(workspace->undo().succeeded() && plate_count() == plates_before, "left_pane_add_plate_undone_again");
 
+        // An action that fails, where the person can do nothing about it,
+        // is reported, and the report's window is the only one they see.
+        // Here the object goes away while its menu is open in the pane, as
+        // when the AI deletes it, and the person then presses Printable.
+        pane->snapshot();
+        if (const auto row = std::find_if(pane->rows().begin(), pane->rows().end(),
+                                          [](const PaneRow& candidate) { return candidate.kind == PaneRow::Kind::Object; });
+            row != pane->rows().end()) {
+            const PaneRow object = *row;
+            pane->open_row_menu(object);
+            HeaderMenu* open_menu = pane_menu();
+            wxWindow*   printable = open_menu != nullptr ? wxWindow::FindWindowByName(_L("Printable"), open_menu) : nullptr;
+            check(printable != nullptr, "left_pane_failed_action_menu_is_open");
+            const int   reported_before = unexpected_errors_logged();
+            SeenDialogs seen;
+            check(workspace->remove_object(object.object).succeeded(), "left_pane_failed_action_object_goes_away");
+            if (printable != nullptr) {
+                wxCommandEvent press(wxEVT_BUTTON, printable->GetId());
+                press.SetEventObject(printable);
+                printable->GetEventHandler()->ProcessEvent(press);
+            }
+            // The row runs after the menu closes, and the report's window
+            // opens after that.
+            wait_for([&] { return !seen.shown.empty(); }, std::chrono::seconds(5));
+            wait_for([] { return false; }, std::chrono::milliseconds(500));
+            check(unexpected_errors_logged() == reported_before + 1, "left_pane_failed_action_is_reported");
+            check(seen.shown.size() == 1 && seen.shown.front().find("Something went wrong on our side") != std::string::npos,
+                  "left_pane_failed_action_shows_only_the_report_window");
+            check(workspace->undo().succeeded(), "left_pane_failed_action_object_comes_back");
+            pane->refresh_from_workspace();
+        } else
+            check(false, "left_pane_failed_action_fixture_object");
+
         // Check print is not touched: the pane is not there, and it returns with Prepare.
         m_frame->select_tab(TAB_ID_PREVIEW);
         wxYield();
@@ -3029,6 +3222,341 @@ private:
         });
     }
 
+    // The setup card's "Slice to see time and filament" pressed again after
+    // the slice started, before the page heard of it: the slice the person
+    // asked for is running, so the second press says nothing.
+    void verify_slice_pressed_again()
+    {
+        const auto snapshot = installed_shell()->workspace()->snapshot();
+        if (!snapshot.active_plate) {
+            check(false, "slice_again_has_a_plate");
+            finish();
+            return;
+        }
+        const auto press = [&snapshot](uint64_t plate) {
+            return nlohmann::json{{"action", "compute_setup_estimates"},
+                                  {"sessionId", std::to_string(snapshot.session.value())},
+                                  {"plateId", std::to_string(plate)}};
+        };
+        const auto send_press = [](const nlohmann::json& payload) {
+            static int next = 0;
+            installed_shell()->agent_pane()->web_view().host().on_page_message(
+                nlohmann::json{{"protocol", Agent::Protocol::kName}, {"version", Agent::Protocol::kVersion},
+                               {"id", "slice-again-" + std::to_string(++next)}, {"type", "shell_action"}, {"payload", payload}}
+                    .dump());
+        };
+        const auto send  = [send_press, current = press(snapshot.active_plate->value())] { send_press(current); };
+        // A press for a plate the page drew before the project moved on.
+        const auto stale = [send_press, old = press(snapshot.active_plate->value() + 1000)] { send_press(old); };
+        const auto seen            = std::make_shared<SeenDialogs>();
+        const int  reported_before = unexpected_errors_logged();
+        // The file's own coordinates leave the cube off this printer's bed;
+        // OrcaSlicer's arrange puts it on the plate, and then checks the plate
+        // again on a timer. A slice asked for before that check is declined.
+        m_plater->arrange();
+        wait_until([this] {
+                       PartPlate* plate = m_plater->get_partplate_list().get_curr_plate();
+                       return m_plater->get_ui_job_worker().is_idle() && !m_plater->is_background_process_update_scheduled() &&
+                              plate != nullptr && plate->can_slice();
+                   },
+                   "slice_again_cube_on_the_plate",
+                   [self = shared_from_this(), send, stale, seen, reported_before] {
+            send();
+            self->wait_until([self] { return self->m_plater->is_background_process_slicing(); }, "slice_again_first_press_slices",
+                             [self, send, stale, seen, reported_before] {
+                // The page sends a second press when the person presses again
+                // before the card hears that the slice started.
+                const size_t shown_before = seen->shown.size();
+                send();
+                self->check(seen->shown.size() == shown_before, "slice_again_second_press_shows_nothing");
+                self->wait_until([self] { return !self->m_plater->is_background_process_slicing(); }, "slice_again_slice_finishes",
+                                 [self, stale, seen, reported_before] {
+                    self->check(unexpected_errors_logged() == reported_before, "slice_again_second_press_reports_nothing");
+                    const size_t shown_before = seen->shown.size();
+                    stale();
+                    self->check(seen->shown.size() == shown_before, "slice_stale_press_shows_nothing");
+                    self->check(unexpected_errors_logged() == reported_before, "slice_stale_press_reports_nothing");
+                    seen->Unregister();
+                    self->verify_revert_refusals([self] { self->verify_resume_after_a_slice([self] { self->verify_retry_on_an_older_failed_reply([self] { self->verify_draft_kept_on_opening_an_earlier_chat([self] { self->finish(); }); }); }); });
+                });
+            });
+        });
+    }
+
+    // The chat's "revert to here" for a version the history no longer holds
+    // (the page drew it before the history moved on) does nothing. One that
+    // cannot be restored because the project's folder cannot be read is
+    // reported, with no window of its own.
+    void verify_revert_refusals(std::function<void()> then)
+    {
+        auto* autosave = installed_shell()->autosave();
+        const auto send = [](const std::string& version) {
+            static int next = 0;
+            installed_shell()->agent_pane()->web_view().host().on_page_message(
+                nlohmann::json{{"protocol", Agent::Protocol::kName}, {"version", Agent::Protocol::kVersion},
+                               {"id", "revert-" + std::to_string(++next)}, {"type", "shell_action"},
+                               {"payload", {{"action", "revert_to_here"}, {"versionId", version}}}}
+                    .dump());
+        };
+        const auto seen     = std::make_shared<SeenDialogs>();
+        const int  reported = unexpected_errors_logged();
+        send("no-such-version");
+        check(seen->shown.empty(), "revert_to_a_dropped_version_shows_nothing");
+        check(unexpected_errors_logged() == reported, "revert_to_a_dropped_version_reports_nothing");
+
+        const auto versions = autosave->history();
+        const std::string head = autosave->current_version();
+        const auto older = std::find_if(versions.begin(), versions.end(), [&head](const auto& version) {
+            return version.id != head && version.change_seq != 0;
+        });
+        if (older == versions.end()) {
+            check(false, "revert_has_an_older_version");
+            seen->Unregister();
+            then();
+            return;
+        }
+        {
+            UnavailableFolder folder(std::filesystem::path(data_dir()) / "jusprin" / "projects" / persistence().document().project_id());
+            try {
+                send(older->id);
+                check(false, "revert_with_unreadable_storage_stops");
+            } catch (const std::exception& error) {
+                std::cerr << "HARNESS NOTE revert stopped: " << error.what() << '\n';
+            }
+        }
+        check(std::none_of(seen->shown.begin(), seen->shown.end(),
+                           [](const std::string& shown) { return shown.find("Revert failed") != std::string::npos; }),
+              "revert_with_unreadable_storage_shows_no_window_of_its_own");
+        seen->Unregister();
+        then();
+    }
+
+    // Resume on an earlier chat after a slice ran: the slice's progress entry
+    // moves the chat document's revision, and Resume sends the revision the
+    // page last heard. It resumes the chat with no red bar.
+    void verify_resume_after_a_slice(std::function<void()> then)
+    {
+        auto&             view     = installed_shell()->agent_pane()->web_view();
+        auto&             document = persistence().document();
+        const std::string earlier  = document.active_conversation_id();
+        const auto run = [&view](const std::string& script) {
+            wxString out;
+            view.webview()->RunScript(wxString::FromUTF8(script), &out);
+            return std::string(out.ToUTF8().data());
+        };
+        run("window.__jusprinTest.createConversation()");
+        wait_until([&document, earlier] { return document.active_conversation_id() != earlier; }, "resume_new_chat_started",
+                   [self = shared_from_this(), run, earlier, then, &document, &view] {
+            const std::string current = document.active_conversation_id();
+            // The new chat changes the project, so the earlier chat no longer
+            // matches it and offers Resume.
+            ModelObject* cube = self->m_plater->model().objects.front();
+            cube->translate(Vec3d(5., 0., 0.));
+            self->m_plater->update();
+            self->check(installed_shell()->autosave()->save_now(), "resume_changed_project_saved");
+            run("window.__jusprinTest.switchConversation(" + nlohmann::json(earlier).dump() + ")");
+            const auto resume = std::string("Array.from(document.querySelectorAll('.project-updates button'))"
+                                            ".find(b => b.textContent === 'Resume saved setup' || b.textContent === 'Restore and resume')");
+            self->wait_until([run, resume] { return run("!!" + resume) == "true"; }, "resume_earlier_chat_viewed",
+                             [self, run, resume, then, current, earlier, &document, &view] {
+                // What a slice does to the chat while the earlier chat is viewed.
+                const std::string work = view.host().begin_work("slice", "Slicing", false);
+                view.host().finish_work(work, "succeeded");
+                run(resume + ".click()");
+                // A chat whose project changed since asks first, once.
+                const auto pressed = std::chrono::steady_clock::now();
+                self->wait_until([pressed] { return std::chrono::steady_clock::now() - pressed > std::chrono::milliseconds(500); },
+                                 "resume_pressed", [self, run, then, earlier, &document] {
+                run("(() => { const b = Array.from(document.querySelectorAll('.chat-dialog-buttons button'))"
+                    ".find(b => b.textContent === 'Restore and resume'); if (b) b.click(); })()");
+                const auto confirmed = std::chrono::steady_clock::now();
+                self->wait_until([confirmed] { return std::chrono::steady_clock::now() - confirmed > std::chrono::seconds(2); },
+                                 "resume_answered", [self, run, then, earlier, &document] {
+                    if (const char* dir = std::getenv("PRINTER_LIVE_CAPTURE_DIR")) {
+                        const std::string file = (fs::path(dir) / "resume-after-slice-light.png").string();
+                        self->check(snapshot_web_view(installed_shell()->agent_pane()->web_view().webview()->GetNativeBackend(), file.c_str()),
+                                    "resume_after_slice_captured");
+                    }
+                    const std::string bar = run("document.querySelector('.chat-error') ? document.querySelector('.chat-error').textContent : ''");
+                    self->check(bar.empty(), "resume_after_slice_shows_no_red_bar: " + bar);
+                    self->check(document.active_conversation_id() == earlier, "resume_after_slice_resumes_the_chat");
+                    then();
+                });
+                });
+            });
+        });
+    }
+
+    // A reply that failed and was followed by a later exchange: only the
+    // chat's last reply can be retried, so the older one offers no Retry.
+    void verify_retry_on_an_older_failed_reply(std::function<void()> then)
+    {
+        auto& view     = installed_shell()->agent_pane()->web_view();
+        auto& document = persistence().document();
+        const std::string chat = document.active_conversation_id();
+        const auto append = [this, &document, &chat](Agent::MessageRole role, Agent::MessageState state, const std::string& text) {
+            Agent::ConversationMessage message;
+            message.id    = document.allocate_message_id();
+            message.role  = role;
+            message.state = state;
+            message.text  = text;
+            if (state == Agent::MessageState::Failed)
+                message.error = Agent::AgentError{"provider_unavailable", "The AI service did not answer.", true};
+            document.append_message(chat, message, persistence().timestamp());
+        };
+        append(Agent::MessageRole::User, Agent::MessageState::Complete, "Make it stronger.");
+        append(Agent::MessageRole::Assistant, Agent::MessageState::Failed, "");
+        append(Agent::MessageRole::User, Agent::MessageState::Complete, "Make it stronger, please.");
+        append(Agent::MessageRole::Assistant, Agent::MessageState::Complete, "Walls are now 4.");
+        view.host().refresh_page_state();
+        const auto run = [&view](const std::string& script) {
+            wxString out;
+            view.webview()->RunScript(wxString::FromUTF8(script), &out);
+            return std::string(out.ToUTF8().data());
+        };
+        wait_until([run] { return run("document.body.innerText.includes('Walls are now 4.')") == "true"; }, "retry_older_reply_drawn",
+                   [self = shared_from_this(), run, then] {
+            const std::string retry = "Array.from(document.querySelectorAll('button')).filter(b => b.textContent === 'Retry')";
+            self->check(run(retry + ".length") == "0", "retry_older_failed_reply_offers_no_retry: " + run(retry + ".length"));
+            // A Retry that is there anyway is pressed, for the picture.
+            run("(() => { const b = " + retry + "[0]; if (b) b.click(); })()");
+            const auto pressed = std::chrono::steady_clock::now();
+            self->wait_until([pressed] { return std::chrono::steady_clock::now() - pressed > std::chrono::milliseconds(1500); },
+                             "retry_older_reply_pressed", [self, run, then] {
+                if (const char* dir = std::getenv("PRINTER_LIVE_CAPTURE_DIR")) {
+                    const std::string file = (fs::path(dir) / "retry-older-reply-light.png").string();
+                    self->check(snapshot_web_view(installed_shell()->agent_pane()->web_view().webview()->GetNativeBackend(), file.c_str()),
+                                "retry_older_reply_captured");
+                }
+                const std::string bar = run("document.querySelector('.chat-error') ? document.querySelector('.chat-error').textContent : ''");
+                self->check(bar.empty(), "retry_older_reply_shows_no_red_bar: " + bar);
+                then();
+            });
+        });
+    }
+
+    // The chat panel's page, read and driven as it is drawn.
+    std::string run_in_chat(const std::string& script)
+    {
+        wxString out;
+        installed_shell()->agent_pane()->web_view().webview()->RunScript(wxString::FromUTF8(script), &out);
+        return std::string(out.ToUTF8().data());
+    }
+
+    std::string chat_red_bar()
+    {
+        return run_in_chat("document.querySelector('.chat-error') ? document.querySelector('.chat-error').textContent : ''");
+    }
+
+    // A red bar an earlier step left, closed, so the next step's is its own.
+    void dismiss_chat_red_bar()
+    {
+        run_in_chat("(() => { const bar = document.querySelector('.chat-error'); const close = bar && bar.querySelector('button');"
+                    " if (close) close.click(); })()");
+    }
+
+    void capture_chat_to(const std::string& name)
+    {
+        if (const char* dir = std::getenv("PRINTER_LIVE_CAPTURE_DIR")) {
+            const std::string file = (fs::path(dir) / (name + "-light.png")).string();
+            check(snapshot_web_view(installed_shell()->agent_pane()->web_view().webview()->GetNativeBackend(), file.c_str()),
+                  name + "_captured");
+        }
+    }
+
+    // After `ms`, then `then`: the page has had the time to draw.
+    void after(int ms, const std::string& name, std::function<void()> next)
+    {
+        const auto started = std::chrono::steady_clock::now();
+        wait_until([started, ms] { return std::chrono::steady_clock::now() - started > std::chrono::milliseconds(ms); }, name,
+                   std::move(next));
+    }
+
+    // The person types in the message box and opens an earlier chat at once,
+    // before the box saved what they typed: the box sends it on the way out.
+    // It is the active chat's draft, kept; nothing goes over the chat.
+    void verify_draft_kept_on_opening_an_earlier_chat(std::function<void()> then)
+    {
+        auto& document = persistence().document();
+        const std::string active = document.active_conversation_id();
+        std::string earlier;
+        for (const auto& chat : document.conversations())
+            if (chat.id != active)
+                earlier = chat.id;
+        if (earlier.empty()) {
+            check(false, "draft_race_has_an_earlier_chat");
+            then();
+            return;
+        }
+        run_in_chat("(() => { const field = document.querySelector('textarea[aria-label=\"Message AI\"]');"
+                    " Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(field, 'Typed just before');"
+                    " field.dispatchEvent(new Event('input', { bubbles: true }));"
+                    " window.__jusprinTest.switchConversation(" + nlohmann::json(earlier).dump() + "); })()");
+        after(1500, "draft_race_settled", [self = shared_from_this(), active, then] {
+            self->capture_chat_to("draft-on-opening-an-earlier-chat");
+            const std::string bar = self->chat_red_bar();
+            self->check(bar.empty(), "draft_race_shows_no_red_bar: " + bar);
+            self->check(self->persistence().draft() == "Typed just before", "draft_race_keeps_the_draft: " + self->persistence().draft());
+            self->run_in_chat("window.__jusprinTest.switchConversation(" + nlohmann::json(active).dump() + ")");
+            self->after(800, "draft_race_back", [self, then] { self->verify_press_while_busy(then); });
+        });
+    }
+
+    // New chat pressed in the moment a slice starts, before the page heard
+    // the app became busy: the press does nothing, and nothing goes over the
+    // chat.
+    void verify_press_while_busy(std::function<void()> then)
+    {
+        dismiss_chat_red_bar();
+        auto& host = installed_shell()->agent_pane()->web_view().host();
+        const auto snapshot = installed_shell()->workspace()->snapshot();
+        const std::size_t chats = persistence().document().conversations().size();
+        host.tools().submit({"slice_start", nlohmann::json{{"plateId", std::to_string(snapshot.plates.at(0).id.value())}}.dump()},
+                            "harness-busy");
+        check(host.busy() || std::any_of(host.tools().activities().begin(), host.tools().activities().end(),
+                                         [](const Agent::ToolActivity& activity) { return activity.state == Agent::ToolState::Running; }),
+              "press_while_busy_app_is_busy");
+        host.on_page_message(nlohmann::json{{"protocol", Agent::Protocol::kName}, {"version", Agent::Protocol::kVersion},
+                                            {"id", "busy-new-chat"}, {"type", "create_conversation"},
+                                            {"payload", nlohmann::json::object()}}.dump());
+        after(800, "press_while_busy_settled", [self = shared_from_this(), chats, then] {
+            self->capture_chat_to("new-chat-while-busy");
+            const std::string bar = self->chat_red_bar();
+            self->check(bar.empty(), "press_while_busy_shows_no_red_bar: " + bar);
+            self->check(self->persistence().document().conversations().size() == chats, "press_while_busy_makes_no_chat");
+            self->wait_until([] { return !installed_shell()->agent_pane()->web_view().host().busy() &&
+                                         std::none_of(installed_shell()->agent_pane()->web_view().host().tools().activities().begin(),
+                                                      installed_shell()->agent_pane()->web_view().host().tools().activities().end(),
+                                                      [](const Agent::ToolActivity& activity) { return activity.state == Agent::ToolState::Running; }); },
+                             "press_while_busy_slice_ends", [self, then] { self->verify_request_the_page_never_sends(then); });
+        });
+    }
+
+    // A file with no name, as a broken page would send it: the app reports
+    // it, and nothing goes over the chat.
+    void verify_request_the_page_never_sends(std::function<void()> then)
+    {
+        dismiss_chat_red_bar();
+        const int reported = unexpected_errors_logged();
+        auto      seen     = std::make_shared<SeenDialogs>();
+        const std::string envelope = nlohmann::json{{"protocol", Agent::Protocol::kName}, {"version", Agent::Protocol::kVersion},
+                                                    {"id", "nameless-file"}, {"type", "attach_file"},
+                                                    {"payload", {{"clientAttachmentId", "nameless"}, {"name", ""}, {"source", "clipboard"},
+                                                                 {"mime", "image/png"},
+                                                                 {"dataBase64", "data:image/png;base64,iVBORw0KGgo="}}}}.dump();
+        run_in_chat("window.wx.postMessage(" + nlohmann::json(envelope).dump() + ")");
+        after(1500, "nameless_file_settled", [self = shared_from_this(), reported, seen, then] {
+            self->capture_chat_to("file-without-a-name");
+            const std::string bar = self->chat_red_bar();
+            self->check(bar.empty(), "nameless_file_shows_no_red_bar: " + bar);
+            self->check(unexpected_errors_logged() == reported + 1, "nameless_file_is_reported");
+            self->check(seen->shown.size() == 1 && seen->shown.front().find("Something went wrong on our side") != std::string::npos,
+                        "nameless_file_shows_only_the_report_window");
+            seen->Unregister();
+            then();
+        });
+    }
+
     void verify_chat_restoration()
     {
         const fs::path source = fs::path(data_dir()) / "chat-restoration-cube.stl";
@@ -3113,15 +3641,29 @@ private:
                 const std::size_t old_messages = document.messages(first).size();
                 auto& view = installed_shell()->agent_pane()->web_view();
                 const auto received_before = view.host().messages_received();
+                const int  reported_before = unexpected_errors_logged();
+                // Answers the report's window, which the refusal opens.
+                const auto seen            = std::make_shared<SeenDialogs>();
                 WebView::RunScript(view.webview(), "window.__jusprinTest.send('forged inactive turn')");
-                self->wait_until([&view, old_messages, first, received_before] {
+                // The report's window opens just after the refusal is reported.
+                self->wait_until([&view, old_messages, first, received_before, seen] {
                     return view.host().persistence().document().messages(first).size() == old_messages &&
-                           view.host().messages_received() > received_before;
-                }, "chat_restore_inactive_send_refused", [self, first, second, old_messages, quick_version] {
+                           view.host().messages_received() > received_before && !seen->shown.empty();
+                }, "chat_restore_inactive_send_refused", [self, first, second, old_messages, quick_version, reported_before, seen] {
                     auto& document = self->persistence().document();
                     self->check(document.messages(first).size() == old_messages &&
                                 document.active_conversation_id() == second,
                                 "chat_restore_forged_send_cannot_activate_history");
+                    // The page never sends a message to a chat that is not
+                    // the active one, so the app reports it as a bug.
+                    self->check(unexpected_errors_logged() == reported_before + 1,
+                                "chat_restore_forged_send_is_reported");
+                    self->check(seen->shown.size() == 1 &&
+                                    seen->shown.front().find("Something went wrong on our side") != std::string::npos,
+                                "chat_restore_forged_send_shows_only_the_report_window");
+                    seen->Unregister();
+                    // What the person sees once the app refused the message.
+                    self->capture_chat_pane("chat-forged-send-refused");
                     auto& view = installed_shell()->agent_pane()->web_view();
                     WebView::RunScript(view.webview(),
                         "document.querySelector('.project-updates-actions button.primary')?.click()");
@@ -3173,7 +3715,7 @@ private:
                                         restored.plan(second).headline == "Strong plan" &&
                                         restored.plan(second).validity == "current",
                                         "version_restore_keeps_each_chats_plan_and_marks_the_active_one");
-                            self->finish();
+                            self->verify_slice_pressed_again();
                         });
                 });
             });
@@ -10475,19 +11017,31 @@ private:
                             "header_filament_chat_opens_with_filament_context");
                 self->live_capture_themed("prepare_filament_chat");
                 self->check_task_chat_model_picker(*panel, "filament");
-                self->live_send("shell_action", {{"action", "open_filament_settings"}});
-                self->wait_until([] { return wxGetApp().params_dialog()->IsShown(); },
-                    "header_setup_opens_" + kind + "_editor", [self,type,kind] {
-                        self->check(self->m_notebook->IsShownOnScreen() &&
-                                        self->m_notebook->GetSelectedPageName() == TAB_ID_PREPARE,
-                                    "header_filament_manual_action_restores_prepare");
-                        self->check(wxGetApp().params_dialog()->panel()->get_current_tab() == wxGetApp().get_tab(type),
-                                    "header_setup_selects_" + kind + "_tab");
-                        wxGetApp().params_dialog()->Close();
-                        if (self->m_state->mode == HarnessState::Mode::TaskChat)
-                            self->verify_home_task_routes();
-                        else
-                            self->verify_header_overflow();
+                // The chat fills the window, so it has no AI panel to hide.
+                // A button that is there anyway is pressed, for the picture.
+                wxString button;
+                panel->web_view()->webview()->RunScript(
+                    "(() => { const b = document.querySelector('.agent-pane-toggle'); if (b) b.click(); return b ? 'shown' : 'none'; })()",
+                    &button);
+                self->check(button == "none", "header_filament_chat_has_no_hide_panel_button: " + button.ToStdString());
+                const auto pressed = std::chrono::steady_clock::now();
+                self->wait_until([pressed] { return std::chrono::steady_clock::now() - pressed > std::chrono::seconds(1); },
+                    "header_filament_chat_hide_panel_pressed", [self, type, kind] {
+                    self->live_capture_themed("filament_chat_hide_panel_pressed");
+                    self->live_send("shell_action", {{"action", "open_filament_settings"}});
+                    self->wait_until([] { return wxGetApp().params_dialog()->IsShown(); },
+                        "header_setup_opens_" + kind + "_editor", [self,type,kind] {
+                            self->check(self->m_notebook->IsShownOnScreen() &&
+                                            self->m_notebook->GetSelectedPageName() == TAB_ID_PREPARE,
+                                        "header_filament_manual_action_restores_prepare");
+                            self->check(wxGetApp().params_dialog()->panel()->get_current_tab() == wxGetApp().get_tab(type),
+                                        "header_setup_selects_" + kind + "_tab");
+                            wxGetApp().params_dialog()->Close();
+                            if (self->m_state->mode == HarnessState::Mode::TaskChat)
+                                self->verify_home_task_routes();
+                            else
+                                self->verify_header_overflow();
+                    });
                 });
             });
     }
@@ -11446,7 +12000,69 @@ private:
                                      [](const auto& item) { return item.name == CalibrationAgent::kSavedPreset; }),
                         "calibration_undo_deletes_the_copy");
             self->capture_chat_pane("12-undone");
-            self->calibration_on_home();
+            self->calibration_proposal_after_reopen();
+        });
+    }
+
+    // A proposal the person has not saved yet, in a project they then go
+    // away from and reopen from Home: the card offers no Save the app can no
+    // longer carry out, and nothing shows the red bar.
+    void calibration_proposal_after_reopen()
+    {
+        const auto readings = [] {
+            int count = 0;
+            for (const auto& message : installed_shell()->agent_pane()->web_view().host().conversation())
+                count += message.role == Agent::MessageRole::Assistant && message.state == Agent::MessageState::Complete &&
+                         message.text == CalibrationAgent::kReading;
+            return count;
+        };
+        const int before = readings();
+        send_page_message(Agent::Protocol::kUserMessage, "calibration-second-reading",
+                          {{"clientMessageId", "calibration-second-reading-c"}, {"text", CalibrationAgent::kPhotoText}});
+        wait_until([readings, before] { return readings() > before; }, "calibration_proposes_again", [self = shared_from_this()] {
+            const auto projects = installed_shell()->autosave()->projects().value_or(std::vector<Workspace::ProjectAutosave::ManagedProject>{});
+            const auto id_of    = [&projects](const std::string& name) {
+                const auto found = std::find_if(projects.begin(), projects.end(), [&name](const auto& project) { return project.name == name; });
+                return found == projects.end() ? std::string() : found->id;
+            };
+            const std::string hook = id_of(kCalibrationProject), test = id_of(CalibrationAgent::kTestProject);
+            installed_shell()->home_view()->backend().open_project(hook);
+            self->wait_until([] { return installed_shell()->autosave()->project_name() == kCalibrationProject; },
+                             "calibration_leaves_the_proposal", [self, test] {
+                installed_shell()->home_view()->backend().open_project(test);
+                auto& view = installed_shell()->agent_pane()->web_view();
+                const auto run = [&view](const std::string& script) {
+                    wxString out;
+                    view.webview()->RunScript(wxString::FromUTF8(script), &out);
+                    return std::string(out.ToUTF8().data());
+                };
+                // The reply to the reopen ends before the card's buttons wake.
+                const auto reopened = [] {
+                    int count = 0;
+                    for (const auto& message : installed_shell()->agent_pane()->web_view().host().conversation())
+                        count += message.role == Agent::MessageRole::Assistant && message.state == Agent::MessageState::Complete &&
+                                 message.text.rfind(CalibrationAgent::kReopenedStart, 0) == 0;
+                    return count;
+                };
+                self->wait_until([run, reopened] {
+                    return installed_shell()->autosave()->project_name() == CalibrationAgent::kTestProject && reopened() >= 2 &&
+                           run("document.querySelectorAll('.proposal-card').length > 0 && !Array.from(document.querySelectorAll('button')).some(b => (b.getAttribute('aria-label') || b.textContent) === 'Stop generating')") == "true";
+                }, "calibration_reopens_with_the_proposal", [self, run] {
+                    const std::string save = "Array.from(document.querySelectorAll('.proposal-card button.primary')).filter(b => !b.disabled)";
+                    self->check(run(save + ".length") == "0", "reopened_proposal_offers_no_save: " + run(save + ".length"));
+                    // A Save that is there anyway is pressed, for the picture.
+                    run("(() => { const b = " + save + ".pop(); if (b) b.click(); })()");
+                    const auto pressed = std::chrono::steady_clock::now();
+                    self->wait_until([pressed] { return std::chrono::steady_clock::now() - pressed > std::chrono::milliseconds(1500); },
+                                     "reopened_proposal_pressed", [self, run] {
+                        run("(() => { const c = Array.from(document.querySelectorAll('.proposal-card')).pop(); if (c) c.scrollIntoView({block: 'center'}); })()");
+                        self->capture_chat_pane("12b-save-after-reopen");
+                        const std::string bar = run("document.querySelector('.chat-error') ? document.querySelector('.chat-error').textContent : ''");
+                        self->check(bar.empty(), "reopened_proposal_shows_no_red_bar: " + bar);
+                        self->calibration_on_home();
+                    });
+                });
+            });
         });
     }
 
@@ -14223,6 +14839,64 @@ private:
         });
     }
 
+    // The JusPrin view coming back from classic view, as at startup, while
+    // the local tool server cannot publish its discovery file: the view
+    // stays, outside AI apps cannot connect, and the failure is reported.
+    void verify_tool_server_start_fails()
+    {
+        const fs::path discovery = fs::path(data_dir()) / "jusprin" / "mcp.json";
+        detach_shell();
+        wait_until([] { return installed_shell() == nullptr; }, "tool_server_classic_view_opens", [self = shared_from_this(), discovery] {
+            // A folder where the file goes: publishing it fails.
+            fs::remove(discovery);
+            fs::create_directories(discovery / "in-the-way");
+            auto      seen     = std::make_shared<SeenDialogs>();
+            const int reported = unexpected_errors_logged();
+            reattach_shell();
+            self->after(1500, "tool_server_view_settled", [self, discovery, seen, reported] {
+                self->check(installed_shell() != nullptr, "tool_server_failure_keeps_the_view");
+                self->check(unexpected_errors_logged() == reported + 1, "tool_server_failure_is_reported");
+                self->check(seen->shown.size() == 1 && seen->shown.front().find("Something went wrong on our side") != std::string::npos,
+                            "tool_server_failure_shows_only_the_report_window");
+                seen->Unregister();
+                fs::remove_all(discovery);
+                self->verify_view_start_fails();
+            });
+        });
+    }
+
+    // The JusPrin view coming back while the app's own data folder cannot be
+    // read: classic view stays, and the failure is reported.
+    void verify_view_start_fails()
+    {
+        detach_shell();
+        wait_until([] { return installed_shell() == nullptr; }, "view_start_classic_view_opens", [self = shared_from_this()] {
+            auto      folder   = std::make_shared<UnavailableFolder>(std::filesystem::path(data_dir()) / "jusprin");
+            auto      seen     = std::make_shared<SeenDialogs>();
+            const int reported = unexpected_errors_logged();
+            reattach_shell();
+            self->after(1500, "view_start_settled", [self, folder, seen, reported]() mutable {
+                std::cout << "HARNESS VIEW START: installed=" << (installed_shell() != nullptr)
+                          << " windows=" << seen->shown.size() << std::endl;
+                for (const std::string& shown : seen->shown)
+                    std::cout << "HARNESS VIEW START WINDOW: " << shown << std::endl;
+                // The folder holds the tool server's discovery file as well as
+                // the projects: the server's start fails first and is
+                // reported, then the view's.
+                self->check(installed_shell() == nullptr, "view_start_failure_keeps_classic_view");
+                self->check(unexpected_errors_logged() == reported + 2, "view_start_failure_is_reported");
+                self->check(seen->shown.size() == 2 &&
+                                std::all_of(seen->shown.begin(), seen->shown.end(), [](const std::string& shown) {
+                                    return shown.find("Something went wrong on our side") != std::string::npos;
+                                }),
+                            "view_start_failure_shows_only_the_report_window");
+                seen->Unregister();
+                folder.reset();
+                self->finish();
+            });
+        });
+    }
+
     // The shell coming back from classic view takes the project up again, so
     // its attachment stays; a shell that is going for good takes it along.
     void verify_blank_folder_across_classic_view()
@@ -16687,6 +17361,12 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::StartupRequests;
         else if (argument == "--account-box")
             state->mode = HarnessState::Mode::AccountBox;
+        else if (argument == "--remove-key-fails")
+            state->mode = HarnessState::Mode::RemoveKeyFails;
+        else if (argument == "--preferences-requests-fail")
+            state->mode = HarnessState::Mode::PreferencesRequestsFail;
+        else if (argument == "--view-start-fails")
+            state->mode = HarnessState::Mode::ViewStartFails;
         else if (argument == "--preferences-capture") {
             if (++index == argc) {
                 std::cerr << "--preferences-capture requires an output directory\n";

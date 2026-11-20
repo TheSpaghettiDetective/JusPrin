@@ -111,4 +111,10 @@ describe('work in the store', () => {
     state = reducer(state, { kind: 'host', envelope: host('work_updated', { work: done(4) }) });
     expect(state.work.map((entry) => [entry.id, entry.state])).toEqual([['work-4', 'done'], ['work-6', 'running']]);
   });
+
+  it('takes the document revision that starting and ending work moved', () => {
+    const state = reducer({ ...initialState, docRevision: 7 },
+      { kind: 'host', envelope: host('work_updated', { work: work(4), docRevision: 9 }) });
+    expect(state.docRevision).toBe(9);
+  });
 });

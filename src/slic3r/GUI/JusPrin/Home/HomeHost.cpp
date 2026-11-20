@@ -360,13 +360,15 @@ void HomeHost::on_page_message(const std::string& text)
         if (door == "key" || door == "tool")
             m_backend.open_agent_door(door);
     }
-    else if (type == "onboarding_import" || type == "onboarding_assume_default") {
-        const std::string problem = type == "onboarding_import"
-                                        ? m_backend.import_printers(payload.at("app").get<std::string>(),
-                                                                    payload.at("printers").get<std::vector<std::string>>())
-                                        : m_backend.assume_default_printer();
+    else if (type == "onboarding_import") {
+        const std::string problem =
+            m_backend.import_printers(payload.at("app").get<std::string>(), payload.at("printers").get<std::vector<std::string>>());
         if (!problem.empty())
             send("onboarding_error", json{{"message", problem}}, correlation);
+        push_state();
+    }
+    else if (type == "onboarding_assume_default") {
+        m_backend.assume_default_printer();
         push_state();
     }
     else if (type == "onboarding_import_continue") {

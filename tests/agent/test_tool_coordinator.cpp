@@ -2503,7 +2503,7 @@ TEST_CASE("in the project chat a preset is saved by the person, from the card it
     CHECK(h.workspace.settings_for_testing().filaments.count("Fixture PLA · MK4 calibrated") == 0);
 
     // Save preset applies exactly what the preview showed, as the person's.
-    CHECK(h.coordinator.approve_proposal(preview_id).empty());
+    CHECK(h.coordinator.approve_proposal(preview_id));
     const auto approved = std::find_if(h.coordinator.activities().begin(), h.coordinator.activities().end(),
                                        [&preview_id](const ToolActivity& item) { return item.approves == preview_id; });
     REQUIRE(approved != h.coordinator.activities().end());
@@ -2516,8 +2516,10 @@ TEST_CASE("in the project chat a preset is saved by the person, from the card it
     REQUIRE(fixture.filaments.count("Fixture PLA · MK4 calibrated") == 1);
     CHECK(fixture.selected_filament == "Fixture PLA · MK4 calibrated");
     CHECK(fixture.filaments.at("Fixture PLA").saved.at("nozzle_temperature") == "210");
-    CHECK(h.coordinator.approve_proposal(preview_id) == "This proposal is already saved.");
-    CHECK(h.coordinator.approve_proposal("nope") == "This proposal is no longer open. Ask AI again.");
+    // A second press saves nothing more; a proposal that is not open is a
+    // broken page.
+    CHECK_FALSE(h.coordinator.approve_proposal(preview_id));
+    CHECK_THROWS_AS(h.coordinator.approve_proposal("nope"), std::logic_error);
 
     // A preview that saves nothing proposes nothing.
     json unsaved = patch;
@@ -2543,7 +2545,7 @@ TEST_CASE("a save the person approves goes stale with a settings change after it
     const std::string edited = h.coordinator.submit({"settings_apply_patch", edit.dump()}, "m-2", {}, ToolSource::Mcp).action_id;
     h.pump_to_completion(edited);
     REQUIRE(h.coordinator.find(edited)->state == ToolState::Succeeded);
-    CHECK(h.coordinator.approve_proposal(preview_id).empty());
+    CHECK(h.coordinator.approve_proposal(preview_id));
     const auto approved = std::find_if(h.coordinator.activities().begin(), h.coordinator.activities().end(),
                                        [&preview_id](const ToolActivity& item) { return item.approves == preview_id; });
     REQUIRE(approved != h.coordinator.activities().end());

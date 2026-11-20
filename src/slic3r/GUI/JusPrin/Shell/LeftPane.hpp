@@ -180,6 +180,10 @@ private:
 
     const Hit* hit_at(const wxPoint& point, std::initializer_list<Hit::Kind> kinds) const;
     void       run_command(const Workspace::CommandResult& result, const char* what) const;
+    // run_command, except that the one refusal named keeps its own dialog:
+    // "No more plates can be added" and "Object name cannot be empty", which
+    // wait for Kenneth's decision on what they tell the person.
+    void       show_refusal(const Workspace::CommandResult& result, Workspace::WorkspaceError refusal, const char* what) const;
     void place_menu_anchor(std::size_t index);
     void open_menu(std::size_t index, std::vector<HeaderMenuItem> items);
     std::vector<HeaderMenuItem> plate_menu(const PaneRow& row);

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-18 20:27-0800\n"
+"POT-Creation-Date: 2026-11-20 08:46-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -35,14 +35,6 @@ msgid "Finish or cancel AI configuration before sending a message."
 msgstr "ตั้งค่า AI ให้เสร็จหรือยกเลิกก่อนส่งข้อความ"
 
 # AI Translated
-msgid "This message belongs to a different chat."
-msgstr "ข้อความนี้เป็นของแชทอื่น"
-
-# AI Translated
-msgid "A message needs text or an attachment."
-msgstr "ข้อความต้องมีตัวอักษรหรือไฟล์แนบ"
-
-# AI Translated
 msgid "This file is too large to attach."
 msgstr "ไฟล์นี้ใหญ่เกินกว่าจะแนบได้"
 
@@ -65,10 +57,6 @@ msgstr "โมเดล 3 มิติ"
 # AI Translated
 msgid "Document (PDF)"
 msgstr "เอกสาร (PDF)"
-
-# AI Translated
-msgid "This build cannot open a file dialog."
-msgstr "บิลด์นี้เปิดหน้าต่างเลือกไฟล์ไม่ได้"
 
 # AI Translated
 #. TRN A calibration chat's first line. %1%: where it was started from, %2%: a printer.
@@ -123,80 +111,8 @@ msgid "The slice of %1% finished."
 msgstr "สไลซ์ %1% เสร็จแล้ว"
 
 # AI Translated
-msgid "Historical replies cannot be retried."
-msgstr "ลองคำตอบเก่าในประวัติใหม่ไม่ได้"
-
-# AI Translated
-msgid "Only a failed or stopped assistant message in the active conversation can be retried."
-msgstr "ลองใหม่ได้เฉพาะข้อความของผู้ช่วยที่ล้มเหลวหรือถูกหยุดในบทสนทนาที่ใช้งานอยู่เท่านั้น"
-
-# AI Translated
-msgid "Only the chat's last reply can be retried."
-msgstr "ลองใหม่ได้เฉพาะคำตอบล่าสุดของแชทเท่านั้น"
-
-# AI Translated
-msgid "Another reply is currently streaming."
-msgstr "มีอีกคำตอบหนึ่งกำลังสตรีมอยู่"
-
-# AI Translated
-msgid "Historical tool actions cannot be changed."
-msgstr "เปลี่ยนการทำงานของเครื่องมือในประวัติไม่ได้"
-
-# AI Translated
-msgid "This proposal is no longer open. Ask AI again."
-msgstr "ข้อเสนอนี้ปิดไปแล้ว โปรดถาม AI อีกครั้ง"
-
-# AI Translated
-msgid "This save can no longer be undone."
-msgstr "เลิกทำการบันทึกนี้ไม่ได้อีกแล้ว"
-
-# AI Translated
-msgid "Finish or resolve pending work before creating a chat."
-msgstr "ทำงานที่ค้างอยู่ให้เสร็จหรือแก้ไขให้เรียบร้อยก่อนสร้างแชท"
-
-# AI Translated
-msgid "The project or selected chat changed. Review it again."
-msgstr "โปรเจกต์หรือแชทที่เลือกมีการเปลี่ยนแปลง โปรดตรวจสอบอีกครั้ง"
-
-# AI Translated
-msgid "Finish or resolve pending work before resuming a chat."
-msgstr "ทำงานที่ค้างอยู่ให้เสร็จหรือแก้ไขให้เรียบร้อยก่อนกลับไปใช้แชทต่อ"
-
-# AI Translated
-msgid "This chat is already active."
-msgstr "แชทนี้ใช้งานอยู่แล้ว"
-
-# AI Translated
-msgid "JusPrin can't find the project version this chat was working on."
-msgstr "JusPrin ไม่พบเวอร์ชันของโปรเจกต์ที่แชทนี้ทำงานอยู่"
-
-# AI Translated
 msgid "Restored this chat's saved project setup. Check the current printer and material before printing."
 msgstr "กู้คืนการตั้งค่าโปรเจกต์ที่บันทึกไว้ของแชทนี้แล้ว โปรดตรวจสอบเครื่องพิมพ์และวัสดุปัจจุบันก่อนพิมพ์"
-
-# AI Translated
-msgid "Use a non-empty, single-line title of at most 120 characters for an existing chat."
-msgstr "สำหรับแชทที่มีอยู่ ให้ใช้ชื่อที่ไม่ว่างเปล่า มีบรรทัดเดียว และยาวไม่เกิน 120 อักขระ"
-
-# AI Translated
-msgid "This chat is still working. Stop it or let it finish, then delete it."
-msgstr "แชทนี้ยังทำงานอยู่ โปรดหยุดหรือรอให้เสร็จ แล้วจึงลบ"
-
-# AI Translated
-msgid "This chat no longer exists."
-msgstr "แชทนี้ไม่มีอยู่แล้ว"
-
-# AI Translated
-msgid "Historical chats cannot edit the current draft."
-msgstr "แชทในประวัติแก้ไขฉบับร่างปัจจุบันไม่ได้"
-
-# AI Translated
-msgid "Finish or stop the current reply before configuring AI."
-msgstr "รอให้คำตอบปัจจุบันเสร็จ หรือหยุดคำตอบก่อนตั้งค่า AI"
-
-# AI Translated
-msgid "This build cannot configure an AI provider."
-msgstr "บิลด์นี้ตั้งค่าผู้ให้บริการ AI ไม่ได้"
 
 # AI Translated
 msgid "A credential check is already running."
@@ -207,32 +123,8 @@ msgid "This build cannot verify a key for that provider yet."
 msgstr "บิลด์นี้ยังตรวจสอบคีย์ของผู้ให้บริการนั้นไม่ได้"
 
 # AI Translated
-msgid "Finish or stop the current reply before removing a key."
-msgstr "รอให้คำตอบปัจจุบันเสร็จ หรือหยุดคำตอบก่อนลบคีย์"
-
-# AI Translated
-msgid "Finish or cancel the key check before removing a key."
-msgstr "รอให้การตรวจสอบคีย์เสร็จหรือยกเลิกก่อนลบคีย์"
-
-# AI Translated
-msgid "That key could not be removed."
-msgstr "ลบคีย์นั้นไม่ได้"
-
-# AI Translated
-msgid "This build cannot sign in to a JusPrin account."
-msgstr "บิลด์นี้เข้าสู่ระบบบัญชี JusPrin ไม่ได้"
-
-# AI Translated
-msgid "Finish or stop the current reply before signing in."
-msgstr "รอให้คำตอบปัจจุบันเสร็จ หรือหยุดคำตอบก่อนเข้าสู่ระบบ"
-
-# AI Translated
 msgid "A sign-in or key check is already running."
 msgstr "กำลังเข้าสู่ระบบหรือตรวจสอบคีย์อยู่แล้ว"
-
-# AI Translated
-msgid "There is no JusPrin account on this computer to check."
-msgstr "ไม่มีบัญชี JusPrin บนคอมพิวเตอร์เครื่องนี้ให้ตรวจสอบ"
 
 # AI Translated
 msgid "JusPrin couldn't sign you in. Try again."
@@ -253,10 +145,6 @@ msgstr "AI รับผลลัพธ์จากเครื่องมือ
 # AI Translated
 msgid "The AI request failed."
 msgstr "คำขอ AI ล้มเหลว"
-
-# AI Translated
-msgid "The automatic chat title could not be generated. You can rename the chat."
-msgstr "สร้างชื่อแชทอัตโนมัติไม่ได้ คุณเปลี่ยนชื่อแชทเองได้"
 
 # AI Translated
 #. TRN %1% is an AI provider's account, such as JusPrin.
@@ -305,10 +193,6 @@ msgstr "ยังไม่ได้ติดตั้ง %1% โปรดติ�
 # AI Translated
 msgid "This build cannot run the client CLI."
 msgstr "บิลด์นี้เรียกใช้ CLI ของไคลเอนต์ไม่ได้"
-
-# AI Translated
-msgid "This build cannot open a file manager."
-msgstr "บิลด์นี้เปิดตัวจัดการไฟล์ไม่ได้"
 
 # AI Translated
 msgid "The provider did not answer."
@@ -503,10 +387,6 @@ msgstr "บันทึก %1% เป็นพรีเซ็ตกระบว�
 #, boost-format
 msgid "Save %1% to %2%"
 msgstr "บันทึก %1% ลงใน %2%"
-
-# AI Translated
-msgid "This proposal is already saved."
-msgstr "บันทึกข้อเสนอนี้แล้ว"
 
 # AI Translated
 msgid "Drop a model here or add one"
@@ -1941,23 +1821,6 @@ msgid "Drag to resize the AI panel"
 msgstr "ลากเพื่อปรับขนาดแผง AI"
 
 # AI Translated
-msgid "The setup changed. Review the current plate and try again."
-msgstr "การตั้งค่ามีการเปลี่ยนแปลง โปรดตรวจสอบเพลตปัจจุบันแล้วลองอีกครั้ง"
-
-# AI Translated
-msgid "Couldn't slice"
-msgstr "สไลซ์ไม่ได้"
-
-# AI Translated
-msgid "This saved version couldn't be restored. Try again from Version history."
-msgstr "กู้คืนเวอร์ชันที่บันทึกไว้นี้ไม่ได้ โปรดลองอีกครั้งจากประวัติเวอร์ชัน"
-
-# AI Translated
-# Needs human review: 'Revert failed' dialog title; check what is being reverted (a saved version restore)
-msgid "Revert failed"
-msgstr "ย้อนกลับไม่สำเร็จ"
-
-# AI Translated
 msgid "Your saved projects couldn't be read, so JusPrin can't check whether you've opened this file before. The file wasn't opened. Try again once JusPrin can read its projects folder."
 msgstr "อ่านโปรเจกต์ที่บันทึกไว้ของคุณไม่ได้ JusPrin จึงตรวจสอบไม่ได้ว่าคุณเคยเปิดไฟล์นี้หรือไม่ และไม่ได้เปิดไฟล์ โปรดลองอีกครั้งเมื่อ JusPrin อ่านโฟลเดอร์โปรเจกต์ได้"
 
@@ -2094,10 +1957,6 @@ msgstr "เปิดโปรเจกต์ไม่ได้"
 # AI Translated
 msgid "Get the new version…"
 msgstr "รับเวอร์ชันใหม่…"
-
-# AI Translated
-msgid "JusPrin's view couldn't be opened."
-msgstr "เปิดมุมมองของ JusPrin ไม่ได้"
 
 # AI Translated
 msgid "Show the Plates and Project panel"
@@ -2258,6 +2117,147 @@ msgstr "โปรเจกต์นี้บันทึกด้วย JusPrin 
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "เปิดโปรเจกต์ไม่ได้ โปรดลองอีกครั้ง"
+
+# AI Translated
+#~ msgid "JusPrin's view couldn't be opened."
+#~ msgstr "เปิดมุมมองของ JusPrin ไม่ได้"
+
+# AI Translated
+#~ msgid "That key could not be removed."
+#~ msgstr "ลบคีย์นั้นไม่ได้"
+
+# AI Translated
+#~ msgid "This message belongs to a different chat."
+#~ msgstr "ข้อความนี้เป็นของแชทอื่น"
+
+# AI Translated
+#~ msgid "Another reply is currently streaming."
+#~ msgstr "มีอีกคำตอบหนึ่งกำลังสตรีมอยู่"
+
+# AI Translated
+#~ msgid "Finish or resolve pending work before creating a chat."
+#~ msgstr "ทำงานที่ค้างอยู่ให้เสร็จหรือแก้ไขให้เรียบร้อยก่อนสร้างแชท"
+
+# AI Translated
+#~ msgid "The project or selected chat changed. Review it again."
+#~ msgstr "โปรเจกต์หรือแชทที่เลือกมีการเปลี่ยนแปลง โปรดตรวจสอบอีกครั้ง"
+
+# AI Translated
+#~ msgid "Finish or resolve pending work before resuming a chat."
+#~ msgstr "ทำงานที่ค้างอยู่ให้เสร็จหรือแก้ไขให้เรียบร้อยก่อนกลับไปใช้แชทต่อ"
+
+# AI Translated
+#~ msgid "JusPrin can't find the project version this chat was working on."
+#~ msgstr "JusPrin ไม่พบเวอร์ชันของโปรเจกต์ที่แชทนี้ทำงานอยู่"
+
+# AI Translated
+#~ msgid "This chat is still working. Stop it or let it finish, then delete it."
+#~ msgstr "แชทนี้ยังทำงานอยู่ โปรดหยุดหรือรอให้เสร็จ แล้วจึงลบ"
+
+# AI Translated
+#~ msgid "Historical chats cannot edit the current draft."
+#~ msgstr "แชทในประวัติแก้ไขฉบับร่างปัจจุบันไม่ได้"
+
+# AI Translated
+#~ msgid "Only the chat's last reply can be retried."
+#~ msgstr "ลองใหม่ได้เฉพาะคำตอบล่าสุดของแชทเท่านั้น"
+
+# AI Translated
+#~ msgid "This saved version couldn't be restored. Try again from Version history."
+#~ msgstr "กู้คืนเวอร์ชันที่บันทึกไว้นี้ไม่ได้ โปรดลองอีกครั้งจากประวัติเวอร์ชัน"
+
+# AI Translated
+# Needs human review: 'Revert failed' dialog title; check what is being reverted (a saved version restore)
+#~ msgid "Revert failed"
+#~ msgstr "ย้อนกลับไม่สำเร็จ"
+
+# AI Translated
+#~ msgid "The setup changed. Review the current plate and try again."
+#~ msgstr "การตั้งค่ามีการเปลี่ยนแปลง โปรดตรวจสอบเพลตปัจจุบันแล้วลองอีกครั้ง"
+
+# AI Translated
+#~ msgid "Couldn't slice"
+#~ msgstr "สไลซ์ไม่ได้"
+
+# AI Translated
+#~ msgid "A message needs text or an attachment."
+#~ msgstr "ข้อความต้องมีตัวอักษรหรือไฟล์แนบ"
+
+# AI Translated
+#~ msgid "This build cannot open a file dialog."
+#~ msgstr "บิลด์นี้เปิดหน้าต่างเลือกไฟล์ไม่ได้"
+
+# AI Translated
+#~ msgid "Historical replies cannot be retried."
+#~ msgstr "ลองคำตอบเก่าในประวัติใหม่ไม่ได้"
+
+# AI Translated
+#~ msgid "Only a failed or stopped assistant message in the active conversation can be retried."
+#~ msgstr "ลองใหม่ได้เฉพาะข้อความของผู้ช่วยที่ล้มเหลวหรือถูกหยุดในบทสนทนาที่ใช้งานอยู่เท่านั้น"
+
+# AI Translated
+#~ msgid "Historical tool actions cannot be changed."
+#~ msgstr "เปลี่ยนการทำงานของเครื่องมือในประวัติไม่ได้"
+
+# AI Translated
+#~ msgid "This proposal is no longer open. Ask AI again."
+#~ msgstr "ข้อเสนอนี้ปิดไปแล้ว โปรดถาม AI อีกครั้ง"
+
+# AI Translated
+#~ msgid "This save can no longer be undone."
+#~ msgstr "เลิกทำการบันทึกนี้ไม่ได้อีกแล้ว"
+
+# AI Translated
+#~ msgid "This chat is already active."
+#~ msgstr "แชทนี้ใช้งานอยู่แล้ว"
+
+# AI Translated
+#~ msgid "Use a non-empty, single-line title of at most 120 characters for an existing chat."
+#~ msgstr "สำหรับแชทที่มีอยู่ ให้ใช้ชื่อที่ไม่ว่างเปล่า มีบรรทัดเดียว และยาวไม่เกิน 120 อักขระ"
+
+# AI Translated
+#~ msgid "This chat no longer exists."
+#~ msgstr "แชทนี้ไม่มีอยู่แล้ว"
+
+# AI Translated
+#~ msgid "Finish or stop the current reply before configuring AI."
+#~ msgstr "รอให้คำตอบปัจจุบันเสร็จ หรือหยุดคำตอบก่อนตั้งค่า AI"
+
+# AI Translated
+#~ msgid "This build cannot configure an AI provider."
+#~ msgstr "บิลด์นี้ตั้งค่าผู้ให้บริการ AI ไม่ได้"
+
+# AI Translated
+#~ msgid "Finish or stop the current reply before removing a key."
+#~ msgstr "รอให้คำตอบปัจจุบันเสร็จ หรือหยุดคำตอบก่อนลบคีย์"
+
+# AI Translated
+#~ msgid "Finish or cancel the key check before removing a key."
+#~ msgstr "รอให้การตรวจสอบคีย์เสร็จหรือยกเลิกก่อนลบคีย์"
+
+# AI Translated
+#~ msgid "This build cannot sign in to a JusPrin account."
+#~ msgstr "บิลด์นี้เข้าสู่ระบบบัญชี JusPrin ไม่ได้"
+
+# AI Translated
+#~ msgid "Finish or stop the current reply before signing in."
+#~ msgstr "รอให้คำตอบปัจจุบันเสร็จ หรือหยุดคำตอบก่อนเข้าสู่ระบบ"
+
+# AI Translated
+#~ msgid "There is no JusPrin account on this computer to check."
+#~ msgstr "ไม่มีบัญชี JusPrin บนคอมพิวเตอร์เครื่องนี้ให้ตรวจสอบ"
+
+# AI Translated
+#~ msgid "The automatic chat title could not be generated. You can rename the chat."
+#~ msgstr "สร้างชื่อแชทอัตโนมัติไม่ได้ คุณเปลี่ยนชื่อแชทเองได้"
+
+# AI Translated
+#~ msgid "This build cannot open a file manager."
+#~ msgstr "บิลด์นี้เปิดตัวจัดการไฟล์ไม่ได้"
+
+# AI Translated
+#~ msgid "This proposal is already saved."
+#~ msgstr "บันทึกข้อเสนอนี้แล้ว"
 
 # AI Translated
 #, c-format, boost-format

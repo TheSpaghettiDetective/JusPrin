@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-18 20:27-0800\n"
+"POT-Creation-Date: 2026-11-20 08:46-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -34,14 +34,6 @@ msgid "Finish or cancel AI configuration before sending a message."
 msgstr "Hãy hoàn tất hoặc hủy thiết lập AI trước khi gửi tin nhắn."
 
 # AI Translated
-msgid "This message belongs to a different chat."
-msgstr "Tin nhắn này thuộc về một cuộc trò chuyện khác."
-
-# AI Translated
-msgid "A message needs text or an attachment."
-msgstr "Tin nhắn cần có nội dung hoặc tệp đính kèm."
-
-# AI Translated
 msgid "This file is too large to attach."
 msgstr "File này quá lớn để đính kèm."
 
@@ -64,10 +56,6 @@ msgstr "Mô hình 3D"
 # AI Translated
 msgid "Document (PDF)"
 msgstr "Tài liệu (PDF)"
-
-# AI Translated
-msgid "This build cannot open a file dialog."
-msgstr "Bản dựng này không thể mở hộp thoại chọn file."
 
 # AI Translated
 #. TRN A calibration chat's first line. %1%: where it was started from, %2%: a printer.
@@ -122,80 +110,8 @@ msgid "The slice of %1% finished."
 msgstr "Đã slice xong %1%."
 
 # AI Translated
-msgid "Historical replies cannot be retried."
-msgstr "Không thể thử lại các câu trả lời cũ."
-
-# AI Translated
-msgid "Only a failed or stopped assistant message in the active conversation can be retried."
-msgstr "Chỉ có thể thử lại tin nhắn trợ lý bị lỗi hoặc bị dừng trong cuộc trò chuyện đang mở."
-
-# AI Translated
-msgid "Only the chat's last reply can be retried."
-msgstr "Chỉ có thể thử lại câu trả lời cuối cùng của cuộc trò chuyện."
-
-# AI Translated
-msgid "Another reply is currently streaming."
-msgstr "Một câu trả lời khác đang được truyền."
-
-# AI Translated
-msgid "Historical tool actions cannot be changed."
-msgstr "Không thể thay đổi các thao tác công cụ cũ."
-
-# AI Translated
-msgid "This proposal is no longer open. Ask AI again."
-msgstr "Đề xuất này không còn mở. Hãy hỏi lại AI."
-
-# AI Translated
-msgid "This save can no longer be undone."
-msgstr "Không thể hoàn tác lần lưu này nữa."
-
-# AI Translated
-msgid "Finish or resolve pending work before creating a chat."
-msgstr "Hãy hoàn tất hoặc giải quyết công việc đang chờ trước khi tạo cuộc trò chuyện."
-
-# AI Translated
-msgid "The project or selected chat changed. Review it again."
-msgstr "Dự án hoặc cuộc trò chuyện đã chọn đã thay đổi. Hãy xem lại."
-
-# AI Translated
-msgid "Finish or resolve pending work before resuming a chat."
-msgstr "Hãy hoàn tất hoặc giải quyết công việc đang chờ trước khi tiếp tục một cuộc trò chuyện."
-
-# AI Translated
-msgid "This chat is already active."
-msgstr "Cuộc trò chuyện này đang mở."
-
-# AI Translated
-msgid "JusPrin can't find the project version this chat was working on."
-msgstr "JusPrin không tìm thấy phiên bản dự án mà cuộc trò chuyện này đang làm việc."
-
-# AI Translated
 msgid "Restored this chat's saved project setup. Check the current printer and material before printing."
 msgstr "Đã khôi phục thiết lập dự án đã lưu của cuộc trò chuyện này. Hãy kiểm tra máy in và vật liệu hiện tại trước khi in."
-
-# AI Translated
-msgid "Use a non-empty, single-line title of at most 120 characters for an existing chat."
-msgstr "Tiêu đề của cuộc trò chuyện hiện có phải không trống, chỉ một dòng và tối đa 120 ký tự."
-
-# AI Translated
-msgid "This chat is still working. Stop it or let it finish, then delete it."
-msgstr "Cuộc trò chuyện này vẫn đang chạy. Hãy dừng hoặc chờ nó hoàn tất rồi xóa."
-
-# AI Translated
-msgid "This chat no longer exists."
-msgstr "Cuộc trò chuyện này không còn tồn tại."
-
-# AI Translated
-msgid "Historical chats cannot edit the current draft."
-msgstr "Cuộc trò chuyện cũ không thể chỉnh sửa bản nháp hiện tại."
-
-# AI Translated
-msgid "Finish or stop the current reply before configuring AI."
-msgstr "Hãy hoàn tất hoặc dừng câu trả lời hiện tại trước khi thiết lập AI."
-
-# AI Translated
-msgid "This build cannot configure an AI provider."
-msgstr "Bản dựng này không thể thiết lập nhà cung cấp AI."
 
 # AI Translated
 msgid "A credential check is already running."
@@ -206,32 +122,8 @@ msgid "This build cannot verify a key for that provider yet."
 msgstr "Bản dựng này chưa thể xác minh khóa cho nhà cung cấp đó."
 
 # AI Translated
-msgid "Finish or stop the current reply before removing a key."
-msgstr "Hãy hoàn tất hoặc dừng câu trả lời hiện tại trước khi xóa khóa."
-
-# AI Translated
-msgid "Finish or cancel the key check before removing a key."
-msgstr "Hãy hoàn tất hoặc hủy việc kiểm tra khóa trước khi xóa khóa."
-
-# AI Translated
-msgid "That key could not be removed."
-msgstr "Không thể xóa khóa đó."
-
-# AI Translated
-msgid "This build cannot sign in to a JusPrin account."
-msgstr "Bản dựng này không thể đăng nhập tài khoản JusPrin."
-
-# AI Translated
-msgid "Finish or stop the current reply before signing in."
-msgstr "Hãy hoàn tất hoặc dừng câu trả lời hiện tại trước khi đăng nhập."
-
-# AI Translated
 msgid "A sign-in or key check is already running."
 msgstr "Đang đăng nhập hoặc kiểm tra khóa."
-
-# AI Translated
-msgid "There is no JusPrin account on this computer to check."
-msgstr "Máy tính này không có tài khoản JusPrin nào để kiểm tra."
 
 # AI Translated
 msgid "JusPrin couldn't sign you in. Try again."
@@ -253,10 +145,6 @@ msgstr "AI không thể nhận kết quả công cụ của ứng dụng."
 # AI Translated
 msgid "The AI request failed."
 msgstr "Yêu cầu AI không thành công."
-
-# AI Translated
-msgid "The automatic chat title could not be generated. You can rename the chat."
-msgstr "Không thể tự tạo tiêu đề cho cuộc trò chuyện. Bạn có thể đổi tên cuộc trò chuyện."
 
 # AI Translated
 #. TRN %1% is an AI provider's account, such as JusPrin.
@@ -305,10 +193,6 @@ msgstr "%1% chưa được cài đặt. Hãy cài đặt, hoặc sao chép lện
 # AI Translated
 msgid "This build cannot run the client CLI."
 msgstr "Bản dựng này không thể chạy CLI của ứng dụng khách."
-
-# AI Translated
-msgid "This build cannot open a file manager."
-msgstr "Bản dựng này không thể mở trình quản lý file."
 
 # AI Translated
 msgid "The provider did not answer."
@@ -501,10 +385,6 @@ msgstr "Lưu %1% thành cài đặt sẵn process mới"
 #, boost-format
 msgid "Save %1% to %2%"
 msgstr "Lưu %1% vào %2%"
-
-# AI Translated
-msgid "This proposal is already saved."
-msgstr "Đề xuất này đã được lưu."
 
 # AI Translated
 msgid "Drop a model here or add one"
@@ -1934,22 +1814,6 @@ msgid "Drag to resize the AI panel"
 msgstr "Kéo để đổi kích thước bảng AI"
 
 # AI Translated
-msgid "The setup changed. Review the current plate and try again."
-msgstr "Thiết lập đã thay đổi. Hãy xem lại plate hiện tại rồi thử lại."
-
-# AI Translated
-msgid "Couldn't slice"
-msgstr "Không thể slice"
-
-# AI Translated
-msgid "This saved version couldn't be restored. Try again from Version history."
-msgstr "Không thể khôi phục phiên bản đã lưu này. Hãy thử lại từ Lịch sử phiên bản."
-
-# AI Translated
-msgid "Revert failed"
-msgstr "Hoàn nguyên không thành công"
-
-# AI Translated
 msgid "Your saved projects couldn't be read, so JusPrin can't check whether you've opened this file before. The file wasn't opened. Try again once JusPrin can read its projects folder."
 msgstr "Không thể đọc các dự án đã lưu của bạn, nên JusPrin không thể kiểm tra bạn đã từng mở file này chưa. File chưa được mở. Hãy thử lại khi JusPrin đọc được thư mục dự án."
 
@@ -2086,10 +1950,6 @@ msgstr "Không thể mở dự án"
 # AI Translated
 msgid "Get the new version…"
 msgstr "Tải phiên bản mới…"
-
-# AI Translated
-msgid "JusPrin's view couldn't be opened."
-msgstr "Không thể mở giao diện JusPrin."
 
 # AI Translated
 msgid "Show the Plates and Project panel"
@@ -2250,6 +2110,146 @@ msgstr "Dự án này được lưu bằng phiên bản JusPrin mới hơn. Hãy
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "Không thể mở dự án. Hãy thử lại."
+
+# AI Translated
+#~ msgid "JusPrin's view couldn't be opened."
+#~ msgstr "Không thể mở giao diện JusPrin."
+
+# AI Translated
+#~ msgid "That key could not be removed."
+#~ msgstr "Không thể xóa khóa đó."
+
+# AI Translated
+#~ msgid "This message belongs to a different chat."
+#~ msgstr "Tin nhắn này thuộc về một cuộc trò chuyện khác."
+
+# AI Translated
+#~ msgid "Another reply is currently streaming."
+#~ msgstr "Một câu trả lời khác đang được truyền."
+
+# AI Translated
+#~ msgid "Finish or resolve pending work before creating a chat."
+#~ msgstr "Hãy hoàn tất hoặc giải quyết công việc đang chờ trước khi tạo cuộc trò chuyện."
+
+# AI Translated
+#~ msgid "The project or selected chat changed. Review it again."
+#~ msgstr "Dự án hoặc cuộc trò chuyện đã chọn đã thay đổi. Hãy xem lại."
+
+# AI Translated
+#~ msgid "Finish or resolve pending work before resuming a chat."
+#~ msgstr "Hãy hoàn tất hoặc giải quyết công việc đang chờ trước khi tiếp tục một cuộc trò chuyện."
+
+# AI Translated
+#~ msgid "JusPrin can't find the project version this chat was working on."
+#~ msgstr "JusPrin không tìm thấy phiên bản dự án mà cuộc trò chuyện này đang làm việc."
+
+# AI Translated
+#~ msgid "This chat is still working. Stop it or let it finish, then delete it."
+#~ msgstr "Cuộc trò chuyện này vẫn đang chạy. Hãy dừng hoặc chờ nó hoàn tất rồi xóa."
+
+# AI Translated
+#~ msgid "Historical chats cannot edit the current draft."
+#~ msgstr "Cuộc trò chuyện cũ không thể chỉnh sửa bản nháp hiện tại."
+
+# AI Translated
+#~ msgid "Only the chat's last reply can be retried."
+#~ msgstr "Chỉ có thể thử lại câu trả lời cuối cùng của cuộc trò chuyện."
+
+# AI Translated
+#~ msgid "This saved version couldn't be restored. Try again from Version history."
+#~ msgstr "Không thể khôi phục phiên bản đã lưu này. Hãy thử lại từ Lịch sử phiên bản."
+
+# AI Translated
+#~ msgid "Revert failed"
+#~ msgstr "Hoàn nguyên không thành công"
+
+# AI Translated
+#~ msgid "The setup changed. Review the current plate and try again."
+#~ msgstr "Thiết lập đã thay đổi. Hãy xem lại plate hiện tại rồi thử lại."
+
+# AI Translated
+#~ msgid "Couldn't slice"
+#~ msgstr "Không thể slice"
+
+# AI Translated
+#~ msgid "A message needs text or an attachment."
+#~ msgstr "Tin nhắn cần có nội dung hoặc tệp đính kèm."
+
+# AI Translated
+#~ msgid "This build cannot open a file dialog."
+#~ msgstr "Bản dựng này không thể mở hộp thoại chọn file."
+
+# AI Translated
+#~ msgid "Historical replies cannot be retried."
+#~ msgstr "Không thể thử lại các câu trả lời cũ."
+
+# AI Translated
+#~ msgid "Only a failed or stopped assistant message in the active conversation can be retried."
+#~ msgstr "Chỉ có thể thử lại tin nhắn trợ lý bị lỗi hoặc bị dừng trong cuộc trò chuyện đang mở."
+
+# AI Translated
+#~ msgid "Historical tool actions cannot be changed."
+#~ msgstr "Không thể thay đổi các thao tác công cụ cũ."
+
+# AI Translated
+#~ msgid "This proposal is no longer open. Ask AI again."
+#~ msgstr "Đề xuất này không còn mở. Hãy hỏi lại AI."
+
+# AI Translated
+#~ msgid "This save can no longer be undone."
+#~ msgstr "Không thể hoàn tác lần lưu này nữa."
+
+# AI Translated
+#~ msgid "This chat is already active."
+#~ msgstr "Cuộc trò chuyện này đang mở."
+
+# AI Translated
+#~ msgid "Use a non-empty, single-line title of at most 120 characters for an existing chat."
+#~ msgstr "Tiêu đề của cuộc trò chuyện hiện có phải không trống, chỉ một dòng và tối đa 120 ký tự."
+
+# AI Translated
+#~ msgid "This chat no longer exists."
+#~ msgstr "Cuộc trò chuyện này không còn tồn tại."
+
+# AI Translated
+#~ msgid "Finish or stop the current reply before configuring AI."
+#~ msgstr "Hãy hoàn tất hoặc dừng câu trả lời hiện tại trước khi thiết lập AI."
+
+# AI Translated
+#~ msgid "This build cannot configure an AI provider."
+#~ msgstr "Bản dựng này không thể thiết lập nhà cung cấp AI."
+
+# AI Translated
+#~ msgid "Finish or stop the current reply before removing a key."
+#~ msgstr "Hãy hoàn tất hoặc dừng câu trả lời hiện tại trước khi xóa khóa."
+
+# AI Translated
+#~ msgid "Finish or cancel the key check before removing a key."
+#~ msgstr "Hãy hoàn tất hoặc hủy việc kiểm tra khóa trước khi xóa khóa."
+
+# AI Translated
+#~ msgid "This build cannot sign in to a JusPrin account."
+#~ msgstr "Bản dựng này không thể đăng nhập tài khoản JusPrin."
+
+# AI Translated
+#~ msgid "Finish or stop the current reply before signing in."
+#~ msgstr "Hãy hoàn tất hoặc dừng câu trả lời hiện tại trước khi đăng nhập."
+
+# AI Translated
+#~ msgid "There is no JusPrin account on this computer to check."
+#~ msgstr "Máy tính này không có tài khoản JusPrin nào để kiểm tra."
+
+# AI Translated
+#~ msgid "The automatic chat title could not be generated. You can rename the chat."
+#~ msgstr "Không thể tự tạo tiêu đề cho cuộc trò chuyện. Bạn có thể đổi tên cuộc trò chuyện."
+
+# AI Translated
+#~ msgid "This build cannot open a file manager."
+#~ msgstr "Bản dựng này không thể mở trình quản lý file."
+
+# AI Translated
+#~ msgid "This proposal is already saved."
+#~ msgstr "Đề xuất này đã được lưu."
 
 # AI Translated
 #, c-format, boost-format

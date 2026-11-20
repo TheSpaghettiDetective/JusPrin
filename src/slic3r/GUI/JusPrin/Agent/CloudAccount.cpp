@@ -1,4 +1,5 @@
 #include "CloudAccount.hpp"
+#include "libslic3r/Exception.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -451,15 +452,18 @@ std::optional<CloudAccountRecord> CloudSignIn::account() const
     return record;
 }
 
-bool CloudSignIn::sign_out()
+void CloudSignIn::sign_out()
 {
+    // Sign out is drawn only while signed in.
     const std::optional<CloudAccountRecord> record = account();
-    if (!record || !m_store.erase || !m_store.erase())
-        return false;
+    if (!record)
+        throw RuntimeError("jusprin-cloud-account: signing out with no account stored");
+    if (!m_store.erase)
+        throw std::logic_error("jusprin-cloud-account: signing out of a store that cannot forget an account");
+    m_store.erase();
     cancel();
     if (m_deps.revoke)
         m_deps.revoke(m_server + "/o/revoke_token/", kCloudClientId, record->token);
-    return true;
 }
 
 } // namespace Slic3r::GUI::JusPrin::Agent

@@ -31,6 +31,7 @@
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterDiscovery.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp"
+#include "libslic3r/Exception.hpp"
 #include "libslic3r/PresetBundle.hpp"
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/JusPrin/Updates/UpdateCheck.hpp"
@@ -983,7 +984,7 @@ std::vector<Snapshot::Onboarding::ImportItem> OrcaHomeBackend::import_result_lin
     return lines;
 }
 
-std::string OrcaHomeBackend::assume_default_printer()
+void OrcaHomeBackend::assume_default_printer()
 {
     Plater* plater = wxGetApp().plater();
     AppConfig* config = wxGetApp().app_config;
@@ -991,13 +992,13 @@ std::string OrcaHomeBackend::assume_default_printer()
         throw std::logic_error("Home installed a printer before the app finished starting");
     // A fresh install has no printer, and the person named none. They get
     // the bundled printer that belongs to no manufacturer, saved as the
-    // generic printer the printer chip names.
+    // generic printer the printer chip names. A profile bundled with the app
+    // that cannot be installed is nothing the person can act on.
     std::string problem;
     if (!SetupCommands::install_and_select_printer(*plater, "Custom", "Generic Klipper Printer", "0.4", "Generic PLA @System", problem))
-        return problem;
+        throw RuntimeError("Installing the bundled generic printer failed: " + problem);
     config->set(kOnboardingSection, kAssumedPrinter, Printers::add_named_printer(*plater, utf8(_L("Generic printer")), {}));
     printer_chosen();
-    return {};
 }
 
 ProjectList OrcaHomeBackend::recent_projects() const

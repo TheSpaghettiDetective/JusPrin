@@ -1,6 +1,9 @@
 #include "AgentSetup.hpp"
 #include "ProviderFactory.hpp"
+#include "libslic3r/Exception.hpp"
 
+#include <stdexcept>
+#include <string>
 #include <utility>
 
 // Last: it defines the L marker.
@@ -156,13 +159,19 @@ std::vector<SavedKey> ProviderKeySetup::saved_keys() const
     return saved;
 }
 
-bool ProviderKeySetup::remove_key(const std::string& provider)
+void ProviderKeySetup::remove_key(const std::string& provider)
 {
     if (!setup_provider_supported(provider))
-        return false;
-    if (profile_for(provider)->account_sign_in)
-        return m_cloud && m_cloud->sign_out();
-    return m_keys.remove && m_keys.remove(provider);
+        throw RuntimeError("jusprin-agent-setup: removing the key of " + provider + ", which this build has no provider for");
+    if (profile_for(provider)->account_sign_in) {
+        if (!m_cloud)
+            throw std::logic_error("jusprin-agent-setup: signing out of a build with no account sign-in");
+        m_cloud->sign_out();
+        return;
+    }
+    if (!m_keys.remove)
+        throw std::logic_error("jusprin-agent-setup: removing a key from a setup with no key store");
+    m_keys.remove(provider);
 }
 
 int ProviderKeySetup::elapsed_ms() const

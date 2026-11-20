@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-18 20:27-0800\n"
+"POT-Creation-Date: 2026-11-20 08:46-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -34,14 +34,6 @@ msgid "Finish or cancel AI configuration before sending a message."
 msgstr "Amaitu edo utzi AAren konfigurazioa mezu bat bidali aurretik."
 
 # AI Translated
-msgid "This message belongs to a different chat."
-msgstr "Mezu hau beste txat batekoa da."
-
-# AI Translated
-msgid "A message needs text or an attachment."
-msgstr "Mezu batek testua edo eranskin bat behar du."
-
-# AI Translated
 msgid "This file is too large to attach."
 msgstr "Fitxategi hau handiegia da eransteko."
 
@@ -64,10 +56,6 @@ msgstr "3D modeloa"
 # AI Translated
 msgid "Document (PDF)"
 msgstr "Dokumentua (PDF)"
-
-# AI Translated
-msgid "This build cannot open a file dialog."
-msgstr "Konpilazio honek ezin du fitxategi-elkarrizketa-koadrorik ireki."
 
 # AI Translated
 #. TRN A calibration chat's first line. %1%: where it was started from, %2%: a printer.
@@ -122,80 +110,8 @@ msgid "The slice of %1% finished."
 msgstr "Xerratzea amaitu da: %1%."
 
 # AI Translated
-msgid "Historical replies cannot be retried."
-msgstr "Ezin da iraganeko erantzunik berriro eskatu."
-
-# AI Translated
-msgid "Only a failed or stopped assistant message in the active conversation can be retried."
-msgstr "Txat aktiboan huts egin duen edo gelditu den laguntzailearen mezu bat soilik eska daiteke berriro."
-
-# AI Translated
-msgid "Only the chat's last reply can be retried."
-msgstr "Txataren azken erantzuna soilik eska daiteke berriro."
-
-# AI Translated
-msgid "Another reply is currently streaming."
-msgstr "Beste erantzun bat jasotzen ari da une honetan."
-
-# AI Translated
-msgid "Historical tool actions cannot be changed."
-msgstr "Ezin dira iraganeko tresna-ekintzak aldatu."
-
-# AI Translated
-msgid "This proposal is no longer open. Ask AI again."
-msgstr "Proposamen hau ez dago irekita jada. Galdetu berriro AAri."
-
-# AI Translated
-msgid "This save can no longer be undone."
-msgstr "Gordetze hau ezin da desegin jada."
-
-# AI Translated
-msgid "Finish or resolve pending work before creating a chat."
-msgstr "Amaitu edo ebatzi zain dauden lanak txat bat sortu aurretik."
-
-# AI Translated
-msgid "The project or selected chat changed. Review it again."
-msgstr "Proiektua edo hautatutako txata aldatu egin da. Berrikusi berriro."
-
-# AI Translated
-msgid "Finish or resolve pending work before resuming a chat."
-msgstr "Amaitu edo ebatzi zain dauden lanak txat bati berrekin aurretik."
-
-# AI Translated
-msgid "This chat is already active."
-msgstr "Txat hau aktibo dago jada."
-
-# AI Translated
-msgid "JusPrin can't find the project version this chat was working on."
-msgstr "JusPrin-ek ez du aurkitzen txat honek erabiltzen zuen proiektuaren bertsioa."
-
-# AI Translated
 msgid "Restored this chat's saved project setup. Check the current printer and material before printing."
 msgstr "Txat honen proiektuaren konfigurazio gordea leheneratu da. Egiaztatu uneko inprimagailua eta materiala inprimatu aurretik."
-
-# AI Translated
-msgid "Use a non-empty, single-line title of at most 120 characters for an existing chat."
-msgstr "Erabili izenburu ez-huts bat, lerro bakarrekoa eta gehienez 120 karakterekoa, lehendik dagoen txat baterako."
-
-# AI Translated
-msgid "This chat is still working. Stop it or let it finish, then delete it."
-msgstr "Txat hau oraindik lanean ari da. Gelditu edo utzi amaitzen, eta ezabatu gero."
-
-# AI Translated
-msgid "This chat no longer exists."
-msgstr "Txat hau ez dago jada."
-
-# AI Translated
-msgid "Historical chats cannot edit the current draft."
-msgstr "Iraganeko txatek ezin dute uneko zirriborroa editatu."
-
-# AI Translated
-msgid "Finish or stop the current reply before configuring AI."
-msgstr "Amaitu edo gelditu uneko erantzuna AA konfiguratu aurretik."
-
-# AI Translated
-msgid "This build cannot configure an AI provider."
-msgstr "Konpilazio honek ezin du AA hornitzailerik konfiguratu."
 
 # AI Translated
 msgid "A credential check is already running."
@@ -206,32 +122,8 @@ msgid "This build cannot verify a key for that provider yet."
 msgstr "Konpilazio honek ezin du oraindik hornitzaile horren gakorik egiaztatu."
 
 # AI Translated
-msgid "Finish or stop the current reply before removing a key."
-msgstr "Amaitu edo gelditu uneko erantzuna gako bat kendu aurretik."
-
-# AI Translated
-msgid "Finish or cancel the key check before removing a key."
-msgstr "Amaitu edo utzi gakoaren egiaztapena gako bat kendu aurretik."
-
-# AI Translated
-msgid "That key could not be removed."
-msgstr "Ezin izan da gako hori kendu."
-
-# AI Translated
-msgid "This build cannot sign in to a JusPrin account."
-msgstr "Konpilazio honekin ezin da JusPrin kontu batean saioa hasi."
-
-# AI Translated
-msgid "Finish or stop the current reply before signing in."
-msgstr "Amaitu edo gelditu uneko erantzuna saioa hasi aurretik."
-
-# AI Translated
 msgid "A sign-in or key check is already running."
 msgstr "Saio-hasiera edo gako-egiaztapen bat abian da jada."
-
-# AI Translated
-msgid "There is no JusPrin account on this computer to check."
-msgstr "Ez dago JusPrin konturik ordenagailu honetan egiaztatzeko."
 
 # AI Translated
 msgid "JusPrin couldn't sign you in. Try again."
@@ -252,10 +144,6 @@ msgstr "AAk ezin izan du tresna natiboaren emaitza jaso."
 # AI Translated
 msgid "The AI request failed."
 msgstr "AA eskaerak huts egin du."
-
-# AI Translated
-msgid "The automatic chat title could not be generated. You can rename the chat."
-msgstr "Ezin izan da txataren izenburu automatikoa sortu. Txata berrizendatu dezakezu."
 
 # AI Translated
 #. TRN %1% is an AI provider's account, such as JusPrin.
@@ -304,10 +192,6 @@ msgstr "%1% ez dago instalatuta. Instalatu, edo kopiatu komandoa eta exekutatu g
 # AI Translated
 msgid "This build cannot run the client CLI."
 msgstr "Konpilazio honek ezin du bezeroaren CLIa exekutatu."
-
-# AI Translated
-msgid "This build cannot open a file manager."
-msgstr "Konpilazio honek ezin du fitxategi-kudeatzailerik ireki."
 
 # AI Translated
 msgid "The provider did not answer."
@@ -501,10 +385,6 @@ msgstr "Gorde %1% prozesu-aurrezarpen berri batean"
 #, boost-format
 msgid "Save %1% to %2%"
 msgstr "Gorde %1% %2% aurrezarpenean"
-
-# AI Translated
-msgid "This proposal is already saved."
-msgstr "Proposamen hau gordeta dago jada."
 
 # AI Translated
 msgid "Drop a model here or add one"
@@ -1948,22 +1828,6 @@ msgid "Drag to resize the AI panel"
 msgstr "Arrastatu AA panelaren tamaina aldatzeko"
 
 # AI Translated
-msgid "The setup changed. Review the current plate and try again."
-msgstr "Konfigurazioa aldatu egin da. Berrikusi uneko plaka eta saiatu berriro."
-
-# AI Translated
-msgid "Couldn't slice"
-msgstr "Ezin izan da xerratu"
-
-# AI Translated
-msgid "This saved version couldn't be restored. Try again from Version history."
-msgstr "Ezin izan da gordetako bertsio hau leheneratu. Saiatu berriro Bertsioen historiatik."
-
-# AI Translated
-msgid "Revert failed"
-msgstr "Aldaketak desegiteak huts egin du"
-
-# AI Translated
 msgid "Your saved projects couldn't be read, so JusPrin can't check whether you've opened this file before. The file wasn't opened. Try again once JusPrin can read its projects folder."
 msgstr "Ezin izan dira zure gordetako proiektuak irakurri; beraz, JusPrin-ek ezin du egiaztatu fitxategi hau lehenago ireki duzun. Ez da fitxategia ireki. Saiatu berriro JusPrin-ek bere proiektuen karpeta irakur dezakeenean."
 
@@ -2100,10 +1964,6 @@ msgstr "Ezin izan da proiektua ireki"
 # AI Translated
 msgid "Get the new version…"
 msgstr "Lortu bertsio berria…"
-
-# AI Translated
-msgid "JusPrin's view couldn't be opened."
-msgstr "Ezin izan da JusPrin-en ikuspegia ireki."
 
 # AI Translated
 msgid "Show the Plates and Project panel"
@@ -2269,6 +2129,146 @@ msgstr "Proiektu hau JusPrin-en bertsio berriago batek gorde zuen. Lortu bertsio
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "Ezin izan da proiektua ireki. Saiatu berriro."
+
+# AI Translated
+#~ msgid "JusPrin's view couldn't be opened."
+#~ msgstr "Ezin izan da JusPrin-en ikuspegia ireki."
+
+# AI Translated
+#~ msgid "That key could not be removed."
+#~ msgstr "Ezin izan da gako hori kendu."
+
+# AI Translated
+#~ msgid "This message belongs to a different chat."
+#~ msgstr "Mezu hau beste txat batekoa da."
+
+# AI Translated
+#~ msgid "Another reply is currently streaming."
+#~ msgstr "Beste erantzun bat jasotzen ari da une honetan."
+
+# AI Translated
+#~ msgid "Finish or resolve pending work before creating a chat."
+#~ msgstr "Amaitu edo ebatzi zain dauden lanak txat bat sortu aurretik."
+
+# AI Translated
+#~ msgid "The project or selected chat changed. Review it again."
+#~ msgstr "Proiektua edo hautatutako txata aldatu egin da. Berrikusi berriro."
+
+# AI Translated
+#~ msgid "Finish or resolve pending work before resuming a chat."
+#~ msgstr "Amaitu edo ebatzi zain dauden lanak txat bati berrekin aurretik."
+
+# AI Translated
+#~ msgid "JusPrin can't find the project version this chat was working on."
+#~ msgstr "JusPrin-ek ez du aurkitzen txat honek erabiltzen zuen proiektuaren bertsioa."
+
+# AI Translated
+#~ msgid "This chat is still working. Stop it or let it finish, then delete it."
+#~ msgstr "Txat hau oraindik lanean ari da. Gelditu edo utzi amaitzen, eta ezabatu gero."
+
+# AI Translated
+#~ msgid "Historical chats cannot edit the current draft."
+#~ msgstr "Iraganeko txatek ezin dute uneko zirriborroa editatu."
+
+# AI Translated
+#~ msgid "Only the chat's last reply can be retried."
+#~ msgstr "Txataren azken erantzuna soilik eska daiteke berriro."
+
+# AI Translated
+#~ msgid "This saved version couldn't be restored. Try again from Version history."
+#~ msgstr "Ezin izan da gordetako bertsio hau leheneratu. Saiatu berriro Bertsioen historiatik."
+
+# AI Translated
+#~ msgid "Revert failed"
+#~ msgstr "Aldaketak desegiteak huts egin du"
+
+# AI Translated
+#~ msgid "The setup changed. Review the current plate and try again."
+#~ msgstr "Konfigurazioa aldatu egin da. Berrikusi uneko plaka eta saiatu berriro."
+
+# AI Translated
+#~ msgid "Couldn't slice"
+#~ msgstr "Ezin izan da xerratu"
+
+# AI Translated
+#~ msgid "A message needs text or an attachment."
+#~ msgstr "Mezu batek testua edo eranskin bat behar du."
+
+# AI Translated
+#~ msgid "This build cannot open a file dialog."
+#~ msgstr "Konpilazio honek ezin du fitxategi-elkarrizketa-koadrorik ireki."
+
+# AI Translated
+#~ msgid "Historical replies cannot be retried."
+#~ msgstr "Ezin da iraganeko erantzunik berriro eskatu."
+
+# AI Translated
+#~ msgid "Only a failed or stopped assistant message in the active conversation can be retried."
+#~ msgstr "Txat aktiboan huts egin duen edo gelditu den laguntzailearen mezu bat soilik eska daiteke berriro."
+
+# AI Translated
+#~ msgid "Historical tool actions cannot be changed."
+#~ msgstr "Ezin dira iraganeko tresna-ekintzak aldatu."
+
+# AI Translated
+#~ msgid "This proposal is no longer open. Ask AI again."
+#~ msgstr "Proposamen hau ez dago irekita jada. Galdetu berriro AAri."
+
+# AI Translated
+#~ msgid "This save can no longer be undone."
+#~ msgstr "Gordetze hau ezin da desegin jada."
+
+# AI Translated
+#~ msgid "This chat is already active."
+#~ msgstr "Txat hau aktibo dago jada."
+
+# AI Translated
+#~ msgid "Use a non-empty, single-line title of at most 120 characters for an existing chat."
+#~ msgstr "Erabili izenburu ez-huts bat, lerro bakarrekoa eta gehienez 120 karakterekoa, lehendik dagoen txat baterako."
+
+# AI Translated
+#~ msgid "This chat no longer exists."
+#~ msgstr "Txat hau ez dago jada."
+
+# AI Translated
+#~ msgid "Finish or stop the current reply before configuring AI."
+#~ msgstr "Amaitu edo gelditu uneko erantzuna AA konfiguratu aurretik."
+
+# AI Translated
+#~ msgid "This build cannot configure an AI provider."
+#~ msgstr "Konpilazio honek ezin du AA hornitzailerik konfiguratu."
+
+# AI Translated
+#~ msgid "Finish or stop the current reply before removing a key."
+#~ msgstr "Amaitu edo gelditu uneko erantzuna gako bat kendu aurretik."
+
+# AI Translated
+#~ msgid "Finish or cancel the key check before removing a key."
+#~ msgstr "Amaitu edo utzi gakoaren egiaztapena gako bat kendu aurretik."
+
+# AI Translated
+#~ msgid "This build cannot sign in to a JusPrin account."
+#~ msgstr "Konpilazio honekin ezin da JusPrin kontu batean saioa hasi."
+
+# AI Translated
+#~ msgid "Finish or stop the current reply before signing in."
+#~ msgstr "Amaitu edo gelditu uneko erantzuna saioa hasi aurretik."
+
+# AI Translated
+#~ msgid "There is no JusPrin account on this computer to check."
+#~ msgstr "Ez dago JusPrin konturik ordenagailu honetan egiaztatzeko."
+
+# AI Translated
+#~ msgid "The automatic chat title could not be generated. You can rename the chat."
+#~ msgstr "Ezin izan da txataren izenburu automatikoa sortu. Txata berrizendatu dezakezu."
+
+# AI Translated
+#~ msgid "This build cannot open a file manager."
+#~ msgstr "Konpilazio honek ezin du fitxategi-kudeatzailerik ireki."
+
+# AI Translated
+#~ msgid "This proposal is already saved."
+#~ msgstr "Proposamen hau gordeta dago jada."
 
 # AI Translated
 #, c-format, boost-format

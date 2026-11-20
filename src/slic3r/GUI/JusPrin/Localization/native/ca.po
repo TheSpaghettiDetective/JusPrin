@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-18 20:27-0800\n"
+"POT-Creation-Date: 2026-11-20 08:46-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -35,14 +35,6 @@ msgid "Finish or cancel AI configuration before sending a message."
 msgstr "Acabeu o cancel·leu la configuració de la IA abans d'enviar un missatge."
 
 # AI Translated
-msgid "This message belongs to a different chat."
-msgstr "Aquest missatge pertany a un altre xat."
-
-# AI Translated
-msgid "A message needs text or an attachment."
-msgstr "Un missatge necessita text o un fitxer adjunt."
-
-# AI Translated
 msgid "This file is too large to attach."
 msgstr "Aquest fitxer és massa gran per adjuntar-lo."
 
@@ -65,10 +57,6 @@ msgstr "Model 3D"
 # AI Translated
 msgid "Document (PDF)"
 msgstr "Document (PDF)"
-
-# AI Translated
-msgid "This build cannot open a file dialog."
-msgstr "Aquesta compilació no pot obrir un quadre de diàleg de fitxers."
 
 # AI Translated
 #. TRN A calibration chat's first line. %1%: where it was started from, %2%: a printer.
@@ -123,80 +111,8 @@ msgid "The slice of %1% finished."
 msgstr "El laminat de %1% ha acabat."
 
 # AI Translated
-msgid "Historical replies cannot be retried."
-msgstr "No es poden reintentar les respostes de l'historial."
-
-# AI Translated
-msgid "Only a failed or stopped assistant message in the active conversation can be retried."
-msgstr "Només es pot reintentar un missatge de l'assistent que hagi fallat o s'hagi aturat a la conversa activa."
-
-# AI Translated
-msgid "Only the chat's last reply can be retried."
-msgstr "Només es pot reintentar l'última resposta del xat."
-
-# AI Translated
-msgid "Another reply is currently streaming."
-msgstr "Ara mateix s'està rebent una altra resposta."
-
-# AI Translated
-msgid "Historical tool actions cannot be changed."
-msgstr "No es poden canviar les accions d'eines de l'historial."
-
-# AI Translated
-msgid "This proposal is no longer open. Ask AI again."
-msgstr "Aquesta proposta ja no està oberta. Torneu a preguntar a la IA."
-
-# AI Translated
-msgid "This save can no longer be undone."
-msgstr "Aquest desament ja no es pot desfer."
-
-# AI Translated
-msgid "Finish or resolve pending work before creating a chat."
-msgstr "Acabeu o resoleu la feina pendent abans de crear un xat."
-
-# AI Translated
-msgid "The project or selected chat changed. Review it again."
-msgstr "El projecte o el xat seleccionat ha canviat. Reviseu-lo de nou."
-
-# AI Translated
-msgid "Finish or resolve pending work before resuming a chat."
-msgstr "Acabeu o resoleu la feina pendent abans de reprendre un xat."
-
-# AI Translated
-msgid "This chat is already active."
-msgstr "Aquest xat ja està actiu."
-
-# AI Translated
-msgid "JusPrin can't find the project version this chat was working on."
-msgstr "JusPrin no troba la versió del projecte amb què treballava aquest xat."
-
-# AI Translated
 msgid "Restored this chat's saved project setup. Check the current printer and material before printing."
 msgstr "S'ha restaurat la configuració del projecte desada d'aquest xat. Comproveu la impressora i el material actuals abans d'imprimir."
-
-# AI Translated
-msgid "Use a non-empty, single-line title of at most 120 characters for an existing chat."
-msgstr "Per a un xat existent, feu servir un títol no buit, d'una sola línia i de 120 caràcters com a màxim."
-
-# AI Translated
-msgid "This chat is still working. Stop it or let it finish, then delete it."
-msgstr "Aquest xat encara està treballant. Atureu-lo o deixeu que acabi i després suprimiu-lo."
-
-# AI Translated
-msgid "This chat no longer exists."
-msgstr "Aquest xat ja no existeix."
-
-# AI Translated
-msgid "Historical chats cannot edit the current draft."
-msgstr "Els xats de l'historial no poden editar l'esborrany actual."
-
-# AI Translated
-msgid "Finish or stop the current reply before configuring AI."
-msgstr "Acabeu o atureu la resposta actual abans de configurar la IA."
-
-# AI Translated
-msgid "This build cannot configure an AI provider."
-msgstr "Aquesta compilació no pot configurar un proveïdor d'IA."
 
 # AI Translated
 msgid "A credential check is already running."
@@ -207,32 +123,8 @@ msgid "This build cannot verify a key for that provider yet."
 msgstr "Aquesta compilació encara no pot verificar una clau per a aquest proveïdor."
 
 # AI Translated
-msgid "Finish or stop the current reply before removing a key."
-msgstr "Acabeu o atureu la resposta actual abans de suprimir una clau."
-
-# AI Translated
-msgid "Finish or cancel the key check before removing a key."
-msgstr "Acabeu o cancel·leu la comprovació de la clau abans de suprimir una clau."
-
-# AI Translated
-msgid "That key could not be removed."
-msgstr "No s'ha pogut suprimir aquesta clau."
-
-# AI Translated
-msgid "This build cannot sign in to a JusPrin account."
-msgstr "Aquesta compilació no pot iniciar sessió en un compte de JusPrin."
-
-# AI Translated
-msgid "Finish or stop the current reply before signing in."
-msgstr "Acabeu o atureu la resposta actual abans d'iniciar sessió."
-
-# AI Translated
 msgid "A sign-in or key check is already running."
 msgstr "Ja s'està fent un inici de sessió o una comprovació de clau."
-
-# AI Translated
-msgid "There is no JusPrin account on this computer to check."
-msgstr "No hi ha cap compte de JusPrin en aquest ordinador per comprovar."
 
 # AI Translated
 msgid "JusPrin couldn't sign you in. Try again."
@@ -253,10 +145,6 @@ msgstr "La IA no ha pogut rebre el resultat de l'eina nativa."
 # AI Translated
 msgid "The AI request failed."
 msgstr "La sol·licitud a la IA ha fallat."
-
-# AI Translated
-msgid "The automatic chat title could not be generated. You can rename the chat."
-msgstr "No s'ha pogut generar el títol automàtic del xat. Podeu canviar el nom del xat."
 
 # AI Translated
 #. TRN %1% is an AI provider's account, such as JusPrin.
@@ -305,10 +193,6 @@ msgstr "%1% no està instal·lat. Instal·leu-lo, o copieu l'ordre i executeu-la
 # AI Translated
 msgid "This build cannot run the client CLI."
 msgstr "Aquesta compilació no pot executar la CLI del client."
-
-# AI Translated
-msgid "This build cannot open a file manager."
-msgstr "Aquesta compilació no pot obrir un gestor de fitxers."
 
 # AI Translated
 msgid "The provider did not answer."
@@ -502,10 +386,6 @@ msgstr "Desar %1% com a perfil de procés nou"
 #, boost-format
 msgid "Save %1% to %2%"
 msgstr "Desar %1% a %2%"
-
-# AI Translated
-msgid "This proposal is already saved."
-msgstr "Aquesta proposta ja està desada."
 
 # AI Translated
 msgid "Drop a model here or add one"
@@ -1953,22 +1833,6 @@ msgid "Drag to resize the AI panel"
 msgstr "Arrossegueu per canviar la mida del panell d'IA"
 
 # AI Translated
-msgid "The setup changed. Review the current plate and try again."
-msgstr "La configuració ha canviat. Reviseu la placa actual i torneu-ho a provar."
-
-# AI Translated
-msgid "Couldn't slice"
-msgstr "No s'ha pogut laminar"
-
-# AI Translated
-msgid "This saved version couldn't be restored. Try again from Version history."
-msgstr "No s'ha pogut restaurar aquesta versió desada. Torneu-ho a provar des de l'Historial de versions."
-
-# AI Translated
-msgid "Revert failed"
-msgstr "No s'ha pogut revertir"
-
-# AI Translated
 msgid "Your saved projects couldn't be read, so JusPrin can't check whether you've opened this file before. The file wasn't opened. Try again once JusPrin can read its projects folder."
 msgstr "No s'han pogut llegir els vostres projectes desats, així que JusPrin no pot comprovar si ja heu obert aquest fitxer abans. El fitxer no s'ha obert. Torneu-ho a provar quan JusPrin pugui llegir la carpeta de projectes."
 
@@ -2105,10 +1969,6 @@ msgstr "No s'ha pogut obrir el projecte"
 # AI Translated
 msgid "Get the new version…"
 msgstr "Obtenir la versió nova…"
-
-# AI Translated
-msgid "JusPrin's view couldn't be opened."
-msgstr "No s'ha pogut obrir la vista de JusPrin."
 
 # AI Translated
 msgid "Show the Plates and Project panel"
@@ -2275,6 +2135,146 @@ msgstr "Aquest projecte s'ha desat amb una versió més nova de JusPrin. Obteniu
 # AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "No s'ha pogut obrir el projecte. Torneu-ho a provar."
+
+# AI Translated
+#~ msgid "JusPrin's view couldn't be opened."
+#~ msgstr "No s'ha pogut obrir la vista de JusPrin."
+
+# AI Translated
+#~ msgid "That key could not be removed."
+#~ msgstr "No s'ha pogut suprimir aquesta clau."
+
+# AI Translated
+#~ msgid "This message belongs to a different chat."
+#~ msgstr "Aquest missatge pertany a un altre xat."
+
+# AI Translated
+#~ msgid "Another reply is currently streaming."
+#~ msgstr "Ara mateix s'està rebent una altra resposta."
+
+# AI Translated
+#~ msgid "Finish or resolve pending work before creating a chat."
+#~ msgstr "Acabeu o resoleu la feina pendent abans de crear un xat."
+
+# AI Translated
+#~ msgid "The project or selected chat changed. Review it again."
+#~ msgstr "El projecte o el xat seleccionat ha canviat. Reviseu-lo de nou."
+
+# AI Translated
+#~ msgid "Finish or resolve pending work before resuming a chat."
+#~ msgstr "Acabeu o resoleu la feina pendent abans de reprendre un xat."
+
+# AI Translated
+#~ msgid "JusPrin can't find the project version this chat was working on."
+#~ msgstr "JusPrin no troba la versió del projecte amb què treballava aquest xat."
+
+# AI Translated
+#~ msgid "This chat is still working. Stop it or let it finish, then delete it."
+#~ msgstr "Aquest xat encara està treballant. Atureu-lo o deixeu que acabi i després suprimiu-lo."
+
+# AI Translated
+#~ msgid "Historical chats cannot edit the current draft."
+#~ msgstr "Els xats de l'historial no poden editar l'esborrany actual."
+
+# AI Translated
+#~ msgid "Only the chat's last reply can be retried."
+#~ msgstr "Només es pot reintentar l'última resposta del xat."
+
+# AI Translated
+#~ msgid "This saved version couldn't be restored. Try again from Version history."
+#~ msgstr "No s'ha pogut restaurar aquesta versió desada. Torneu-ho a provar des de l'Historial de versions."
+
+# AI Translated
+#~ msgid "Revert failed"
+#~ msgstr "No s'ha pogut revertir"
+
+# AI Translated
+#~ msgid "The setup changed. Review the current plate and try again."
+#~ msgstr "La configuració ha canviat. Reviseu la placa actual i torneu-ho a provar."
+
+# AI Translated
+#~ msgid "Couldn't slice"
+#~ msgstr "No s'ha pogut laminar"
+
+# AI Translated
+#~ msgid "A message needs text or an attachment."
+#~ msgstr "Un missatge necessita text o un fitxer adjunt."
+
+# AI Translated
+#~ msgid "This build cannot open a file dialog."
+#~ msgstr "Aquesta compilació no pot obrir un quadre de diàleg de fitxers."
+
+# AI Translated
+#~ msgid "Historical replies cannot be retried."
+#~ msgstr "No es poden reintentar les respostes de l'historial."
+
+# AI Translated
+#~ msgid "Only a failed or stopped assistant message in the active conversation can be retried."
+#~ msgstr "Només es pot reintentar un missatge de l'assistent que hagi fallat o s'hagi aturat a la conversa activa."
+
+# AI Translated
+#~ msgid "Historical tool actions cannot be changed."
+#~ msgstr "No es poden canviar les accions d'eines de l'historial."
+
+# AI Translated
+#~ msgid "This proposal is no longer open. Ask AI again."
+#~ msgstr "Aquesta proposta ja no està oberta. Torneu a preguntar a la IA."
+
+# AI Translated
+#~ msgid "This save can no longer be undone."
+#~ msgstr "Aquest desament ja no es pot desfer."
+
+# AI Translated
+#~ msgid "This chat is already active."
+#~ msgstr "Aquest xat ja està actiu."
+
+# AI Translated
+#~ msgid "Use a non-empty, single-line title of at most 120 characters for an existing chat."
+#~ msgstr "Per a un xat existent, feu servir un títol no buit, d'una sola línia i de 120 caràcters com a màxim."
+
+# AI Translated
+#~ msgid "This chat no longer exists."
+#~ msgstr "Aquest xat ja no existeix."
+
+# AI Translated
+#~ msgid "Finish or stop the current reply before configuring AI."
+#~ msgstr "Acabeu o atureu la resposta actual abans de configurar la IA."
+
+# AI Translated
+#~ msgid "This build cannot configure an AI provider."
+#~ msgstr "Aquesta compilació no pot configurar un proveïdor d'IA."
+
+# AI Translated
+#~ msgid "Finish or stop the current reply before removing a key."
+#~ msgstr "Acabeu o atureu la resposta actual abans de suprimir una clau."
+
+# AI Translated
+#~ msgid "Finish or cancel the key check before removing a key."
+#~ msgstr "Acabeu o cancel·leu la comprovació de la clau abans de suprimir una clau."
+
+# AI Translated
+#~ msgid "This build cannot sign in to a JusPrin account."
+#~ msgstr "Aquesta compilació no pot iniciar sessió en un compte de JusPrin."
+
+# AI Translated
+#~ msgid "Finish or stop the current reply before signing in."
+#~ msgstr "Acabeu o atureu la resposta actual abans d'iniciar sessió."
+
+# AI Translated
+#~ msgid "There is no JusPrin account on this computer to check."
+#~ msgstr "No hi ha cap compte de JusPrin en aquest ordinador per comprovar."
+
+# AI Translated
+#~ msgid "The automatic chat title could not be generated. You can rename the chat."
+#~ msgstr "No s'ha pogut generar el títol automàtic del xat. Podeu canviar el nom del xat."
+
+# AI Translated
+#~ msgid "This build cannot open a file manager."
+#~ msgstr "Aquesta compilació no pot obrir un gestor de fitxers."
+
+# AI Translated
+#~ msgid "This proposal is already saved."
+#~ msgstr "Aquesta proposta ja està desada."
 
 # AI Translated
 # Needs human review: “walls” rendered as “perímetres” per the glossary (Outer/Inner wall = Perímetre).

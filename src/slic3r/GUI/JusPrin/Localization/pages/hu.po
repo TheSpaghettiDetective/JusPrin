@@ -4178,6 +4178,7 @@ msgid "The action could not be completed."
 msgstr "A műveletet nem sikerült végrehajtani."
 
 # AI Translated
+#: src/components/ProposalCard.tsx
 #: src/components/ToolActivityCard.tsx
 msgid "The action failed."
 msgstr "A művelet sikertelen volt."
@@ -4263,6 +4264,7 @@ msgid "the printer profile’s default, until your preset is saved"
 msgstr "a nyomtatóprofil alapértéke, amíg a beállításod nincs mentve"
 
 # AI Translated
+#: src/components/ProposalCard.tsx
 #: src/components/ToolActivityCard.tsx
 msgid "The project changed before this could run. Ask AI again."
 msgstr "A projekt megváltozott, mielőtt ez lefuthatott volna. Kérdezd újra az AI-t."
