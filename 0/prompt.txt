@@ -1,0 +1,31 @@
+<cross-session-message from="local_950593eb-af3a-4a1d-98f8-6e5f627bbd66" from-name="btw: are these sent to sentry?">
+Kenneth asks you to sweep the error-sites work for failures that are neither shown nor reported to Sentry, which the refusal pass missed.
+
+Why: when you went through the 18 chat refusals, you sorted them by "does the person see a red bar?". The right question is "does anyone ever learn this happened?". So "That key could not be removed." (AgentHost::handle_setup_remove_key, remove_failed) was left as is: Preferences ignores bridge_error (it only keeps the line in the page's in-memory diagnostics list), so a failed key removal or sign-out shows nothing and reaches nobody. Kenneth agreed it should be reported, and is worried there are more places like it.
+
+What to do:
+1. Fix the key removal first. Replace the send_bridge_error/return with a throw naming the provider, e.g. throw RuntimeError("jusprin-agent-bridge: removing the saved key for " + provider + " failed"). Better still, throw where the reason is known (the key store or the sign-out), so the bool returns go away. The handler around the page's messages already reports the throw and shows the one generic window; check that Preferences' web view goes through it. Drop the sentence from the catalogs (update_catalogs.py).
+2. Sweep, using the error-handling skill (.claude/skills/error-handling/), over jusprin-dev..error-sites plus the AI setup, sign-in and connection code in AgentHost.cpp. Look for failures that end quietly:
+   - an error sent to a page that ignores it;
+   - a function returning false or empty on failure, where the caller just stops;
+   - log-only catches (a log line reaches nobody);
+   - a catch that turns a failure into a default value or a retry.
+3. Bring Kenneth the list of silent places before fixing them.
+
+How Kenneth wants the fixes (agreed):
+- Each fix removes code: delete the catch, the default, the retry or the sentence, and let the failure travel up unchanged to the existing top handler.
+- A failure that arrives as a value becomes a single throw on the spot, carrying the other side's facts.
+- No new reporting code, wrappers or bundling. If a fix seems to need more than a throw, bring it to Kenneth before writing it.
+- The five Preferences "already running" / "review the change first" answers (setup_busy x3, mcp busy, mcp "Review the change before connecting.") are early presses, not failures: when you get to them, they should do nothing, as the chat ones now do, and not be reported.
+- The brief's usual steps still apply: reproduce each one (e.g. make key removal fail in the harness) and show it before and after; a test that fails first; one commit per cause; a scratch --datadir; nothing sent to the real Sentry; no push.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>bnx00a5c7</task-id>
+<tool-use-id>toolu_0161Zz8oNoQropC5kyQwpVzw</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/71d2a582-95fe-4de5-a3bc-a1cbfeb8895f/tasks/bnx00a5c7.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth--claude-spares-spare-eKHQ7a/71d2a582-95fe-4de5-a3bc-a1cbfeb8895f/scratchpad/err; uptime; pgrep -fl ninja | head -2; export PATH=/Applications/CMake.app/Contents/bin:/Users/kenneth/.nvm/versions/node/v24.13.0/bin:$PATH; cmake --build build/arm64 --config Release --target agent_bridge_tests shell_integration_harness -- -j4 2&gt;&amp;1 | grep -E "error:" | head; echo "build ${pipestatus[1]}"; for t in $(find build/arm64/tests/agent -name "*_tests" -type f -perm +111); do echo "== ${t:t}"; $t 2&gt;&amp;1 | tail -2; done; rm -rf $S/rk-after; mkdir -p $S/rk-after; PRINTER_LIVE_CAPTURE_DIR=$S/rk-after timeout 300 build/arm64/tests/shell/Release/JusPrinShellHarness.app/Contents/MacOS/JusPrinShellHarness --remove-key-fails &gt; $S/rk-after/run.log 2&gt;&amp;1; echo "exit $?"; grep -E "HARNESS (CHECK remove|REMOVE|RESULT|DIALOG)" $S/rk-after/run.log" completed (exit code 0)</summary>
+</task-notification>

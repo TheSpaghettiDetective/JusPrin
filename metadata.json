@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7WV48VRQ951C9Y6PJFE97FR",
+  "strategy": "manual-commit",
+  "branch": "error-sites",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Agent/AgentConfiguration.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentSetup.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentSetup.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/CloudAccount.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/CloudAccount.hpp",
+    "tests/agent/test_agent_bridge.cpp",
+    "tests/agent/test_agent_setup.cpp",
+    "tests/agent/test_cloud_account.cpp",
+    "tests/shell/account_box_scenario.inc",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 136,
+    "cache_creation_tokens": 216352,
+    "cache_read_tokens": 15199427,
+    "output_tokens": 36641,
+    "api_call_count": 68
+  }
+}
