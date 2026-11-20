@@ -3,9 +3,8 @@
   "checkpoint_id": "01M7V7XBXZTD5B0JZ92M10QNFS",
   "strategy": "manual-commit",
   "branch": "error-sites",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
-    "tests/agent/test_agent_bridge.cpp",
     "tests/shell/shell_harness.cpp"
   ],
   "sessions": [
@@ -18,17 +17,17 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 2076,
-    "cache_creation_tokens": 1631574,
-    "cache_read_tokens": 246135998,
-    "output_tokens": 536254,
-    "api_call_count": 1038,
+    "input_tokens": 36,
+    "cache_creation_tokens": 17111,
+    "cache_read_tokens": 3072686,
+    "output_tokens": 10225,
+    "api_call_count": 18,
     "subagent_tokens": {
-      "input_tokens": 644,
-      "cache_creation_tokens": 808029,
-      "cache_read_tokens": 50686075,
-      "output_tokens": 148303,
-      "api_call_count": 322
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "api_call_count": 0
     }
   }
 }
