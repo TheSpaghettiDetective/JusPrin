@@ -49,6 +49,11 @@ function errorCopy(status: McpStatusPayload, tool?: McpToolInfo, path?: string):
     return { title: t`The file changed since you reviewed it.`, body: t`Look at the change again before saving.` };
   if (code === 'timeout')
     return { title: t`Timed out.`, body: t`Settings might have changed; inspect them before retrying.` };
+  // The client's own command could not start, or exited with an error. The
+  // way out either way is to run it by hand; its output stays under
+  // Technical output.
+  if (code === 'command_failed')
+    return { title: t`The setup command failed.`, body: t`Copy the command and run it yourself.` };
   if (code === 'write_failed')
     return {
       title: path ? t`Can’t write ${path}.` : t`Can’t write the settings file.`,
@@ -90,7 +95,7 @@ function SetupInlineError({
             {t`Show file`}
           </button>
         )}
-        {tool && code === 'cli_missing' && (
+        {tool && (code === 'cli_missing' || code === 'command_failed') && (
           <button type="button" className="link" onClick={() => copyText(tool.text)}>
             {t`Copy`}
           </button>

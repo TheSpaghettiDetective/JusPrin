@@ -1549,6 +1549,11 @@ msgid "Copy details"
 msgstr "세부 정보 복사"
 
 # AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Copy the command and run it yourself."
+msgstr "명령을 복사해 직접 실행하세요."
+
+# AI Translated
 #. A material cost with no known currency
 #: src/components/SetupCard.tsx
 msgid "cost {amount}"
@@ -4289,6 +4294,7 @@ msgid "The report couldn’t be sent. Check your connection and try again."
 msgstr "보고서를 보낼 수 없습니다. 연결을 확인하고 다시 시도하세요."
 
 # AI Translated
+#: src/components/SetupLocalTool.tsx
 #: src/components/SetupLocalTool.tsx
 msgid "The setup command failed."
 msgstr "설정 명령이 실패했습니다."

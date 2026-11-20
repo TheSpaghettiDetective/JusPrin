@@ -193,3 +193,100 @@
         }
         return nullptr;
     }
+
+    // --setup-command-fails <output-directory>: Preferences › BYOAI, Connect…
+    // on Claude Code, whose own command fails. A stand-in `claude` comes first
+    // on the app's PATH, so the person's real Claude Code is never run; it
+    // prints an error and exits 1. The harness clicks through the screens as
+    // a person does, reads back the error box above the buttons, and writes
+    // setup-command-fails.png.
+    void verify_setup_command_fails()
+    {
+        using namespace std::chrono_literals;
+        const fs::path bin = fs::path(data_dir()) / "stand-in-bin";
+        fs::create_directories(bin);
+        {
+            boost::nowide::ofstream script((bin / "claude").string());
+            script << "#!/bin/sh\necho 'error: the stand-in claude always fails' >&2\nexit 1\n";
+        }
+        fs::permissions(bin / "claude", fs::perms::owner_all);
+        wxString path;
+        wxGetEnv("PATH", &path);
+        wxSetEnv("PATH", wxString::FromUTF8(bin.string()) + ":" + path);
+
+        struct Run
+        {
+            int                                   step{0};
+            std::chrono::steady_clock::time_point at{};
+            std::string                           error;
+            bool                                  done{false};
+        };
+        auto run     = std::make_shared<Run>();
+        m_modal_gate = [this, run](wxDialog& dialog) {
+            auto* window = dynamic_cast<Preferences::PreferencesWindow*>(&dialog);
+            if (window == nullptr)
+                return true;
+            if (run->done)
+                return true;
+            if (!window->page_connected())
+                return false;
+            wxWebView* page = window->web_view().webview();
+            const auto now  = std::chrono::steady_clock::now();
+            if (run->at == std::chrono::steady_clock::time_point{})
+                run->at = now;
+            if (now < run->at + 1s)
+                return false;
+            run->at = now;
+            switch (run->step) {
+            case 0:
+                // BYOAI, second in the list at the left.
+                WebView::RunScript(page, "document.querySelectorAll('.prefs-nav-item')[1].click()");
+                ++run->step;
+                return false;
+            case 1:
+                WebView::RunScript(page, "(function () { if (document.title === 'tool-opened') return;"
+                                         " var b = document.querySelector('[data-testid=agent-tool-claude] .agent-row-action');"
+                                         " if (b) { b.click(); document.title = 'tool-opened'; } })()");
+                if (ui_text(page->GetCurrentTitle()) == "tool-opened")
+                    ++run->step;
+                return false;
+            case 2:
+                WebView::RunScript(page, "(function () { if (document.title === 'connect-pressed') return;"
+                                         " var b = document.querySelector('[data-testid=setup-local-prepare] .setup-actions .primary');"
+                                         " if (b && !b.disabled) { b.click(); document.title = 'connect-pressed'; } })()");
+                if (ui_text(page->GetCurrentTitle()) == "connect-pressed")
+                    ++run->step;
+                return false;
+            default:
+                // The box's own text and buttons, without its Technical
+                // output; looked for each second, for up to ten seconds.
+                WebView::RunScript(page, "(function () { var e = document.querySelector('[data-testid=setup-local-error]');"
+                                         " if (!e) return;"
+                                         " var copy = Array.prototype.some.call(e.querySelectorAll('button'), function (b) { return b.innerText === 'Copy'; });"
+                                         " document.title = 'setup-error:' + e.innerText.replace(/\\n+/g, ' | ') + (copy ? ' [Copy]' : ''); })()");
+                if (ui_text(page->GetCurrentTitle()).rfind("setup-error:", 0) == 0) {
+                    run->error = ui_text(page->GetCurrentTitle()).substr(12);
+                    capture_web_view(page, "setup-command-fails");
+                    run->done = true;
+                }
+                if (++run->step > 13)
+                    run->done = true;
+                return false;
+            }
+        };
+        m_modals_before = m_modals_answered;
+        answer_modals(wxID_CANCEL);
+        installed_shell()->request_preferences();
+        wait_until([this] { return preferences_closed(); }, "setup_command_preferences_closed", [self = shared_from_this(), run] {
+            self->stop_answering_modals();
+            std::cout << "HARNESS SETUP COMMAND ERROR: " << run->error << std::endl;
+            self->check(!run->error.empty(), "setup_command_failure_is_shown");
+            self->check(run->error.find("The setup command failed.") != std::string::npos, "setup_command_failure_has_its_title");
+            self->check(run->error.find("Copy the command and run it yourself.") != std::string::npos,
+                        "setup_command_failure_says_what_to_do");
+            self->check(run->error.find("[Copy]") != std::string::npos, "setup_command_failure_offers_copy");
+            self->check(run->error.find("Client CLI") == std::string::npos && run->error.find("Could not start") == std::string::npos,
+                        "setup_command_failure_shows_no_raw_text");
+            self->finish();
+        });
+    }

@@ -1554,6 +1554,11 @@ msgid "Copy details"
 msgstr "Kopiera detaljer"
 
 # AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Copy the command and run it yourself."
+msgstr "Kopiera kommandot och kör det själv."
+
+# AI Translated
 #. A material cost with no known currency
 #: src/components/SetupCard.tsx
 msgid "cost {amount}"
@@ -4306,6 +4311,7 @@ msgid "The report couldn’t be sent. Check your connection and try again."
 msgstr "Rapporten kunde inte skickas. Kontrollera din anslutning och försök igen."
 
 # AI Translated
+#: src/components/SetupLocalTool.tsx
 #: src/components/SetupLocalTool.tsx
 msgid "The setup command failed."
 msgstr "Installationskommandot misslyckades."

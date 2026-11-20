@@ -1552,6 +1552,11 @@ msgid "Copy details"
 msgstr "Ayrıntıları kopyala"
 
 # AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Copy the command and run it yourself."
+msgstr "Komutu kopyalayıp kendiniz çalıştırın."
+
+# AI Translated
 #. A material cost with no known currency
 #: src/components/SetupCard.tsx
 msgid "cost {amount}"
@@ -4294,6 +4299,7 @@ msgid "The report couldn’t be sent. Check your connection and try again."
 msgstr "Rapor gönderilemedi. Bağlantınızı kontrol edip yeniden deneyin."
 
 # AI Translated
+#: src/components/SetupLocalTool.tsx
 #: src/components/SetupLocalTool.tsx
 msgid "The setup command failed."
 msgstr "Kurulum komutu başarısız oldu."

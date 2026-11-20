@@ -1547,6 +1547,11 @@ msgid "Copy details"
 msgstr "复制详情"
 
 # AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Copy the command and run it yourself."
+msgstr "请复制命令并自行运行。"
+
+# AI Translated
 #. A material cost with no known currency
 #: src/components/SetupCard.tsx
 msgid "cost {amount}"
@@ -4287,6 +4292,7 @@ msgid "The report couldn’t be sent. Check your connection and try again."
 msgstr "无法发送报告。请检查您的网络连接后重试。"
 
 # AI Translated
+#: src/components/SetupLocalTool.tsx
 #: src/components/SetupLocalTool.tsx
 msgid "The setup command failed."
 msgstr "设置命令失败。"

@@ -1132,6 +1132,36 @@ describe('Preferences › Agent', () => {
     expect(screen.queryByRole('button', { name: /Technical output/ })).not.toBeInTheDocument();
   });
 
+  it('says what to do when the client\'s own setup command fails', () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    openToolCatalog();
+    fireEvent.click(screen.getByRole('button', { name: 'Connect Claude Code' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Connect…' }));
+    host.deliver('mcp_status', { phase: 'writing', toolId: 'claude' });
+    // The host sends the command's own output as both the message and the
+    // diagnostic, as it does for a command that could not start and for one
+    // that exited with an error.
+    const output = 'Client CLI exited with code 1.\nerror: already exists';
+    host.deliver('mcp_status', {
+      phase: 'error',
+      toolId: 'claude',
+      error: { code: 'command_failed', message: output, retryable: true },
+      diagnostic: output,
+    });
+
+    expect(screen.getByTestId('setup-local-prepare')).toBeInTheDocument();
+    const banner = screen.getByTestId('setup-local-error');
+    expect(banner).toHaveTextContent('The setup command failed.');
+    // The one way out: run the command by hand.
+    expect(banner).toHaveTextContent('Copy the command and run it yourself.');
+    expect(banner).not.toHaveTextContent('Client CLI');
+    fireEvent.click(within(banner).getByRole('button', { name: 'Copy' }));
+    expect(writeText).toHaveBeenCalled();
+    // The command's output stays under Technical output.
+    expect(screen.getByRole('button', { name: /Technical output/ })).toBeInTheDocument();
+  });
+
   it('offers a fresh look at a file that changed under the review', () => {
     openCursorReview();
     fireEvent.click(screen.getByRole('button', { name: 'Connect' }));

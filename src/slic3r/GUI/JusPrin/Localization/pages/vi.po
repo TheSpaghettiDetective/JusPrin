@@ -1547,6 +1547,11 @@ msgid "Copy details"
 msgstr "Sao chép chi tiết"
 
 # AI Translated
+#: src/components/SetupLocalTool.tsx
+msgid "Copy the command and run it yourself."
+msgstr "Hãy sao chép lệnh và tự chạy."
+
+# AI Translated
 #. A material cost with no known currency
 #: src/components/SetupCard.tsx
 msgid "cost {amount}"
@@ -4287,6 +4292,7 @@ msgid "The report couldn’t be sent. Check your connection and try again."
 msgstr "Không thể gửi báo cáo. Hãy kiểm tra kết nối rồi thử lại."
 
 # AI Translated
+#: src/components/SetupLocalTool.tsx
 #: src/components/SetupLocalTool.tsx
 msgid "The setup command failed."
 msgstr "Lệnh thiết lập không thành công."

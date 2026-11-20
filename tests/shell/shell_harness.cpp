@@ -1633,7 +1633,8 @@ struct HarnessState
         PrinterWindow,
         RemoveKeyFails,
         ViewStartFails,
-        PreferencesRequestsFail
+        PreferencesRequestsFail,
+        SetupCommandFails
     };
 
     std::atomic<int>  result{-1};
@@ -2224,6 +2225,10 @@ public:
             }
             if (m_state->mode == HarnessState::Mode::PreferencesRequestsFail) {
                 verify_preferences_requests_fail();
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::SetupCommandFails) {
+                verify_setup_command_fails();
                 return;
             }
             if (m_state->mode == HarnessState::Mode::ViewStartFails) {
@@ -17367,6 +17372,14 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::PreferencesRequestsFail;
         else if (argument == "--view-start-fails")
             state->mode = HarnessState::Mode::ViewStartFails;
+        else if (argument == "--setup-command-fails") {
+            if (++index == argc) {
+                std::cerr << "--setup-command-fails requires an output directory\n";
+                return 2;
+            }
+            state->mode        = HarnessState::Mode::SetupCommandFails;
+            state->capture_dir = fs::absolute(argv[index]);
+        }
         else if (argument == "--preferences-capture") {
             if (++index == argc) {
                 std::cerr << "--preferences-capture requires an output directory\n";

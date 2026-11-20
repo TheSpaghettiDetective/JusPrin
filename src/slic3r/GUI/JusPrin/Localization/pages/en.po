@@ -1258,6 +1258,10 @@ msgstr "Copy"
 msgid "Copy details"
 msgstr "Copy details"
 
+#: src/components/SetupLocalTool.tsx
+msgid "Copy the command and run it yourself."
+msgstr "Copy the command and run it yourself."
+
 #. A material cost with no known currency
 #: src/components/SetupCard.tsx
 msgid "cost {amount}"
@@ -3476,6 +3480,7 @@ msgstr "The provider rejected this key"
 msgid "The report couldn’t be sent. Check your connection and try again."
 msgstr "The report couldn’t be sent. Check your connection and try again."
 
+#: src/components/SetupLocalTool.tsx
 #: src/components/SetupLocalTool.tsx
 msgid "The setup command failed."
 msgstr "The setup command failed."
