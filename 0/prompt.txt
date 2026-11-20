@@ -1,0 +1,86 @@
+<task-notification>
+<task-id>ab9d26ef0872ed6b3</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/71d2a582-95fe-4de5-a3bc-a1cbfeb8895f/tasks/ab9d26ef0872ed6b3.output</output-file>
+<status>completed</status>
+<summary>Agent "Sweep for silent failures" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>**Silent failures: nobody learns these happened**
+
+1. **`Preferences/PreferencesWindow.cpp:262`**
+   - **What happens:** a Preferences switch or button sends a `preferences_action` that `apply_action` refuses, such as an unknown setting name or a wrong value type. The error only goes to the log. `push_state()` then redraws, so the switch quietly flips back and nothing is reported.
+   - **Shape:** log-only refusal. Every refusal in `PreferencesSettings.cpp:77-272` is a broken-page case.
+   - **How established:** read the code and `PreferencesApp.tsx`.
+   - **Age:** older (641c17f13e).
+   - **A throw here would reach:** `AgentWebView::on_script_message`, through `m_page_message_handler`.
+
+2. **`Agent/CloudSignInMachine.cpp:186-189`**
+   - **What happens:** someone clicks Sign out. The token is erased locally, then the server's revoke call fails (network or any 4xx/5xx). That goes only to the log, so the server still holds a working token and nobody knows.
+   - **Shape:** log-only catch, inside a `reported()` wrapper whose lambda never throws.
+   - **How established:** read only.
+   - **Age:** older.
+   - **A throw here would reach:** `reported("signing out of JusPrin", …)`.
+
+3. **`Shell/AgentPane.cpp:33-46`**
+   - **What happens:** the app's local tool server (MCP) can fail to start, for example because the port is taken or the discovery file can't be written. The error is caught into a string. The only place it appears is "Advanced / developer details" on the "Set up local tool" screen, collapsed by default (`SetupLocalTool.tsx:289-299`). Outside AI tools just can't connect, and nothing is reported.
+   - **Shape:** catch that turns the failure into a stored value.
+   - **How established:** read the C++ and `SetupLocalTool.tsx`.
+   - **Age:** older (644f8bfaff).
+   - **A throw here would reach:** I could not find a reporting handler. A throw would leave the pane's constructor during `ShellController::install`, and the main-loop handler (`GUI_App::generic_exception_handle`) rethrows.
+
+4. **`Agent/AgentHost.cpp:2709-2724`**
+   - **What happens:** someone clicks Terms, Privacy or Reset password on the sign-in screen with a link name `link_url` doesn't know (`CloudAccount.cpp:427-438`). Nothing opens and nothing is reported. The `!m_open_url` branch is unreachable, because `AgentWebView` always sets an opener.
+   - **Shape:** empty value where the caller just stops.
+   - **How established:** read code and `AgentConnection.tsx`.
+   - **Age:** older (c2de39168).
+   - **A throw here would reach:** `AgentWebView::on_script_message`.
+
+5. **`Agent/AgentConfiguration.cpp:396`**
+   - **What happens:** the account's model list arrives and its model formats are written with `config-&gt;save()`, not `save_now`. A failed write is ignored, so the formats are lost without a word. This is the same flaw you are fixing in `remove_provider_key`, at a second call site.
+   - **Shape:** a failure recorded as a success.
+   - **Age:** older.
+   - **A throw here would reach:** `CallAfter(reported("showing the AI models list"))`.
+
+**Shown to the person, but never reported**
+
+6. **Delete account.** The page does show a line, so your example's "shows nothing" is not right. It reads "The account couldn't be deleted. Check your internet connection, then try again." (`Preferences.tsx:297`). Two causes lead to it:
+   - The server answers anything but 204, including 5xx (`ModelCatalogFetch.cpp:155,159`).
+   - The host refuses before sending (`AgentHost.cpp:2564-2566`): a reply is running in another window, a key check is busy, or there is no model source.
+
+   A running reply is something the person can wait out, but they are told to check the internet. Neither cause is reported, and the cause has no table entry. A throw would reach `reported("deleting the account")` and the page handler. Older.
+
+7. **Sign-in "Try again" sentences** in `CloudAccount.cpp`:
+   - Line 309: any 4xx it doesn't recognise, or status 0.
+   - Line 339: the browser sign-in fails. OAuthJob's `error_message` (`CloudSignInMachine.cpp:107`) is passed along and then dropped.
+   - Line 398: no models for the account.
+   - `CloudSignInMachine.cpp:96-103`: every `boost::system::system_error` is treated as "port in use".
+
+   The person sees a sentence, but the server's status and text are lost. A throw would reach the `pump_setup` catch ("signing in to JusPrin"). Older.
+
+8. **`AgentHost.cpp:2682`:** an empty email is shown as "JusPrin couldn't sign you in." The page's own field check means this can only be a broken page. Older.
+
+9. **`AgentHost.cpp:2499-2505`:** whenever `start_check` returns false (`AgentSetup.cpp:89-101`), the page says "This build cannot verify a key for that provider yet." That includes a candidate agent that isn't ready and a probe that won't start, not just an unsupported provider. Older.
+
+10. **Model list failures that aren't 401/403/5xx** (404, 429, network), `ModelCatalogFetch.cpp:48-57,68-77`. Preferences shows "AI unavailable" and nothing is reported. A 429 means a server is limiting us, so the rules count it as unexpected. Older.
+
+**Unsure**
+
+- **Proposal Save failure (new in the range):** `ProposalCard.tsx:31` now shows only "The action failed." A failed tool call is reported only when its code is `failed` or `local_save_failed` (`AgentHost.cpp:688-691`). A Save the person pressed that fails with another code is not the model's mistake, yet goes unreported. I didn't trace which codes a settings apply can return.
+- **Chat titles (new in the range):** `pump_conversation_title` (`AgentHost.cpp:3515-3534`) quietly drops a title the rename rule refuses or that is over 2 KB. That may be intended, since it's model output rather than a failure.
+- **`request_account` (`AgentHost.cpp:3846-3858`):** a 426 or network failure on a later account read keeps the old credit balance with no sign. A 401 only shows if a model list is fetched again.
+- **Handshake loss on Preferences:** `PreferencesApp.tsx` has no `handshake_required` retry, unlike `App.tsx:132`. If the host forgets the handshake without a real reload, every Preferences click would get an answer the page drops. I didn't find a path that triggers this.
+
+**Checked and fine**
+
+- **New throws in the range:** every new throw I traced in AgentHost, ShellController, PrinterConversation, OrcaHomeBackend and LeftPane (including its menu rows, wrapped at `HeaderControls.cpp:763-794`) reaches a reporting top handler.
+- **Setup pages:** only Preferences sends `setup_*`, `account_*` and `delete_account`. `App.tsx:359` sends `setup_check_key` only from a test hook, so the "Only Preferences sends this" comments hold.
+- **Pages that do show the error:** Preferences shows `account_status` and `setup_status` errors (`AgentConnection.tsx:200,321`), and `SetupLocalTool` shows `mcp_status` errors.
+- **Remaining bridge errors:** apart from the five early presses and the two deliberate codes, no `send_bridge_error` is left that only Preferences receives.
+
+Everything here comes from reading the code; I ran nothing.</result>
+<usage><subagent_tokens>242137</subagent_tokens><tool_uses>59</tool_uses><duration_ms>417739</duration_ms></usage>
+</task-notification>
+
+---
+
+Report it, view stays
