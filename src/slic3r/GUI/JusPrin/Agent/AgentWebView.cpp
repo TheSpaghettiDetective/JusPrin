@@ -384,6 +384,9 @@ wxString AgentWebView::diagnostics_text(const wxString& reason) const
 
 void AgentWebView::show_bridge_error(const wxString& reason)
 {
+    // The panel's own words, with the page's URL, its load error and the
+    // traffic counts.
+    BOOST_LOG_TRIVIAL(error) << "JusPrin AI page shows its connection error: " << diagnostics_text(reason).ToUTF8().data();
     m_error_detail->SetLabel(diagnostics_text(reason));
     m_error_detail->Wrap(std::max(FromDIP(160), GetClientSize().GetWidth() - FromDIP(32)));
     if (m_webview != nullptr)

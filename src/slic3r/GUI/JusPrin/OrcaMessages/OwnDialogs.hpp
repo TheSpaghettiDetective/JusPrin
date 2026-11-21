@@ -12,6 +12,8 @@
 #include <wx/defs.h>
 #include <wx/string.h>
 
+#include <string>
+
 class wxDialog;
 class wxWindow;
 
@@ -25,8 +27,8 @@ int show_own_modal(wxDialog& dialog);
 int show_own_message(wxWindow* parent, const wxString& text, const wxString& title, long style = wxOK | wxICON_ERROR);
 
 // JusPrin's own error box, after the current event, as GUI::show_error opens
-// OrcaSlicer's.
-void show_own_error(wxWindow* parent, const wxString& text);
+// OrcaSlicer's. `said` is what the failing side answered, for the app's log.
+void show_own_error(wxWindow* parent, const wxString& text, const std::string& said = {});
 
 // Whether `dialog` was opened through one of the calls above.
 bool is_own_dialog(const wxDialog& dialog);

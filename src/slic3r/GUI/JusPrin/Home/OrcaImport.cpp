@@ -5,6 +5,7 @@
 #include <set>
 #include <stdexcept>
 
+#include <boost/log/trivial.hpp>
 #include <nlohmann/json.hpp>
 
 namespace Slic3r::GUI::JusPrin::Home {
@@ -63,7 +64,9 @@ std::optional<nlohmann::json> read_config(const fs::path& file)
     nlohmann::json json;
     try {
         stream >> json;
-    } catch (const nlohmann::json::parse_error&) {
+    } catch (const nlohmann::json::parse_error& error) {
+        // Read as an app with no printers.
+        BOOST_LOG_TRIVIAL(warning) << "JusPrin import could not read " << file.filename().string() << ": " << error.what();
         return std::nullopt;
     }
     return json.is_object() ? std::optional<nlohmann::json>(std::move(json)) : std::nullopt;
@@ -245,6 +248,7 @@ void settle_orca_import(std::vector<OrcaImportItem>& items, const std::vector<st
         } else {
             item.outcome = OrcaImportItem::Outcome::NotImported;
             item.reason  = OrcaImportItem::Reason::NotLoaded;
+            BOOST_LOG_TRIVIAL(warning) << "JusPrin import did not load the preset " << item.name;
         }
     }
 }

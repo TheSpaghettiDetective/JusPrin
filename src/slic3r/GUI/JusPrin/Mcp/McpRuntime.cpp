@@ -1,5 +1,5 @@
 #include "McpRuntime.hpp"
-#include <iostream>
+#include <boost/log/trivial.hpp>
 
 namespace Slic3r::GUI::JusPrin::Mcp {
 using nlohmann::json;
@@ -21,7 +21,7 @@ McpRuntime::~McpRuntime()
     } catch (const std::filesystem::filesystem_error& error) {
         // Cleanup can lose access after startup. The socket is already closed;
         // retaining a stale record is safe because readers must probe liveness.
-        std::cerr << "MCP discovery cleanup left a stale file: " << error.what() << '\n';
+        BOOST_LOG_TRIVIAL(warning) << "MCP discovery cleanup left a stale file: " << error.what();
     }
 }
 
@@ -59,6 +59,7 @@ void McpRuntime::poll()
     for (auto& pending : m_server.take_calls()) {
         if (pending->cancelled.load()) continue;
         if (!m_workspace.snapshot().session) {
+            BOOST_LOG_TRIVIAL(warning) << "JusPrin tool call refused with workspace_unavailable: no project is open";
             m_server.send(pending->connection_id, rpc_result(pending->request.id,
                 tool_result(tool_error("workspace_unavailable", "No live project session is available."), true)), true);
             continue;

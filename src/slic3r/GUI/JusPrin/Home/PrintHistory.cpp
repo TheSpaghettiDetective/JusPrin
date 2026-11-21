@@ -224,6 +224,8 @@ PrintReportAnswer print_report_answer(unsigned status, const std::string& body)
     const json parsed = json::parse(body, nullptr, false);
     const std::string code = parsed.is_object() && parsed.contains("error") && parsed["error"].is_object() ?
                                  parsed["error"].value("code", std::string()) : std::string();
+    if (status != 201)
+        answer.said = "the print report answered HTTP " + std::to_string(status) + ": " + body;
     if (status == 201) {
         // Stored; an answer the app cannot read is our server's fault.
         if (!parsed.is_object() || !parsed.contains("credits") || !parsed["credits"].is_number_integer())

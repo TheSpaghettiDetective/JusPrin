@@ -13,6 +13,7 @@
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <string>
 #include <thread>
 #include <utility>
 
@@ -66,8 +67,10 @@ public:
         const auto [status, body] = get("server/database/item?namespace=lane_data");
         // Moonraker answers 404 for a namespace nothing has written: a printer
         // without such a unit, which still answered.
-        if (status != 200 && status != 404)
+        if (status != 200 && status != 404) {
+            reading.failure = "Moonraker's lane data answered HTTP " + std::to_string(status) + ": " + body;
             return reading;
+        }
         reading.reached = true;
         read_activity(reading);
         if (status == 200)
@@ -114,9 +117,10 @@ private:
                 status = code;
                 body   = std::move(reply);
             })
-            .on_error([&](std::string reply, std::string, unsigned code) {
+            .on_error([&](std::string reply, std::string error, unsigned code) {
                 status = code;
-                body   = std::move(reply);
+                // Nothing answered: the reason is the connection's.
+                body = code == 0 ? std::move(error) : std::move(reply);
             })
             .on_progress([this](Http::Progress, bool& cancel) { cancel = m_reads->stopping; })
 #ifdef WIN32
@@ -139,16 +143,22 @@ HostReading probe_page(const DynamicPrintConfig& config, const std::shared_ptr<R
     // reply with status zero; a reply it reports neither way (a final 3xx)
     // is still a reply.
     bool answered = true;
+    std::string failure;
     // get_print_host_webui takes a mutable config; it only reads it.
     DynamicPrintConfig copy = config;
     Http::get(PrintHost::get_print_host_webui(&copy))
         .timeout_connect(5)
         .timeout_max(10)
-        .on_error([&](std::string, std::string, unsigned code) { answered = code != 0; })
+        .on_error([&](std::string, std::string error, unsigned code) {
+            answered = code != 0;
+            failure  = std::move(error);
+        })
         .on_progress([&](Http::Progress, bool& cancel) { cancel = in_flight->stopping; })
         .perform_sync();
     HostReading reading;
     reading.reached = answered;
+    if (!answered)
+        reading.failure = "its page did not answer: " + failure;
     return reading;
 }
 

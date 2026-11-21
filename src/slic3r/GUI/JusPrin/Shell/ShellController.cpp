@@ -1466,8 +1466,8 @@ void ShellController::answer_calibration(const std::string& request_id, bool con
     open.new_project = true;
     open.name        = Agent::calibration_project_name(pending.filament, pending.printer);
     Workspace::LoadReport report;
-    if (!m_workspace->open_project(open, report).succeeded()) {
-        OrcaMessages::show_own_error(m_frame, _L("The calibration project could not be opened, so your project stays open."));
+    if (const auto opened = m_workspace->open_project(open, report); !opened.succeeded()) {
+        OrcaMessages::show_own_error(m_frame, _L("The calibration project could not be opened, so your project stays open."), opened.message);
         return;
     }
     // A Home card's printer is the one the test prints on; there is no open

@@ -61,8 +61,9 @@ target_include_directories(jusprin_tests PRIVATE
 target_include_directories(jusprin_tests SYSTEM PRIVATE ${CMAKE_SOURCE_DIR}/deps_src)
 # test_common carries the macOS framework link (CoreFoundation) that
 # HostLocale.hpp needs there; on Windows and Linux it adds nothing but the
-# shared test defines.
-target_link_libraries(jusprin_tests PRIVATE test_common Catch2WithMain nlohmann_json)
+# shared test defines. boost_libs brings Boost.Log, which HomeHost, OrcaImport
+# and HostLanes write to.
+target_link_libraries(jusprin_tests PRIVATE test_common Catch2WithMain nlohmann_json boost_libs)
 # SentryEvent.cpp builds Sentry's own event values (deps/Sentry).
 find_package(sentry 0.17 REQUIRED CONFIG)
 target_link_libraries(jusprin_tests PRIVATE sentry::sentry)

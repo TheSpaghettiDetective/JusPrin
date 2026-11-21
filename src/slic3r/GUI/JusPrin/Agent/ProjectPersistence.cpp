@@ -4,6 +4,8 @@
 #include "slic3r/GUI/JusPrin/Workspace/UtcTime.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 
+#include <boost/log/trivial.hpp>
+
 #include <cerrno>
 #include <chrono>
 #include <cstring>
@@ -302,6 +304,7 @@ void ProjectPersistence::during_managed_restore(const std::function<void()>& ope
 
 void ProjectPersistence::adopt_current_project(bool in_place_reset)
 {
+    m_newer_chats_set_aside = false;
     m_attached_aux_dir = m_workspace.auxiliary_data_dir();
     m_attached         = true;
     // A calibration generator's own new project: the same project goes on.
@@ -342,9 +345,11 @@ void ProjectPersistence::adopt_current_project(bool in_place_reset)
         // Our own file that does not read is unexpected, and reported.
         const bool newer = result == ProjectStateDocument::LoadResult::Newer;
         fs::rename(legacy_state, legacy_state.string() + (newer ? ".newer" : ".corrupt"));
+        m_newer_chats_set_aside = newer;
         start_fresh_identity();
         if (!newer)
             throw std::runtime_error("the chat state saved in the opened project could not be read");
+        BOOST_LOG_TRIVIAL(warning) << "JusPrin chat state in the opened project is from a newer JusPrin: kept aside, the chats start empty";
         return;
     }
     m_document = std::move(loaded);

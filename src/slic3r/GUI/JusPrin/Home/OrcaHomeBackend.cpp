@@ -1430,7 +1430,10 @@ void OrcaHomeBackend::send_print_report(const PrintReportForm& form, std::functi
         .timeout_connect(10)
         .timeout_max(kReportUploadSeconds)
         .on_complete(reported("sending a print report", [finish](std::string body, unsigned status) { finish(status, body); }))
-        .on_error(reported("sending a print report", [finish](std::string body, std::string, unsigned status) { finish(status, body); }))
+        // With no answer at all, the connection's own reason stands for one.
+        .on_error(reported("sending a print report", [finish](std::string body, std::string error, unsigned status) {
+            finish(status, status == 0 ? error : body);
+        }))
         .perform();
 }
 

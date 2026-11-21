@@ -1286,6 +1286,11 @@ TEST_CASE("a state file a newer build saved is kept aside and the project opens 
     CHECK(persistence.document().project_id() != "p-newer");
     CHECK(read_text(persistence.state_file_path() + ".newer") == newer);
     CHECK_FALSE(fs::exists(persistence.state_file_path() + ".corrupt"));
+    CHECK(persistence.newer_chats_set_aside());
+
+    // The next project opened has nothing set aside.
+    workspace.replace_project(small_snapshot());
+    CHECK_FALSE(persistence.newer_chats_set_aside());
 }
 
 TEST_CASE("a local project a newer build saved is refused as newer", "[persistence][managed][schema]")

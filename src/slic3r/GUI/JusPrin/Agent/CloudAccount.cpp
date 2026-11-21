@@ -1,6 +1,7 @@
 #include "CloudAccount.hpp"
 #include "libslic3r/Exception.hpp"
 
+#include <boost/log/trivial.hpp>
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
@@ -295,8 +296,9 @@ std::optional<CloudSignInOutcome> CloudSignIn::answered(CloudHttpResult http)
         begin_check(token);
         return std::nullopt;
     }
+    const std::string said = "JusPrin's sign-in answered " + m_asked + " with HTTP " + std::to_string(http.status) + ": " + http.body;
     if (const std::optional<AgentError> outdated = update_required(http.status, http.body))
-        return failed(outdated->code, outdated->message, outdated->retryable);
+        return failed(outdated->code, outdated->message, outdated->retryable, said);
     if (http.status == 400 && m_asked == "code/request" && errors("too_many_login_attempts"))
         m_email.refusal = "too_many_codes";
     else if (http.status == 400 && m_asked == "code/request" && errors("invalid"))
@@ -310,9 +312,11 @@ std::optional<CloudSignInOutcome> CloudSignIn::answered(CloudHttpResult http)
     else if (http.status == 400 && m_asked == "login")
         m_email.refusal = errors("too_many_login_attempts") ? "too_many_tries" : "wrong_password";
     else if (http.status == 0 || (http.status >= 400 && http.status < 500))
-        return failed("sign_in_failed", translated(L("JusPrin couldn't sign you in. Try again.")), true);
+        return failed("sign_in_failed", translated(L("JusPrin couldn't sign you in. Try again.")), true, said);
     else
-        unexpected("JusPrin's sign-in answered " + m_asked + " with HTTP " + std::to_string(http.status) + ": " + http.body);
+        unexpected(said);
+    // A refusal the person can act on, on the same step.
+    BOOST_LOG_TRIVIAL(warning) << "JusPrin email sign-in refused, the person is told " << m_email.refusal << ": " << said;
     return std::nullopt;
 }
 
@@ -340,7 +344,8 @@ std::optional<CloudSignInOutcome> CloudSignIn::poll()
             if (m_phase != CloudSignInPhase::Browser)
                 continue;
             if (!item->authorization.ok || item->authorization.access_token.empty())
-                return failed("sign_in_failed", translated(L("Signing in didn't finish. Nothing was saved. Try again.")), true);
+                return failed("sign_in_failed", translated(L("Signing in didn't finish. Nothing was saved. Try again.")), true,
+                              "the browser sign-in ended " + (item->authorization.ok ? std::string("without a token") : item->authorization.error));
             begin_check(std::move(item->authorization.access_token));
             break;
         case Inbox::Kind::Auth:
@@ -371,10 +376,12 @@ std::optional<CloudSignInOutcome> CloudSignIn::finish_check()
         outcome.kind = CloudSignInOutcome::Kind::Expired;
         return outcome;
     }
+    const std::string said = "JusPrin's account check answered HTTP " + std::to_string(who.status) + ", its model list HTTP " +
+                             std::to_string(models.status) + ": " + models.body;
     if (const std::optional<AgentError> outdated = update_required(models.status, models.body))
-        return failed(outdated->code, outdated->message, outdated->retryable);
+        return failed(outdated->code, outdated->message, outdated->retryable, said);
     if (who.status == 0 || models.status == 0)
-        return failed("account_unreachable", translated(L("JusPrin couldn't be reached to finish signing in. Try again.")), true);
+        return failed("account_unreachable", translated(L("JusPrin couldn't be reached to finish signing in. Try again.")), true, said);
     const json who_json    = json::parse(who.body, nullptr, false);
     const json models_json = json::parse(models.body, nullptr, false);
     if (who.status != 200 || models.status != 200 || !who_json.is_object() || !models_json.is_object() ||
@@ -399,7 +406,7 @@ std::optional<CloudSignInOutcome> CloudSignIn::finish_check()
         chosen = record.formats.begin();
     AgentServicePtr service = chosen == record.formats.end() ? nullptr : m_agents(m_token, chosen->first, chosen->second);
     if (!service)
-        return failed("account_no_models", translated(L("JusPrin has no AI model for this account right now. Try again later.")), true);
+        return failed("account_no_models", translated(L("JusPrin has no AI model for this account right now. Try again later.")), true, said);
 
     // Sign-in is over whether or not the account can be stored.
     m_phase = CloudSignInPhase::Idle;
@@ -419,13 +426,13 @@ void CloudSignIn::unexpected(const std::string& what)
     throw std::runtime_error(what);
 }
 
-CloudSignInOutcome CloudSignIn::failed(const std::string& code, const std::string& message, bool retryable)
+CloudSignInOutcome CloudSignIn::failed(const std::string& code, const std::string& message, bool retryable, const std::string& said)
 {
     m_phase = CloudSignInPhase::Idle;
     m_token.clear();
     CloudSignInOutcome outcome;
     outcome.kind  = CloudSignInOutcome::Kind::Failed;
-    outcome.error = AgentError{code, message, retryable};
+    outcome.error = AgentError{code, message, retryable, said};
     return outcome;
 }
 

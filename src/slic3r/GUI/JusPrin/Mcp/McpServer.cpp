@@ -2,6 +2,7 @@
 
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
+#include <boost/log/trivial.hpp>
 
 #include <array>
 #include <cctype>
@@ -130,6 +131,9 @@ struct McpServer::Impl::Connection : std::enable_shared_from_this<Connection>
     {
         if (closed || terminal) return;
         const std::string body = response.body.dump();
+        // Every refusal of a request an outside AI client sent.
+        if (response.status >= 400)
+            BOOST_LOG_TRIVIAL(warning) << "JusPrin tool server refused a request with HTTP " << response.status << ": " << body;
         const auto status = static_cast<http::status>(response.status);
         std::string headers = "HTTP/1.1 " + std::to_string(response.status) + " " + std::string(http::obsolete_reason(status)) +
                               "\r\nContent-Type: application/json\r\nCache-Control: no-store\r\nConnection: close\r\n";

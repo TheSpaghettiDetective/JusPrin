@@ -1,5 +1,6 @@
 #include "HostLanes.hpp"
 
+#include <boost/log/trivial.hpp>
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
@@ -295,6 +296,21 @@ bool HostReadings::begin(const std::string& key, Clock::time_point now)
     return true;
 }
 
+namespace {
+
+// A reading's key holds the printer's name, its address, its API key and its
+// CA file, one to a line (HostLaneReader.cpp): the log names the first two.
+std::string printer_named_by(const std::string& key)
+{
+    const std::size_t name_end    = key.find('\n');
+    const std::size_t address_end = name_end == std::string::npos ? name_end : key.find('\n', name_end + 1);
+    if (name_end == std::string::npos)
+        return key;
+    return key.substr(0, name_end) + " at " + key.substr(name_end + 1, address_end == std::string::npos ? address_end : address_end - name_end - 1);
+}
+
+} // namespace
+
 void HostReadings::finish(const std::string& key, HostReading reading, Clock::time_point now, Wall::time_point wall)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
@@ -310,6 +326,10 @@ void HostReadings::finish(const std::string& key, HostReading reading, Clock::ti
         entry.last_job      = std::move(reading.last_job);
         entry.camera        = std::move(reading.camera);
     } else {
+        // Polled every few seconds: a line when it stops answering, not one per
+        // poll.
+        if (!entry.failed || (entry.answered && *entry.answered > *entry.failed))
+            BOOST_LOG_TRIVIAL(warning) << "JusPrin print host " << printer_named_by(key) << " stopped answering: " << reading.failure;
         entry.failed = now;
     }
 }

@@ -906,6 +906,18 @@ TEST_CASE("an own account out of credits says so, before the reply or inside it"
     }
 }
 
+TEST_CASE("a failed AI request the person is told about carries what the service said, never the key", "[agent][openai][errors]")
+{
+    Responses r("openai");
+    r.fake->refuse(429, R"({"error":{"message":"You have no credits remaining.","type":"insufficient_quota","param":null,"code":"credit_balance_exhausted"}})");
+    const auto error = r.failure();
+    REQUIRE(error);
+    CHECK(error->code == "provider_credits_exhausted");
+    CHECK_THAT(error->said, Catch::Matchers::ContainsSubstring("answered HTTP 429"));
+    CHECK_THAT(error->said, Catch::Matchers::ContainsSubstring("You have no credits remaining."));
+    CHECK_THAT(error->said, !Catch::Matchers::ContainsSubstring("sk-secret"));
+}
+
 TEST_CASE("a chat more than the model takes is too large, before the reply or inside it", "[agent][openai][errors]")
 {
     SECTION("OpenAI's 400")

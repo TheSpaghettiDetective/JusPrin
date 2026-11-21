@@ -128,6 +128,7 @@ void report_if_automatic(std::string doing, std::string error, std::vector<void*
         });
         return;
     }
+    BOOST_LOG_TRIVIAL(error) << "Unexpected error while " << doing << ": " << error;
     if (reports_automatically()) {
         ErrorReport report = make_error_report(std::move(doing), std::move(error), {});
         report.stack = std::move(stack);

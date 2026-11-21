@@ -80,6 +80,8 @@ struct PrintReportAnswer
     // Failed: the app's sentence for a refusal the person can act on; empty
     // keeps the form's own sentence about the connection.
     std::string message;
+    // Failed: what the server answered, for the app's log only.
+    std::string said;
 };
 
 struct ProjectEntry

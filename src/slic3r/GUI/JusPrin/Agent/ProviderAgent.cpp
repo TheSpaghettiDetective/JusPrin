@@ -500,16 +500,17 @@ void ProviderAgent::handle(StreamEvent event)
     switch (event.kind) {
     case StreamEvent::Kind::TextDelta: m_events.push_back(AgentEvent::delta(std::move(event.text))); break;
     case StreamEvent::Kind::TurnComplete: finish_response(std::move(event)); break;
-    case StreamEvent::Kind::Failed: fail(std::move(event.error)); break;
+    case StreamEvent::Kind::Failed: fail(expected(std::move(event.error), "failed its reply", {})); break;
     case StreamEvent::Kind::ServiceError: {
         // An error inside a reply can name a cause a person can act on; a
         // reply cut short or unreadable names none.
         std::optional<AgentError> expected = in_reply_answer(event.answer);
         if (!expected)
             unexpected(event.text, {});
+        AgentError error = this->expected(std::move(*expected), event.text, {});
         // Nothing more of this reply is read.
         cancel();
-        m_events.push_back(AgentEvent::failed(std::move(*expected)));
+        m_events.push_back(AgentEvent::failed(std::move(error)));
     }
     }
 }
@@ -771,7 +772,8 @@ AgentError ProviderAgent::http_error(const AgentHttpEvent& event)
     // No answer at all: the connection failed or stalled.
     if (event.status < 400)
         // TRN %1% is an AI provider, such as OpenAI.
-        return {"network_error", Slic3r::format(translated(L("The AI request could not reach the %1% service.")), m_config.profile.display_name), true};
+        return expected({"network_error", Slic3r::format(translated(L("The AI request could not reach the %1% service.")), m_config.profile.display_name), true},
+                        "could not be reached", event.error);
     std::optional<AgentError> expected;
     if (m_config.profile.account_sign_in) {
         expected = update_required(event.status, event.data);
@@ -780,9 +782,11 @@ AgentError ProviderAgent::http_error(const AgentHttpEvent& event)
     } else {
         expected = provider_answer(event.status, json::parse(event.data, nullptr, false));
     }
+    const std::string answered = "answered HTTP " + std::to_string(event.status);
+    const std::string& words   = event.data.empty() ? event.error : event.data;
     if (expected)
-        return *expected;
-    unexpected("answered HTTP " + std::to_string(event.status), event.data.empty() ? event.error : event.data);
+        return this->expected(std::move(*expected), answered, words);
+    unexpected(answered, words);
 }
 
 std::optional<AgentError> ProviderAgent::gateway_answer(const std::string& code, const std::string& body) const
@@ -841,7 +845,7 @@ std::optional<AgentError> ProviderAgent::in_reply_answer(const json& answer) con
     return code == "request_too_large" ? gateway_answer(code, answer.dump()) : std::nullopt;
 }
 
-void ProviderAgent::unexpected(const std::string& answered, const std::string& words)
+std::string ProviderAgent::answer_said(const std::string& answered, const std::string& words) const
 {
     std::string what = m_config.profile.display_name + " " + answered + " (request " + m_transcript.request_id + " #" +
                        std::to_string(m_transcript.request_sequence);
@@ -850,8 +854,20 @@ void ProviderAgent::unexpected(const std::string& answered, const std::string& w
     what += ")";
     if (!words.empty())
         what += ": " + words;
+    return what;
+}
+
+void ProviderAgent::unexpected(const std::string& answered, const std::string& words)
+{
+    std::string what = answer_said(answered, words);
     cancel();
     throw UnexpectedServiceAnswer(what);
+}
+
+AgentError ProviderAgent::expected(AgentError error, const std::string& answered, const std::string& words) const
+{
+    error.said = answer_said(answered, words) + " (model " + m_config.profile.model + ")";
+    return error;
 }
 
 void ProviderAgent::fail(AgentError error)

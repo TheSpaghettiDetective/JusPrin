@@ -71,7 +71,9 @@ private:
     // Asks the server for a link to the page; `use` gets it, or an empty one.
     void     request_link(std::function<void(std::string url)> use);
     void     open_in_browser();
-    void     set_state(State state);
+    // `cause` says what went wrong when the state is Failed, for the app's
+    // log: every failure the sheet shows passes here.
+    void     set_state(State state, const std::string& cause = {});
     void     on_navigating(wxWebViewEvent& event);
     void     on_loaded(wxWebViewEvent& event);
     void     on_error(wxWebViewEvent& event);

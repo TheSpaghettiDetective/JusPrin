@@ -3,11 +3,13 @@
 #include "HomeSnapshot.hpp"
 #include "slic3r/GUI/JusPrin/Support/Base64.hpp"
 
+#include <boost/log/trivial.hpp>
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <optional>
 #include <stdexcept>
+#include <string>
 #include <utility>
 
 namespace Slic3r { namespace GUI { namespace JusPrin { namespace Home {
@@ -34,6 +36,11 @@ json HomeHost::history_payload()
     if (m_backend.recent_projects().problem != m_sent_projects_problem)
         send_state(collect());
     return json{{"entries", m_backend.print_history()}, {"reportsOffered", m_backend.reports_offered()}};
+}
+
+void HomeHost::told(const std::string& type, const std::string& problem, const std::string& said) const
+{
+    BOOST_LOG_TRIVIAL(warning) << "JusPrin Home page is told " << type << ": " << problem << (said.empty() ? std::string() : " (" + said + ")");
 }
 
 void HomeHost::send(const std::string& type, const json& payload, const std::string& correlation)
@@ -176,16 +183,10 @@ void HomeHost::ask_confirmation(const Confirmation& question)
 void HomeHost::on_page_message(const std::string& text)
 {
     ++m_received;
-    json envelope;
-    try {
-        envelope = json::parse(text);
-    } catch (const std::exception&) {
-        // The page is the only writer on this transport and it sends JSON, so
-        // a parse failure is a bug in the page rather than a state to recover
-        // from. Dropping it keeps the bridge up; the page's own handshake
-        // timeout is what reports a page that cannot talk at all.
-        return;
-    }
+    // The page is the only writer on this transport and it sends JSON, so a
+    // message that is not JSON is a broken page: the message's top handler
+    // reports it.
+    const json envelope = json::parse(text);
     if (envelope.value("protocol", std::string()) != kProtocolName)
         return; // another surface's traffic on the same transport
 
@@ -201,7 +202,9 @@ void HomeHost::on_page_message(const std::string& text)
                                              [](const json& version) { return version == kProtocolVersion; });
         if (!speaks_this) {
             send("hello_reject", json{{"message", "This build speaks Home protocol version 1."}}, correlation);
-            return;
+            // The page ships with this build, so this too is a broken page.
+            throw std::runtime_error("the Home page's hello offers protocol versions " + versions.dump() +
+                                     ", this build speaks " + std::to_string(kProtocolVersion));
         }
         m_connected = true;
         send("hello_ack", json{{"protocolVersion", kProtocolVersion}}, correlation);
@@ -213,8 +216,11 @@ void HomeHost::on_page_message(const std::string& text)
         return;
     }
 
+    // Nothing but hello is answered before the handshake. The page's client
+    // sends hello first and drops what comes before the app can receive it,
+    // so anything earlier is a broken page.
     if (!m_connected)
-        return; // nothing but hello is answered before the handshake
+        throw std::runtime_error("the Home page sent " + type + " before its handshake");
 
     if (type == "state_request")
         push_state();
@@ -301,6 +307,8 @@ void HomeHost::on_page_message(const std::string& text)
             const char* state = answer.state == PrintReportAnswer::State::Sent        ? "sent" :
                                 answer.state == PrintReportAnswer::State::AlreadySent ? "already_sent" :
                                 answer.state == PrintReportAnswer::State::Unexpected  ? "unexpected" : "failed";
+            if (answer.state == PrintReportAnswer::State::Failed)
+                told("print_report_result", answer.update_message.empty() ? answer.message : answer.update_message, answer.said);
             json result{{"hash", hash}, {"state", state}, {"credits", answer.credits}};
             if (!answer.update_message.empty())
                 result["updateMessage"] = answer.update_message;
@@ -363,8 +371,10 @@ void HomeHost::on_page_message(const std::string& text)
     else if (type == "onboarding_import") {
         const std::string problem =
             m_backend.import_printers(payload.at("app").get<std::string>(), payload.at("printers").get<std::vector<std::string>>());
-        if (!problem.empty())
+        if (!problem.empty()) {
+            told("onboarding_error", problem);
             send("onboarding_error", json{{"message", problem}}, correlation);
+        }
         push_state();
     }
     else if (type == "onboarding_assume_default") {
@@ -389,12 +399,18 @@ void HomeHost::on_page_message(const std::string& text)
             : type == "ask_about_printer_settings" ? m_backend.ask_about_printer_settings(id)
             : type == "rename_printer"      ? m_backend.rename_printer(id, payload.value("name", std::string()))
                                             : m_backend.remove_printer(id);
-        if (!problem.empty())
+        if (!problem.empty()) {
+            told("printer_error", problem);
             send("printer_error", json{{"id", id}, {"message", problem}}, correlation);
+        }
         // Each can change the rail, including when the person cancelled
         // halfway through an Orca prompt, so the page always gets it back.
         push_state();
     }
+    else
+        // The page ships with this build: a type it sends and this host does
+        // not know is a broken page.
+        throw std::runtime_error("the Home page sent a message of unknown type " + type);
 }
 
 }}}} // namespace Slic3r::GUI::JusPrin::Home

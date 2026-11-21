@@ -279,6 +279,9 @@ struct AgentError
     std::string code;
     std::string message;
     bool        retryable{false};
+    // What the other side answered, for the app's log only: the host writes it
+    // where it tells the page, and never sends or saves it.
+    std::string said{};
 };
 
 // Note is the host's own voice: a short factual line the shell posts when it

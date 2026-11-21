@@ -249,7 +249,9 @@ private:
     void ask_who(std::uint64_t generation);
     void ask_models(std::uint64_t generation);
     std::optional<CloudSignInOutcome> finish_check();
-    CloudSignInOutcome failed(const std::string& code, const std::string& message, bool retryable);
+    // Ends the sign-in with an error the person is told; `said` is what the
+    // server or the browser answered, for the host's log.
+    CloudSignInOutcome failed(const std::string& code, const std::string& message, bool retryable, const std::string& said);
     // A server answer no person decided: back to idle, then thrown for the
     // caller's top handler to report.
     [[noreturn]] void unexpected(const std::string& what);

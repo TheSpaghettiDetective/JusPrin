@@ -319,7 +319,8 @@ TEST_CASE("a page speaking another version is rejected", "[home]")
     Wire        wire;
     HomeHost    host(backend, wire.sink());
 
-    host.on_page_message(hello(99));
+    // The page is told, and the broken page goes on to the message's top handler.
+    CHECK_THROWS_AS(host.on_page_message(hello(99)), std::runtime_error);
 
     CHECK(wire.of_type("hello_reject").size() == 1);
     CHECK(wire.of_type("state").empty());
@@ -327,16 +328,18 @@ TEST_CASE("a page speaking another version is rejected", "[home]")
 }
 
 // Nothing but hello is answered before the handshake, so a page that starts
-// sending actions early cannot drive the application.
-TEST_CASE("actions before the handshake are ignored", "[home]")
+// sending actions early cannot drive the application. The page's client
+// always sends hello first, so an earlier action is a broken page: it is
+// thrown to the message's handler, which reports it.
+TEST_CASE("actions before the handshake are thrown and never run", "[home]")
 {
     FakeBackend backend;
     Wire        wire;
     HomeHost    host(backend, wire.sink());
 
-    host.on_page_message(page_message("open_project", json{{"id", "0"}}));
-    host.on_page_message(page_message("new_project"));
-    host.on_page_message(page_message("open_file"));
+    CHECK_THROWS_AS(host.on_page_message(page_message("open_project", json{{"id", "0"}})), std::runtime_error);
+    CHECK_THROWS_AS(host.on_page_message(page_message("new_project")), std::runtime_error);
+    CHECK_THROWS_AS(host.on_page_message(page_message("open_file")), std::runtime_error);
 
     CHECK(backend.opened.empty());
     CHECK(backend.new_projects == 0);
@@ -610,7 +613,7 @@ TEST_CASE("a page reload invalidates the handshake", "[home]")
 
     host.reset_page();
     CHECK_FALSE(host.connected());
-    host.on_page_message(page_message("new_project"));
+    CHECK_THROWS_AS(host.on_page_message(page_message("new_project")), std::runtime_error);
     CHECK(backend.new_projects == 0);
 
     host.push_state();
@@ -635,16 +638,18 @@ TEST_CASE("traffic from another surface is ignored", "[home]")
     CHECK(backend.file_opens == 0);
 }
 
-// The page is the only writer on this transport; unreadable text is dropped
-// rather than taking the bridge down with it.
-TEST_CASE("unreadable page text does not break the bridge", "[home]")
+// The page is the only writer on this transport and ships with this build:
+// unreadable text or a type this host does not know is a broken page, thrown
+// for the message's top handler to report. The bridge stays up for the next.
+TEST_CASE("unreadable page text or an unknown type is thrown, and the bridge stays up", "[home]")
 {
     FakeBackend backend;
     Wire        wire;
     HomeHost    host(backend, wire.sink());
     host.on_page_message(hello());
 
-    host.on_page_message("{not json");
+    CHECK_THROWS(host.on_page_message("{not json"));
+    CHECK_THROWS_AS(host.on_page_message(page_message("no_such_message")), std::runtime_error);
     host.on_page_message(page_message("open_file"));
 
     CHECK(backend.file_opens == 1);

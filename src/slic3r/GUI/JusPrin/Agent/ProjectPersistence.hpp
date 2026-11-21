@@ -81,6 +81,9 @@ public:
     // Fired after the document has been replaced by an adoption; the consumer
     // must rebuild everything it derived from the old document.
     void set_document_replaced_listener(std::function<void()> listener) { m_document_replaced = std::move(listener); }
+    // Whether the project just adopted had chats a newer JusPrin saved, set
+    // aside so that it opens with none: the person is told.
+    bool newer_chats_set_aside() const { return m_newer_chats_set_aside; }
     // Fired after each workspace edit has been appended to the change log.
     void set_change_listener(std::function<void(const ChangeEntry&)> listener) { m_change_added = std::move(listener); }
 
@@ -163,6 +166,7 @@ private:
     bool        m_boundary_pending{false};
     bool        m_managed_restore_active{false};
     bool        m_continuing_project{false};
+    bool        m_newer_chats_set_aside{false};
 };
 
 } // namespace Slic3r::GUI::JusPrin::Agent

@@ -810,6 +810,9 @@ void AgentHost::on_document_replaced()
     m_check_reopened_test = true;
     if (m_handshake)
         send_state();
+    if (m_persistence.newer_chats_set_aside())
+        // TRN Said in the chat when a project opens whose chats a newer version of JusPrin saved; they are kept, not shown.
+        post_note(translated(L("This project's chats were saved by a newer version of JusPrin. Get the new version to see them.")));
 }
 
 void AgentHost::send_envelope(const char* type, const std::string& payload_json, const std::string& correlation_id)
@@ -843,8 +846,16 @@ void AgentHost::send_envelope(const char* type, const std::string& payload_json,
     m_send(envelope.dump(-1, ' ', true));
 }
 
+json AgentHost::told(const char* type, const AgentError& error) const
+{
+    BOOST_LOG_TRIVIAL(warning) << "JusPrin AI page is told " << type << " " << error.code << ": " << error.message
+                               << (error.said.empty() ? std::string() : " (" + error.said + ")");
+    return error_json(error);
+}
+
 void AgentHost::send_bridge_error(const std::string& code, const std::string& message, const std::string& correlation_id)
 {
+    told(Protocol::kBridgeError, AgentError{code, message});
     send_envelope(Protocol::kBridgeError, json{{"code", code}, {"message", message}}.dump(), correlation_id);
 }
 
@@ -1328,7 +1339,10 @@ void AgentHost::handle_hello(const std::string& envelope_id, const std::string& 
                                            std::to_string(Protocol::kVersion) + " only."}}
                           .dump(),
                       envelope_id);
-        return;
+        // The page ships with this build, so a version it does not speak is a
+        // broken page: the message's top handler reports it.
+        throw RuntimeError("jusprin-agent-bridge: hello offers protocol versions " + json(versions).dump() +
+                           ", this build speaks " + std::to_string(Protocol::kVersion));
     }
 
     // Capabilities are informational: the host reports what it can do and the
@@ -1462,6 +1476,8 @@ std::string AgentHost::attachment_preview_data_url(const AttachmentRecord& recor
 
 void AgentHost::send_attachment_updated(const AttachmentRecord& record, const std::string& correlation_id)
 {
+    if (record.error)
+        told(Protocol::kAttachmentUpdated, *record.error);
     json entry = attachment_json(record);
     const std::string preview = attachment_preview_data_url(record);
     if (!preview.empty())
@@ -2520,7 +2536,7 @@ void AgentHost::send_setup_status(const std::string&               phase,
     if (elapsed_ms)
         payload["elapsedMs"] = *elapsed_ms;
     if (error)
-        payload["error"] = json{{"code", error->code}, {"message", error->message}, {"retryable", error->retryable}};
+        payload["error"] = told(Protocol::kSetupStatus, *error);
     send_envelope(Protocol::kSetupStatus, payload.dump(), correlation_id);
 }
 
@@ -2688,7 +2704,7 @@ void AgentHost::send_account_status(const std::string&               phase,
     if (expired)
         payload["expired"] = true;
     if (error)
-        payload["error"] = json{{"code", error->code}, {"message", error->message}, {"retryable", error->retryable}};
+        payload["error"] = told(Protocol::kAccountStatus, *error);
     send_envelope(Protocol::kAccountStatus, payload.dump(), correlation_id);
 }
 
@@ -3008,7 +3024,7 @@ void AgentHost::begin_reply(const std::string& user_message_id)
         document.append_message(conversation_id, failed, failed.created_at);
         m_persistence.flush();
         send_envelope(Protocol::kAssistantStarted, json{{"messageId", failed.id}, {"inReplyTo", user_message_id}, {"attempt", 1}}.dump());
-        send_envelope(Protocol::kAssistantFailed, json{{"messageId", failed.id}, {"error", error_json(*failed.error)}}.dump());
+        send_envelope(Protocol::kAssistantFailed, json{{"messageId", failed.id}, {"error", told(Protocol::kAssistantFailed, *failed.error)}}.dump());
         return;
     }
 
@@ -3300,7 +3316,7 @@ void AgentHost::fail_stream(AgentError error)
     stream.message.state = MessageState::Failed;
     stream.message.error = std::move(error);
     m_persistence.document().update_message(stream.conversation_id, stream.message);
-    json failed{{"messageId", stream.message.id}, {"error", error_json(*stream.message.error)}};
+    json failed{{"messageId", stream.message.id}, {"error", told(Protocol::kAssistantFailed, *stream.message.error)}};
     // Nothing typed is lost: a message the credits could not pay for goes back
     // to the message box, and the model never reads it as a message it missed.
     if (stream.message.error->code == "credits_exhausted")
@@ -4123,7 +4139,7 @@ void AgentHost::send_mcp_status(const std::string& phase, const std::string& too
     if (!tool_id.empty()) payload["toolId"] = tool_id;
     if (!backup.empty()) payload["backup"] = backup;
     if (!diagnostic.empty()) payload["diagnostic"] = diagnostic;
-    if (error) payload["error"] = json{{"code", error->code}, {"message", error->message}, {"retryable", error->retryable}};
+    if (error) payload["error"] = told(Protocol::kMcpStatus, *error);
     send_envelope(Protocol::kMcpStatus, payload.dump(), correlation_id);
 }
 

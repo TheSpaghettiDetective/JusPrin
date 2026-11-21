@@ -3,6 +3,8 @@
 #include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
 #include "slic3r/GUI/JusPrin/Support/Base64.hpp"
 
+#include <boost/log/trivial.hpp>
+
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
@@ -939,6 +941,9 @@ void PrinterConversation::ask_credential(const json& arguments)
 
 void PrinterConversation::end_connect_call(const std::string& state, const std::string& message)
 {
+    // The message names the host, its address and what it answered.
+    if (state != "verified")
+        BOOST_LOG_TRIVIAL(warning) << "JusPrin printer connection " << state << ": " << message;
     const std::string call = std::exchange(m_connect_call, {});
     m_connect_message.clear();
     m_connect_printer.clear();

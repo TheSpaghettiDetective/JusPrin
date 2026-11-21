@@ -114,6 +114,12 @@ private:
     std::optional<AgentError> in_reply_answer(const nlohmann::json& answer) const;
     // Stops the request and throws what the service answered.
     [[noreturn]] void unexpected(const std::string& answered, const std::string& words);
+    // The answer a person is told about, with what the service said, for the
+    // host's log where it tells them.
+    AgentError expected(AgentError error, const std::string& answered, const std::string& words) const;
+    // What the service answered, as the log and a report name it: the
+    // provider, the request, the service's own request id, its words.
+    std::string answer_said(const std::string& answered, const std::string& words) const;
 
     ProviderAgentConfig                   m_config;
     std::unique_ptr<IProviderCodec>       m_codec;

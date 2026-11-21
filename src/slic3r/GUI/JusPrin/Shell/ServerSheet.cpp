@@ -34,6 +34,7 @@
 #include <wx/webview.h>
 
 #include <algorithm>
+#include <string>
 #include <utility>
 
 namespace Slic3r::GUI::JusPrin {
@@ -254,7 +255,7 @@ ServerSheet::ServerSheet(wxWindow* parent, const ShellTheme& theme)
         else
             event.Skip();
     });
-    Bind(wxEVT_TIMER, reported("waiting for an account page", [this](wxTimerEvent&) { if (!m_closing) set_state(State::Failed); }), m_load_deadline.GetId());
+    Bind(wxEVT_TIMER, reported("waiting for an account page", [this](wxTimerEvent&) { if (!m_closing) set_state(State::Failed, "the page did not load in time"); }), m_load_deadline.GetId());
 
     // As wide as the boards draw it, and never taller than the screen it is on.
     wxSize size = FromDIP(wxSize(760, 760));
@@ -332,7 +333,7 @@ void ServerSheet::load()
     request_link([this](std::string url) {
         if (url.empty() || m_view == nullptr) {
             m_load_deadline.Stop();
-            set_state(State::Failed);
+            set_state(State::Failed, "the server gave no link to the page");
             return;
         }
         m_view->LoadURL(wxString::FromUTF8(url));
@@ -353,7 +354,7 @@ void ServerSheet::open_in_browser()
     // A fresh link: the one the sheet opened has been used.
     request_link([this](std::string url) {
         if (url.empty()) {
-            set_state(State::Failed);
+            set_state(State::Failed, "the server gave no link to the page");
             return;
         }
         wxLaunchDefaultBrowser(wxString::FromUTF8(url));
@@ -361,8 +362,10 @@ void ServerSheet::open_in_browser()
     });
 }
 
-void ServerSheet::set_state(State state)
+void ServerSheet::set_state(State state, const std::string& cause)
 {
+    if (state == State::Failed)
+        BOOST_LOG_TRIVIAL(warning) << "JusPrin account page " << m_page << " shows that it could not load: " << cause;
     m_state = state;
     // One sentence per page, so the page's title never goes inside another.
     const bool billing = m_page == "billing";
@@ -402,7 +405,7 @@ void ServerSheet::on_error(wxWebViewEvent& event)
     if (event.GetInt() == wxWEBVIEW_NAV_ERR_USER_CANCELLED || m_closing)
         return;
     m_load_deadline.Stop();
-    set_state(State::Failed);
+    set_state(State::Failed, "web view error " + std::to_string(event.GetInt()) + ": " + event.GetString().ToUTF8().data());
 }
 
 // A link goes to the person's browser: the sheet holds one page. A pop-up

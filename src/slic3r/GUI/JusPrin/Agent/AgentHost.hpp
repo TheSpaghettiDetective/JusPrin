@@ -23,6 +23,8 @@
 #include "slic3r/GUI/JusPrin/Mcp/McpConfigFile.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 
+#include <nlohmann/json.hpp>
+
 #include <deque>
 #include <exception>
 #include <stdexcept>
@@ -443,6 +445,10 @@ private:
     };
 
     void send_envelope(const char* type, const std::string& payload_json, const std::string& correlation_id = {});
+    // An error the page is told about in a `type` message, as the page reads
+    // it. Every such error passes here, so the log keeps each one with what
+    // the other side said (AGENTS.md, Error handling).
+    nlohmann::json told(const char* type, const AgentError& error) const;
     void send_bridge_error(const std::string& code, const std::string& message, const std::string& correlation_id = {});
     void send_state(const std::string& correlation_id = {});
     void send_context();

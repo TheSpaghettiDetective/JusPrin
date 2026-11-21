@@ -179,6 +179,7 @@ void HomeWebView::on_load_error(wxWebViewEvent& event)
 
 void HomeWebView::show_page_error(const wxString& reason)
 {
+    BOOST_LOG_TRIVIAL(error) << "JusPrin Home page shows its error: " << reason.ToUTF8().data();
     m_error->SetLabel(reason);
     m_error->Show();
     Layout();

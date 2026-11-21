@@ -13,6 +13,8 @@
 #include "slic3r/Utils/PrintHost.hpp"
 #include "libslic3r/PrintConfig.hpp"
 
+#include <boost/log/trivial.hpp>
+
 #include <wx/panel.h>
 #include <wx/sizer.h>
 #include <wx/stattext.h>
@@ -21,6 +23,7 @@
 #include <wx/webview.h>
 
 #include <algorithm>
+#include <string>
 
 namespace Slic3r { namespace GUI { namespace JusPrin { namespace Home {
 
@@ -105,7 +108,7 @@ PrinterWindow::PrinterWindow(const std::string& printer_name, const DynamicPrint
             browser->Bind(wxEVT_WEBVIEW_ERROR, &PrinterWindow::on_error, this);
         }
     // A closing window has already let its page go (PopOutWindow::release).
-    Bind(wxEVT_TIMER, reported("waiting for the printer page", [this](wxTimerEvent&) { if (!closing()) show_problem(false); }), m_load_deadline.GetId());
+    Bind(wxEVT_TIMER, reported("waiting for the printer page", [this](wxTimerEvent&) { if (!closing()) show_problem(false, "the page did not load in time"); }), m_load_deadline.GetId());
 
     Show();
     // PrinterWebView defers a load until it is shown, so the load follows Show.
@@ -161,13 +164,14 @@ void PrinterWindow::on_error(wxWebViewEvent& event)
     const int  kind   = event.GetInt();
     const bool secure = kind == wxWEBVIEW_NAV_ERR_CERTIFICATE ||
                         (kind == wxWEBVIEW_NAV_ERR_AUTH && wxString::FromUTF8(m_url).Lower().StartsWith("https://"));
-    show_problem(secure);
+    show_problem(secure, "web view error " + std::to_string(kind) + ": " + event.GetString().ToUTF8().data());
 }
 
-void PrinterWindow::show_problem(bool secure_connection)
+void PrinterWindow::show_problem(bool secure_connection, const std::string& cause)
 {
     if (m_problem->IsShown())
         return;
+    BOOST_LOG_TRIVIAL(warning) << "JusPrin printer window for " << m_address << " shows its problem: " << cause;
     // A new label each time: wx's Wrap() keeps the first text it wrapped and
     // skips a width it has already wrapped at, so a reused one comes back
     // unwrapped, or with the old address.

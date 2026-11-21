@@ -60,7 +60,9 @@ private:
     void on_error(wxWebViewEvent& event);
     // `secure_connection`: the printer answered, but its secure connection
     // could not be checked; otherwise nothing answered.
-    void show_problem(bool secure_connection);
+    // The window's own error screen. `cause` is what went wrong, for the
+    // app's log: every failure the window shows passes here.
+    void show_problem(bool secure_connection, const std::string& cause);
     void hide_problem();
     void apply_appearance();
 

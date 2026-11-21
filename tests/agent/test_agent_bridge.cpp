@@ -27,6 +27,7 @@
 #include "slic3r/GUI/JusPrin/Mcp/McpConnections.hpp"
 #include "../jusprin_support/FakeWorkspace.hpp"
 #include "../jusprin_support/RequestLog.hpp"
+#include "captured_log.hpp"
 #include "kept_turn.hpp"
 #include "mcp_test_directory.hpp"
 
@@ -303,7 +304,8 @@ public:
             events.push_back(AgentEvent::delta("Provider retry discussion"));
             events.push_back(AgentEvent::completed());
         } else if (request.attempt == 1)
-            events.push_back(AgentEvent::failed({"provider_timeout", "The provider timed out.", true}));
+            events.push_back(AgentEvent::failed({"provider_timeout", "The provider timed out.", true,
+                                                  "OpenAI answered HTTP 504 (request r-1 #1): upstream timed out"}));
         else {
             events.push_back(AgentEvent::delta("Recovered without duplicating the turn."));
             events.push_back(AgentEvent::completed());
@@ -579,7 +581,8 @@ TEST_CASE("an unsupported page version is rejected and other traffic requires th
     Harness harness;
 
     SECTION("hello with a foreign version list is rejected") {
-        harness.deliver("hello", json{{"protocolVersions", json::array({99})}});
+        // The page is told, and the fault goes on to the message's top handler.
+        CHECK_THROWS_AS(harness.deliver("hello", json{{"protocolVersions", json::array({99})}}), Slic3r::RuntimeError);
         REQUIRE_FALSE(harness.host.handshake_complete());
         const json* reject = harness.last_of_type("hello_reject");
         REQUIRE(reject != nullptr);
@@ -830,6 +833,31 @@ TEST_CASE("workspace changes push fresh context to the page", "[agent][context]"
         const json renamed = renamed_contexts.back()["payload"]["context"];
         CHECK(renamed["plates"][0]["objects"][0]["name"] == "renamed-cube");
     }
+}
+
+// The chats a newer JusPrin saved are kept aside, and the chat says so: the
+// person can get the new version to see them (Kenneth, 2026-11-21: "yes tell
+// teh person").
+TEST_CASE("a project whose chats a newer JusPrin saved opens with a note saying so", "[agent][persistence]")
+{
+    Workspace::FakeWorkspace workspace(two_object_snapshot());
+    const std::filesystem::path state = std::filesystem::path(workspace.auxiliary_data_dir()) / "JusPrin" / "state.json";
+    std::filesystem::create_directories(state.parent_path());
+    std::ofstream(state) << json{{"schemaVersion", ProjectStateDocument::format().current() + 1}, {"projectId", "p-newer"}}.dump();
+    ProjectPersistence persistence(workspace, test_persistence_config());
+    AgentHost host(workspace, persistence, AgentAvailability::Ready, false, std::make_unique<DeterministicMockAgent>());
+    host.set_send([](const std::string&) {});
+    persistence.attach();
+
+    const auto conversation = host.conversation();
+    REQUIRE(conversation.size() == 1);
+    CHECK(conversation.front().role == MessageRole::Note);
+    CHECK(conversation.front().text ==
+          "This project's chats were saved by a newer version of JusPrin. Get the new version to see them.");
+
+    // A project with no such chats opens with none.
+    workspace.replace_project(two_object_snapshot());
+    CHECK(host.conversation().empty());
 }
 
 TEST_CASE("project replacement invalidates the session in pushed context", "[agent][context]")
@@ -3598,6 +3626,26 @@ TEST_CASE("a provider retry reuses the native message without duplicating the tu
     CHECK(harness.host.conversation().back().attempt == 2);
     CHECK(harness.host.conversation().back().state == MessageState::Complete);
     CHECK(harness.host.conversation().back().text == "Recovered without duplicating the turn.");
+}
+
+// Every error the page is told about passes one place, which writes it to the
+// app's log with what the other side said (AGENTS.md, Error handling).
+TEST_CASE("an error the page is told about is logged with what the service said and the page never gets those words", "[agent][errors]")
+{
+    CapturedLog log;
+    Harness     harness(std::make_unique<RetryingAgent>());
+    harness.handshake();
+
+    harness.send_user_message("try the provider", "logged-c-1");
+    harness.pump_all();
+
+    const json* failed = harness.last_of_type("assistant_failed");
+    REQUIRE(failed != nullptr);
+    CHECK((*failed)["payload"]["error"]["code"] == "provider_timeout");
+    CHECK_THAT(failed->dump(), !Catch::Matchers::ContainsSubstring("upstream timed out"));
+    const std::string lines = log.lines();
+    CHECK_THAT(lines, Catch::Matchers::ContainsSubstring("JusPrin AI page is told assistant_failed provider_timeout"));
+    CHECK_THAT(lines, Catch::Matchers::ContainsSubstring("OpenAI answered HTTP 504 (request r-1 #1): upstream timed out"));
 }
 
 TEST_CASE("provider attachment context is size bounded on a UTF-8 boundary", "[agent][provider][attachments]")

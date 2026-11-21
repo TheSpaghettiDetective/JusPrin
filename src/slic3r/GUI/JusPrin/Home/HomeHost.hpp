@@ -80,6 +80,10 @@ public:
     unsigned long long messages_received() const { return m_received; }
 
 private:
+    // A problem the page is told about in a `type` message. Every one passes
+    // here, so the log keeps each with what the other side said (AGENTS.md,
+    // Error handling).
+    void told(const std::string& type, const std::string& problem, const std::string& said = {}) const;
     Snapshot collect();
     // The backend's printers, led by `m_added` when it is listed.
     std::vector<PrinterEntry> ordered_printers() const;

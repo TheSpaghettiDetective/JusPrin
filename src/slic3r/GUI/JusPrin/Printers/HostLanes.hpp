@@ -127,6 +127,8 @@ struct HostReading
     std::optional<KlipperState> klipper;
     std::optional<HostJob>      last_job;
     std::optional<HostCamera>   camera;
+    // What came back instead, for the log, when it did not answer.
+    std::string failure;
 };
 
 enum class HostLink { Checking, Reachable, Unreachable };
