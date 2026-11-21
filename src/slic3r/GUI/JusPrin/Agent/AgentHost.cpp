@@ -343,6 +343,26 @@ const char* image_mime_for(const std::string& ext)
     return "application/octet-stream";
 }
 
+// The kind of picture an image's first bytes say it is, of the four the AI
+// services take, or nothing. The extension can say otherwise: a phone photo
+// renamed to .jpg, or a PNG saved as one.
+const char* image_mime_in(const std::string& bytes)
+{
+    const auto at = [&bytes](std::size_t offset, const char* signature) {
+        const std::size_t size = std::strlen(signature);
+        return bytes.size() >= offset + size && bytes.compare(offset, size, signature) == 0;
+    };
+    if (at(0, "\x89PNG"))
+        return "image/png";
+    if (at(0, "\xFF\xD8\xFF"))
+        return "image/jpeg";
+    if (at(0, "GIF8"))
+        return "image/gif";
+    if (at(0, "RIFF") && at(8, "WEBP"))
+        return "image/webp";
+    return nullptr;
+}
+
 struct AttachmentClassification
 {
     std::string kind;
@@ -1507,7 +1527,9 @@ void AgentHost::store_file_attachment(AttachmentRecord record, const std::string
     if (bytes.size() > kMaxAttachmentBytes) {
         record.state = "error";
         record.error = AgentError{"too_large", translated(L("This file is too large to attach."))};
-    } else if (record.kind == "unsupported") {
+    } else if (record.kind == "unsupported" || (record.kind == "image" && image_mime_in(bytes) == nullptr)) {
+        // A picture of a kind the AI services refuse is refused here, not
+        // by the service once the message is sent.
         record.state = "error";
         record.error = AgentError{"unsupported_type", translated(L("This file type can't be read by AI."))};
     } else if ((record.kind == "text" || record.kind == "gcode" || record.kind == "svg") && !is_valid_utf8(bytes)) {
@@ -1516,6 +1538,9 @@ void AgentHost::store_file_attachment(AttachmentRecord record, const std::string
     } else {
         m_persistence.write_attachment_blob(record.relative_path(), bytes);
         record.size_bytes = bytes.size();
+        // The service checks the picture is what it is labelled.
+        if (record.kind == "image")
+            record.mime = image_mime_in(bytes);
         if (record.kind == "text" || record.kind == "gcode" || record.kind == "svg") {
             record.preview_text = bytes.size() > kTextPreviewChars ? bytes.substr(0, kTextPreviewChars) : bytes;
         } else if (record.kind == "model") {

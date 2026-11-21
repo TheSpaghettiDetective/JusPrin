@@ -921,7 +921,7 @@ TEST_CASE("the gateway's answers a person can act on are read by their code, and
     CHECK_THROWS_WITH(answer(402, gateway("credits_exhausted")), ContainsSubstring("HTTP 402"));
     CHECK_THROWS_WITH(answer(502, "<html>Bad gateway</html>"), ContainsSubstring("HTTP 502") && ContainsSubstring("Bad gateway"));
 
-    // Partway through a reply, in either format: always thrown.
+    // Partway through a reply, in either format: thrown, but for a chat too long.
     for (const char* format : {kFormatAnthropic, kFormatResponses}) {
         DYNAMIC_SECTION("format " << format)
         {
@@ -944,6 +944,7 @@ TEST_CASE("the gateway's answers a person can act on are read by their code, and
                 return *last->error;
             };
             CHECK_THROWS_WITH(event("rate_limited"), ContainsSubstring("rate_limited") && ContainsSubstring("turn-9"));
+            CHECK(event("request_too_large").code == "request_too_large");
         }
     }
 }

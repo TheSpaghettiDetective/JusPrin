@@ -37,6 +37,11 @@ public:
     void cancel() override {}
 
     void data(std::string value) { callbacks.back()(AgentHttpEvent{AgentHttpEvent::Kind::Data, std::move(value), {}, 0}); }
+    // A refusal as the transport delivers one: the body, curl's words, the status.
+    void refuse(unsigned status, std::string body)
+    {
+        callbacks.back()(AgentHttpEvent{AgentHttpEvent::Kind::Error, std::move(body), "HTTP error", status});
+    }
     json body(std::size_t index) const { return json::parse(requests.at(index).body); }
     json last_body() const { return json::parse(requests.back().body); }
 
@@ -751,4 +756,39 @@ TEST_CASE("each stop reason ends the response as it should", "[agent][anthropic]
         agent.fake->data(sse(json{{"type", "content_block_delta"}, {"index", 3}, {"delta", json{{"type", "text_delta"}, {"text", "x"}}}}));
         CHECK_THROWS_WITH(agent.poll_until(AgentEventKind::Failed), Catch::Matchers::ContainsSubstring("sent a delta for a block it never opened"));
     }
+}
+
+TEST_CASE("Anthropic's refusals that name a cause the person can act on say it", "[agent][anthropic][errors]")
+{
+    struct Case { unsigned status; const char* body; const char* code; };
+    const Case cases[] = {
+        // platform.claude.com/docs/en/api/errors: 402 billing_error.
+        {402, R"({"type":"error","error":{"type":"billing_error","message":"There is an issue with your billing."}})", "provider_credits_exhausted"},
+        // anthropics/anthropic-sdk-typescript#618, 2026-09-17: a low balance as a 400.
+        {400, R"({"type":"error","error":{"type":"invalid_request_error","message":"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits."}})", "provider_credits_exhausted"},
+        // The errors page: 403 permission_error, a key without permission.
+        {403, R"({"type":"error","error":{"type":"permission_error","message":"Your API key does not have permission to use the specified resource."}})", "invalid_credentials"},
+        // The context-windows page: 400 "prompt is too long".
+        {400, R"({"type":"error","error":{"type":"invalid_request_error","message":"prompt is too long: 212834 tokens > 200000 maximum"}})", "request_too_large"},
+        // The vision page, with anthropics/claude-code#49537's words: too many pictures.
+        {400, R"({"type":"error","error":{"type":"invalid_request_error","message":"messages.108.content.3.image.source.base64.data: At least one of the image dimensions exceed max allowed size for many-image requests: 2000 pixels"}})", "request_too_large"},
+    };
+    for (const Case& item : cases) {
+        CAPTURE(item.status, item.body);
+        Agent agent;
+        REQUIRE(agent.service->start(request_fixture()));
+        agent.fake->refuse(item.status, item.body);
+        const auto event = agent.poll_until(AgentEventKind::Failed);
+        REQUIRE(event);
+        REQUIRE(event->error);
+        CHECK(event->error->code == item.code);
+    }
+}
+
+TEST_CASE("Anthropic's other 400s are still unexpected", "[agent][anthropic][errors]")
+{
+    Agent agent;
+    REQUIRE(agent.service->start(request_fixture()));
+    agent.fake->refuse(400, R"({"type":"error","error":{"type":"invalid_request_error","message":"messages.1.content.12.image.source.base64.data: Image does not match the provided media type image/jpeg"}})");
+    CHECK_THROWS_WITH(agent.poll_until(AgentEventKind::Failed), Catch::Matchers::ContainsSubstring("does not match the provided media type"));
 }

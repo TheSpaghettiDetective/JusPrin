@@ -3164,7 +3164,7 @@ TEST_CASE("an image attachment's preview comes from the wired thumbnail maker, a
     // any more: a 300 KiB attachment (comfortably over that old threshold)
     // still reaches the maker with its full, untouched bytes.
     Harness           h;
-    const std::string original(300 * 1024, 'x');
+    const std::string original = std::string("\xFF\xD8\xFF") + std::string(300 * 1024, 'x');
     std::string       seen;
     h.host.set_image_thumbnail_maker([&seen](const std::string& bytes) {
         seen = bytes;
@@ -3176,6 +3176,22 @@ TEST_CASE("an image attachment's preview comes from the wired thumbnail maker, a
     REQUIRE(a.contains("previewDataUrl"));
     CHECK(a["previewDataUrl"] == "data:image/jpeg;base64,Zm9v");
     CHECK(seen == original);
+}
+
+// The AI services refuse a picture that is not what it is labelled, or not
+// one of the kinds they take: the bytes say which it is, not the name.
+TEST_CASE("a picture is what its bytes say, and a file that is no picture the AI takes is refused", "[agent][attachments]")
+{
+    Harness h;
+    h.handshake();
+    // A PNG saved as .jpg.
+    const json png = attach(h, "ca-png", "photo.jpg", std::string("\x89PNG\r\n\x1a\n", 8), "image/jpeg");
+    CHECK(png["state"] == "staged");
+    CHECK(png["mime"] == "image/png");
+    // A phone's HEIC photo renamed to .jpg.
+    const json heic = attach(h, "ca-heic", "IMG_0001.jpg", std::string("\0\0\0\x18" "ftypheic", 12), "image/jpeg");
+    CHECK(heic["state"] == "error");
+    CHECK(heic["error"]["code"] == "unsupported_type");
 }
 
 // A photo goes to the model at the size models look at, not as taken: the
@@ -3192,7 +3208,7 @@ TEST_CASE("an attached image reaches the model as the shrink function returns it
         return std::make_pair(std::string("image/jpeg"), std::string("small"));
     });
     h.handshake();
-    const std::string photo(300 * 1024, 'x');
+    const std::string photo = std::string("\x89PNG") + std::string(300 * 1024, 'x');
     const json image = attach(h, "ca-img", "photo.png", photo, "image/png");
     const json pdf   = attach(h, "ca-pdf", "manual.pdf", "%PDF-1.4 a manual", "application/pdf");
     h.deliver("user_message", json{{"clientMessageId", "c-1"}, {"text", "what is this"},
@@ -3251,7 +3267,7 @@ TEST_CASE("an attachment the project's folder will not take stops the attach", "
     std::filesystem::create_directories(folder);
     std::ofstream(folder / "attachments") << "in the way";
     CHECK_THROWS(h.deliver("attach_file", json{{"clientAttachmentId", "ca-png"}, {"name", "photo.png"}, {"source", "picker"},
-                                               {"dataBase64", b64("pixels")}}));
+                                               {"dataBase64", b64("\x89PNG pixels")}}));
     CHECK(h.of_type("attachment_updated").empty());
     std::filesystem::remove(folder / "attachments");
 }

@@ -37,6 +37,16 @@ Kenneth, 2026-11-16: "if the error is something that user can do nothing about, 
 
 The reporting function is `report_unexpected_error` (`src/slic3r/GUI/JusPrin/Support/ErrorReport.hpp`). This repository has no expected-errors table yet.
 
+### Two kinds of failure
+
+A condition we can name in advance, and that the person can act on, is an expected error. It is designed for when the feature is built, like any other part of the feature, once we have verified how it shows up: from the other side's documentation or a real answer, not from memory.
+
+Everything else is a surprise, an unexpected error. No handling is written for it, it stops the work, and it is reported with everything known. The reporting must be complete, because a surprise that is not reported is lost. A failure that ends in a log line alone, a default value, or a sentence for "anything else" is a hole. Reading the code can check this: from each place work starts, follow a failure up to the handler that reports it.
+
+Reports then show which surprises to fix, and which are really conditions that need a design.
+
+Every failure is written to the log, expected or unexpected. The log is kept as well as the report, never in its place.
+
 ### Expected errors
 
 - Each has an entry in the expected-errors table: the cause, what the person sees, and what they can do next. A new entry needs Kenneth's yes; quote his words in the commit message.

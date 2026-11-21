@@ -16,6 +16,23 @@ The server's expected-errors table is `EXPECTED` in
 through `report_unexpected_error`, the server through Sentry. List an outcome
 that looks designed but has no table entry apart from the other findings.
 
+## What an audit checks
+
+Four things, from "Two kinds of failure" in the rules:
+
+- The reporting is complete. A failure that ends in a log line alone, a
+  default value, a sentence for "anything else", or a callback with no
+  handler above it is a hole.
+- No expected error is handled as an unexpected one: a condition we can name
+  and the person can act on (a rejected key, no credits, a chat too long)
+  that ends in the generic sentence. This is a finding whether or not
+  production has shown it.
+- No expected error is handled on a guess. Say how the signal was verified:
+  the other side's documentation, or a real answer.
+- Every failure is written to the log, expected or unexpected.
+
+Reading does not find the surprises themselves. The reports show those.
+
 ## Audit a commit range
 
 Input: a repository and a range, such as `jusprin/v2.0.0..jusprin-dev`.

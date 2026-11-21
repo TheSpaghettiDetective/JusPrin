@@ -331,12 +331,13 @@ void AnthropicCodec::reset()
 std::vector<StreamEvent> AnthropicCodec::parse(const std::string& payload)
 {
     std::vector<StreamEvent> events;
-    // Never an error a person can act on: the loop stops the turn with what
-    // the service sent.
-    const auto               failed = [&events](std::string text) {
+    // The loop stops the turn with the cause the service's error event names,
+    // or reports what the service sent.
+    const auto               failed = [&events](std::string text, json answer = json()) {
         StreamEvent event;
-        event.kind = StreamEvent::Kind::ServiceError;
-        event.text = std::move(text);
+        event.kind   = StreamEvent::Kind::ServiceError;
+        event.text   = std::move(text);
+        event.answer = std::move(answer);
         events.push_back(std::move(event));
     };
     const json event = json::parse(payload, nullptr, false);
@@ -409,7 +410,7 @@ std::vector<StreamEvent> AnthropicCodec::parse(const std::string& payload)
     } else if (type == "message_stop") {
         events.push_back(finish());
     } else if (type == "error") {
-        failed("sent the event " + payload);
+        failed("sent the event " + payload, event);
     }
     return events;
 }

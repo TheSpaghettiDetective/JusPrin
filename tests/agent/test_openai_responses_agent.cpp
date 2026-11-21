@@ -58,6 +58,11 @@ public:
     {
         callbacks.back()(AgentHttpEvent{AgentHttpEvent::Kind::Error, {}, std::move(detail), status});
     }
+    // A refusal as the transport delivers one: the body, curl's words, the status.
+    void refuse(unsigned status, std::string body)
+    {
+        callbacks.back()(AgentHttpEvent{AgentHttpEvent::Kind::Error, std::move(body), "HTTP error", status});
+    }
 
     std::vector<AgentHttpRequest> requests;
     std::vector<EventFn> callbacks;
@@ -830,6 +835,130 @@ TEST_CASE("OpenAI errors are safe and actionable", "[agent][openai][errors]")
     agent.cancel();
     CHECK(fake->cancelled);
     CHECK_FALSE(agent.busy());
+}
+
+namespace {
+
+// A Responses agent for a provider row, its fake transport, and its first
+// failure. A key check sends the same request, so it ends the same way.
+struct Responses
+{
+    explicit Responses(const char* provider)
+    {
+        auto transport = std::make_unique<FakeTransport>();
+        fake           = transport.get();
+        agent          = make_provider_agent(*profile_for(provider), "sk-secret", "", "", std::move(transport));
+        REQUIRE(agent->start(request_fixture()));
+    }
+    std::optional<AgentError> failure()
+    {
+        for (int i = 0; i < 20; ++i)
+            if (auto event = agent->poll(); event && event->kind == AgentEventKind::Failed)
+                return event->error;
+        return std::nullopt;
+    }
+    FakeTransport*  fake{nullptr};
+    AgentServicePtr agent;
+};
+
+const json kCreated{{"type", "response.created"}, {"sequence_number", 0},
+                    {"response", json{{"id", "resp_1"}, {"status", "in_progress"}, {"output", json::array()}}}};
+
+} // namespace
+
+TEST_CASE("an own account out of credits says so, before the reply or inside it", "[agent][openai][errors]")
+{
+    // Production, Sentry JUSPRIN-APP-4: OpenAI's 200, then an error event.
+    SECTION("OpenAI inside the reply")
+    {
+        Responses r("openai");
+        r.fake->data(sse(kCreated) + sse(json{{"type", "error"}, {"sequence_number", 2},
+            {"error", json{{"type", "insufficient_quota"}, {"code", "credit_balance_exhausted"}, {"param", nullptr},
+                           {"message", "You have no credits remaining. Add credits to continue using the API."}}}}));
+        const auto error = r.failure();
+        REQUIRE(error);
+        CHECK(error->code == "provider_credits_exhausted");
+        CHECK(error->message == "Your OpenAI account is out of credits. Add credits at OpenAI, then try again.");
+        CHECK(r.fake->cancelled);
+        CHECK_FALSE(r.agent->busy());
+        // Nothing more of the reply is read.
+        r.fake->data(sse(json{{"type", "response.failed"}, {"response", json{{"error", json{{"code", "server_error"}}}}}}));
+        CHECK_FALSE(r.agent->poll());
+    }
+    // developers.openai.com/api/docs/guides/error-codes: a 429 with the code.
+    SECTION("OpenAI before the reply")
+    {
+        Responses r("openai");
+        r.fake->refuse(429, R"({"error":{"message":"You have no credits remaining.","type":"insufficient_quota","param":null,"code":"credit_balance_exhausted"}})");
+        const auto error = r.failure();
+        REQUIRE(error);
+        CHECK(error->code == "provider_credits_exhausted");
+    }
+    // openrouter.ai/docs/api/reference/errors-and-debugging: 402.
+    SECTION("OpenRouter")
+    {
+        Responses r("openrouter");
+        r.fake->refuse(402, R"({"error":{"code":402,"message":"Insufficient credits"}})");
+        const auto error = r.failure();
+        REQUIRE(error);
+        CHECK(error->code == "provider_credits_exhausted");
+        CHECK(error->message == "Your OpenRouter account is out of credits. Add credits at OpenRouter, then try again.");
+    }
+}
+
+TEST_CASE("a chat more than the model takes is too large, before the reply or inside it", "[agent][openai][errors]")
+{
+    SECTION("OpenAI's 400")
+    {
+        Responses r("openai");
+        r.fake->refuse(400, R"({"error":{"message":"Your input exceeds the context window of this model.","type":"invalid_request_error","param":"input","code":"context_length_exceeded"}})");
+        const auto error = r.failure();
+        REQUIRE(error);
+        CHECK(error->code == "request_too_large");
+    }
+    // OpenRouter ends the stream with response.failed and the cause in error_type.
+    SECTION("OpenRouter inside the reply")
+    {
+        Responses r("openrouter");
+        r.fake->data(sse(kCreated) + sse(json{{"type", "response.failed"}, {"response", json{
+            {"id", "resp_1"}, {"status", "failed"}, {"error", json{{"code", "invalid_prompt"}, {"message", "Context length exceeded"}}},
+            {"error_type", "context_length_exceeded"}}}}));
+        const auto error = r.failure();
+        REQUIRE(error);
+        CHECK(error->code == "request_too_large");
+    }
+    // The gateway's own event when the provider says so after the 200.
+    SECTION("a JusPrin account inside the reply")
+    {
+        Responses r("jusprin");
+        r.fake->data(sse(kCreated) + sse(json{{"type", "error"}, {"code", "request_too_large"}, {"message", "The request is too large."}}));
+        const auto error = r.failure();
+        REQUIRE(error);
+        CHECK(error->code == "request_too_large");
+    }
+}
+
+TEST_CASE("a 403 or an event that names no cause the person can act on is still unexpected", "[agent][openai][errors]")
+{
+    SECTION("OpenAI's 403 for a country")
+    {
+        Responses r("openai");
+        r.fake->refuse(403, R"({"error":{"code":"unsupported_country_region_territory","message":"Country, region, or territory not supported","param":null,"type":"request_forbidden"}})");
+        CHECK_THROWS_WITH(r.failure(), Catch::Matchers::ContainsSubstring("unsupported_country_region_territory"));
+    }
+    SECTION("a failed response for a picture")
+    {
+        Responses r("openai");
+        r.fake->data(sse(kCreated) + sse(json{{"type", "response.failed"}, {"response", json{
+            {"error", json{{"code", "invalid_image_format"}, {"message", "Invalid image format."}}}}}}));
+        CHECK_THROWS_WITH(r.failure(), Catch::Matchers::ContainsSubstring("invalid_image_format"));
+    }
+    SECTION("the gateway's unexpected answer")
+    {
+        Responses r("jusprin");
+        r.fake->data(sse(kCreated) + sse(json{{"type", "error"}, {"code", "server_error"}, {"message", "Something went wrong on our side"}}));
+        CHECK_THROWS_WITH(r.failure(), Catch::Matchers::ContainsSubstring("server_error"));
+    }
 }
 
 TEST_CASE("reported usage carries the cached share of the input", "[agent][openai][usage]")

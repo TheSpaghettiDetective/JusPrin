@@ -17,6 +17,8 @@
 #include "ProviderCodec.hpp"
 #include "ProviderProfile.hpp"
 
+#include <nlohmann/json.hpp>
+
 #include <deque>
 #include <functional>
 #include <memory>
@@ -107,7 +109,9 @@ private:
     // ProviderAgent.cpp); each throws UnexpectedServiceAnswer when none does.
     AgentError http_error(const AgentHttpEvent& event);
     std::optional<AgentError> gateway_answer(const std::string& code, const std::string& body) const;
-    std::optional<AgentError> provider_answer(unsigned status) const;
+    // status is 0 for an event inside a reply.
+    std::optional<AgentError> provider_answer(unsigned status, const nlohmann::json& answer) const;
+    std::optional<AgentError> in_reply_answer(const nlohmann::json& answer) const;
     // Stops the request and throws what the service answered.
     [[noreturn]] void unexpected(const std::string& answered, const std::string& words);
 

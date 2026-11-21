@@ -173,9 +173,10 @@ std::vector<StreamEvent> ResponsesCodec::parse(const std::string& payload)
             complete.usage = reported;
         }
     } else if (type == "response.incomplete" || type == "response.failed" || type == "error") {
-        // Never an error a person can act on: the loop stops the turn with it.
+        // The loop stops the turn with the cause it names, or reports it.
         StreamEvent& failed = push(StreamEvent::Kind::ServiceError);
-        failed.text = "sent the event " + payload;
+        failed.text   = "sent the event " + payload;
+        failed.answer = event;
     }
     return events;
 }

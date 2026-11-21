@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-20 10:49-0800\n"
+"POT-Creation-Date: 2026-11-20 20:50-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -494,6 +494,12 @@ msgstr "กู้คืนการตั้งค่าโปรเจกต์
 #. TRN The chat list's preview of a message that has only attachments.
 msgid "Attachment"
 msgstr "ไฟล์แนบ"
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI: the person's own account there has no credits left.
+#, boost-format
+msgid "Your %1% account is out of credits. Add credits at %1%, then try again."
+msgstr "บัญชี %1% ของคุณไม่มีเครดิตเหลือแล้ว เพิ่มเครดิตที่ %1% แล้วลองอีกครั้ง"
 
 # AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.

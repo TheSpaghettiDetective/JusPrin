@@ -99,11 +99,14 @@ struct StreamEvent
 {
     // Failed: the model declined to answer. ServiceError: the service said
     // the reply failed, ended it early, or sent what cannot be read; the loop
-    // stops the turn and reports what it sent.
+    // stops the turn with the cause it names, or reports what it sent.
     enum class Kind { TextDelta, TurnComplete, Failed, ServiceError };
     Kind                          kind{Kind::TextDelta};
     // TextDelta: the text. ServiceError: what the service said, for a report.
     std::string                   text;
+    // ServiceError: the event that said the reply failed, as the service sent
+    // it, when one did.
+    nlohmann::json                answer;
     nlohmann::json                assistant_turn; // TurnComplete, opaque to the loop
     std::vector<ProviderToolCall> calls;          // TurnComplete
     std::optional<AgentUsage>     usage;          // TurnComplete, when the provider reported it

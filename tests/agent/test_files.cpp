@@ -47,6 +47,17 @@ TEST_CASE("a written file holds all of its content, in a folder made for it", "[
     fs::remove_all(folder);
 }
 
+TEST_CASE("a file named in any language is written, whatever the system's own language", "[Files]")
+{
+    // On a Windows set to English, these characters have no place in the
+    // system's code page.
+    const fs::path folder = fresh_folder();
+    const fs::path file   = folder / fs::u8path("\xE6\xA8\xA1\xE5\x9E\x8B \xD0\xBA\xD1\x83\xD0\xB1.3mf");
+    write_file(file, "PK");
+    CHECK(read(file) == "PK");
+    fs::remove_all(folder);
+}
+
 #ifndef _WIN32
 // A full disk, made small: the process may not write past 1 KiB in any file.
 TEST_CASE("a write the file system cuts short is an error, not a shorter file", "[Files]")

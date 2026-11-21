@@ -501,9 +501,16 @@ void ProviderAgent::handle(StreamEvent event)
     case StreamEvent::Kind::TextDelta: m_events.push_back(AgentEvent::delta(std::move(event.text))); break;
     case StreamEvent::Kind::TurnComplete: finish_response(std::move(event)); break;
     case StreamEvent::Kind::Failed: fail(std::move(event.error)); break;
-    // An error inside a reply, or a reply cut short or unreadable, names
-    // nothing a person can act on.
-    case StreamEvent::Kind::ServiceError: unexpected(event.text, {});
+    case StreamEvent::Kind::ServiceError: {
+        // An error inside a reply can name a cause a person can act on; a
+        // reply cut short or unreadable names none.
+        std::optional<AgentError> expected = in_reply_answer(event.answer);
+        if (!expected)
+            unexpected(event.text, {});
+        // Nothing more of this reply is read.
+        cancel();
+        m_events.push_back(AgentEvent::failed(std::move(*expected)));
+    }
     }
 }
 
@@ -666,11 +673,74 @@ std::optional<AgentEvent> ProviderAgent::poll()
 // stops and the answer is thrown, to be reported with the service's words.
 //
 //   JusPrin account, by the gateway's code: update_required, unauthorized,
-//   credits_exhausted, request_too_large, rate_limited.
-//   An own key, by the HTTP status: 401, 413, 429.
+//   credits_exhausted, request_too_large, rate_limited; inside a reply,
+//   request_too_large only.
+//   An own key, by what the service names in its answer or in the event that
+//   fails a reply: its account out of credits, the key refused, the chat more
+//   than the model takes, too many requests.
 //   No answer at all: the network.
-//   An error inside a reply is always unexpected.
 namespace {
+
+// What a service's error says, wherever it says it: an HTTP body or an error
+// event ({"error": {...}}, OpenAI's documented flat error event, Anthropic's
+// {"type": "error", "error": {...}}) or a failed response
+// ({"response": {"error": {...}}}). OpenRouter puts its kind of error in
+// error_type, beside the error or in its metadata.
+struct ServiceSays
+{
+    std::string type, code, message, error_type;
+};
+
+std::string string_at(const json& object, const char* key)
+{
+    if (!object.is_object() || !object.contains(key) || !object[key].is_string())
+        return {};
+    return object[key].get<std::string>();
+}
+
+ServiceSays service_says(const json& answer)
+{
+    if (!answer.is_object())
+        return {};
+    const json response = answer.value("response", json());
+    const json error    = answer.value("error", json()).is_object() ? answer["error"] :
+                          response.is_object() && response.value("error", json()).is_object() ? response["error"] :
+                                                                                                 answer;
+    ServiceSays says{string_at(error, "type"), string_at(error, "code"), string_at(error, "message"),
+                     string_at(answer, "error_type")};
+    if (says.error_type.empty())
+        says.error_type = string_at(response, "error_type");
+    if (says.error_type.empty())
+        says.error_type = string_at(error.value("metadata", json()), "error_type");
+    return says;
+}
+
+bool starts_with(const std::string& text, const char* start) { return text.rfind(start, 0) == 0; }
+
+// The person's own account at the service has no money left to pay for the
+// request. OpenAI names it by type (its spend-limit codes share the type) and
+// may send it inside the reply; Anthropic, by its words on a 400.
+bool out_of_credits(unsigned status, const ServiceSays& says)
+{
+    return status == 402 || says.type == "insufficient_quota" || says.code == "credit_balance_exhausted" ||
+           says.error_type == "payment_required" || starts_with(says.message, "Your credit balance is too low");
+}
+
+// The chat is more than the model takes: OpenAI's code, OpenRouter's
+// error_type, Anthropic's words for the context window and for too many
+// pictures in one chat.
+bool too_long(unsigned status, const ServiceSays& says)
+{
+    return status == 413 || says.code == "context_length_exceeded" || says.error_type == "context_length_exceeded" ||
+           starts_with(says.message, "prompt is too long") || says.message.find("many-image requests") != std::string::npos;
+}
+
+AgentError provider_out_of_credits(const std::string& name)
+{
+    return {"provider_credits_exhausted",
+            // TRN %1% is an AI provider, such as OpenAI: the person's own account there has no credits left.
+            Slic3r::format(translated(L("Your %1% account is out of credits. Add credits at %1%, then try again.")), name), false};
+}
 
 AgentError rate_limited(const std::string& name)
 {
@@ -708,7 +778,7 @@ AgentError ProviderAgent::http_error(const AgentHttpEvent& event)
         if (!expected)
             expected = gateway_answer(error_code(event.data), event.data);
     } else {
-        expected = provider_answer(event.status);
+        expected = provider_answer(event.status, json::parse(event.data, nullptr, false));
     }
     if (expected)
         return *expected;
@@ -742,17 +812,33 @@ std::optional<AgentError> ProviderAgent::gateway_answer(const std::string& code,
     return std::nullopt;
 }
 
-std::optional<AgentError> ProviderAgent::provider_answer(unsigned status) const
+std::optional<AgentError> ProviderAgent::provider_answer(unsigned status, const json& answer) const
 {
     const std::string& name = m_config.profile.display_name;
-    if (status == 401)
+    const ServiceSays  says = service_says(answer);
+    if (out_of_credits(status, says))
+        return provider_out_of_credits(name);
+    // Anthropic's 403 is a key without permission for what it asked; OpenAI's
+    // and OpenRouter's 403s name other causes (a country, moderation, a key's
+    // spending limit).
+    if (status == 401 || (status == 403 && says.type == "permission_error"))
         // TRN %1% is an AI provider, such as OpenAI.
         return AgentError{"invalid_credentials", Slic3r::format(translated(L("The %1% API key was rejected. Update the AI configuration and try again.")), name), false};
-    if (status == 413)
+    if (too_long(status, says))
         return too_large(name);
     if (status == 429)
         return rate_limited(name);
     return std::nullopt;
+}
+
+std::optional<AgentError> ProviderAgent::in_reply_answer(const json& answer) const
+{
+    if (!m_config.profile.account_sign_in)
+        return provider_answer(0, answer);
+    // Inside a reply the gateway names one cause a person can act on: a chat
+    // more than the model takes.
+    const std::string code = service_says(answer).code;
+    return code == "request_too_large" ? gateway_answer(code, answer.dump()) : std::nullopt;
 }
 
 void ProviderAgent::unexpected(const std::string& answered, const std::string& words)
