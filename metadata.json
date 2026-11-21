@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7ZG65G17PZ5GB23HBPGHBZ3",
+  "strategy": "manual-commit",
+  "branch": "claude/unblock-hardware-settings",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "src/libslic3r/PrintConfig.cpp",
+    "tests/printer_prompt/run_prompt_tests.py",
+    "tests/workspace/real_adapter_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 300,
+    "cache_creation_tokens": 852869,
+    "cache_read_tokens": 59180412,
+    "output_tokens": 186053,
+    "api_call_count": 150,
+    "subagent_tokens": {
+      "input_tokens": 404,
+      "cache_creation_tokens": 672201,
+      "cache_read_tokens": 21646164,
+      "output_tokens": 126422,
+      "api_call_count": 202
+    }
+  }
+}
