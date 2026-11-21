@@ -1020,6 +1020,7 @@ void PrintConfigDef::init_common_params()
 
     def = this->add("printable_area", coPoints);
     def->label = L("Printable area");
+    def->tooltip = L("Bed shape and size: the corners of the area the printer can print on, as XxY points in mm.");
     //BBS
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionPoints{ Vec2d(0, 0), Vec2d(200, 0), Vec2d(200, 200), Vec2d(0, 200) });

@@ -671,9 +671,21 @@ private:
             check(!printers.current_is_dirty(), "preset_settings_host_connection_fixture_restored");
         }
 
-        // The bed's size is a printer setting like any other: the plate takes
-        // the new size, and the inverse patch puts both back.
+        // The bed's size is a printer setting like any other: a search in
+        // the person's words finds it, the plate takes the new size, and the
+        // inverse patch puts both back.
         {
+            SettingsQuery bed_query{"bed size"};
+            bed_query.target = in_use;
+            const auto found_bed = m_workspace->search_settings(bed_query);
+            std::cerr << "BED SEARCH";
+            for (const auto& item : found_bed.items) std::cerr << ' ' << item.key;
+            std::cerr << (found_bed.truncated ? " (more)" : "") << std::endl;
+            // On the first page, which is what the model reads; other
+            // settings with "bed" in their key rank above it.
+            const auto bed_item = std::find_if(found_bed.items.begin(), found_bed.items.end(),
+                                               [](const SettingDefinition& item) { return item.key == "printable_area"; });
+            check(!found_bed.error && bed_item != found_bed.items.end() && bed_item->writable, "preset_settings_bed_size_found_by_search");
             const bool        bed_dirty_before = printers.current_is_dirty();
             const std::string bed_before = printers.get_edited_preset().config.option("printable_area")->serialize();
             const double      width_before = m_plater->build_volume().bounding_volume2d().size().x();

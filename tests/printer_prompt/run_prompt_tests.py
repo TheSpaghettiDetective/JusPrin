@@ -914,7 +914,12 @@ PRINTER_SETTINGS = {
     "retraction_length": ("0.8", True, "float[]", "Length"),
     "z_hop": ("0.4", True, "float[]", "Z hop height"),
     "nozzle_diameter": ("0.4", True, "float[]", "Nozzle diameter"),
-    "printable_area": ("0x0,220x0,220x220,0x220", True, "point[]", "Printable area"),
+    "printable_area": ("0x0,220x0,220x220,0x220", True, "point[]", "Printable area",
+                       "Bed shape and size: the corners of the area the printer can print on, as XxY points in mm."),
+    # The setting the app's search puts above the bed's size for "bed size".
+    "bed_mesh_probe_distance": ("50x50", True, "point", "Probe point distance",
+                                "This option sets the preferred distance between probe points (grid size) for the X and Y "
+                                "directions, with the default being 50mm for both X and Y."),
     "host_type": ("octoprint", False, "enum", "Host Type"),
 }
 
@@ -1000,16 +1005,26 @@ class SavedPrinterCase:
         context = {"scope": "printer", "presetName": own, "sessionId": "1", "revision": 7, "truncated": False}
         if name == "settings_search":
             words = [w for w in re.split(r"[\s,;]+", str(arguments.get("query", "")).lower()) if w]
-            items = [{"key": key, "type": kind, "label": label, "category": "Machine", "description": label, "unit": "",
-                      "enumValues": [], "enumLabels": [], "writable": writable, "truncated": False}
-                     for key, (_, writable, kind, label) in PRINTER_SETTINGS.items()
-                     if not words or any(w in key or w in label.lower() for w in words)]
+            # Ranked as search_setting_definitions ranks: the settings that
+            # match more of the words first, then by where the best word
+            # matched (key, label, description), then by key.
+            def score(key, row):
+                fields = (key, row[3].lower(), (row[4] if len(row) > 4 else row[3]).lower())
+                ranks = [next((1 + i for i, field in enumerate(fields) if w in field), None) for w in words]
+                found = [r for r in ranks if r is not None]
+                return ((len(words) - len(found)) * 4 + min(found), key) if found else None
+            ranked = sorted((score(key, row), key, row) for key, row in PRINTER_SETTINGS.items()
+                            if not words or score(key, row))
+            items = [{"key": key, "type": row[2], "label": row[3], "category": "Machine",
+                      "description": row[4] if len(row) > 4 else row[3], "unit": "",
+                      "enumValues": [], "enumLabels": [], "writable": row[1], "truncated": False}
+                     for _, key, row in ranked]
             return {**context, "items": items, "nextCursor": ""}, False
         if name == "settings_get":
             items, unknown = [], []
             for key in arguments.get("keys", []):
                 if key in PRINTER_SETTINGS:
-                    value, writable, kind, label = PRINTER_SETTINGS[key]
+                    value, writable, kind, label = PRINTER_SETTINGS[key][:4]
                     items.append({"key": key, "value": value, "type": kind, "label": label, "unit": "",
                                   "differsFromPreset": False, "differsFromSystem": False, "writable": writable})
                 else:
