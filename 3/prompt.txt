@@ -1,0 +1,239 @@
+<task-notification>
+<task-id>a08367e95c2cec09d</task-id>
+<tool-use-id>toolu_01UV4mngnf4JDhJeyxSgd7Qn</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/bde68f1c-1e1c-473a-a58d-d9f587397940/tasks/a08367e95c2cec09d.output</output-file>
+<status>completed</status>
+<summary>Agent "Anthropic error docs research" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>**Anthropic Messages API: how each failure is answered (docs, SDKs, community reports)**
+
+All of Anthropic's error bodies have the shape `{"type":"error","error":{"type":...,"message":...},"request_id":"req_..."}`. Errors page (https://platform.claude.com/docs/en/api/errors): "values within these objects can expand, and new `type` values can appear." The spend-cap error, for example, also carries `error.details.error_code`.
+
+**Can it arrive as HTTP 200 with `event: error`?** Yes, for any error type. The errors page says "an error can occur after the API returns a 200 response". The streaming page (https://platform.claude.com/docs/en/build-with-claude/streaming#error-events) shows `event: error` with `data: {"type": "error", "error": {"type": "overloaded_error", "message": "Overloaded"}}`. Overloaded is the only example the docs give. The other errors below are documented only as HTTP statuses, and no page says which ones can also come mid-stream.
+- SDK source: the TypeScript SDK (`src/core/streaming.ts`) throws `APIError` with no status and copies `body.error.type`.
+- The Python SDK (`_streaming.py`) calls `_make_status_error` with the stream's own response, which has status 200.
+
+**1. Out of credits, billing and spend limits**
+- **Documented:** "402 - `billing_error`: There's an issue with your billing or payment information." No doc says the low-balance case uses 402.
+- **Community:** reports say a low balance returns HTTP 400 `invalid_request_error` with "Your credit balance is too low to access the Anthropic API. Please go to Plans &amp; Billing to upgrade or purchase credits."
+  - It was first reported in Nov 2024 (https://github.com/anthropics/anthropic-sdk-typescript/issues/618).
+  - In April 2026 a maintainer closed that issue, saying the API "now returns a distinct billing error type".
+  - In September 2026 a commenter on the same issue posted a raw 400 with the same text. That contradicts the maintainer's claim, so in practice it is probably still a 400.
+  - The SDK source I checked has no `BillingError` class. There is only `PaymentRequiredError` for 402, and `billing_error` is in the Python `ErrorType` list.
+  - The help center (https://support.claude.com/en/articles/8977456) covers buying credits but not the error.
+- **Documented, a spend limit you set** (https://platform.claude.com/docs/en/api/rate-limits): HTTP 400 `invalid_request_error`. The message starts "You have reached your specified API usage limits", or "...specified workspace API usage limits" for a workspace limit.
+- **Documented, the usage tier's monthly cap:** HTTP 429 `rate_limit_error` with `details.error_code: "enforced_spend_limit_reached"`. It has "no `retry-after` header", and retries keep failing until the next month begins.
+- **Documented, ramp limit:** 429 `rate_limit_error` with `error_code: "ramp_limit_exceeded"`.
+
+**2. 403 `permission_error`**
+- **Documented:** "Your API key does not have permission to use the specified resource." That is the only cause the docs give. Nothing documents a region block as 403.
+- **Community:** reports describe a region block as a 400, "Access to Anthropic models is not allowed from unsupported countries, regions, or territories", but that report was on Bedrock. Separately, "Request not allowed" 403s show up in Claude Code and Dify issues, with no cause named.
+
+**3. 401 `authentication_error`**
+- **Documented:** the API key is "malformed, revoked, or expired".
+- Also documented: a 401 starting "CORS requests are not allowed for this Organization" means the request carried an `Origin` header (a browser call). It is not a key problem.
+
+**4. Conversation too long, request too large**
+- **Documented** (https://platform.claude.com/docs/en/build-with-claude/context-windows): "the API returns a 400 `invalid_request_error` ("prompt is too long") on every model."
+- The full text "prompt is too long: N tokens &gt; M maximum" is not in Anthropic's docs. Only community error pages show it.
+- On Claude 4.5 and newer, if the input plus `max_tokens` is larger than the window, the API accepts the request and stops with `stop_reason: "model_context_window_exceeded"`.
+- **Documented:** 413 `request_too_large`, "Request exceeds the maximum allowed number of bytes." The limit is 128 MB for the Messages API, not 32 MB. "Cloudflare returns this error before the request reaches the API servers", so the body may not be Anthropic's JSON (this last point is my inference).
+
+**5. Images and PDFs**
+- **Documented** (https://platform.claude.com/docs/en/build-with-claude/vision):
+  - Up to 10 MB per image, base64-encoded, on the Claude API (5 MB on Bedrock).
+  - At most 8000x8000 px.
+  - Up to 600 images per request (100 on 200k-window models).
+  - JPEG, PNG, GIF and WebP only.
+  - With more than 20 images in one request, a stricter size limit applies. Images over it get an `invalid_request_error` that mentions "many-image requests" and gives the limit in pixels.
+  - Oversized images are scaled down, not refused, unless the request sets `oversized_image: "error"`.
+- **Documented** (https://platform.claude.com/docs/en/build-with-claude/pdf-support): up to 600 pages per request (100 below a 1M window), and PDFs with passwords or encryption are not supported. The docs give no status or message for breaking these limits.
+- **Community** (claude-code issues 8091, 2104, 19631 and others): 400 `invalid_request_error` with "image exceeds 5 MB maximum: N bytes &gt; 5242880 bytes", and 400 "Could not process image". These reports predate the 10 MB figure now on the vision page.
+
+**6. Error list as the Errors page shows it today**
+- 400 `invalid_request_error`, also used "for other 4XX status codes not listed"
+- 401 `authentication_error`
+- 402 `billing_error`
+- 403 `permission_error`
+- 404 `not_found_error`
+- 409 `conflict_error`
+- 413 `request_too_large`
+- 429 `rate_limit_error`
+- 500 `api_error`
+- 504 `timeout_error`, which "also" comes "with other status codes, such as a 500"
+- 529 `overloaded_error`
+
+The Python SDK's `ErrorType` list adds `memory_precondition_failed_error` and `memory_path_conflict_error`. The SDKs also map 408, 412, 422, 431, 499, 501 and 503 to their own classes.
+
+**Still open:** I could not confirm whether running out of credits now returns 402 `billing_error` or the old 400 message. Settling that would take one real request on an account with no credits, which I did not make.</result>
+<usage><subagent_tokens>141833</subagent_tokens><tool_uses>22</tool_uses><duration_ms>105368</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a6ec2b923002804fa</task-id>
+<tool-use-id>toolu_01S6rkX6nh9WefN3oGYtoSg5</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/bde68f1c-1e1c-473a-a58d-d9f587397940/tasks/a6ec2b923002804fa.output</output-file>
+<status>completed</status>
+<summary>Agent "OpenAI error docs research" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I could only partly get what you asked for. OpenAI's own docs and spec cover the status codes and the body shapes. They don't say which failures arrive inside the stream instead of as an HTTP error, and that part rests on SDK code and community reports.
+
+**Where the facts come from.** I used the error-codes guide (https://developers.openai.com/api/docs/guides/error-codes, where platform.openai.com now redirects), the help center, and two files in openai-python: `types/responses/*.py` and `api_reference/openapi.transformed.yml`, the OpenAPI spec bundled in the repo (cloned today).
+
+**HTTP error body shape (documented).** The spec defines `ErrorResponse` as `{"error": {"message", "type", "code"|null, "param"|null}}`. Its schema for `POST /responses` lists only 200, 400, 404, 429 and 503. It lists no 401, 403 or 413.
+
+## 1. Out of credits or quota
+- **Documented: HTTP 429, `code: credit_balance_exhausted`.** The guide says: "Your organization has no prepaid credits remaining."
+- **Documented: three other HTTP 429 codes** with the same meaning: `organization_spend_limit_exceeded`, `project_spend_limit_exceeded` and `organization_usage_limit_exceeded`.
+- **Documented: `type` may be `insufficient_quota`.** The guide says "The broader `error.type` can still be `insufficient_quota`" and tells you to "inspect `error.code`" instead. Help article https://help.openai.com/en/articles/5955604 says the same and lists the same four codes.
+- **Not found in any OpenAI doc: `billing_hard_limit_reached`.** Community posts report it as HTTP 400 `invalid_request_error`. The old 429 "You exceeded your current quota" with `type` and `code` both `insufficient_quota` also appears only in community posts. The current guide has no such entry.
+- **SDK only: two more codes.** The `SessionTurnErrorCode` list (beta Agent Sessions, not Responses) adds `usage_limit_exceeded` and `billing_not_active`.
+- **Inside the stream:** no doc says a quota error can arrive inside an HTTP 200 stream. Your production event is the only evidence. None of these codes is in the `response.failed` code list.
+
+## 2. HTTP 403
+- **Documented:** only one cause, "403 - Country, region, or territory not supported". The fix is to call from a supported location (https://help.openai.com/en/articles/7947663).
+- **Community:** that error's body is `type: request_forbidden`, `code: unsupported_country_region_territory`. It often comes from wrong IP geolocation or traffic leaving through another region.
+- **Community:** "Your organization must be verified to use the model" is a 403. The fix is to verify the organization (help article 10910291 describes verification but gives no status code).
+- **Community:** "Project … does not have access to model …" is a 403 with `code: model_not_found`. The fix is the project's allowed-models setting or a new key.
+- **Inside the stream:** not documented for any 403 cause.
+
+## 3. HTTP 401 (documented, all four)
+- "Invalid Authentication": a revoked key, a key from another organization or project, or a key without the endpoint's permissions.
+- "Incorrect API key provided".
+- "You must be a member of an organization to use the API".
+- "IP not authorized": the request IP doesn't match the IP allowlist.
+- **Community:** restricted keys get a 401 saying "Missing scopes: api.responses.write". Some of these reports are intermittent on keys with full permissions.
+
+## 4. Conversation too long for the context window
+- **Documented:** with the `truncation` parameter at its default, "the request will fail with a 400 error" (spec, `CreateResponse.truncation`). Setting `auto` drops the oldest items instead.
+- **Community:** the body is `invalid_request_error`, `param: "input"`, `code: context_length_exceeded`.
+- **Not documented:** `context_length_exceeded` is not a `response.failed` code. `response.incomplete` reasons are only `max_output_tokens`, `max_messages`, `content_filter` and `steered`. HTTP 413 is not documented for `/responses`.
+
+## 5. Image or PDF that OpenAI refuses
+- **Documented limits:** images must be PNG, JPEG, WEBP or non-animated GIF, at most 512 MB per request and 30,000 patches per image. The images guide says images over the patch limit "are rejected, not automatically resized". For files, "each file must be under 50 MB", and 50 MB for all files combined. No HTTP status is documented for any of these.
+- **Documented:** the `response.failed` code list has 14 image codes (below), so image failures can arrive in the stream as `response.failed`. There is no `invalid_base64`; the code is `invalid_base64_image`. No PDF-specific code exists.
+- **Community:** many reports of HTTP 400 `invalid_request_error`.
+
+## 6. The `response.failed` code list and the `error` event shape
+- **Documented, identical in the spec and `response_error.py` (SDK commit of 2026-10-15), 21 codes:** `server_error`, `rate_limit_exceeded`, `invalid_prompt`, `data_residency_mismatch`, `bio_policy`, `misalignment_policy_violation`, `vector_store_timeout`, `invalid_image`, `invalid_image_format`, `invalid_base64_image`, `invalid_image_url`, `image_too_large`, `image_too_small`, `image_parse_error`, `image_content_policy_violation`, `invalid_image_mode`, `image_file_too_large`, `unsupported_image_media_type`, `empty_image_file`, `failed_to_download_image`, `image_file_not_found`. Your list was missing three: `data_residency_mismatch`, `bio_policy` and `misalignment_policy_violation`.
+- **`ResponseError` fields:** `code` and `message` are required; `type`, `param` and `misalignment` are optional. `type` is "The original error type, or null if it was not recorded".
+- **Documented `error` event (`ResponseErrorEvent`) is flat:** `{"type":"error","code":str|null,"message":str,"param":str|null,"sequence_number":int}`. It has no nested `error` object.
+- **Reality is nested.** A community post from 2025-09 (https://community.openai.com/t/1358301) shows `{"type":"error","sequence_number":2,"error":{"type":"invalid_request_error","code":null,...}}`. That matches your production event, so the documented shape is wrong.
+- **Both SDKs expect the nested shape.** openai-node throws `APIError(data?.error ?? data)` on `event: error` and whenever `data.error` is present (`src/core/streaming.ts`). openai-python does the same for `data["error"]`.
+- **Maintainer statement:** an OpenAI maintainer, closing openai-python issue #2699, wrote that "errors delivered inside an established stream are surfaced to the application" and that the SDK retries only the first request.
+
+**What's still open:** a parser should accept both the nested and the flat `error` event. No OpenAI source lists which HTTP errors can instead come inside an HTTP 200 stream.</result>
+<usage><subagent_tokens>139004</subagent_tokens><tool_uses>42</tool_uses><duration_ms>416868</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bs5dp9k05</task-id>
+<tool-use-id>toolu_01VFcKpdmcijDmmQ8KD6YW8J</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/bde68f1c-1e1c-473a-a58d-d9f587397940/tasks/bs5dp9k05.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the Windows before run and read results" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bpu8vl2be</task-id>
+<tool-use-id>toolu_013tUAG6V376v1ihCtBCFcnp</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/bde68f1c-1e1c-473a-a58d-d9f587397940/tasks/bpu8vl2be.output</output-file>
+<status>completed</status>
+<summary>Background command "Apply dropped-file fix on Windows and rerun tests" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>blpbdgm79</task-id>
+<tool-use-id>toolu_01DjoRM2V82fLa7n6AMJYJXM</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/bde68f1c-1e1c-473a-a58d-d9f587397940/tasks/blpbdgm79.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the server's JusPrin 2 test suite" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bug5xq7fk</task-id>
+<tool-use-id>toolu_01Ke12kvTdv1L9aU2v1ALtWj</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/bde68f1c-1e1c-473a-a58d-d9f587397940/tasks/bug5xq7fk.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the Mac build to finish" completed (exit code 1: No matches found)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b63tz9am4</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/bde68f1c-1e1c-473a-a58d-d9f587397940/tasks/b63tz9am4.output</output-file>
+<status>failed</status>
+<summary>Background command "Start the stand-in AI service" failed with exit code 144</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>blb44au3f</task-id>
+<tool-use-id>toolu_01AuP9G3uF4ApRbii2jFGPRu</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/bde68f1c-1e1c-473a-a58d-d9f587397940/tasks/blb44au3f.output</output-file>
+<status>failed</status>
+<summary>Background command "Launch the unfixed scratch app against the stand-in" failed with exit code 144</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b6sv37op1</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/bde68f1c-1e1c-473a-a58d-d9f587397940/tasks/b6sv37op1.output</output-file>
+<status>failed</status>
+<summary>Background command "Relaunch the unfixed scratch app with the full endpoint URL" failed with exit code 144</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bfjuriz7m</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/bde68f1c-1e1c-473a-a58d-d9f587397940/tasks/bfjuriz7m.output</output-file>
+<status>completed</status>
+<summary>Background command "Build the app and agent tests with four jobs" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b8qv20tk7</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/bde68f1c-1e1c-473a-a58d-d9f587397940/tasks/b8qv20tk7.output</output-file>
+<status>completed</status>
+<summary>Background command "Run every failure answer through the fixed app and record what it shows" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bq9mevok1</task-id>
+<tool-use-id>toolu_01WkRSXwPy1SX1cL4fohqSPK</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/bde68f1c-1e1c-473a-a58d-d9f587397940/tasks/bq9mevok1.output</output-file>
+<status>failed</status>
+<summary>Background command "Launch the fixed scratch app against the stand-in" failed with exit code 144</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b13uv3ns0</task-id>
+<tool-use-id>toolu_01HPSEHVx5vHkauNV4Zfm8Ss</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/bde68f1c-1e1c-473a-a58d-d9f587397940/tasks/b13uv3ns0.output</output-file>
+<status>failed</status>
+<summary>Background command "Restart the stand-in AI service" failed with exit code 144</summary>
+</task-notification>
