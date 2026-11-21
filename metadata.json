@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7ZDD5XKZPPQH2S48EA3Y3DP",
   "strategy": "manual-commit",
   "branch": "fix-import-window-cancel",
-  "checkpoints_count": 4,
+  "checkpoints_count": 5,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/Home/OrcaImportWindow.cpp",
     "tests/shell/orca_import_scenario.inc",
@@ -23,14 +23,21 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 78,
-    "cache_creation_tokens": 404153,
-    "cache_read_tokens": 17041929,
-    "output_tokens": 39658,
-    "api_call_count": 39,
+    "input_tokens": 196,
+    "cache_creation_tokens": 556493,
+    "cache_read_tokens": 26417816,
+    "output_tokens": 69024,
+    "api_call_count": 98,
     "subagent_tokens": {
       "input_tokens": 0,
       "cache_creation_tokens": 0,
