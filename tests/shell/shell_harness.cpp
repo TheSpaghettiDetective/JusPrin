@@ -369,6 +369,11 @@
 //              Delete account in Preferences, against a stand-in server,
 //              waits while a reply runs in a printer chat and goes through
 //              once it ends
+//   --orca-import-cancel
+//              Import printers from OrcaSlicer… with a settings change not
+//              yet saved: Import, then Cancel on the question about the
+//              unsaved change, leaves the window on its list with its buttons
+//              to press again
 //   --printer-window [capture-dir]
 //              what a printer window from Home says when its page does not
 //              load: an https address on a printer that only speaks http, and
@@ -491,6 +496,7 @@
 #include "slic3r/GUI/JusPrin/Printers/PrinterOrigin.hpp"
 #include "slic3r/GUI/JusPrin/Home/HomeWebView.hpp"
 #include "slic3r/GUI/JusPrin/Home/OrcaHomeBackend.hpp"
+#include "slic3r/GUI/JusPrin/Home/OrcaImportWindow.hpp"
 #include "slic3r/GUI/JusPrin/Home/PrinterWindow.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/ParamsDialog.hpp"
@@ -1630,6 +1636,7 @@ struct HarnessState
         ServerSheetPopup,
         PrinterChatSheet,
         DeleteAccountWaits,
+        OrcaImportCancel,
         PrinterWindow,
         RemoveKeyFails,
         ViewStartFails,
@@ -2253,6 +2260,10 @@ public:
             }
             if (m_state->mode == HarnessState::Mode::DeleteAccountWaits) {
                 verify_delete_account_waits();
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::OrcaImportCancel) {
+                verify_orca_import_cancel();
                 return;
             }
             if (m_state->mode == HarnessState::Mode::ExternalProjectHistory) {
@@ -13425,6 +13436,7 @@ private:
 #include "project_prompt_scenario.inc"
 #include "account_box_scenario.inc"
 #include "preferences_capture_scenario.inc"
+#include "orca_import_scenario.inc"
 #include "server_sheet_scenario.inc"
 
     void write_screen_capture(const wxRect& rect, const std::string& name)
@@ -17397,6 +17409,8 @@ int main(int argc, char** argv)
         else if (argument == "--delete-account-waits") {
             state->mode = HarnessState::Mode::DeleteAccountWaits;
         }
+        else if (argument == "--orca-import-cancel")
+            state->mode = HarnessState::Mode::OrcaImportCancel;
         else if (argument == "--server-sheet-popup") {
             state->mode = HarnessState::Mode::ServerSheetPopup;
             // Optionally a folder for a picture of the pop-up.

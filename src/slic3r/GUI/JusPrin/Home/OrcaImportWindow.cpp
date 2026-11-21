@@ -161,8 +161,12 @@ void OrcaImportWindow::import(const std::vector<std::string>& printers)
         !wxGetApp().check_and_save_current_preset_changes(wxString::Format(_L("Import from %s"), wxString::FromUTF8(m_app.name)),
                                                           _L("Importing these printers loads their profiles, which replaces "
                                                              "unsaved changes to the project's settings."),
-                                                          false))
+                                                          false)) {
+        // The page says "Importing…" until it hears back; nothing was
+        // imported, so it hears the list it already showed.
+        m_view->host().refresh_page_state();
         return;
+    }
     m_error.clear();
     m_result = m_importer.bring(m_source, chosen.profile_printers, chosen.files, OrcaImporter::Selection::Kept);
     SetTitle(wxString::Format(_L("Imported from %s"), wxString::FromUTF8(m_app.name)));
