@@ -1,0 +1,31 @@
+<task-notification>
+<task-id>bubcajj3s</task-id>
+<tool-use-id>toolu_01XANfb9mm52nmXQXaG67YCu</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/9ad0fe47-feb0-4986-a1da-1569ea594e1f/tasks/bubcajj3s.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the build to finish or report progress after ten minutes" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<cross-session-message from="local_945a3b77-e9b2-47be-909a-8f29fba8722e" from-name="btw: How do we make sure that a message will always get one and…">
+Kenneth asks you to start a design for "every waited-on page message gets exactly one answer" if your reproduction of the stuck buttons comes back positive.
+This comes from a side session Kenneth forked from yours while you were starting the reproduction. His words there: "Tell the main session to start a design on this if the reproduction comes back positive."
+
+"This" is the proposal from your report for buttons a page greys while it waits for the app: a message that expects an answer always gets exactly one, success or failure, tied to that message's id, and the page's waiting state is "this request has no answer yet". It is still a proposal; he has asked for a design, not approved one.
+
+What was discussed in the side session, so the design can start from it:
+
+1. Nothing enforces the rule today. The app reads each message's id and can stamp a reply with correlationId, but each handler decides by hand; the page's send() returns nothing (WebShared/bridgeClient.ts:158) and the reducers never read correlationId; the top-level catch around page messages reports and sends nothing back.
+
+2. The shape I described to him (mine, not prototyped): a reply object per waited-on request, created at the entry point and passed to the handler. It answers at most once (a second answer throws). If it is destroyed without answering, its destructor sends a generic failure for that id, which covers early returns, throws and dropped callbacks. A handler that finishes later moves the object into its callback. On the page, a send-and-wait function returns a promise that settles on the reply with that id; a greyed button is that promise pending.
+
+3. Size, as I told him: additive, no change to the envelope format, not a rewrite. Roughly 86 dispatch branches exist (42 in Agent/AgentHost.cpp, 44 in Home/HomeHost.cpp, from a quick count); only the seven waits your survey found need converting, one at a time. The careful part is handlers that answer later (import, print report, connecting an AI tool). These counts and the size are my estimate, not measured.
+
+4. Kenneth's positions on the three limits:
+   - Work that never ends: he wants a time limit added. I recommended putting it on the work itself where it is missing (sign-in is already capped at 30 s, account deletion at 60 s) rather than a blanket backstop on the reply object, because a backstop firing on a slow import would report a failure that did not happen. He has not answered that distinction.
+   - Page reload mid-request: he says not to worry about it. The code agrees: AgentWebView::reload() (Agent/AgentWebView.cpp:335) runs only after a failed load or handshake, and every load resets the host and re-handshakes (line 266). I did not check reload()'s callers.
+   - Messages that expect no answer: he sees them as the default case, not a blocker. Agreed: a message sent the old way gets no reply object and behaves as today; only send-and-wait opts in.
+
+He did not say what counts as "positive" or whether the design should also cover the chat page's busy value (your timer compare-and-send proposal). Ask him if either is unclear. Do not reply to me; this side session will not relay it.
+</cross-session-message>

@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7ZBK06XR1KF1KP7A5GEVCHH",
   "strategy": "manual-commit",
   "branch": "claude/error-lesson-docs",
-  "checkpoints_count": 3,
+  "checkpoints_count": 8,
   "files_touched": [
     "AGENTS.md",
     "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
@@ -56,20 +56,27 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 482,
-    "cache_creation_tokens": 2879807,
-    "cache_read_tokens": 68394493,
-    "output_tokens": 288503,
-    "api_call_count": 241,
+    "input_tokens": 736,
+    "cache_creation_tokens": 3337894,
+    "cache_read_tokens": 101143128,
+    "output_tokens": 411096,
+    "api_call_count": 368,
     "subagent_tokens": {
-      "input_tokens": 102,
-      "cache_creation_tokens": 1182415,
-      "cache_read_tokens": 6182447,
-      "output_tokens": 49090,
-      "api_call_count": 51
+      "input_tokens": 310,
+      "cache_creation_tokens": 1856388,
+      "cache_read_tokens": 24912059,
+      "output_tokens": 148837,
+      "api_call_count": 155
     }
   }
 }
