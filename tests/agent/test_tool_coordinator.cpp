@@ -1922,8 +1922,11 @@ TEST_CASE("a preset that is not being edited changes only by being saved", "[too
     // One code for OrcaSlicer's own read-only settings and for the fork's
     // blocked keys: the next step is the same for both (choose another key),
     // so the two are deliberately not told apart.
-    CHECK(preview(json{{"scope", "filament"}, {"target", petg}, {"changes", {{"compatible_printers", "Any"}}}, {"persistAs", "x"}})["issues"][0]["code"] ==
+    CHECK(preview(json{{"scope", "printer"}, {"target", {{"preset", "Fixture printer"}}}, {"changes", {{"printhost_apikey", "key"}}}, {"persistAs", "x"}})["issues"][0]["code"] ==
           "unsupported_setting_mutation");
+    // Which printers a filament fits is a setting like any other.
+    CHECK(preview(json{{"scope", "filament"}, {"target", petg}, {"changes", {{"compatible_printers", "Any"}}}, {"persistAs", "x"}})["changes"][0]["key"] ==
+          "compatible_printers");
 
     const std::string id = h.coordinator.submit({"settings_get", json{{"scope", "printer"}, {"target", {{"preset", "Nope"}}},
                                                                      {"keys", {"machine_start_gcode"}}}.dump()}, "m-2").action_id;

@@ -1,3 +1,5 @@
+#include "libslic3r/BoundingBox.hpp"
+#include "libslic3r/BuildVolume.hpp"
 #include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/miniz_extension.hpp"
 #include "libslic3r/Thread.hpp"
@@ -41,6 +43,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cctype>
+#include <cmath>
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
@@ -591,7 +594,7 @@ private:
 
         const std::string printer = printers.get_selected_preset_name();
         const SettingsTarget in_use{SettingsScope::Printer, {}, printer};
-        const auto read = m_workspace->read_settings({"machine_start_gcode", "nozzle_diameter"}, in_use);
+        const auto read = m_workspace->read_settings({"machine_start_gcode", "host_type"}, in_use);
         check(!read.error && read.preset == printer && read.items.size() == 2 &&
                   read.items[0].value == printers.get_edited_preset().config.opt_serialize("machine_start_gcode") &&
                   read.items[0].definition.writable && !read.items[1].definition.writable,
@@ -666,6 +669,26 @@ private:
                   "preset_settings_host_connection_not_patched");
             edited.set_key_value("printhost_apikey", new ConfigOptionString(before));
             check(!printers.current_is_dirty(), "preset_settings_host_connection_fixture_restored");
+        }
+
+        // The bed's size is a printer setting like any other: the plate takes
+        // the new size, and the inverse patch puts both back.
+        {
+            const bool        bed_dirty_before = printers.current_is_dirty();
+            const std::string bed_before = printers.get_edited_preset().config.option("printable_area")->serialize();
+            const double      width_before = m_plater->build_volume().bounding_volume2d().size().x();
+            const double      side = std::abs(width_before - 250.) < 1. ? 240. : 250.;
+            const std::string edge = std::to_string(int(side));
+            const SettingsPatch bed{{{"printable_area", "0x0," + edge + "x0," + edge + "x" + edge + ",0x" + edge}}, in_use};
+            check(m_workspace->apply_settings(bed, expected(bed), applied).succeeded() && printers.current_is_dirty(),
+                  "preset_settings_bed_size_applied");
+            const BoundingBoxf plate = m_plater->build_volume().bounding_volume2d();
+            std::cerr << "BED SIZE asked " << side << " plate " << plate.size().x() << " x " << plate.size().y() << " was " << width_before << std::endl;
+            check(std::abs(plate.size().x() - side) < 0.01 && std::abs(plate.size().y() - side) < 0.01, "preset_settings_bed_size_reaches_the_plate");
+            const SettingsPatch back{{{"printable_area", bed_before}}, in_use};
+            check(m_workspace->apply_settings(back, expected(back), applied).succeeded() && printers.current_is_dirty() == bed_dirty_before &&
+                      std::abs(m_plater->build_volume().bounding_volume2d().size().x() - width_before) < 0.01,
+                  "preset_settings_bed_size_restored");
         }
 
         // The gcode goes through Tab::load_config, unsaved, as a process edit does.
@@ -809,9 +832,40 @@ private:
     {
         const bool        list = def.type.size() > 2 && def.type.compare(def.type.size() - 2, 2, "[]") == 0;
         const std::string type = list ? def.type.substr(0, def.type.size() - 2) : def.type;
-        if (type == "string")
-            return !list && (def.key.find("gcode") != std::string::npos || def.key.find("notes") != std::string::npos) ?
-                       std::optional<std::string>(current + "\n; sweep") : std::nullopt;
+        if (type == "string") {
+            if (!list && (def.key.find("gcode") != std::string::npos || def.key.find("notes") != std::string::npos))
+                return current + "\n; sweep";
+            if (!list) return current.empty() ? std::string("sweep") : current + " sweep";
+            // A list of texts keeps its length: each one gains a word.
+            if (current.empty()) return std::string("\"sweep\"");
+            std::string result;
+            for (std::size_t start = 0; start <= current.size();) {
+                const std::size_t end = std::min(current.find(';', start), current.size());
+                std::string       one = current.substr(start, end - start);
+                if (one.size() >= 2 && one.front() == '"' && one.back() == '"') one = one.substr(1, one.size() - 2);
+                result += std::string(start == 0 ? "" : ";") + "\"" + one + " sweep\"";
+                start = end + 1;
+            }
+            return result;
+        }
+        if (type == "point") {
+            // Each point moves by a millimetre; an empty list gets one square.
+            if (current.empty()) return list ? std::optional<std::string>("0x0,10x0,10x10,0x10") : std::nullopt;
+            std::string result;
+            for (std::size_t start = 0; start <= current.size();) {
+                const std::size_t end = std::min(current.find(',', start), current.size());
+                const std::string one = current.substr(start, end - start);
+                const std::size_t by  = one.find('x');
+                if (by == std::string::npos) return std::nullopt;
+                std::ostringstream moved;
+                moved.imbue(std::locale::classic());
+                moved.precision(12);
+                moved << std::stod(one.substr(0, by)) + 1 << 'x' << std::stod(one.substr(by + 1)) + 1;
+                result += (start == 0 ? "" : ",") + moved.str();
+                start = end + 1;
+            }
+            return result;
+        }
         const auto step = [&](const std::string& value) -> std::optional<std::string> {
             if (value == "nil") return value;
             if (type == "boolean") return std::string(value == "1" ? "0" : "1");
@@ -1113,7 +1167,15 @@ private:
             const DynamicPrintConfig  original = config;
             const bool                dirty    = collection.current_is_dirty();
             std::size_t defined = 0, blocked = 0, applied_count = 0;
-            std::vector<std::string> unswept, unchanged, refused, rewrote, inexact, questioned, failed;
+            std::vector<std::string> unswept, unchanged, refused, rewrote, inexact, questioned, failed, locked_out;
+            // A settings change selects nothing: the print, the filaments and
+            // the printer in use are the ones in use afterwards.
+            const auto in_use_now = [&bundle] {
+                std::string names = bundle.printers.get_selected_preset_name() + "|" + bundle.prints.get_selected_preset_name();
+                for (const std::string& filament : bundle.filament_presets) names += "|" + filament;
+                return names;
+            };
+            const std::string in_use_before = in_use_now();
             for (const SettingDefinition& def : scope_definitions(scope)) {
                 ++defined;
                 const std::string& key  = def.key;
@@ -1151,6 +1213,8 @@ private:
                 else if (dialogs.count != before_dialogs) fault = "opened a dialog";
                 else if (config.option(key)->serialize() != applied.changes.front().after) fault = "value is not the one reported";
                 else if (!collection.current_is_dirty()) fault = "preset not marked changed";
+                if (in_use_now() != in_use_before)
+                    fault += std::string(fault.empty() ? "" : "; ") + "the presets in use changed from " + in_use_before + " to " + in_use_now();
                 if (result.succeeded() && !applied.dependencies.empty()) {
                     std::string others;
                     for (const auto& change : applied.dependencies) others += (others.empty() ? "" : ",") + change.key;
@@ -1171,8 +1235,16 @@ private:
                             return config.option(other)->serialize() == original.option(other)->serialize();
                         });
                     };
-                    if (!back.valid || !m_workspace->apply_settings(inverse, previewed_changes(back), applied).succeeded() || !same_text())
-                        fault += std::string(fault.empty() ? "" : "; ") + "inverse patch did not restore it";
+                    if (!back.valid && !back.issues.empty() && back.issues.front().code == "workspace_unavailable") {
+                        // The change left no FFF printer selected, so no tool
+                        // can take it back: the person does, in the app.
+                        locked_out.push_back(key);
+                    } else if (!back.valid || !m_workspace->apply_settings(inverse, previewed_changes(back), applied).succeeded() || !same_text()) {
+                        std::string why = !back.valid ? "refused: " + (back.issues.empty() ? std::string("?") : back.issues.front().code + " " + back.issues.front().message) : "left changed:";
+                        if (back.valid)
+                            for (const std::string& other : config.diff(original)) why += " " + other;
+                        fault += std::string(fault.empty() ? "" : "; ") + "inverse patch did not restore it (" + why + ")";
+                    }
                     else if (!config.diff(original).empty())
                         inexact.push_back(key);
                     else if (collection.current_is_dirty() != dirty)
@@ -1208,7 +1280,14 @@ private:
             std::cerr << "SWEEP ASKED BY ORCA " << name << ": " << list(questioned) << '\n';
             std::cerr << "SWEEP RESTORED AS PRINTED " << name << ": " << list(inexact) << '\n';
             std::cerr << "SWEEP NOT SWEPT " << name << ": " << list(unswept) << '\n';
+            std::cerr << "SWEEP LOCKED OUT " << name << ": " << list(locked_out) << '\n';
             std::cerr << "SWEEP FAILED " << name << ": " << list(failed) << '\n';
+            // A printer set to a technology other than FFF is one the tools
+            // no longer work on. Kenneth kept the setting writable knowing
+            // this (2026-11-21: "Leave it unblocked"); any other setting that
+            // does the same is a failure.
+            check(locked_out == (scope == SettingsScope::Printer ? std::vector<std::string>{"printer_technology"} : std::vector<std::string>{}),
+                  "settings_sweep_" + name + "_only_printer_technology_locks_the_tools_out");
             check(failed.empty(), "settings_sweep_" + name + "_every_setting_applies_and_restores");
             check(applied_count > defined / 2, "settings_sweep_" + name + "_covers_most_settings");
             check(config.diff(original).empty(), "settings_sweep_" + name + "_leaves_the_preset_as_it_was");

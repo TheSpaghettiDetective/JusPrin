@@ -16,7 +16,8 @@ namespace Slic3r::GUI::JusPrin::Workspace {
 // holds is writable: OrcaSettings refuses, for any key, the values that
 // would make Orca ask or that it would not print, and apply reports whatever
 // Orca rewrote. A key belongs here for what a wrong value does outside the
-// print, not because nobody has needed it yet.
+// print, not because nobody has needed it yet. The printer's hardware and a
+// preset's identity and compatibility were here until 2026-11-21.
 inline bool blocked_setting(const std::string& key)
 {
     constexpr std::string_view keys[] = {
@@ -25,22 +26,7 @@ inline bool blocked_setting(const std::string& key)
         // Where a printer is on the network, and how to sign in to it.
         "host_type", "print_host", "print_host_webui", "printhost_port", "printhost_apikey", "printhost_user",
         "printhost_password", "printhost_authorization_type", "printhost_cafile", "printhost_ssl_ignore_revoke",
-        "bbl_use_printhost", "printer_agent", "flashforge_serial_number",
-        // Which preset this is, what it inherits from and what it fits. A
-        // different value breaks the preset rather than tuning it.
-        "inherits", "compatible_printers", "compatible_printers_condition", "compatible_prints",
-        "compatible_prints_condition", "print_extruder_id", "print_extruder_variant", "filament_extruder_variant",
-        "printer_extruder_id", "printer_extruder_variant", "extruder_variant_list", "default_print_profile",
-        "default_filament_profile", "upward_compatible_machine", "printer_technology",
-        // The printer's hardware: its model, bed, nozzles and extruders.
-        // These decide which filaments and processes fit and how many values
-        // a per-extruder setting holds; they change with a different printer
-        // or nozzle, through printer_setup or printer_change.
-        "printer_model", "printer_variant", "printer_structure", "printable_area", "extruder_printable_area",
-        "bed_exclude_area", "bed_custom_texture", "bed_custom_model", "nozzle_diameter", "nozzle_type",
-        "nozzle_volume", "default_nozzle_volume_type", "nozzle_flush_dataset", "extruder_type", "extruder_offset",
-        "single_extruder_multi_material", "support_parallel_printheads", "parallel_printheads_count",
-        "parallel_printheads_bed_exclude_areas", "master_extruder_id", "physical_extruder_map", "pellet_modded_printer"};
+        "bbl_use_printhost", "printer_agent", "flashforge_serial_number"};
     return std::find(std::begin(keys), std::end(keys), key) != std::end(keys);
 }
 

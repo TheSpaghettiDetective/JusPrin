@@ -56,8 +56,9 @@ const SETTINGS =
   'with that name, which is the printer from then on. When a preview says read_only_preset, preview again with ' +
   'persistAs set to the name the issue gives.\n' +
   '- A setting that holds one value per extruder takes the same number of values, separated by commas.\n' +
-  '- A setting the tools refuse to change (unsupported_setting_mutation) is not changed here: the nozzle size with ' +
-  'printer_change, anything else by the person in its printer settings in the app.\n' +
+  '- The nozzle size is changed with printer_change, not with a settings change.\n' +
+  '- A setting the tools refuse to change (unsupported_setting_mutation) is changed by the person in its printer ' +
+  'settings in the app.\n' +
   '- After a change is applied, say what changed in the person\'s terms and end with "Choices: Done".\n';
 
 // Shared with the filament and project chats (filamentInstructions.ts,

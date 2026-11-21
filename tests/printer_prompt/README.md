@@ -180,8 +180,8 @@ answer the tools as `PrinterConversation` does for one saved printer
 tools read and check a fixed set of that printer's settings, as
 `OrcaWorkspaceAdapter` answers for them: the printer is not the one the
 project uses, so a change without `persistAs` is `not_selected`; a stock
-profile (`stock`) refuses saving over itself with `read_only_preset`; bed size
-and nozzle size are read-only.
+profile (`stock`) refuses saving over itself with `read_only_preset`; the
+host type is read-only.
 
 - Change, about a saved Anycubic Kobra 3 (a print host, not connected):
   - `change-add-another`: "I also have a Prusa MK4S, can you add it too?" The
@@ -200,9 +200,10 @@ and nozzle size are read-only.
   - `change-edit-start-gcode`: "add G29 right after the G28 line in the start
     g-code". Passes when the change is applied and saved under the printer's
     own name, with G29 after G28.
-  - `change-bed-size`: "make the bed 250 by 250", which the settings tools
-    refuse. Passes when nothing is changed and the reply says the person can
-    change it in the app's printer settings, without claiming to open them.
+  - `change-bed-size`: "make the bed 250 by 250". Passes when the printable
+    area is changed to 250 by 250 and saved under the printer's own name.
+    Until 2026-11-21 the settings tools refused the bed size, and the case
+    passed when the reply said where the person could change it.
   - `change-ask-nozzle`: "what nozzle size is it set up for?" Passes when the
     reply says 0.4.
   - `change-loaded-filament`, `change-plate`: a spool loaded, a plate swapped.

@@ -913,8 +913,9 @@ PRINTER_SETTINGS = {
     "machine_end_gcode": ("M104 S0\nM140 S0\nG28 X0", True, "string", "Machine end G-code"),
     "retraction_length": ("0.8", True, "float[]", "Length"),
     "z_hop": ("0.4", True, "float[]", "Z hop height"),
-    "nozzle_diameter": ("0.4", False, "float[]", "Nozzle diameter"),
-    "printable_area": ("0x0,220x0,220x220,0x220", False, "point[]", "Printable area"),
+    "nozzle_diameter": ("0.4", True, "float[]", "Nozzle diameter"),
+    "printable_area": ("0x0,220x0,220x220,0x220", True, "point[]", "Printable area"),
+    "host_type": ("octoprint", False, "enum", "Host Type"),
 }
 
 KOBRA = {"name": "Anycubic Kobra 3", "model": "Anycubic Kobra 3", "nozzle": 0.4, "nozzles": [0.2, 0.4, 0.6, 0.8],
@@ -1192,21 +1193,28 @@ class ChangeStockCopy(SavedPrinterCase):
 
 
 class ChangeBedSize(SavedPrinterCase):
-    """The bed size, which the settings tools refuse to change. Passes when
-    nothing is changed or added and the reply says the person can change it in
-    the app, without claiming to open it."""
+    """The bed size, a printer setting like any other. Passes when the bed is
+    made 250 by 250 and saved under the printer's own name, and nothing is
+    added, connected or changed with printer_change."""
 
     name = "change-bed-size"
 
+    @staticmethod
+    def is_250(area):
+        try:
+            corners = {tuple(float(n) for n in point.split("x")) for point in str(area).replace(" ", "").split(",")}
+        except ValueError:
+            return False
+        return corners == {(0.0, 0.0), (250.0, 0.0), (250.0, 250.0), (0.0, 250.0)}
+
     def run(self, conversation):
         last_reply(conversation, "make the bed 250 by 250")
-        yes, why = judge(conversation.log, "Does the assistant's last message tell the person they can change the bed size "
-                                           "themselves in the app's printer settings?")
-        return verdict([self.forbidden(),
-                        "" if yes else "DID NOT SAY WHERE: " + why,
-                        judged(conversation, "Does the assistant's last message say it has opened the settings, or will open "
-                                             "them, for the person?")],
-                       "said where to change it")
+        own = self.printer["name"]
+        applied = [a for a in self.applied()
+                   if a.get("persistAs") == own and self.is_250(a.get("changes", {}).get("printable_area", ""))]
+        return verdict([self.forbidden(ADDING + ("printer_change",) + CONNECT),
+                        "" if applied else f"BED NOT CHANGED {self.applied()}"],
+                       "made the bed 250 by 250 and saved it")
 
 
 class ChangeAskNozzle(SavedPrinterCase):

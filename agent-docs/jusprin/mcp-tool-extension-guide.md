@@ -726,7 +726,7 @@ tool may change), and before you add any tool that changes a preset.
 4. The scope says which preset or object the settings belong to. It does not
    select anything. `printer_setup` remains the only tool that picks the
    project's printer, process, or filament. A settings call never changes
-   nozzle topology (how many nozzles there are and of what kind), and never substitutes a compatible profile. A settings call
+   how many nozzles or extruders there are (a setting with one value per extruder keeps its number of values), and never substitutes a compatible profile. A settings call
    selects a preset only in the two places where OrcaSlicer's own Save or
    edit code does. First, a copy saved with `persistAs` takes the original's
    place. Second, a filament that is not the one open in its tab is opened
@@ -742,13 +742,20 @@ tool may change), and before you add any tool that changes a preset.
    change a blocked key returns `unsupported_setting_mutation`. A key goes
    on the blacklist for what a wrong value does outside the print:
    - it runs a program on the computer (`post_process`);
-   - it says where a printer is on the network, or how to sign in to it;
-   - it records which preset this is, what it inherits from and what it
-     fits, so that a different value breaks the preset;
-   - it is the printer's hardware (model, bed, nozzles, extruders), which
-     decides which filaments and processes fit and how many values a
-     per-extruder setting holds. Those change with `printer_setup` or
-     `printer_change`.
+   - it says where a printer is on the network, or how to sign in to it.
+
+   Two more groups were on it until 2026-11-21, when Kenneth took them
+   off ("let's keep the first 2 groups blocked. unblocked the other 2"):
+   the keys that record which preset this is, what it inherits from and
+   what it fits, and the printer's hardware (model, bed, nozzles,
+   extruders). A bed size is now changed like any other printer setting,
+   and the plate follows it. A wrong value in the first of those groups
+   can still break a preset once it is saved; nothing checks that. One
+   hardware key locks the tools out: `printer_technology` set to anything
+   but FFF leaves no FFF printer selected, every settings call then returns
+   `workspace_unavailable`, and only the person can set it back in the
+   app. Kenneth kept it writable knowing this (2026-11-21: "Leave it
+   unblocked"), and the sweep fails if any other key does the same.
 
    A setting does not go on the blacklist because OrcaSlicer asks about it
    or rewrites it. Those are handled for every key by the guards and the
@@ -896,8 +903,8 @@ refuses these cases:
   unsaved edits of the filament open in the tab.
 - Printer tests prove that changing a normal writable value updates the
   native field, the dirty marker, the slice invalidation, and the value read
-  back. They also prove that the topology keys and the compatibility keys
-  stay unwritable.
+  back. They also prove that the keys for a print host's address and
+  sign-in stay unwritable, and that a new bed size reaches the plate.
 - Apply tests prove four things: a failed apply changes nothing, the activity
   text is right for each scope, a preset change can be reverted or reversed
   with an inverse patch, and project Undo applies only to object overrides.
