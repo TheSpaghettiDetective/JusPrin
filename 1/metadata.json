@@ -1,0 +1,133 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M7ZDD5XKZPPQH2S48EA3Y3DP",
+  "session_id": "9ad0fe47-feb0-4986-a1da-1569ea594e1f",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-21T16:00:41.535445Z",
+  "branch": "fix-import-window-cancel",
+  "checkpoints_count": 2,
+  "save_step_count": 5,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Home/OrcaImportWindow.cpp",
+    "tests/shell/orca_import_scenario.inc",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-2",
+  "turn_id": "18981e88d516",
+  "checkpoint_transcript_start": 1416,
+  "transcript_lines_at_start": 1416,
+  "compact_transcript_start": 149,
+  "token_usage": {
+    "input_tokens": 44,
+    "cache_creation_tokens": 377882,
+    "cache_read_tokens": 8905121,
+    "output_tokens": 24268,
+    "api_call_count": 22,
+    "subagent_tokens": {
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "api_call_count": 0
+    }
+  },
+  "session_metrics": {
+    "turn_count": 7
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-21T16:00:41.272236Z",
+    "agent_lines": 100,
+    "agent_removed": 1,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 100,
+    "total_lines_changed": 101,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 385,
+      "user_lines_removed": 0,
+      "agent_lines_added": 406,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".claude/skills/figma-agent-design/SKILL.md": 132,
+        ".claude/skills/figma-agent-design/agents/openai.yaml": 4,
+        ".claude/skills/figma-agent-design/references/design-system-governance.md": 103,
+        ".claude/skills/figma-agent-design/references/prompt-and-review.md": 124
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 385,
+      "user_lines_removed": 0,
+      "agent_lines_added": 406,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".claude/skills/figma-agent-design/SKILL.md": 132,
+        ".claude/skills/figma-agent-design/agents/openai.yaml": 4,
+        ".claude/skills/figma-agent-design/references/design-system-governance.md": 103,
+        ".claude/skills/figma-agent-design/references/prompt-and-review.md": 124
+      }
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 385,
+      "user_lines_removed": 0,
+      "agent_lines_added": 406,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".claude/skills/figma-agent-design/SKILL.md": 132,
+        ".claude/skills/figma-agent-design/agents/openai.yaml": 4,
+        ".claude/skills/figma-agent-design/references/design-system-governance.md": 103,
+        ".claude/skills/figma-agent-design/references/prompt-and-review.md": 124
+      }
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 414,
+      "user_lines_removed": 3,
+      "agent_lines_added": 406,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".claude/skills/figma-agent-design/SKILL.md": 132,
+        ".claude/skills/figma-agent-design/agents/openai.yaml": 4,
+        ".claude/skills/figma-agent-design/references/design-system-governance.md": 103,
+        ".claude/skills/figma-agent-design/references/prompt-and-review.md": 124,
+        "tests/shell/repro_scenarios.inc": 29
+      },
+      "user_removed_per_file": {
+        "tests/shell/repro_scenarios.inc": 3
+      }
+    },
+    {
+      "checkpoint_number": 6,
+      "user_lines_added": 385,
+      "user_lines_removed": 0,
+      "agent_lines_added": 100,
+      "agent_lines_removed": 1,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".claude/skills/figma-agent-design/SKILL.md": 132,
+        ".claude/skills/figma-agent-design/agents/openai.yaml": 4,
+        ".claude/skills/figma-agent-design/references/design-system-governance.md": 103,
+        ".claude/skills/figma-agent-design/references/prompt-and-review.md": 124
+      }
+    }
+  ]
+}
