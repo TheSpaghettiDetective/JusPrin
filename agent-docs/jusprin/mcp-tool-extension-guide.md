@@ -285,7 +285,7 @@ Inputs are validated by the `valid_arguments` decoder that the registry has for 
 ### Naming and compatibility
 
 - Prefer names such as `slice_start` and `presets_compare`.
-- Do not rename a released tool without a strong reason. Treat names and schemas as public APIs.
+- Rename a tool when a better name helps the model pick it. A rename costs one thing: an outside AI tool whose user told it to always allow the old name asks that user again, and a script that calls the old name fails. A saved chat whose history calls the old name keeps working: the model providers accept it (replayed against four of them on 2026-11-08), and the chat page draws its card from the saved title. Make the rename together with other changes to that tool, so its name changes once, and name it in the release notes.
 - Add optional fields in a way that keeps existing callers working. Do not change the meaning or the type of an existing field.
 - When a breaking change to a contract cannot be avoided, add a versioned replacement. Stop advertising the old definition after a documented migration period, and keep a targeted compatibility test for as long as both exist.
 - Use one canonical name for a tool in every adapter. Do not keep separate OpenAI and MCP aliases unless a defect in a client is documented and tested.
