@@ -1,0 +1,3 @@
+> By your order of work, six of the seven items I gave the session that is fixing error messages should wait until Sentry shows them. Only the own-key “no credits” case has been seen. You told that session to finish all seven, so I have not changed its brief. Narrowing it to the one seen case saves work on failures that may never happen. Leaving it as it is costs that work but follows what you asked. My pick is to narrow it. Should I?
+
+But these are the errors that are expected, right? I did not tell you to even to not handle expected errors. Did you take my order as just blankly ignore any errors, even if they're totally expected until they really happened in production? Are you really this stupid?
