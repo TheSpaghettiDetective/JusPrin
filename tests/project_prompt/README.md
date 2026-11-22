@@ -474,6 +474,9 @@ the case, a read is answered and the run goes on.
 | `shape-screw-hole` | "add a hole for an M3 screw straight down through the middle of this" on the `"single"` fixture (a 20 mm cube), from a kept chat's "add holes for the screws" | `object_add_shape`'s description: a negative part is a hole, a screw hole is a negative_part cylinder along the screw | `object_add_shape` adding one negative_part cylinder, vertical, 2.5 to 4 mm across, at least 20 mm long | any other change, `object_mark_region` included, or a reply saying it cannot make holes (judged) |
 | `shape-lip` | "add a little lip, 2 mm wide and 2 mm high, along the bottom of the front face", from a kept chat's "add a little lip and put the SNAPON logo there" | `object_add_shape`'s description: a part adds solid material, a lip among them | `object_add_shape` adding only part boxes | a negative part, any other change, or a reply saying it cannot (judged) |
 | `shape-text-gives-steps` | "put MICKEY on top of this in raised letters", from a kept chat's raised text | `object_add_shape`'s description: it cannot add text, lettering or a logo, and the guide on plates and objects has the steps to give the person | a reply giving the app's steps: the object's menu (**More** or a right-click), **Add Part**, then **Text**, not claiming the lettering was added (judged) | any change, letters built from boxes included, a reply without those steps, or one claiming the lettering was added |
+| `shape-text-engraved` | "engrave KENNY into the front of this, about 1 mm deep" | the guide on plates and objects: **Add Negative Part**, then **Text**, cuts the letters in | a reply giving those steps, not claiming the letters were cut (judged) | any change, a reply without those steps, or one claiming the letters were cut |
+| `shape-logo-svg` | "put the SNAPON logo on the front of this. I have it as an SVG file", from a kept chat's logo on a lip | the guide: **SVG** in the same menus adds a logo from an SVG file | a reply giving those steps, not claiming the logo was added (judged) | any change, a reply without those steps, or one claiming the logo was added |
+| `shape-logo-picture` | "put my company logo on top of this. I only have it as a JPG" | the guide: the app cannot use a photo or picture file as a logo | a reply saying the app cannot use the JPG and needs an SVG of it (judged) | any change, a reply loading the JPG as if the app took it, or one claiming the logo was added |
 
 Notes on the cases:
 
@@ -1043,7 +1046,9 @@ and 12,451 output, all on the subscription.
 On 2026-11-21, at Kenneth's request, the three cases `object_add_shape` added
 (`shape-screw-hole`, `shape-lip`, `shape-text-gives-steps`) were added to it
 from their first run, three runs each on the same model, effort and judge: 9
-of 9 passed. Every other case's counts are still the 2026-11-03 run's.
+of 9 passed. Later that day the three text and logo cases (`shape-text-engraved`,
+`shape-logo-svg`, `shape-logo-picture`) were added the same way: 9 of 9 passed.
+Every other case's counts are still the 2026-11-03 run's.
 
 79 of 81 runs passed; none was unobserved and none searched. Against the
 2026-10-30 baseline no case moved by two runs or more. The two failures are

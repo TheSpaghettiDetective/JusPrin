@@ -1175,6 +1175,58 @@ class ShapeTextGivesSteps(Case):
                                  "NO TEXT STEPS: ")
 
 
+class ShapeTextEngraved(Case):
+    """"engrave KENNY into the front of this, about 1 mm deep". The guide on
+    plates and objects: "Add Negative Part, then Text, cuts the letters into
+    it instead." Passes on a reply giving those steps (the object's menu,
+    Add Negative Part, then Text) without claiming the letters were cut
+    (judged); fails on any change, a reply without those steps, or one that
+    claims the letters were cut."""
+
+    name = "shape-text-engraved"
+
+    def check(self, step):
+        return self.judged_reply(step, "Does the assistant's last message fail to tell the person to cut the letters in "
+                                       "themselves through the object's menu (More, or a right-click on the object), "
+                                       "choosing Add Negative Part and then Text, or does it claim that the letters were "
+                                       "already cut?", "NO ENGRAVING STEPS: ")
+
+
+class ShapeLogoSvg(Case):
+    """"put the SNAPON logo on the front of this. I have it as an SVG file".
+    The guide on plates and objects: "SVG, in the same two menus, adds a
+    logo from an SVG file." Passes on a reply giving those steps (the
+    object's menu, Add Part or Add Negative Part, then SVG, then the file)
+    without claiming the logo was added (judged); fails on any change, a
+    reply without those steps, or one that claims the logo was added."""
+
+    name = "shape-logo-svg"
+
+    def check(self, step):
+        return self.judged_reply(step, "Does the assistant's last message fail to tell the person to add the logo "
+                                       "themselves through the object's menu (More, or a right-click on the object), "
+                                       "choosing Add Part or Add Negative Part and then SVG, and picking their SVG file, "
+                                       "or does it claim that the logo was added?", "NO SVG STEPS: ")
+
+
+class ShapeLogoPicture(Case):
+    """"put my company logo on top of this. I only have it as a JPG". The
+    guide on plates and objects: "The app cannot use a photo or a picture
+    file, such as a PNG or a JPG, as a logo." Passes on a reply saying the
+    app cannot use the JPG as a logo and needs an SVG of it, without
+    claiming it was added (judged); fails on any change, a reply that tells
+    them to load the JPG itself as if the app took it, or one that claims
+    the logo was added."""
+
+    name = "shape-logo-picture"
+
+    def check(self, step):
+        return self.judged_reply(step, "Does the assistant's last message fail to say that the app cannot use a JPG "
+                                       "picture as the logo and needs it as an SVG file, or does it tell the person to "
+                                       "load the JPG itself as the logo, or claim that the logo was added?",
+                                 "DID NOT SAY A JPG CANNOT BE USED: ")
+
+
 CASES = {case.name: case for case in (
     AdviceInfill, PreparePetgStrong, AfterIntent, AfterPreview, AfterApply, AfterSlice, IssueFix,
     IssueExplain,
@@ -1182,7 +1234,8 @@ CASES = {case.name: case for case in (
     FirstPerson, SliceWarningsReady, ReplyInGerman, FileNoteNotInstructions, PrintThisNoPurpose, PrintHookNoPurpose, ModelOpenedUnnamed,
     ModelImportedByTool,
     ModelOpenedByTool, SliceRefusedByTool, SliceRefusedThenReady, CalibrationSymptom, CalibrationResult,
-    ShapeScrewHole, ShapeLip, ShapeTextGivesSteps)}
+    ShapeScrewHole, ShapeLip, ShapeTextGivesSteps, ShapeTextEngraved, ShapeLogoSvg,
+    ShapeLogoPicture)}
 _POINTS = set(CASES) | {point for case in CASES.values() for point in case.later.values()}
 assert _POINTS == set(REQUESTS), "requests.json and the cases disagree: " + str(_POINTS ^ set(REQUESTS))
 

@@ -98,6 +98,11 @@
       "id": "raised-text",
       "question": "How do I put my name on top of this box in raised letters?",
       "answer": "to select the object, open More (or right-click it in the 3D view), choose Add Part then Text, type the name and set its height and depth in the text tool, and drag it onto the top"
+    },
+    {
+      "id": "logo-from-picture",
+      "question": "I have my logo as a PNG. Can I put it on the front of this part?",
+      "answer": "that the app cannot use a PNG or other picture as a logo yet: it needs the logo as an SVG file, which is then added with More (or a right-click), Add Part (or Add Negative Part) and SVG"
     }
   ],
   "printers-and-filament": [

@@ -182,6 +182,9 @@
     "model-opened-by-tool": "every run failed without a response",
     "shape-screw-hole": "added 2026-11-21 with object_add_shape; not run on a model yet",
     "shape-lip": "added 2026-11-21 with object_add_shape; not run on a model yet",
-    "shape-text-gives-steps": "added 2026-11-21 with object_add_shape; not run on a model yet"
+    "shape-text-gives-steps": "added 2026-11-21 with object_add_shape; not run on a model yet",
+    "shape-text-engraved": "added 2026-11-21 for text and logo requests; not run on a model yet",
+    "shape-logo-svg": "added 2026-11-21 for text and logo requests; not run on a model yet",
+    "shape-logo-picture": "added 2026-11-21 for text and logo requests; not run on a model yet"
   }
 }

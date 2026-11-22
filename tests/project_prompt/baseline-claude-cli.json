@@ -7,7 +7,7 @@
   "date": "2026-11-03",
   "commit": "3e662278ea",
   "uncommitted": true,
-  "note": "Recorded from the run of 2026-11-03 on macOS (CLI 2.1.283) on 3e662278ea (claude/tool-results-truth: the provider's own web search offered on every request, here the CLI's WebSearch) with the test changes that offer it and show a search in the judged transcript; that commit and those changes were then folded together with this file into the commit that carries it, so the hash is the measured tree without these test changes, not a commit on the branch. Recorded at Kenneth's request on 2026-11-03. On 2026-11-21, at Kenneth's request, the counts of shape-screw-hole, shape-lip and shape-text-gives-steps were added from their first run (3 runs each, same model, effort and judge, with the object_add_shape change uncommitted on 066c83b62a); every other case is still the 2026-11-03 run, and the sha256 values are that run's.",
+  "note": "Recorded from the run of 2026-11-03 on macOS (CLI 2.1.283) on 3e662278ea (claude/tool-results-truth: the provider's own web search offered on every request, here the CLI's WebSearch) with the test changes that offer it and show a search in the judged transcript; that commit and those changes were then folded together with this file into the commit that carries it, so the hash is the measured tree without these test changes, not a commit on the branch. Recorded at Kenneth's request on 2026-11-03. On 2026-11-21, at Kenneth's request, the counts of shape-screw-hole, shape-lip and shape-text-gives-steps were added from their first run (3 runs each, same model, effort and judge, with the object_add_shape change uncommitted on 066c83b62a), and later that day those of shape-text-engraved, shape-logo-svg and shape-logo-picture (3 runs each, same model, effort and judge, uncommitted on f5af93f8be); every other case is still the 2026-11-03 run, and the sha256 values are that run's.",
   "sha256": {
     "prompt": "7e59efa86637636345b3da22840a227eb8e71361f12c4b6e989ca1b3bab45009",
     "tools": "c8a15b8c472227e24b555a565b5560e7405d601714b06cb89bf7dca8434155cc",
@@ -218,6 +218,27 @@
       "errors": 0
     },
     "shape-text-gives-steps": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "shape-text-engraved": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "shape-logo-svg": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "shape-logo-picture": {
       "runs": 3,
       "pass": 3,
       "fail": 0,

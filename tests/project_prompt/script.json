@@ -1427,6 +1427,51 @@
      ]
     }
    ]
+  },
+  {
+   "name": "shape-text-engraved",
+   "fixture": "single",
+   "plateType": "Cool Plate",
+   "steps": [
+    {
+     "say": "engrave KENNY into the front of this, about 1 mm deep",
+     "replies": [
+      {
+       "record": "shape-text-engraved"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "shape-logo-svg",
+   "fixture": "single",
+   "plateType": "Cool Plate",
+   "steps": [
+    {
+     "say": "put the SNAPON logo on the front of this. I have it as an SVG file",
+     "replies": [
+      {
+       "record": "shape-logo-svg"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "shape-logo-picture",
+   "fixture": "single",
+   "plateType": "Cool Plate",
+   "steps": [
+    {
+     "say": "put my company logo on top of this. I only have it as a JPG",
+     "replies": [
+      {
+       "record": "shape-logo-picture"
+      }
+     ]
+    }
+   ]
   }
  ]
 }

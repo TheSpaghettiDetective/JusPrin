@@ -75,10 +75,12 @@ To put words or a logo on an object:
 
 1. Select the object, then click **More**, or right-click the object in the 3D view.
 2. Choose **Add Part**, then **Text**, for letters that stand out of the surface. **Add Negative Part**, then **Text**, cuts the letters into it instead. **SVG**, in the same two menus, adds a logo from an SVG file.
-3. The text tool opens with the text on the object. Type the words, and choose the **Font**, the **Height** of the letters and their **Depth**.
+3. The text tool opens with the text on the object. Type the words, and choose the **Font**, the **Height** of the letters and their **Depth**. On a curved face, open **Advanced** and tick **Use surface** so the letters follow its shape.
 4. Drag the text over the object to move it on the surface, then close the tool.
 
-<!-- ai: I cannot add text or a logo with my tools. When the person asks for lettering or a logo on a model, I give them these steps, with their own words and sizes filled in. -->
+A logo has to be an SVG file. The app cannot use a photo or a picture file, such as a PNG or a JPG, as a logo.
+
+<!-- ai: I cannot add text or a logo with my tools. When the person asks for lettering or a logo on a model, I give them these steps, with their own words and sizes filled in. When they have the logo only as a picture, I tell them the app cannot turn a picture into a logo yet and needs an SVG file of it. -->
 
 Cutting and painting have no button. With an object selected, press a key in the 3D view:
 
