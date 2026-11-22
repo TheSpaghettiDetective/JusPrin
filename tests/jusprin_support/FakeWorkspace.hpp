@@ -547,6 +547,38 @@ public:
     std::size_t m_open_edges{2};
     mutable SliceReportRequest last_slice_request;
 
+    // Shapes: every fixture object's solid parts span (-10, -10, 0) to
+    // (10, 10, 20). New parts get ids from 1001 up, and a solid part changes
+    // the object's parts, so the object's regions no longer find it, as in
+    // the app.
+    CommandResult add_shapes(ObjectId id, const std::vector<ShapeRequest>& shapes, std::vector<AddedPart>& added) override
+    {
+        added.clear();
+        if (shapes.empty() || shapes.size() > kShapeLimit)
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "Add 1 to 16 shapes at a time");
+        if (CommandResult validation = validate(id); !validation.succeeded())
+            return validation;
+        for (const ShapeRequest& shape : shapes) {
+            std::string problem = shape_problem(shape);
+            if (problem.empty() && shape.type == "negative_part")
+                problem = negative_part_outside(shape.shape, {Vec3{-10, -10, 0}, Vec3{10, 10, 20}}, object_name(id));
+            if (!problem.empty())
+                return CommandResult::failure(WorkspaceError::InvalidArgument, std::move(problem));
+        }
+        save_undo("Add primitive");
+        for (const ShapeRequest& shape : shapes) {
+            added.push_back({++m_last_part_id, shape.type, region_geometry_words(shape.shape)});
+            if (shape.type == "part")
+                m_reshaped_objects.insert(id.value());
+        }
+        added_shapes.insert(added_shapes.end(), shapes.begin(), shapes.end());
+        publish(WorkspaceChangeReasons::Contents | WorkspaceChangeReasons::History);
+        return CommandResult::success();
+    }
+    std::vector<ShapeRequest>  added_shapes;
+    std::uint64_t              m_last_part_id{1000};
+    std::set<std::uint64_t>    m_reshaped_objects;
+
     // Regions: resolved against the fixture's objects, with artifacts that are
     // present until a test says otherwise. Faces paint facets 0 to 2.
     CommandResult plan_regions(const std::vector<RegionRequest>& requests, const std::vector<RegionRecord>& stored,
@@ -630,7 +662,8 @@ public:
         for (const RegionRecord& record : records) {
             const ObjectId object(ProjectSessionId(record.session), record.object);
             RegionStatus   status{record, std::nullopt, true, true};
-            if (record.session == m_snapshot.session.value() && validate(object).succeeded()) {
+            if (record.session == m_snapshot.session.value() && validate(object).succeeded() &&
+                !m_reshaped_objects.count(record.object)) {
                 status.object            = object;
                 status.binding_lost      = m_unbound_regions.count(record.id) > 0;
                 status.artifacts_missing = m_region_artifacts.count(record.id) == 0;

@@ -93,6 +93,11 @@
       "id": "paint-supports",
       "question": "How do I paint where supports should go?",
       "answer": "to select the object and press L in the 3D view to open support painting"
+    },
+    {
+      "id": "raised-text",
+      "question": "How do I put my name on top of this box in raised letters?",
+      "answer": "to select the object, open More (or right-click it in the 3D view), choose Add Part then Text, type the name and set its height and depth in the text tool, and drag it onto the top"
     }
   ],
   "printers-and-filament": [

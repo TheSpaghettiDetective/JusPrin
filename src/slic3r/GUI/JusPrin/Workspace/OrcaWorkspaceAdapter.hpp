@@ -124,6 +124,7 @@ public:
     CommandResult divide_object(ObjectId id, const DivideRequest& request, DivideResult& result) override;
     CommandResult merge_objects(const std::vector<ObjectId>& ids, ObjectId& merged) override;
     CommandResult repair_object(ObjectId id, RepairResult& result) override;
+    CommandResult add_shapes(ObjectId id, const std::vector<ShapeRequest>& shapes, std::vector<AddedPart>& added) override;
     CommandResult plan_regions(const std::vector<RegionRequest>& requests, const std::vector<RegionRecord>& stored,
                                std::vector<RegionRecord>& planned) const override;
     CommandResult apply_regions(const std::vector<RegionRecord>& planned, const std::vector<RegionRecord>& replaced,

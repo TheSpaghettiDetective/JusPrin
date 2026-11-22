@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-20 20:50-0800\n"
+"POT-Creation-Date: 2026-11-21 09:12-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -827,6 +827,24 @@ msgid "Repair the mesh of %1%"
 msgstr "%1%의 메시 수리"
 
 # AI Translated
+#. TRN %1% is a shape's size, such as "10 x 10 x 5 mm box", in English.
+#, boost-format
+msgid "a part (%1%)"
+msgstr "부품 (%1%)"
+
+# AI Translated
+#. TRN %1% is a shape's size, such as "5 x 20 mm cylinder", in English. A negative part is a hole.
+#, boost-format
+msgid "a negative part (%1%)"
+msgstr "비우기 부품 (%1%)"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% a list of the parts added to it.
+#, boost-format
+msgid "Add to %1%: %2%"
+msgstr "%1%에 추가: %2%"
+
+# AI Translated
 #. TRN %1% is a list of regions, each its id and a description.
 #, boost-format
 msgid "Annotate %1%"
@@ -1142,6 +1160,10 @@ msgstr "객체 병합"
 # AI Translated
 msgid "Repair an object's mesh"
 msgstr "객체의 메시 수리"
+
+# AI Translated
+msgid "Add a shape to an object"
+msgstr "객체에 도형 추가"
 
 # AI Translated
 msgid "Mark what parts of an object mean"

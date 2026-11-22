@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-20 20:50-0800\n"
+"POT-Creation-Date: 2026-11-21 09:12-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -834,6 +834,24 @@ msgid "Repair the mesh of %1%"
 msgstr "%1% nesnesinin mesh'ini onar"
 
 # AI Translated
+#. TRN %1% is a shape's size, such as "10 x 10 x 5 mm box", in English.
+#, boost-format
+msgid "a part (%1%)"
+msgstr "bir parça (%1%)"
+
+# AI Translated
+#. TRN %1% is a shape's size, such as "5 x 20 mm cylinder", in English. A negative part is a hole.
+#, boost-format
+msgid "a negative part (%1%)"
+msgstr "bir negatif parça (%1%)"
+
+# AI Translated
+#. TRN %1% is an object's name, %2% a list of the parts added to it.
+#, boost-format
+msgid "Add to %1%: %2%"
+msgstr "%1% nesnesine ekle: %2%"
+
+# AI Translated
 #. TRN %1% is a list of regions, each its id and a description.
 #, boost-format
 msgid "Annotate %1%"
@@ -1152,6 +1170,10 @@ msgstr "Nesneleri birleştir"
 # AI Translated
 msgid "Repair an object's mesh"
 msgstr "Bir nesnenin mesh'ini onar"
+
+# AI Translated
+msgid "Add a shape to an object"
+msgstr "Bir nesneye şekil ekle"
 
 # AI Translated
 msgid "Mark what parts of an object mean"

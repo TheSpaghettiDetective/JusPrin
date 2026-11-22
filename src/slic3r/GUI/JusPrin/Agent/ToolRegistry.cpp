@@ -437,7 +437,32 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
         return has_only(arguments, {"sessionId", "objectId"}) && arguments.size() == 2 && is_unsigned_string(arguments["sessionId"]) &&
                arguments.contains("objectId") && is_unsigned_string(arguments["objectId"]);
 
-    if (definition.handler == ToolHandler::RegionAnnotate) {
+    if (definition.handler == ToolHandler::ObjectAddShape) {
+        if (!has_only(arguments, {"sessionId", "objectId", "shapes"}) || arguments.size() != 3 ||
+            !is_unsigned_string(arguments["sessionId"]) || !is_unsigned_string(arguments["objectId"]))
+            return false;
+        const json& rows = arguments["shapes"];
+        if (!rows.is_array() || rows.empty() || rows.size() > 16)
+            return false;
+        const auto numbers = [](const json& row, const char* key) {
+            return row.contains(key) && row[key].is_array() && row[key].size() == 3 &&
+                   std::all_of(row[key].begin(), row[key].end(), [](const json& v) { return v.is_number(); });
+        };
+        const auto positive = [](const json& row, const char* key) {
+            return row.contains(key) && row[key].is_number() && row[key].get<double>() > 0;
+        };
+        return std::all_of(rows.begin(), rows.end(), [&](const json& row) {
+            if (!row.is_object() || !row.contains("type") || (row["type"] != "part" && row["type"] != "negative_part") ||
+                !row.contains("shape") || !numbers(row, "center"))
+                return false;
+            if (row["shape"] == "box")
+                return has_only(row, {"type", "shape", "center", "sizeMm"}) && row.size() == 4 && numbers(row, "sizeMm");
+            return row["shape"] == "cylinder" && has_only(row, {"type", "shape", "center", "axis", "diameterMm", "lengthMm"}) &&
+                   row.size() == 6 && numbers(row, "axis") && positive(row, "diameterMm") && positive(row, "lengthMm");
+        });
+    }
+
+    if (definition.handler == ToolHandler::ObjectMarkRegion) {
         if (!has_only(arguments, {"sessionId", "regions"}) || arguments.size() != 2 || !is_unsigned_string(arguments["sessionId"]))
             return false;
         const json& rows = arguments["regions"];
@@ -1361,7 +1386,27 @@ std::vector<ToolDefinition> make_definitions()
                         {"sessionId", id}, {"revision", revision}},
                        {"changed", "openEdges", "facets", "parts", "volumeMm3", "regionsUnbound", "sessionId", "revision"}),
          ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ObjectRepair},
-        {"region_annotate", L("Mark what parts of an object mean"),
+        {"object_add_shape", L("Add a shape to an object"),
+         "Add up to 16 boxes or cylinders to one object, in one undo step, each as a part or a negative part. A part adds solid material: a block, a peg, a lip, a base. A negative part is a hole: the app takes its space out of the object's solid parts when it slices, so it makes a screw hole, a slot or a pocket, and it must overlap the object. Each row is {type: part|negative_part, shape: box, center, sizeMm} or {type, shape: cylinder, center, axis, diameterMm, lengthMm}, in millimetres in the world frame as the object stands now; read where the object is from object_analyze mesh and features first (a face's centre and normal, a hole's axis). A screw hole through a wall is a negative_part cylinder along the screw, longer than the wall is thick. It cannot add text, lettering or a logo: the person adds those with the app's text tool, and the guide on plates and objects has the steps to give them. It makes new geometry: to keep support out of a hole the model already has, use object_mark_region precision_hole instead. The result lists each new part's partId (project_delete_items {objectId, partId} deletes one) and, since a new solid part changes the object's parts, the object's regions in regionsUnbound; object_mark_region {regionId, objectId} binds one again. Project Undo removes the shapes.",
+         object_schema({{"sessionId", id}, {"objectId", id},
+                        {"shapes", {{"type", "array"}, {"minItems", 1}, {"maxItems", 16},
+                                    {"items", object_schema({{"type", {{"type", "string"}, {"enum", json::array({"part", "negative_part"})}}},
+                                                             {"shape", {{"type", "string"}, {"enum", json::array({"box", "cylinder"})}}},
+                                                             {"center", vector3}, {"sizeMm", vector3}, {"axis", vector3},
+                                                             {"diameterMm", number_schema()}, {"lengthMm", number_schema()}},
+                                                            {"type", "shape", "center"})}}}},
+                       {"sessionId", "objectId", "shapes"}),
+         object_schema({{"objectId", id},
+                        {"parts", {{"type", "array"}, {"maxItems", 16},
+                                   {"items", object_schema({{"partId", id},
+                                                            {"type", {{"type", "string"}, {"enum", json::array({"part", "negative_part"})}}},
+                                                            {"label", region_text}},
+                                                           {"partId", "type", "label"})}}},
+                        {"regionsUnbound", {{"type", "array"}, {"items", id}, {"maxItems", 32}}},
+                        {"projectUndo", boolean_schema()}, {"sessionId", id}, {"revision", revision}},
+                       {"objectId", "parts", "regionsUnbound", "projectUndo", "sessionId", "revision"}),
+         ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ObjectAddShape},
+        {"object_mark_region", L("Mark what parts of an object mean"),
          "Record what up to 32 regions of an object mean, and make the app print them that way. Each row is {objectId, kind, geometry} for a new region, or {regionId} to regenerate a stored one (adding objectId, kind or geometry replaces that part of it). kind says what the region is: seam_preferred or hidden puts the seam ON this face (use it for 'put the seam on the back'); seam_forbidden or visible keeps the seam OFF this face; smooth_face keeps both the seam and support marks off it; no_support keeps support off it, and precision_hole keeps support out of a hole (a blocker fills it); support_allowed asks for support there; reinforce and flexible (a modifier with settings, default wall_loops and sparse_infill_density; with geometry object, the object's own settings), material (extruder, 1-based). geometry: {type: face|hole, handle} from object_analyze features; {type: box, center, sizeMm} or {type: cylinder, center, axis, diameterMm, lengthMm} in millimetres in the world frame as the object stands now; {type: direction, vector, toleranceDegrees} for every face pointing that way now; {type: object}. The region stays with the object when it is moved or turned. Generates support and seam paint, support blockers and enforcers, modifier volumes or object settings in one undo step: project Undo removes those but not the annotation, which object_analyze then reports as artifactsMissing. Delete a region with project_delete_items {regionId}.",
          object_schema({{"sessionId", id},
                         {"regions", {{"type", "array"}, {"minItems", 1}, {"maxItems", 32},
@@ -1380,9 +1425,9 @@ std::vector<ToolDefinition> make_definitions()
          object_schema({{"regions", {{"type", "array"}, {"maxItems", 32}, {"items", region_row}}},
                         {"projectUndo", boolean_schema()}, {"sessionId", id}, {"revision", revision}},
                        {"regions", "projectUndo", "sessionId", "revision"}),
-         ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::RegionAnnotate},
+         ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ObjectMarkRegion},
         {"object_analyze", L("Analyze an object"),
-         "Geometry facts for one object, by include: mesh (size, volume, facet and part counts, each part with its id and kind, open and repaired edges, and whether the app thinks it was modelled in inches or metres), features (the largest flat faces, each with a handle, area, sizeMm -- its two side lengths, longest first, which is how to find \"the 25 by 6 mm face\" -- centre and outward normal (0,0,-1 is the face on the bed), and hole mouths with a handle, diameter, centre and axis; millimetres in the world frame), fit (which plate holds each instance and whether it is inside it, objects whose footprint overlaps it, likely duplicates), orientations (the app's auto-orient cost for each of up to 8 candidates -- an up direction or a face handle to put down -- or for its own best candidates when none are given, with overhang and bed-contact area and the face handles that would rest on the bed; lower unprintability is better), measure (distance and angle between two feature handles, given as measure.from and measure.to), regions (the region annotations on this object, what each generated, and whether its geometry is still there -- bindingLost -- or project Undo or an edit removed what it generated -- artifactsMissing; region_annotate with the regionId regenerates it). Handles are valid until the project changes; afterwards a measure fails with feature_expired and the features must be read again.",
+         "Geometry facts for one object, by include: mesh (size, volume, facet and part counts, each part with its id and kind, open and repaired edges, and whether the app thinks it was modelled in inches or metres), features (the largest flat faces, each with a handle, area, sizeMm -- its two side lengths, longest first, which is how to find \"the 25 by 6 mm face\" -- centre and outward normal (0,0,-1 is the face on the bed), and hole mouths with a handle, diameter, centre and axis; millimetres in the world frame), fit (which plate holds each instance and whether it is inside it, objects whose footprint overlaps it, likely duplicates), orientations (the app's auto-orient cost for each of up to 8 candidates -- an up direction or a face handle to put down -- or for its own best candidates when none are given, with overhang and bed-contact area and the face handles that would rest on the bed; lower unprintability is better), measure (distance and angle between two feature handles, given as measure.from and measure.to), regions (the region annotations on this object, what each generated, and whether its geometry is still there -- bindingLost -- or project Undo or an edit removed what it generated -- artifactsMissing; object_mark_region with the regionId regenerates it). Handles are valid until the project changes; afterwards a measure fails with feature_expired and the features must be read again.",
          object_schema({{"sessionId", id}, {"objectId", id},
                         {"include", {{"type", "array"}, {"minItems", 1}, {"maxItems", 6},
                                      {"items", {{"type", "string"}, {"enum", json::array({"mesh", "features", "fit", "orientations", "measure", "regions"})}}}}},
@@ -1863,7 +1908,7 @@ ToolValidationResult ToolRegistry::validate_call(const ToolDefinition& definitio
     };
     if (definition.handler == ToolHandler::SettingsPreviewPatch || definition.handler == ToolHandler::SettingsApplyPatch)
         canonical(arguments["changes"]);
-    if (definition.handler == ToolHandler::RegionAnnotate)
+    if (definition.handler == ToolHandler::ObjectMarkRegion)
         for (auto& row : arguments["regions"])
             if (row.contains("settings"))
                 canonical(row["settings"]);

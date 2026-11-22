@@ -77,6 +77,7 @@ python3 and node, and the page's npm install
 import argparse
 import concurrent.futures
 import json
+import math
 import os
 import pathlib
 import re
@@ -1090,13 +1091,98 @@ class CalibrationResult(Case):
         return FAIL, ("CHANGED: " if step.tool else "NO PREVIEW: ") + str(step)
 
 
+# The shape cases start from requests people made in kept chats (2026-11-20
+# read): "add holes for the screws", "add a little lip", raised text reading
+# "MICKEY". Each was told to use another program, because no tool added
+# geometry. All three use the "single" fixture, a 20 mm cube on its plate.
+def added_shapes(step):
+    """The rows of an object_add_shape call, or none."""
+    return step.arguments.get("shapes") or [] if step.tool == "object_add_shape" else []
+
+
+def vertical(axis):
+    return isinstance(axis, list) and len(axis) == 3 and all(isinstance(v, (int, float)) for v in axis) and \
+        abs(axis[2]) >= 0.9 * math.sqrt(sum(v * v for v in axis))
+
+
+class ShapeScrewHole(Case):
+    """"add a hole for an M3 screw straight down through the middle of this".
+    object_add_shape's description: "A negative part is a hole ... a screw
+    hole through a wall is a negative_part cylinder along the screw, longer
+    than the wall is thick." Passes on object_add_shape adding one
+    negative_part cylinder with a vertical axis, a diameter of 2.5 to 4 mm (an
+    M3 tap or clearance hole) and a length of at least the cube's 20 mm;
+    fails on any other change (object_mark_region's precision_hole makes no
+    hole) or a reply saying the app cannot make holes; another reply is
+    unobserved."""
+
+    name = "shape-screw-hole"
+
+    def check(self, step):
+        shapes = added_shapes(step)
+        if shapes:
+            holes = [row for row in shapes if row.get("type") == "negative_part" and row.get("shape") == "cylinder"]
+            if len(shapes) == 1 and holes and vertical(holes[0].get("axis")) and \
+                    2.5 <= holes[0].get("diameterMm", 0) <= 4 and holes[0].get("lengthMm", 0) >= 20:
+                return PASS, str(step)
+            return FAIL, "NOT ONE M3 HOLE STRAIGHT DOWN: " + str(step)
+        if step.tool:
+            return (FAIL if step.changes() else CONTINUE), str(step)
+        yes, why = self.judged(step, "Does the assistant's last message say it cannot add a hole, or send the person to "
+                                     "another program or to do it by hand?")
+        return (FAIL, "REFUSED A HOLE: " + why) if yes else (UNOBSERVED, str(step))
+
+
+class ShapeLip(Case):
+    """"add a little lip, 2 mm wide and 2 mm high, along the bottom of the
+    front face", the request of a person who wanted a lip to put a logo on.
+    object_add_shape's description: "A part adds solid material: a block, a
+    peg, a lip, a base." Passes on object_add_shape adding only parts, each a
+    box; fails on a negative part, any other change, or a reply saying the app
+    cannot add one; another reply is unobserved."""
+
+    name = "shape-lip"
+
+    def check(self, step):
+        shapes = added_shapes(step)
+        if shapes:
+            if all(row.get("type") == "part" and row.get("shape") == "box" for row in shapes):
+                return PASS, str(step)
+            return FAIL, "NOT A SOLID BOX: " + str(step)
+        if step.tool:
+            return (FAIL if step.changes() else CONTINUE), str(step)
+        yes, why = self.judged(step, "Does the assistant's last message say it cannot add the lip, or send the person to "
+                                     "another program or to do it by hand?")
+        return (FAIL, "REFUSED A LIP: " + why) if yes else (UNOBSERVED, str(step))
+
+
+class ShapeTextGivesSteps(Case):
+    """"put MICKEY on top of this in raised letters". object_add_shape's
+    description: "It cannot add text, lettering or a logo: the person adds
+    those with the app's text tool, and the guide on plates and objects has
+    the steps to give them." Passes on a reply that gives the person the
+    app's steps: the object's menu (More, or a right-click in the 3D view),
+    Add Part, then Text, and typing MICKEY in the text tool (judged); fails
+    on any change, letters built from boxes included, on a reply without
+    those steps, or on one that claims the lettering was added."""
+
+    name = "shape-text-gives-steps"
+
+    def check(self, step):
+        return self.judged_reply(step, "Does the assistant's last message fail to tell the person to add the letters "
+                                       "themselves through the object's menu (More, or a right-click on the object), "
+                                       "choosing Add Part and then Text, or does it claim that the lettering was added?",
+                                 "NO TEXT STEPS: ")
+
+
 CASES = {case.name: case for case in (
     AdviceInfill, PreparePetgStrong, AfterIntent, AfterPreview, AfterApply, AfterSlice, IssueFix,
     IssueExplain,
     TroubleshootFirstLayer, DirectChange, DirectChangeApplied, DirectChangeFailed, AnswerFromContext, LoadedVsConfigured,
     FirstPerson, SliceWarningsReady, ReplyInGerman, FileNoteNotInstructions, PrintThisNoPurpose, PrintHookNoPurpose, ModelOpenedUnnamed,
     ModelImportedByTool,
-    ModelOpenedByTool, SliceRefusedByTool, SliceRefusedThenReady, CalibrationSymptom, CalibrationResult)}
+    ModelOpenedByTool, SliceRefusedByTool, SliceRefusedThenReady, CalibrationSymptom, CalibrationResult,
+    ShapeScrewHole, ShapeLip, ShapeTextGivesSteps)}
 _POINTS = set(CASES) | {point for case in CASES.values() for point in case.later.values()}
 assert _POINTS == set(REQUESTS), "requests.json and the cases disagree: " + str(_POINTS ^ set(REQUESTS))
 

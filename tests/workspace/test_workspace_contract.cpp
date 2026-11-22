@@ -2,6 +2,7 @@
 
 #include "../jusprin_support/FakeWorkspace.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectState.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/Regions.hpp"
 
 #include <memory>
 #include <set>
@@ -385,6 +386,92 @@ TEST_CASE("Undo and redo preserve IDs and report actual availability", "[workspa
     WorkspaceSnapshot after_redo = workspace.snapshot();
     REQUIRE(contains(after_redo, *duplicate.object_id));
     REQUIRE(*duplicate.object_id == ObjectId(after_redo.session, duplicate.object_id->value()));
+}
+
+TEST_CASE("A shape reaches the box its size and axis give, and a hole that misses the object is refused", "[workspace][shapes]")
+{
+    using Catch::Matchers::WithinAbs;
+    RegionGeometry upright;
+    upright.type     = "cylinder";
+    upright.center   = {0, 0, 10};
+    upright.normal   = {0, 0, 2}; // an axis need not be a unit vector
+    upright.diameter = 5;
+    upright.length   = 20;
+    const auto reach = shape_reach(upright);
+    CHECK_THAT(reach[0][0], WithinAbs(-2.5, 1e-9));
+    CHECK_THAT(reach[0][2], WithinAbs(0, 1e-9));
+    CHECK_THAT(reach[1][1], WithinAbs(2.5, 1e-9));
+    CHECK_THAT(reach[1][2], WithinAbs(20, 1e-9));
+
+    RegionGeometry lying = upright;
+    lying.normal = {1, 0, 0};
+    CHECK_THAT(shape_reach(lying)[1][0], WithinAbs(10, 1e-9));
+    CHECK_THAT(shape_reach(lying)[1][2], WithinAbs(12.5, 1e-9));
+
+    RegionGeometry box;
+    box.type   = "box";
+    box.center = {1, 2, 3};
+    box.size   = {4, 6, 8};
+    CHECK_THAT(shape_reach(box)[0][1], WithinAbs(-1, 1e-9));
+    CHECK_THAT(shape_reach(box)[1][2], WithinAbs(7, 1e-9));
+
+    const std::array<Vec3, 2> solid{Vec3{-10, -10, 0}, Vec3{10, 10, 20}};
+    CHECK(negative_part_outside(upright, solid, "Bracket").empty());
+    // Touching the object's side still counts: the box meets it.
+    RegionGeometry touching = upright;
+    touching.center = {12.5, 0, 10};
+    CHECK(negative_part_outside(touching, solid, "Bracket").empty());
+    RegionGeometry away = upright;
+    away.center = {30, 0, 10};
+    CHECK(negative_part_outside(away, solid, "Bracket") ==
+          "The 5 x 20 mm cylinder at (30, 0, 10) is outside Bracket, which spans (-10, -10, 0) to (10, 10, 20); "
+          "a negative part only takes away where it overlaps a solid part");
+
+    CHECK(shape_problem({"part", box}).empty());
+    CHECK(shape_problem({"modifier", box}) == "\"modifier\" is not part or negative_part");
+    RegionGeometry flat = box;
+    flat.size = {4, 0, 8};
+    CHECK(shape_problem({"part", flat}) == "A box needs a positive size");
+    RegionGeometry no_axis = upright;
+    no_axis.normal = {0, 0, 0};
+    CHECK(shape_problem({"negative_part", no_axis}) == "A cylinder needs an axis, a diameter and a length");
+    RegionGeometry sphere = box;
+    sphere.type = "sphere";
+    CHECK(shape_problem({"part", sphere}) == "A shape is a box or a cylinder");
+}
+
+TEST_CASE("Adding shapes is one undo step, and a refused call adds nothing", "[workspace][shapes]")
+{
+    FakeWorkspace workspace(sample_workspace());
+    RegionGeometry hole;
+    hole.type     = "cylinder";
+    hole.center   = {0, 0, 10};
+    hole.normal   = {0, 0, 1};
+    hole.diameter = 5;
+    hole.length   = 30;
+    RegionGeometry block;
+    block.type   = "box";
+    block.center = {0, 15, 2};
+    block.size   = {10, 10, 4};
+
+    std::vector<AddedPart> added;
+    REQUIRE(workspace.add_shapes(object_id(workspace, 100), {{"part", block}, {"negative_part", hole}}, added).succeeded());
+    REQUIRE(added.size() == 2);
+    CHECK(added[0].type == "part");
+    CHECK(added[1].label == "5 x 30 mm cylinder");
+    CHECK(added[0].id != added[1].id);
+    CHECK(workspace.snapshot().revision == 1);
+    CHECK(workspace.snapshot().can_undo);
+
+    RegionGeometry away = hole;
+    away.center = {0, 0, 100};
+    CHECK(workspace.add_shapes(object_id(workspace, 100), {{"part", block}, {"negative_part", away}}, added).error ==
+          WorkspaceError::InvalidArgument);
+    CHECK(added.empty());
+    CHECK(workspace.add_shapes(object_id(workspace, 999), {{"part", block}}, added).error == WorkspaceError::NotFound);
+    CHECK(workspace.add_shapes(object_id(workspace, 100), {}, added).error == WorkspaceError::InvalidArgument);
+    CHECK(workspace.snapshot().revision == 1);
+    CHECK(workspace.added_shapes.size() == 2);
 }
 
 TEST_CASE("Unavailable history operations emit no false change", "[workspace]")

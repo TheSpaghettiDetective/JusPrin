@@ -55,6 +55,12 @@
    }
   },
   {
+   "call": "skill_read",
+   "arguments": {
+    "name": "guide-plates-and-objects"
+   }
+  },
+  {
    "call": "object_analyze",
    "eachObject": true,
    "arguments": {
@@ -1372,6 +1378,51 @@
      "replies": [
       {
        "record": "calibration-result"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "shape-screw-hole",
+   "fixture": "single",
+   "plateType": "Cool Plate",
+   "steps": [
+    {
+     "say": "add a hole for an M3 screw straight down through the middle of this",
+     "replies": [
+      {
+       "record": "shape-screw-hole"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "shape-lip",
+   "fixture": "single",
+   "plateType": "Cool Plate",
+   "steps": [
+    {
+     "say": "add a little lip, 2 mm wide and 2 mm high, along the bottom of the front face",
+     "replies": [
+      {
+       "record": "shape-lip"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "shape-text",
+   "fixture": "single",
+   "plateType": "Cool Plate",
+   "steps": [
+    {
+     "say": "put MICKEY on top of this in raised letters",
+     "replies": [
+      {
+       "record": "shape-text-gives-steps"
       }
      ]
     }

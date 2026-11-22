@@ -1178,7 +1178,7 @@ struct RegionRecord
     std::string                updated_at;
 };
 
-// One row of region_annotate. A row naming an existing region replaces it;
+// One row of object_mark_region. A row naming an existing region replaces it;
 // with nothing else it regenerates that region's artifacts as stored.
 struct RegionRequest
 {
@@ -1197,6 +1197,25 @@ struct RegionStatus
     bool                    binding_lost{false};
     bool                    artifacts_missing{false};
 };
+
+// A shape added to an object as one of its parts: a solid part, or a negative
+// part, which takes its space out of the solid parts (a hole, an engraving).
+// It is a box or a cylinder in millimetres in the world frame as the object
+// stands now, as a region's box or cylinder is given.
+struct ShapeRequest
+{
+    std::string    type;  // part or negative_part
+    RegionGeometry shape; // box or cylinder
+};
+
+struct AddedPart
+{
+    std::uint64_t id{0}; // the part's id, as object_analyze lists it and project_delete_items takes it
+    std::string   type;  // part or negative_part
+    std::string   label; // what was added, in English: "5 x 20 mm cylinder"
+};
+
+constexpr std::size_t kShapeLimit = 16;
 
 // The three preset families a print is chosen from. SLA has no place here
 // until the product has one.
@@ -2078,6 +2097,11 @@ public:
     virtual CommandResult divide_object(ObjectId id, const DivideRequest& request, DivideResult& result) = 0;
     virtual CommandResult merge_objects(const std::vector<ObjectId>& ids, ObjectId& merged) = 0;
     virtual CommandResult repair_object(ObjectId id, RepairResult& result) = 0;
+    // Adds 1 to 16 shapes to one object as solid or negative parts, as one
+    // undo step, and returns the new parts in the order asked. Everything is
+    // checked before anything is added. A negative part that reaches none of
+    // the object's solid parts would take nothing away, and is refused.
+    virtual CommandResult add_shapes(ObjectId id, const std::vector<ShapeRequest>& shapes, std::vector<AddedPart>& added) = 0;
 
     // Regions. `plan_regions` resolves requests against the open project and
     // the stored records without changing anything: each planned record says

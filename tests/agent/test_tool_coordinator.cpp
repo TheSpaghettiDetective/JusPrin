@@ -2006,7 +2006,7 @@ TEST_CASE("region annotations are applied, read back with their status, regenera
     const json annotate{{"sessionId", session},
                         {"regions", {{{"objectId", cube}, {"kind", "precision_hole"}, {"geometry", {{"type", "hole"}, {"handle", "f1-21-0-1-0"}}}},
                                      {{"objectId", cube}, {"kind", "hidden"}, {"geometry", {{"type", "face"}, {"handle", "f1-21-0-0-0"}}}}}}};
-    const ToolActivity pending = h.coordinator.submit({"region_annotate", annotate.dump()}, "m-2");
+    const ToolActivity pending = h.coordinator.submit({"object_mark_region", annotate.dump()}, "m-2");
     REQUIRE(pending.state == ToolState::Running);
     CHECK(pending.title.find("r1 precision hole, hole of 5 mm on") != std::string::npos);
     CHECK(pending.title.find("support blocker volume") != std::string::npos);
@@ -2015,7 +2015,7 @@ TEST_CASE("region annotations are applied, read back with their status, regenera
     const auto annotated = *h.coordinator.find(pending.action_id);
     REQUIRE(annotated.state == ToolState::Succeeded);
     const auto result = json::parse(annotated.result_json);
-    CHECK(registry.validate_output(*registry.find("region_annotate"), result));
+    CHECK(registry.validate_output(*registry.find("object_mark_region"), result));
     CHECK(result["projectUndo"] == true);
     CHECK(result["regions"][1]["artifacts"] == json::array({"seam enforcer paint on 3 facets"}));
     REQUIRE(store.regions().size() == 2);
@@ -2035,15 +2035,15 @@ TEST_CASE("region annotations are applied, read back with their status, regenera
     CHECK(listed[1]["bindingLost"] == true);
 
     // Regenerating by id keeps the record and brings the artifacts back.
-    CHECK(run("region_annotate", json{{"sessionId", session}, {"regions", {{{"regionId", "r1"}}}}}).state == ToolState::Succeeded);
+    CHECK(run("object_mark_region", json{{"sessionId", session}, {"regions", {{{"regionId", "r1"}}}}}).state == ToolState::Succeeded);
     CHECK(regions()[0]["artifactsMissing"] == false);
     CHECK(store.regions().size() == 2);
 
-    const auto refused = h.coordinator.submit({"region_annotate", json{{"sessionId", session},
+    const auto refused = h.coordinator.submit({"object_mark_region", json{{"sessionId", session},
         {"regions", {{{"objectId", cube}, {"kind", "precision_hole"}, {"geometry", {{"type", "face"}, {"handle", "f1-21-0-0-0"}}}}}}}.dump()}, "m-3");
     CHECK(refused.state == ToolState::Failed);
     CHECK(refused.error->code == "invalid_arguments");
-    CHECK(h.coordinator.submit({"region_annotate", json{{"sessionId", session}, {"regions", {{{"regionId", "r9"}}}}}.dump()}, "m-4")
+    CHECK(h.coordinator.submit({"object_mark_region", json{{"sessionId", session}, {"regions", {{{"regionId", "r9"}}}}}.dump()}, "m-4")
               .error->code == "not_found");
     for (const json& bad : {json{{"sessionId", session}, {"regions", json::array()}},
                             json{{"sessionId", session}, {"regions", {{{"objectId", cube}, {"kind", "hidden"}}}}},
@@ -2051,8 +2051,8 @@ TEST_CASE("region annotations are applied, read back with their status, regenera
                                                                      {"geometry", {{"type", "direction"}, {"vector", {0, 0, 1}}}}}}}},
                             json{{"sessionId", session}, {"regions", {{{"objectId", cube}, {"kind", "reinforce"},
                                                                      {"geometry", {{"type", "box"}, {"center", {0, 0, 0}}}}}}}}})
-        CHECK_FALSE(registry.validate_call(*registry.find("region_annotate"), bad.dump()).valid());
-    CHECK(registry.validate_call(*registry.find("region_annotate"),
+        CHECK_FALSE(registry.validate_call(*registry.find("object_mark_region"), bad.dump()).valid());
+    CHECK(registry.validate_call(*registry.find("object_mark_region"),
                                  json{{"sessionId", session}, {"regions", {{{"objectId", cube}, {"kind", "reinforce"}, {"settings", {{"wall_loops", 6}}},
                                                                            {"geometry", {{"type", "box"}, {"center", {0, 0, 0}}, {"sizeMm", {5, 5, 5}}}}}}}}.dump())
               .arguments_json.find("\"wall_loops\":\"6\"") != std::string::npos);
@@ -2148,7 +2148,7 @@ TEST_CASE("objects are divided after a preview, merged and repaired, and unbound
 
     // A region bound to the divided object is reported by the preview.
     h.workspace.set_analysis_for_testing(h.workspace.snapshot().plates[0].objects[0].id, {});
-    CHECK(run("region_annotate", json{{"sessionId", session},
+    CHECK(run("object_mark_region", json{{"sessionId", session},
                                       {"regions", {{{"objectId", assembly}, {"kind", "hidden"},
                                                     {"geometry", {{"type", "face"}, {"handle", "f1-0-0-0-0"}}}}}}}).second.state == ToolState::Succeeded);
     const json split{{"sessionId", session}, {"objectId", assembly}, {"shells", "objects"}};
@@ -2163,6 +2163,97 @@ TEST_CASE("objects are divided after a preview, merged and repaired, and unbound
         CHECK_FALSE(registry.validate_call(*registry.find("object_divide"), bad.dump()).valid());
     CHECK_FALSE(registry.validate_call(*registry.find("object_merge"), json{{"sessionId", session}, {"objectIds", {cube, cube}}}.dump()).valid());
     CHECK_FALSE(registry.validate_call(*registry.find("object_merge"), json{{"sessionId", session}, {"objectIds", {cube}}}.dump()).valid());
+}
+
+TEST_CASE("shapes are added to an object as parts and negative parts in one undo step", "[tools][shapes]")
+{
+    Harness h;
+    FakeProductState store;
+    h.coordinator.set_product_state(&store);
+    const auto& registry = ToolRegistry::instance();
+    const std::string session = std::to_string(h.workspace.snapshot().session.value());
+    const std::string cube    = std::to_string(h.cube_id().value());
+    auto run = [&h](const json& arguments) {
+        const ToolActivity submitted = h.coordinator.submit({"object_add_shape", arguments.dump()}, "m-1");
+        h.pump_to_completion(submitted.action_id);
+        return std::make_pair(submitted, *h.coordinator.find(submitted.action_id));
+    };
+    const json hole{{"type", "negative_part"}, {"shape", "cylinder"}, {"center", {0, 0, 10}}, {"axis", {0, 0, 1}},
+                    {"diameterMm", 5}, {"lengthMm", 20}};
+    const json block{{"type", "part"}, {"shape", "box"}, {"center", {0, 15, 2}}, {"sizeMm", {10, 10, 4}}};
+
+    // A region on the cube, so a new solid part has a link to break.
+    h.workspace.set_analysis_for_testing(h.cube_id(), {});
+    const ToolActivity marking = h.coordinator.submit({"object_mark_region", json{{"sessionId", session},
+        {"regions", {{{"objectId", cube}, {"kind", "hidden"}, {"geometry", {{"type", "face"}, {"handle", "f1-0-0-0-0"}}}}}}}.dump()}, "m-0");
+    h.pump_to_completion(marking.action_id);
+    REQUIRE(h.coordinator.find(marking.action_id)->state == ToolState::Succeeded);
+    std::vector<std::string> steps;
+    const auto edits = h.workspace.subscribe_edits([&steps](const Workspace::WorkspaceEdit& edit) {
+        if (edit.kind == Workspace::EditKind::Step)
+            steps.push_back(edit.label);
+    });
+
+    // A hole takes nothing from the parts the regions are bound to.
+    const std::uint64_t revision = h.workspace.snapshot().revision;
+    const auto [hole_card, holed] = run(json{{"sessionId", session}, {"objectId", cube}, {"shapes", {hole}}});
+    CHECK(hole_card.title.find("a negative part (5 x 20 mm cylinder)") != std::string::npos);
+    REQUIRE(holed.state == ToolState::Succeeded);
+    auto result = json::parse(holed.result_json);
+    CHECK(registry.validate_output(*registry.find("object_add_shape"), result));
+    CHECK(result["objectId"] == cube);
+    CHECK(result["projectUndo"] == true);
+    CHECK(result["parts"] == json::array({{{"partId", "1001"}, {"type", "negative_part"}, {"label", "5 x 20 mm cylinder"}}}));
+    CHECK(result["regionsUnbound"] == json::array());
+    CHECK(h.workspace.snapshot().revision > revision);
+    CHECK(h.workspace.added_shapes.size() == 1);
+
+    // Two shapes in one call are one undo step; the solid part unbinds the region.
+    steps.clear();
+    const auto [pair_card, paired] = run(json{{"sessionId", session}, {"objectId", cube}, {"shapes", {block, hole}}});
+    CHECK(pair_card.title.find("a part (10 x 10 x 4 mm box); a negative part (5 x 20 mm cylinder)") != std::string::npos);
+    REQUIRE(paired.state == ToolState::Succeeded);
+    result = json::parse(paired.result_json);
+    CHECK(registry.validate_output(*registry.find("object_add_shape"), result));
+    CHECK(result["parts"].size() == 2);
+    CHECK(result["parts"][0]["type"] == "part");
+    CHECK(result["regionsUnbound"] == json::array({"r1"}));
+    CHECK(steps == std::vector<std::string>{"Add primitive"});
+
+    // Refused before anything is added: a hole that misses the object.
+    const std::size_t shapes_before = h.workspace.added_shapes.size();
+    json away = hole;
+    away["center"] = {100, 0, 10};
+    const auto [away_card, missed] = run(json{{"sessionId", session}, {"objectId", cube}, {"shapes", {block, away}}});
+    REQUIRE(missed.state == ToolState::Failed);
+    CHECK(missed.error->code == "invalid_arguments");
+    CHECK(missed.error->message.find("is outside") != std::string::npos);
+    CHECK(h.workspace.added_shapes.size() == shapes_before);
+    json flat = block;
+    flat["sizeMm"] = {10, 0, 4};
+    CHECK(run(json{{"sessionId", session}, {"objectId", cube}, {"shapes", {flat}}}).second.error->code == "invalid_arguments");
+    CHECK(run(json{{"sessionId", session}, {"objectId", "999"}, {"shapes", {block}}}).second.error->code == "not_found");
+
+    json too_many = json::array();
+    for (int index = 0; index < 17; ++index)
+        too_many.push_back(block);
+    json text = block;
+    text["shape"] = "text";
+    json box_with_axis = block;
+    box_with_axis["axis"] = {0, 0, 1};
+    json no_diameter = hole;
+    no_diameter.erase("diameterMm");
+    json modifier = block;
+    modifier["type"] = "modifier";
+    for (const json& bad : {json{{"sessionId", session}, {"objectId", cube}, {"shapes", json::array()}},
+                            json{{"sessionId", session}, {"objectId", cube}, {"shapes", too_many}},
+                            json{{"sessionId", session}, {"shapes", {block}}},
+                            json{{"sessionId", session}, {"objectId", cube}, {"shapes", {text}}},
+                            json{{"sessionId", session}, {"objectId", cube}, {"shapes", {box_with_axis}}},
+                            json{{"sessionId", session}, {"objectId", cube}, {"shapes", {no_diameter}}},
+                            json{{"sessionId", session}, {"objectId", cube}, {"shapes", {modifier}}},
+                            json{{"sessionId", session}, {"objectId", cube}, {"shapes", {block}}, {"extra", 1}}})
+        CHECK_FALSE(registry.validate_call(*registry.find("object_add_shape"), bad.dump()).valid());
 }
 
 TEST_CASE("the slice report checks supports, seams, the first layer and islands against the regions", "[tools][slicing][report][regions]")

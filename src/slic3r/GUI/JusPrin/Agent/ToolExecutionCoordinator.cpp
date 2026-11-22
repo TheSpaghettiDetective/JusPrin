@@ -3,6 +3,7 @@
 #include "ToolErrors.hpp"
 #include "ToolExecution.hpp"
 #include "ToolResults.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/Regions.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SettingDisplay.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/StoredFormat.hpp"
@@ -216,6 +217,26 @@ json divide_result(const Workspace::DivideResult& divided, json regions_unbound,
             {"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision}};
 }
 
+std::vector<Workspace::ShapeRequest> shape_requests(const json& arguments)
+{
+    const auto vec = [](const json& value) {
+        return Workspace::Vec3{value[0].get<double>(), value[1].get<double>(), value[2].get<double>()};
+    };
+    std::vector<Workspace::ShapeRequest> requests;
+    for (const json& row : arguments["shapes"]) {
+        Workspace::ShapeRequest request;
+        request.type         = row["type"];
+        request.shape.type   = row["shape"];
+        request.shape.center = vec(row["center"]);
+        if (row.contains("sizeMm")) request.shape.size = vec(row["sizeMm"]);
+        if (row.contains("axis")) request.shape.normal = vec(row["axis"]);
+        request.shape.diameter = row.value("diameterMm", 0.0);
+        request.shape.length   = row.value("lengthMm", 0.0);
+        requests.push_back(std::move(request));
+    }
+    return requests;
+}
+
 std::vector<Workspace::RegionRequest> region_requests(const json& arguments)
 {
     const Workspace::ProjectSessionId     session(std::stoull(arguments["sessionId"].get<std::string>()));
@@ -273,10 +294,11 @@ bool changes_printable_project(const ToolDefinition& definition, const ToolActiv
     case ToolHandler::ProjectDeleteItems:
     case ToolHandler::PlateLayout:
     case ToolHandler::ObjectPlace:
-    case ToolHandler::RegionAnnotate:
+    case ToolHandler::ObjectMarkRegion:
     case ToolHandler::ObjectDivide:
     case ToolHandler::ObjectMerge:
     case ToolHandler::ObjectRepair:
+    case ToolHandler::ObjectAddShape:
     case ToolHandler::PrinterChange: // drops unsaved edits of the printer in use
         return true;
     case ToolHandler::PrinterSetup:
@@ -848,9 +870,22 @@ const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request,
         set_title(stored, title_of(L("Repair the mesh of %1%"), name_of_object(arguments["objectId"])));
     }
 
-    if (definition->handler == ToolHandler::RegionAnnotate) {
+    if (definition->handler == ToolHandler::ObjectAddShape) {
+        const auto arguments = json::parse(stored.arguments_json);
+        std::vector<ActivityTitle> shapes;
+        for (const Workspace::ShapeRequest& shape : shape_requests(arguments))
+            shapes.push_back(shape.type == "part" ?
+                                 // TRN %1% is a shape's size, such as "10 x 10 x 5 mm box", in English.
+                                 title_of(L("a part (%1%)"), Workspace::region_geometry_words(shape.shape)) :
+                                 // TRN %1% is a shape's size, such as "5 x 20 mm cylinder", in English. A negative part is a hole.
+                                 title_of(L("a negative part (%1%)"), Workspace::region_geometry_words(shape.shape)));
+        // TRN %1% is an object's name, %2% a list of the parts added to it.
+        set_title(stored, title_of(L("Add to %1%: %2%"), name_of_object(arguments["objectId"]), joined_titles(shapes, "; ")));
+    }
+
+    if (definition->handler == ToolHandler::ObjectMarkRegion) {
         if (m_product_state == nullptr)
-            throw std::logic_error("region_annotate reached a coordinator with no product state");
+            throw std::logic_error("object_mark_region reached a coordinator with no product state");
         std::vector<Workspace::RegionRecord> planned;
         const auto plan = m_workspace.plan_regions(region_requests(json::parse(stored.arguments_json)), m_product_state->regions(), planned);
         if (!plan.succeeded()) {
@@ -2083,7 +2118,31 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         return;
     }
 
-    if (definition->handler == ToolHandler::RegionAnnotate) {
+    if (definition->handler == ToolHandler::ObjectAddShape) {
+        const auto arguments    = json::parse(activity.arguments_json);
+        const auto object       = parse_object_argument(activity.arguments_json);
+        const auto bound_before = bound_regions();
+        std::vector<Workspace::AddedPart> added;
+        const auto done = object ? m_workspace.add_shapes(*object, shape_requests(arguments), added) :
+                                   throw std::logic_error("A checked objectId did not parse");
+        if (!done.succeeded()) {
+            fail(activity, workspace_error_code(done.error), done.message);
+            return;
+        }
+        json parts = json::array();
+        for (const Workspace::AddedPart& part : added)
+            parts.push_back({{"partId", std::to_string(part.id)}, {"type", part.type}, {"label", part.label.substr(0, kToolTextLimit)}});
+        const auto snapshot  = m_workspace.snapshot();
+        activity.result_json = json{{"objectId", arguments["objectId"]}, {"parts", std::move(parts)},
+                                    {"regionsUnbound", regions_unbound(bound_before)}, {"projectUndo", true},
+                                    {"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision}}
+                                   .dump();
+        activity.state = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
+    if (definition->handler == ToolHandler::ObjectMarkRegion) {
         std::vector<Workspace::RegionRecord> stored = m_product_state->regions(), planned, applied, replaced;
         const auto plan = m_workspace.plan_regions(region_requests(json::parse(activity.arguments_json)), stored, planned);
         if (!plan.succeeded()) {

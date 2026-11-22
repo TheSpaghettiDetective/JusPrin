@@ -1,13 +1,15 @@
 // Region annotations against the live Orca model: resolving a request into a
 // record, generating its artifacts (support and seam paint, support blockers
 // and enforcers, modifier volumes, object overrides), removing them, and
-// checking whether a stored record still matches the model.
+// checking whether a stored record still matches the model; and the shapes
+// object_add_shape adds as solid or negative parts, on the same volume path.
 
 #include "OrcaWorkspaceAdapter.hpp"
 #include "OrcaGeometry.hpp"
 #include "OrcaSettings.hpp"
 #include "Regions.hpp"
 
+#include "libslic3r/BoundingBox.hpp"
 #include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/Measure.hpp"
 #include "libslic3r/Model.hpp"
@@ -15,6 +17,7 @@
 #include "libslic3r/TriangleMesh.hpp"
 #include "libslic3r/TriangleSelector.hpp"
 #include "slic3r/GUI/GLCanvas3D.hpp"
+#include "slic3r/GUI/GUI.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/GUI_ObjectList.hpp"
 #include "slic3r/GUI/I18N.hpp"
@@ -24,6 +27,7 @@
 #include <wx/thread.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <set>
 
@@ -70,7 +74,38 @@ EnforcerBlockerType paint_state(const std::string& state)
 ModelVolumeType volume_type(const std::string& target)
 {
     return target == "support_blocker"  ? ModelVolumeType::SUPPORT_BLOCKER :
-           target == "support_enforcer" ? ModelVolumeType::SUPPORT_ENFORCER : ModelVolumeType::PARAMETER_MODIFIER;
+           target == "support_enforcer" ? ModelVolumeType::SUPPORT_ENFORCER :
+           target == "part"             ? ModelVolumeType::MODEL_PART :
+           target == "negative_part"    ? ModelVolumeType::NEGATIVE_VOLUME : ModelVolumeType::PARAMETER_MODIFIER;
+}
+
+// A volume made from a primitive mesh given in the object's frame, kept where
+// it is placed, with an extruder of its own as the object list gives one.
+ModelVolume& add_primitive_volume(ModelObject& object, TriangleMesh&& mesh, ModelVolumeType type, const std::string& name, int extruder)
+{
+    ModelVolume* volume = object.add_volume(std::move(mesh), type);
+    volume->name        = name;
+    volume->config.set_key_value("extruder", new ConfigOptionInt(extruder));
+    return *volume;
+}
+
+// After objects' volumes changed: the object list, the scene and the print
+// follow, and the crash backup's per-object mesh file is written again (paint
+// lives there, as in Orca's paint tools).
+void refresh_objects(Plater& plater, const std::set<std::size_t>& touched)
+{
+    Model&      model = plater.model();
+    ObjectList* list  = wxGetApp().obj_list();
+    for (std::size_t index : touched) {
+        if (list) {
+            list->add_volumes_to_object_in_list(index);
+            list->object_config_options_changed({model.objects[index], nullptr});
+            list->update_info_items(index);
+        }
+        plater.changed_object(static_cast<int>(index));
+        Slic3r::save_object_mesh(*model.objects[index]);
+    }
+    plater.notify_project_state_changed(ProjectStateChangeReason::Objects);
 }
 
 int find_volume(const ModelObject& object, const RegionArtifact& artifact)
@@ -314,13 +349,13 @@ void OrcaWorkspaceAdapter::generate_region_artifacts(ModelObject& object, Region
     for (RegionArtifact& artifact : record.artifacts) {
         if (artifact.type == "volume") {
             const RegionGeometry geometry = volume_geometry(record);
-            ModelVolume* volume = object.add_volume(primitive_mesh(geometry, parts[record.part]->get_matrix()), volume_type(artifact.target));
-            volume->name = artifact.name;
-            volume->config.set_key_value("extruder", new ConfigOptionInt(artifact.target == "modifier" && record.kind == "material" ? record.extruder : 0));
+            ModelVolume& volume = add_primitive_volume(object, primitive_mesh(geometry, parts[record.part]->get_matrix()),
+                                                       volume_type(artifact.target), artifact.name,
+                                                       artifact.target == "modifier" && record.kind == "material" ? record.extruder : 0);
             for (const auto& [key, value] : record.settings) {
                 DynamicPrintConfig parsed;
                 parsed.set_deserialize_strict(key, value);
-                volume->config.set_key_value(key, parsed.option(key)->clone());
+                volume.config.set_key_value(key, parsed.option(key)->clone());
             }
         } else if (artifact.type == "paint") {
             ModelVolume&      part  = *parts[artifact.part];
@@ -362,18 +397,7 @@ CommandResult OrcaWorkspaceAdapter::change_regions(const std::vector<RegionRecor
         generate_region_artifacts(*model.objects[resolved->index], generated);
         touched.insert(resolved->index);
     }
-    ObjectList* list = wxGetApp().obj_list();
-    for (std::size_t index : touched) {
-        if (list) {
-            list->add_volumes_to_object_in_list(index);
-            list->object_config_options_changed({model.objects[index], nullptr});
-            list->update_info_items(index);
-        }
-        m_plater.changed_object(static_cast<int>(index));
-        // Paint lives in the crash backup's per-object mesh file, as in Orca's paint tools.
-        Slic3r::save_object_mesh(*model.objects[index]);
-    }
-    m_plater.notify_project_state_changed(ProjectStateChangeReason::Objects);
+    refresh_objects(m_plater, touched);
     return CommandResult::success();
 }
 
@@ -391,6 +415,63 @@ CommandResult OrcaWorkspaceAdapter::remove_regions(const std::vector<RegionRecor
 {
     wxASSERT(wxIsMainThread());
     return change_regions(records, {}, L("Remove regions"));
+}
+
+CommandResult OrcaWorkspaceAdapter::add_shapes(ObjectId id, const std::vector<ShapeRequest>& shapes, std::vector<AddedPart>& added)
+{
+    wxASSERT(wxIsMainThread());
+    added.clear();
+    if (shapes.empty() || shapes.size() > kShapeLimit)
+        return CommandResult::failure(WorkspaceError::InvalidArgument, "Add 1 to 16 shapes at a time");
+    const auto resolved = resolve(id);
+    if (!resolved)
+        return id_error(id);
+    ModelObject& object = *m_plater.model().objects[resolved->index];
+    const auto   parts  = model_parts(object);
+    if (parts.empty() || object.instances.empty())
+        return CommandResult::failure(WorkspaceError::Refused, object.name + " has no solid part to add to");
+
+    // The world frame is the first copy's, as the object stands now. A shape
+    // is built there and carried into the object's frame whole, so a box stays
+    // the box asked for however the object is turned or scaled.
+    const Transform3d instance = object.instances.front()->get_matrix();
+    BoundingBoxf3     solid;
+    for (const ModelVolume* part : parts)
+        solid.merge(part->mesh().transformed_bounding_box(instance * part->get_matrix()));
+    const std::array<Vec3, 2> span{vec3(solid.min), vec3(solid.max)};
+    struct Planned
+    {
+        TriangleMesh    mesh;
+        ModelVolumeType type;
+        std::string     name, label;
+    };
+    std::vector<Planned> planned;
+    for (const ShapeRequest& shape : shapes) {
+        const RegionGeometry& asked = shape.shape;
+        std::string problem = shape_problem(shape);
+        if (problem.empty() && shape.type == "negative_part")
+            problem = negative_part_outside(asked, span, object.name);
+        if (!problem.empty())
+            return CommandResult::failure(WorkspaceError::InvalidArgument, std::move(problem));
+        const bool box = asked.type == "box";
+        planned.push_back({primitive_mesh(asked, instance.inverse()), volume_type(shape.type),
+                           // The object list's own name for the shape it adds.
+                           into_u8(_L("Generic") + "-" + (box ? _L("Cube") : _L("Cylinder"))), region_geometry_words(asked)});
+    }
+
+    m_plater.canvas3D()->get_gizmos_manager().reset_all_states();
+    const ProjectStateTransaction transaction = m_plater.project_state_transaction();
+    Plater::TakeSnapshot          snapshot(&m_plater, L("Add primitive"));
+    // A solid part prints with the object's extruder, as in the object list.
+    const int extruder = object.config.has("extruder") ? object.config.opt_int("extruder") : 0;
+    for (Planned& shape : planned) {
+        ModelVolume& volume = add_primitive_volume(object, std::move(shape.mesh), shape.type, shape.name,
+                                                   shape.type == ModelVolumeType::MODEL_PART ? extruder : 0);
+        // Not from a file, so the object list offers no reload from disk.
+        volume.source.is_from_builtin_objects = true;
+        added.push_back({volume.id().id, shape.type == ModelVolumeType::MODEL_PART ? "part" : "negative_part", shape.label});    }
+    refresh_objects(m_plater, {resolved->index});
+    return CommandResult::success();
 }
 
 std::vector<RegionStatus> OrcaWorkspaceAdapter::region_status(const std::vector<RegionRecord>& records) const

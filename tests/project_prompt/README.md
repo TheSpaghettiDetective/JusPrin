@@ -471,6 +471,9 @@ the case, a read is answered and the run goes on.
 | `slice-refused-then-ready` | two plates, Bambu PETG HF, the second plate set to the Cool Plate; the person pressed Slice all (plate 1 sliced, plate 2 refused) and asked "is it ready to print?"; that request carries the skill | as `slice-refused-by-tool` | as `slice-refused-by-tool` | as `slice-refused-by-tool` |
 | `calibration-symptom` | "My prints in this PLA come out with lots of thin strings between the parts, and the overhangs look droopy." on the `"single"` fixture | the calibration skill (`skills/calibration/SKILL.md`, read with `skill_read`): give the two facts and a choice before calling `calibration_generate` | a turn whose messages, taken together, offer a test, give both facts and end by asking the person to choose (judged) | `calibration_generate` or any other change, or a turn that does not |
 | `calibration-result` | `calibration_generate` made a temperature tower (230 to 190 °C) from Bambu PLA Basic, opening its own project; there the model read the skill and recorded the test; the person pressed Slice and describes the print in words (215 is the best block) | the calibration skill: preview the write on the filament with `persistAs`, a copy named "<filament preset> · <printer> calibrated" with the printer as the person named it | a filament `settings_preview_patch` with `nozzle_temperature` `"215,215"` (one value per nozzle kind, as the filament holds it since OrcaSlicer 2.5.0) and that name (`CALIBRATED_COPY`) | any other preview, any change, or a reply without the preview |
+| `shape-screw-hole` | "add a hole for an M3 screw straight down through the middle of this" on the `"single"` fixture (a 20 mm cube), from a kept chat's "add holes for the screws" | `object_add_shape`'s description: a negative part is a hole, a screw hole is a negative_part cylinder along the screw | `object_add_shape` adding one negative_part cylinder, vertical, 2.5 to 4 mm across, at least 20 mm long | any other change, `object_mark_region` included, or a reply saying it cannot make holes (judged) |
+| `shape-lip` | "add a little lip, 2 mm wide and 2 mm high, along the bottom of the front face", from a kept chat's "add a little lip and put the SNAPON logo there" | `object_add_shape`'s description: a part adds solid material, a lip among them | `object_add_shape` adding only part boxes | a negative part, any other change, or a reply saying it cannot (judged) |
+| `shape-text-gives-steps` | "put MICKEY on top of this in raised letters", from a kept chat's raised text | `object_add_shape`'s description: it cannot add text, lettering or a logo, and the guide on plates and objects has the steps to give the person | a reply giving the app's steps: the object's menu (**More** or a right-click), **Add Part**, then **Text**, not claiming the lettering was added (judged) | any change, letters built from boxes included, a reply without those steps, or one claiming the lettering was added |
 
 Notes on the cases:
 
@@ -1036,6 +1039,11 @@ each, `claude-opus-5-5` at effort `medium` for both model and judge, `--jobs
 5`, CLI 2.1.283 on macOS. 125 model requests, 2,730,699 input tokens
 (2,595,098 cached) and 45,985 output, plus 41 judge requests, 189,838 input
 and 12,451 output, all on the subscription.
+
+On 2026-11-21, at Kenneth's request, the three cases `object_add_shape` added
+(`shape-screw-hole`, `shape-lip`, `shape-text-gives-steps`) were added to it
+from their first run, three runs each on the same model, effort and judge: 9
+of 9 passed. Every other case's counts are still the 2026-11-03 run's.
 
 79 of 81 runs passed; none was unobserved and none searched. Against the
 2026-10-30 baseline no case moved by two runs or more. The two failures are

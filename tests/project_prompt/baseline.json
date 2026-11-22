@@ -179,6 +179,9 @@
     "print-hook-no-purpose": "every run failed without a response",
     "model-opened-unnamed": "every run failed without a response",
     "model-imported-by-tool": "every run failed without a response",
-    "model-opened-by-tool": "every run failed without a response"
+    "model-opened-by-tool": "every run failed without a response",
+    "shape-screw-hole": "added 2026-11-21 with object_add_shape; not run on a model yet",
+    "shape-lip": "added 2026-11-21 with object_add_shape; not run on a model yet",
+    "shape-text-gives-steps": "added 2026-11-21 with object_add_shape; not run on a model yet"
   }
 }

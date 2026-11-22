@@ -1,6 +1,6 @@
 ---
 name: guide-plates-and-objects
-description: Read before telling the person how to arrange objects on plates by hand: the Plates tab's plate and object menus, Add model, Add plate, Move, Rotate and Scale, and the cut and paint keys.
+description: Read before telling the person how to arrange objects on plates by hand: the Plates tab's plate and object menus, Add model, Add plate, Move, Rotate and Scale, adding text or a logo, and the cut and paint keys.
 ---
 
 # Plates and objects
@@ -67,6 +67,15 @@ Select an object, and a row of buttons appears at the top left of the 3D view: M
 ## More: mirror, text and other tools
 
 **More**, the last button in the row, opens the object menu of the 3D view, the same one a right-click on an object opens. It has **Clone**, **Mirror**, the parts and modifiers you can add, including **Text**, and the object's other commands.
+
+To put words or a logo on an object:
+
+1. Select the object, then click **More**, or right-click the object in the 3D view.
+2. Choose **Add Part**, then **Text**, for letters that stand out of the surface. **Add Negative Part**, then **Text**, cuts the letters into it instead. **SVG**, in the same two menus, adds a logo from an SVG file.
+3. The text tool opens with the text on the object. Type the words, and choose the **Font**, the **Height** of the letters and their **Depth**.
+4. Drag the text over the object to move it on the surface, then close the tool.
+
+I cannot add text or a logo with my tools. When the person asks for lettering or a logo on a model, I give them these steps, with their own words and sizes filled in.
 
 Cutting and painting have no button. With an object selected, press a key in the 3D view:
 

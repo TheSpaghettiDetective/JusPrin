@@ -9,6 +9,7 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -262,6 +263,51 @@ inline RegionRecord region_record_from(const nlohmann::json& value)
     if (record.provenance.empty())
         record.provenance = "user_confirmed";
     return record;
+}
+
+// object_add_shape's checks, the same in every adapter: what is wrong with a
+// shape, if anything, and the world-frame box it reaches.
+inline std::string shape_problem(const ShapeRequest& shape)
+{
+    const RegionGeometry& g = shape.shape;
+    if (shape.type != "part" && shape.type != "negative_part")
+        return "\"" + shape.type + "\" is not part or negative_part";
+    if (g.type == "box")
+        return std::min({g.size[0], g.size[1], g.size[2]}) > 0 ? std::string() : "A box needs a positive size";
+    if (g.type == "cylinder")
+        return std::hypot(g.normal[0], g.normal[1], g.normal[2]) > 1e-9 && g.diameter > 0 && g.length > 0 ?
+                   std::string() :
+                   "A cylinder needs an axis, a diameter and a length";
+    return "A shape is a box or a cylinder";
+}
+
+inline std::array<Vec3, 2> shape_reach(const RegionGeometry& g)
+{
+    Vec3 half{0.5 * g.size[0], 0.5 * g.size[1], 0.5 * g.size[2]};
+    if (g.type == "cylinder") {
+        const double norm = std::hypot(g.normal[0], g.normal[1], g.normal[2]);
+        for (std::size_t axis = 0; axis < 3; ++axis) {
+            const double along = g.normal[axis] / norm;
+            half[axis] = 0.5 * g.length * std::abs(along) + 0.5 * g.diameter * std::sqrt(std::max(0.0, 1 - along * along));
+        }
+    }
+    return {Vec3{g.center[0] - half[0], g.center[1] - half[1], g.center[2] - half[2]},
+            Vec3{g.center[0] + half[0], g.center[1] + half[1], g.center[2] + half[2]}};
+}
+
+// Why a negative part reaching `reach` is refused by an object whose solid
+// parts span `solid`, or nothing when the two boxes meet.
+inline std::string negative_part_outside(const RegionGeometry& g, const std::array<Vec3, 2>& solid, const std::string& object)
+{
+    const std::array<Vec3, 2> reach = shape_reach(g);
+    for (std::size_t axis = 0; axis < 3; ++axis)
+        if (reach[1][axis] < solid[0][axis] || reach[0][axis] > solid[1][axis])
+            return "The " + region_geometry_words(g) + " at (" + region_number(g.center[0]) + ", " + region_number(g.center[1]) + ", " +
+                   region_number(g.center[2]) + ") is outside " + object + ", which spans (" + region_number(solid[0][0]) + ", " +
+                   region_number(solid[0][1]) + ", " + region_number(solid[0][2]) + ") to (" + region_number(solid[1][0]) + ", " +
+                   region_number(solid[1][1]) + ", " + region_number(solid[1][2]) +
+                   "); a negative part only takes away where it overlaps a solid part";
+    return {};
 }
 
 // The next unused id: r1, r2, ... never reusing one still stored.

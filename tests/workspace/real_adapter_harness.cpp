@@ -1340,6 +1340,7 @@ private:
         verify_cross_plate_duplicate();
         verify_plate_membership_after_cut();
         verify_split_of_one_part_with_a_modifier();
+        verify_add_shapes();
         verify_local_versions();
         verify_reopened_local_versions();
         verify_paint_version_resources();
@@ -1602,6 +1603,125 @@ private:
         check(model.objects.size() == 1, "split_modifier_leaves_the_object_alone");
         request.as_parts = true;
         check(adapter.divide_object(id, request, result).succeeded() && result.pieces.size() == 2, "split_modifier_shells_parts_splits_it");
+    }
+
+    // object_add_shape against Orca's model: a negative-part cylinder and a
+    // solid box land where they were asked, on an object that is turned, as
+    // the object list's Add Part and Add Negative Part make them; one project
+    // Undo takes both away; a solid part unbinds the object's regions and a
+    // hole does not; a refused call changes nothing.
+    void verify_add_shapes()
+    {
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "shapes_new_project");
+        const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+        const auto loaded = m_plater->load_files(
+            std::vector<boost::filesystem::path>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+        check(loaded.size() == 1, "shapes_cube_loaded");
+        if (loaded.size() != 1)
+            return;
+        ModelObject& object = *m_plater->model().objects[0];
+        // Turned 45 degrees and scaled, so a box carried in the part's own
+        // axes would come out larger than asked.
+        object.instances[0]->set_rotation(Vec3d(0, 0, PI / 4));
+        object.instances[0]->set_scaling_factor(Vec3d(1.5, 1.5, 1.5));
+        object.ensure_on_bed();
+        m_plater->changed_object(0);
+        OrcaWorkspaceAdapter adapter(*m_plater);
+        const ObjectId id = adapter.snapshot().plates[0].objects.front().id;
+        const BoundingBoxf3 before = object.instance_bounding_box(0);
+        const Vec3d center = before.center();
+        const std::size_t volumes_before = object.volumes.size();
+
+        RegionRecord bound;
+        bound.id          = "r1";
+        bound.kind        = "reinforce";
+        bound.session     = adapter.snapshot().session.value();
+        bound.object      = object.id().id;
+        bound.object_name = object.name;
+        bound.part_facets = {object.volumes.front()->mesh().facets_count()};
+        bound.geometry.type = "object";
+        check(adapter.region_status({bound}).front().object.has_value(), "shapes_region_bound_before");
+
+        ShapeRequest hole;
+        hole.type           = "negative_part";
+        hole.shape.type     = "cylinder";
+        hole.shape.center   = {center.x(), center.y(), center.z()};
+        hole.shape.normal   = {0, 0, 1};
+        hole.shape.diameter = 5;
+        hole.shape.length   = before.size().z() + 2;
+        ShapeRequest block;
+        block.type        = "part";
+        block.shape.type  = "box";
+        block.shape.center = {center.x() + before.size().x() / 2 + 4, center.y(), 2};
+        block.shape.size   = {10, 6, 4};
+
+        ShownDialogs dialogs;
+        dialogs.Register();
+        std::vector<AddedPart> added;
+        const CommandResult holed = adapter.add_shapes(id, {hole}, added);
+        check(holed.succeeded() && added.size() == 1, "shapes_hole_added");
+        check(adapter.region_status({bound}).front().object.has_value(), "shapes_hole_keeps_regions_bound");
+        const CommandResult blocked = adapter.add_shapes(id, {block}, added);
+        dialogs.Unregister();
+        check(dialogs.titles.empty(), "shapes_show_no_dialog");
+        check(blocked.succeeded() && added.size() == 1, "shapes_part_added");
+        check(!adapter.region_status({bound}).front().object.has_value(), "shapes_part_unbinds_regions");
+        check(object.volumes.size() == volumes_before + 2, "shapes_two_volumes_added");
+        if (object.volumes.size() != volumes_before + 2)
+            return;
+
+        const auto world_box = [&object](const ModelVolume& volume) {
+            return volume.mesh().transformed_bounding_box(object.instances[0]->get_matrix() * volume.get_matrix());
+        };
+        const auto near = [](const Vec3d& a, const Vec3d& b, double tolerance) { return (a - b).cwiseAbs().maxCoeff() <= tolerance; };
+        const ModelVolume* negative = nullptr;
+        const ModelVolume* solid    = nullptr;
+        for (const ModelVolume* volume : object.volumes) {
+            if (volume->type() == ModelVolumeType::NEGATIVE_VOLUME) negative = volume;
+            if (volume->is_model_part() && volume->name == "Generic-Cube") solid = volume;
+        }
+        check(negative != nullptr && negative->name == "Generic-Cylinder", "shapes_negative_part_is_orca_negative_volume");
+        check(solid != nullptr, "shapes_box_is_orca_model_part");
+        if (negative == nullptr || solid == nullptr)
+            return;
+        check(added.front().id == solid->id().id && added.front().type == "part", "shapes_result_names_the_new_part");
+        const BoundingBoxf3 hole_box = world_box(*negative);
+        std::cout << "shapes: hole " << hole_box.min.transpose() << " to " << hole_box.max.transpose() << std::endl;
+        check(near(hole_box.center(), center, 0.01) && std::abs(hole_box.size().z() - hole.shape.length) < 0.01 &&
+                  std::abs(hole_box.size().x() - 5) < 0.05,
+              "shapes_hole_is_where_it_was_asked");
+        const BoundingBoxf3 box = world_box(*solid);
+        std::cout << "shapes: box " << box.min.transpose() << " to " << box.max.transpose() << std::endl;
+        check(near(box.size(), Vec3d(10, 6, 4), 0.001) && near(box.center(), Vec3d(block.shape.center[0], block.shape.center[1], 2), 0.001),
+              "shapes_box_is_the_box_asked_for_on_a_turned_object");
+        check(negative->config.opt_int("extruder") == 0 && negative->source.is_from_builtin_objects &&
+                  solid->source.is_from_builtin_objects,
+              "shapes_volumes_set_up_as_the_object_list_does");
+
+        check(adapter.undo().succeeded(), "shapes_undo_succeeds");
+        check(m_plater->model().objects[0]->volumes.size() == volumes_before + 1, "shapes_undo_removes_the_last_call");
+        check(adapter.undo().succeeded(), "shapes_second_undo_succeeds");
+        check(m_plater->model().objects[0]->volumes.size() == volumes_before, "shapes_undo_removes_the_hole");
+        const auto negatives = [this] {
+            std::size_t count = 0;
+            for (const ModelVolume* volume : m_plater->model().objects[0]->volumes)
+                count += volume->type() == ModelVolumeType::NEGATIVE_VOLUME;
+            return count;
+        };
+        check(negatives() == 0, "shapes_no_negative_part_after_undo");
+
+        // Both shapes in one call are one undo step.
+        check(adapter.add_shapes(id, {hole, block}, added).succeeded() && added.size() == 2, "shapes_two_in_one_call");
+        check(adapter.undo().succeeded() && m_plater->model().objects[0]->volumes.size() == volumes_before, "shapes_one_call_is_one_undo_step");
+
+        ShapeRequest away = hole;
+        away.shape.center = {center.x() + 200, center.y(), center.z()};
+        const std::uint64_t revision = adapter.snapshot().revision;
+        const CommandResult refused = adapter.add_shapes(id, {block, away}, added);
+        std::cout << "shapes: refused: " << refused.message << std::endl;
+        check(refused.error == WorkspaceError::InvalidArgument && added.empty(), "shapes_hole_outside_is_refused");
+        check(m_plater->model().objects[0]->volumes.size() == volumes_before && adapter.snapshot().revision == revision,
+              "shapes_refused_call_changes_nothing");
     }
 
     void verify_plate_membership_after_cut()
