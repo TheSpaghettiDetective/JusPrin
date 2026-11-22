@@ -3,7 +3,7 @@
   "checkpoint_id": "01M80AQ7RSCD6Q5V9MCD9MWHE1",
   "strategy": "manual-commit",
   "branch": "claude/object-add-shape",
-  "checkpoints_count": 6,
+  "checkpoints_count": 12,
   "files_touched": [
     "agent-docs/jusprin/mcp-tool-extension-guide.md",
     "docs/guide/plates-and-objects.md",
@@ -66,6 +66,13 @@
       "transcript": "/1/full.jsonl",
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
+      "prompt": ""
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
       "prompt": ""
     }
   ],
