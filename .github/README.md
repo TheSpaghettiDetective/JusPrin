@@ -7,7 +7,7 @@
 
 **Welcome to JusPrin, the first GenAI app for 3D printing!**
 
-Brought to you by the creator of [The Spaghetti Detective](https://www.thespaghettidetective.com/), JusPrin aims to revolutionize the 3D printing experience by eliminating the need for manual slicing. Imagine: **no confusing slicing parameters, no headaches over printing issues caused by incorrect settings. Just print.** That's the promise of JusPrin.
+Brought to you by [Obico](https://www.obico.io/?utm_source=github&utm_medium=readme&utm_campaign=JusPrin), the makers of The Spaghetti Detective, JusPrin aims to revolutionize the 3D printing experience by eliminating the need for manual slicing. Imagine: **no confusing slicing parameters, no headaches over printing issues caused by incorrect settings. Just print.** That's the promise of JusPrin.
 
 ## Table of Contents
 
