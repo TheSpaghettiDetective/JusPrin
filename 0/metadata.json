@@ -1,0 +1,64 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M80D8PMV7EHNN7N8CQHC99M9",
+  "session_id": "1ed29bfc-ff73-4f41-9879-298ad4661139",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-22T01:17:28.301304Z",
+  "branch": "claude/object-add-shape",
+  "checkpoints_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-2",
+  "turn_id": "6a6b3522d827",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 348,
+    "cache_creation_tokens": 1693192,
+    "cache_read_tokens": 49136145,
+    "output_tokens": 180416,
+    "api_call_count": 174
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_015nUGpumCwyVj99umYHBoku",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "error-handling"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "6a6b3522d827",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 352,
+        "end": 353,
+        "entry_ids": [
+          "c81446bf-b7bf-483b-9ddc-12c831035431"
+        ],
+        "tool_use_id": "toolu_015nUGpumCwyVj99umYHBoku"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_015nUGpumCwyVj99umYHBoku"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: error-handling",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
