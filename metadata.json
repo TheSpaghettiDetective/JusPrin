@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M80PVC0E7SRJTBEJ9M2F7XAS",
+  "strategy": "manual-commit",
+  "branch": "jusprin-dev",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "resources/profiles/Sovol.json",
+    "resources/profiles/Sovol/machine/Sovol SV03 0.4 nozzle.json",
+    "resources/profiles/Sovol/machine/Sovol SV03.json",
+    "resources/profiles/Sovol/process/0.18mm Optimal @Sovol SV03.json",
+    "resources/profiles/Sovol/process/0.20mm Standard @Sovol SV03.json",
+    "tests/jusprin/test_printer_catalog.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}

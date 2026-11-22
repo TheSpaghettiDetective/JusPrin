@@ -1,0 +1,47 @@
+Kenneth -- I'm Dan, I run Massive. We find senior engineers for contract work at Anthropic, right now for their research team on Claude Code.
+
+The work is reading what the model wrote and deciding if it's any good. Sometimes it says it fixed the bug, but it edited the test so it would pass. You'd catch that and explain why it's wrong.
+
+Based on your LinkedIn, you look close to who we're looking for.
+
+$150 / hr, 40 hrs/week, 5 months, FT contract, remote (US). It's a contract role, separate from Anthropic's FTE hiring.
+
+If this sounds good, reply with your coding agent setup and the last time it got something wrong. A few sentences is plenty, and it tells us more than a resume would.
+
+If it's a fit, I'll send the job description so you can book a call.
+
+- Dan
+
+PS -- feel free to verify me on LinkedIn.
+
+This is what I received from a recruiter. And we had a lot of back and forth in the main session. If so, help me the response he was looking for, based on how I corrected you multiple times throughout the session
+
+---
+
+focus on *how* I checked your work, and *how* I foudn out things didn't go as expected
+
+---
+
+describe the back and forth we had in the main session concisely, understandable for the audience who has no background knowledget about this project
+
+---
+
+The way I usually used to find out where a clock code may get it wrong is to develop an intuition  About where, about the strengths and weaknesses of Clock Code based on my daily interactions with it.  For instance, what I found out is that its coding pattern largely follow similar patterns that junior software engineers. such as air handling, especially on things such as air handling, production troubleshooting, etc with some exceptions such as finding where a certain features are called or functions are called we almost never miss any call sites
+
+
+this is what I will repond. continue from here by describing this session as an example for how I utilized these techniques. keep it concise. less than 5 sentences/100 words
+
+---
+
+break it into paragraphs. use 10 setences, 200 words. give a bit more details by sprinkling in a bit jargon such as the century here and there.
+
+---
+
+The way I usually used to find out where a clock code may get it wrong is to develop an intuition  About where, about the strengths and weaknesses of Clock Code based on my daily interactions with it.  For instance, what I found out is that its coding pattern largely follow similar patterns that junior software engineers. such as air handling, especially on things such as air handling, production troubleshooting, etc with some exceptions such as finding where a certain features are called or functions are called we almost never miss any call sites.
+Setup: I run Claude Code in the desktop app on a C++ (just went live last week at: https://github.com/TheSpaghettiDetective/JusPrin/) and React desktop product with a Django server. One main session (Fable 5.2) plans and reviews, and it hands each piece of work to a side session (mostly Opus 5.5) in its own git worktree.
+
+continue from this insetead. fix my gramma
+
+---
+
+can you find a recent session about creating my resume?
