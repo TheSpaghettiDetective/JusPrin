@@ -3,7 +3,7 @@
   "checkpoint_id": "01M80PVC0E7SRJTBEJ9M2F7XAS",
   "strategy": "manual-commit",
   "branch": "jusprin-dev",
-  "checkpoints_count": 4,
+  "checkpoints_count": 5,
   "files_touched": [
     "resources/profiles/Sovol.json",
     "resources/profiles/Sovol/machine/Sovol SV03 0.4 nozzle.json",
@@ -33,13 +33,20 @@
       "compact_transcript": "/2/transcript.jsonl",
       "content_hash": "/2/content_hash.txt",
       "prompt": "/2/prompt.txt"
+    },
+    {
+      "metadata": "/3/metadata.json",
+      "transcript": "/3/full.jsonl",
+      "compact_transcript": "/3/transcript.jsonl",
+      "content_hash": "/3/content_hash.txt",
+      "prompt": "/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 138,
+    "cache_creation_tokens": 295751,
+    "cache_read_tokens": 12123262,
+    "output_tokens": 38971,
+    "api_call_count": 69
   }
 }

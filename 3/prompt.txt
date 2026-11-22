@@ -1,0 +1,11 @@
+Run it tonight
+
+---
+
+<task-notification>
+<task-id>bg51h9dmb</task-id>
+<tool-use-id>toolu_01Sui3AedLxmjJWmjFwA6Xww</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-claude-cowork-wd/bfd64c92-ac82-42f5-8b49-421396e5af33/tasks/bg51h9dmb.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the full CI profile check with nightly validator" completed (exit code 0)</summary>
+</task-notification>
