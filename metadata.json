@@ -3,11 +3,16 @@
   "checkpoint_id": "01M84SRP6Q4421SXTGQ7H9Y7QA",
   "strategy": "manual-commit",
   "branch": "jusprin-dev",
-  "checkpoints_count": 2,
+  "checkpoints_count": 6,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/Agent/ProviderAgent.cpp",
     "src/slic3r/GUI/JusPrin/Agent/ProviderAgent.hpp",
-    "tests/agent/test_agent_bridge.cpp"
+    "src/slic3r/GUI/JusPrin/Agent/RecordConversion.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/RecordConversion.hpp",
+    "tests/agent/test_agent_bridge.cpp",
+    "tests/agent/test_provider_agent.cpp",
+    "tests/agent/test_provider_conformance.cpp",
+    "tests/agent/test_provider_live.cpp"
   ],
   "sessions": [
     {
@@ -16,13 +21,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": "/0/prompt.txt"
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 280,
-    "cache_creation_tokens": 1466780,
-    "cache_read_tokens": 43497603,
-    "output_tokens": 159987,
-    "api_call_count": 140
+    "input_tokens": 390,
+    "cache_creation_tokens": 1558776,
+    "cache_read_tokens": 60950878,
+    "output_tokens": 206213,
+    "api_call_count": 195
   }
 }
