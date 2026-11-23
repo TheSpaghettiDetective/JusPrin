@@ -56,6 +56,8 @@ std::string cloud_print_reports_url(const AppConfig* config);
 // Where the app says it started (Updates::report_launch); no token goes with it.
 std::string cloud_launches_url(const AppConfig* config);
 std::string cloud_account_token(const AppConfig* config);
+// The signed-in account's number on the server; empty when signed out.
+std::string cloud_account_id(const AppConfig* config);
 
 // The docked Agent's per-chat models: every provider with a stored key, the
 // default provider setup recorded, agents built from those keys, and each

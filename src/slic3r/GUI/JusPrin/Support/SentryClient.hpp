@@ -18,8 +18,10 @@
 namespace Slic3r::GUI::JusPrin {
 
 // Starts the SDK, once, with its files in `data_dir`. A build with no Sentry
-// project (no JUSPRIN_SENTRY_DSN) starts nothing and sends nothing.
-void start_sentry(const std::string& data_dir, bool reports_automatically);
+// project (no JUSPRIN_SENTRY_DSN) starts nothing and sends nothing. Reports
+// and crashes name the person by `install_id` (Updates::install_id) until an
+// account is named.
+void start_sentry(const std::string& data_dir, bool reports_automatically, const std::string& install_id);
 
 // Stops the SDK, once, sending what is still under way. Call it while the app
 // can still start threads: the uploads run on their own threads, and once
@@ -32,6 +34,11 @@ void sentry_follow_setting(bool reports_automatically);
 // Sends one report. `reports_automatically` false means the person asked for
 // this one: consent holds for it alone.
 void sentry_send(const ErrorReport& report, bool reports_automatically);
+
+// Names the person in every report and crash from here on by their JusPrin
+// account's number on the server; empty names them by the install, as when
+// nobody is signed in. Nothing else about the account is sent.
+void sentry_set_account(const std::string& account_id);
 
 // One step of what the app was doing, kept with the next report: `category`
 // as "page" or "tool", `message` a message type or a tool name, never what

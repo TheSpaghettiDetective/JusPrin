@@ -109,6 +109,8 @@ struct CloudAccountRecord
     std::string email;
     // Each model the account was last told about, with its wire format.
     std::vector<std::pair<std::string, std::string>> formats;
+    // The account's number on the server, which error reports name it by.
+    std::string account_id;
 };
 
 // Where the account is kept, injected so this file never reaches AppConfig.
