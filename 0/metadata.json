@@ -1,0 +1,75 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M84PB304XM3NTZ6VX1MAXPJZ",
+  "session_id": "8772d764-7c06-42be-b50f-e5c960517568",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-23T17:13:00.527546Z",
+  "branch": "jusprin-dev",
+  "checkpoints_count": 2,
+  "save_step_count": 1,
+  "files_touched": [
+    "tests/agent/test_cloud_account.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-2",
+  "turn_id": "17313f62f8ad",
+  "checkpoint_transcript_start": 1298,
+  "transcript_lines_at_start": 1298,
+  "compact_transcript_start": 210,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_015nUGpumCwyVj99umYHBoku",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "error-handling"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "035f189f9af0",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 352,
+        "end": 353,
+        "entry_ids": [
+          "c81446bf-b7bf-483b-9ddc-12c831035431"
+        ],
+        "tool_use_id": "toolu_015nUGpumCwyVj99umYHBoku"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_015nUGpumCwyVj99umYHBoku"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: error-handling",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 4
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-23T17:13:00.345066Z",
+    "agent_lines": 16,
+    "agent_removed": 0,
+    "human_added": 76,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 92,
+    "total_lines_changed": 101,
+    "agent_percentage": 15.841584158415841,
+    "metric_version": 2
+  }
+}
