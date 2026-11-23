@@ -582,6 +582,110 @@ TEST_CASE("Anthropic accepts a turn that replays its thinking with a fired skill
     CHECK(sent.back().body.find("call_Ab3dE5fG7hI9jK1lM3nO5pQ7") != std::string::npos);
 }
 
+namespace {
+
+// A reply request whose record is kept in `kept`, as the chat's record keeps it.
+AgentRequest kept_in(std::vector<RecordItem>& kept, const std::string& id, const std::string& instructions, const std::string& words)
+{
+    AgentRequest request;
+    request.on_recorded = [&kept](const std::string&, std::vector<RecordItem> items) { kept.insert(kept.end(), items.begin(), items.end()); };
+    request.keep_blob   = [](const std::string&) -> std::string { return "chats/live/blob"; };
+    request.request_id                = id;
+    request.chat_key                  = "live-stopped-turn";
+    request.record                    = ChatRecord{"anthropic", kept};
+    request.session.instructions      = instructions;
+    request.session.include_workspace = false;
+    request.user_text                 = words;
+    return request;
+}
+
+bool kept_block(const std::vector<RecordItem>& kept, const std::string& type)
+{
+    for (const RecordItem& item : kept)
+        if (item.kind == RecordItem::Kind::Assistant && item.output.is_array())
+            for (const json& block : item.output)
+                if (block.value("type", "") == type)
+                    return true;
+    return false;
+}
+
+constexpr const char* kSearchAndCall =
+    "You are a connectivity check. In your first response make two calls at once: the web_search tool with the query "
+    "\"Prusa MK4 nozzle diameter\", and the workspace_inspect tool with sections [\"summary\"]. Once both results are in, call "
+    "workspace_inspect twice more in one response, each with sections [\"summary\"]. When a later message asks for a word, "
+    "reply with that word only.";
+
+constexpr const char* kSummary = R"({"state":"succeeded","result":{"summary":{"objects":1}}})";
+
+} // namespace
+
+// OBICO-SERVER-B2N, against Anthropic itself. Anthropic runs a web search
+// asked for beside an app call only once the app's results come back, so
+// its result arrives in the next reply. A turn stopped while the app answers
+// that reply's calls: the next message must be taken.
+TEST_CASE("Anthropic takes the next message after a turn stopped once its search's result came", "[agent][anthropic][live][.]")
+{
+    if (anthropic_key().empty())
+        SKIP("ANTHROPIC_API_KEY is not set");
+    std::vector<AgentHttpRequest> sent;
+    std::vector<AgentUsage>       usage;
+    std::vector<RecordItem>       kept;
+    AgentServicePtr               agent = live_anthropic_agent(sent, usage, /*enforce_history_check=*/true);
+
+    REQUIRE(agent->start(kept_in(kept, "live-stopped-after-search", kSearchAndCall, "Run the check.")));
+    const Turn first = run_until_settled(*agent);
+    INFO("first reply: " << first.text << (first.error ? " error: " + first.error->code + " " + first.error->message : ""));
+    REQUIRE(first.call);
+    // The case needs the search asked for beside the call, with no result yet.
+    REQUIRE(kept_block(kept, "server_tool_use"));
+    REQUIRE_FALSE(kept_block(kept, "web_search_tool_result"));
+    REQUIRE(agent->continue_after_tool({first.call->call_id, "succeeded", kSummary}));
+    const Turn second = run_until_settled(*agent);
+    INFO("second reply: " << second.text << (second.error ? " error: " + second.error->code + " " + second.error->message : ""));
+    REQUIRE(second.call);
+    REQUIRE(kept_block(kept, "web_search_tool_result"));
+    agent->cancel();
+
+    REQUIRE(agent->start(kept_in(kept, "live-after-stopped-search", kSearchAndCall, "The check is over. Reply with the word: ok.")));
+    const Turn next = run_until_settled(*agent);
+    report(usage);
+    INFO("next reply: " << next.text << (next.error ? " error: " + next.error->code + " " + next.error->message + " " + next.error->said : ""));
+    REQUIRE_FALSE(next.error);
+    CHECK(next.completed);
+    const json messages = json::parse(sent.back().body)["messages"];
+    CHECK(has_block(messages, "web_search_tool_result"));
+    CHECK(sent.back().body.find("turn_ended") != std::string::npos);
+}
+
+// The same, stopped while the app answers the first reply's call: the search
+// never ran, and the next message is taken without it.
+TEST_CASE("Anthropic takes the next message after a turn stopped before its search ran", "[agent][anthropic][live][.]")
+{
+    if (anthropic_key().empty())
+        SKIP("ANTHROPIC_API_KEY is not set");
+    std::vector<AgentHttpRequest> sent;
+    std::vector<AgentUsage>       usage;
+    std::vector<RecordItem>       kept;
+    AgentServicePtr               agent = live_anthropic_agent(sent, usage, /*enforce_history_check=*/true);
+
+    REQUIRE(agent->start(kept_in(kept, "live-stopped-before-search", kSearchAndCall, "Run the check.")));
+    const Turn first = run_until_settled(*agent);
+    INFO("first reply: " << first.text << (first.error ? " error: " + first.error->code + " " + first.error->message : ""));
+    REQUIRE(first.call);
+    REQUIRE(kept_block(kept, "server_tool_use"));
+    agent->cancel();
+
+    REQUIRE(agent->start(kept_in(kept, "live-after-unrun-search", kSearchAndCall, "The check is over. Reply with the word: ok.")));
+    const Turn next = run_until_settled(*agent);
+    report(usage);
+    INFO("next reply: " << next.text << (next.error ? " error: " + next.error->code + " " + next.error->message + " " + next.error->said : ""));
+    REQUIRE_FALSE(next.error);
+    CHECK(next.completed);
+    const json messages = json::parse(sent.back().body)["messages"];
+    CHECK_FALSE(has_block(messages, "server_tool_use"));
+    CHECK(sent.back().body.find("turn_ended") != std::string::npos);
+}
+
 TEST_CASE("Anthropic writes a title from the person's words", "[agent][anthropic][live][.]")
 {
     if (anthropic_key().empty())

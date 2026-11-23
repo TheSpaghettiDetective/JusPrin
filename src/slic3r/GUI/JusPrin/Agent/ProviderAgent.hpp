@@ -133,9 +133,10 @@ private:
     // Where the turn's items go to be kept, and how far they have gone: the
     // items before m_recorded are in the chat's record. Those before
     // m_settled join it once the provider accepts a request carrying them: a
-    // request may fail after them and the next one still follows on (never a
-    // call without its result, never an operator message with nothing after
-    // it).
+    // request may fail after them and the next one still follows on (never an
+    // operator message with nothing after it). A reply joins it as it
+    // arrives, its calls answered or not; the next turn answers the ones a
+    // turn that ended left unanswered (with_ended_turns_closed).
     std::function<void(const std::string&, std::vector<RecordItem>)> m_on_recorded;
     std::function<std::string(const std::string&)>                   m_keep_blob;
     std::size_t                           m_recorded{0};

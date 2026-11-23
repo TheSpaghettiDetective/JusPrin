@@ -1,6 +1,7 @@
 #include "ProviderAgent.hpp"
 #include "CloudAccount.hpp"
 #include "ManufacturingHistory.hpp"
+#include "RecordConversion.hpp"
 #include "slic3r/GUI/JusPrin/Support/Base64.hpp"
 #include "ToolRegistry.hpp"
 #include "ToolResults.hpp"
@@ -271,7 +272,7 @@ void ProviderAgent::begin_transcript(const AgentRequest& request)
     }
     if (!m_on_recorded || !m_keep_blob)
         throw std::logic_error("a reply request with nowhere to keep what it sends");
-    items      = request.record.items;
+    items      = with_ended_turns_closed(request.record.items, request.record.format);
     m_recorded = items.size();
     // Each turn says what it is in, for a model served in another format.
     for (RecordItem& item : items)
@@ -527,8 +528,13 @@ void ProviderAgent::finish_response(StreamEvent event)
     m_results = RecordItem{RecordItem::Kind::Results};
     m_failed_call.clear();
     m_transcript.items.push_back(RecordItem{RecordItem::Kind::Assistant, {}, {}, {}, std::move(event.assistant_turn)});
+    // Kept as it arrives, before its calls are answered: a turn can end
+    // first, and the reply may hold what an earlier one asked for (the
+    // result of a web search). The next turn answers what it left unanswered
+    // (with_ended_turns_closed).
+    m_settled = m_transcript.items.size();
+    record();
     if (event.resend) {
-        m_settled = m_transcript.items.size();
         // The provider paused its own turn and resumes it from this one.
         constexpr unsigned kPausedTurnLimit = 4;
         if (++m_paused_turns > kPausedTurnLimit) {

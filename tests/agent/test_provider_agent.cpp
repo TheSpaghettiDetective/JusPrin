@@ -967,7 +967,7 @@ TEST_CASE("every request's skills stay where they were sent, and a result that f
 // What the loop hands the chat's record, and when: what a request carried,
 // once the provider has taken it and a later request can follow on from it
 // whatever happens next.
-TEST_CASE("the record gets every item sent, never a call without its result nor a skill nothing followed", "[agent][loop][record]")
+TEST_CASE("the record gets every item sent and every reply as it arrives, never a skill nothing followed", "[agent][loop][record]")
 {
     Harness                  h;
     std::vector<std::string> recorded;
@@ -990,18 +990,19 @@ TEST_CASE("the record gets every item sent, never a call without its result nor 
         CHECK(recorded.empty());
         h.fake->data(frame(json{{"turn", "t1"}, {"calls", json::array({call("call-1", "workspace_inspect")})}}));
         REQUIRE(h.poll_until(AgentEventKind::ToolCall));
-        // The person's message is kept once taken; the skill waits for an
-        // answer, and a call without its result is not kept.
-        CHECK(recorded == std::vector<std::string>{"user"});
+        // The person's message is kept once taken; the skill once the reply
+        // to it arrives, and the reply with it, before its call is answered:
+        // a turn that ends first still has it.
+        CHECK(recorded == std::vector<std::string>{"user", "operator Skill one.", "assistant"});
         AgentToolResult result{"call-1", "succeeded", R"({"state":"succeeded"})"};
         result.skills.push_back(setup_skill());
         REQUIRE(h.agent->continue_after_tool(result));
-        CHECK(recorded.size() == 1);
+        CHECK(recorded.size() == 3);
         h.fake->data(frame(json{{"turn", "t2"}}));
         REQUIRE(h.poll_until(AgentEventKind::Completed));
         CHECK(recorded ==
               std::vector<std::string>{"user", "operator Skill one.", "assistant", "results", "operator Check the setup.", "assistant"});
-        CHECK(formats == std::vector<std::string>{"responses", "responses", "responses"});
+        CHECK(formats == std::vector<std::string>{"responses", "responses", "responses", "responses"});
     }
     SECTION("a turn whose stream the provider took and then broke off")
     {
@@ -1019,7 +1020,7 @@ TEST_CASE("the record gets every item sent, never a call without its result nor 
         REQUIRE(h.poll_until(AgentEventKind::Failed));
         CHECK(recorded.empty());
     }
-    SECTION("a turn refused after its first request keeps only that request's person side")
+    SECTION("a turn refused after its first request keeps that request and its reply, not what the refused one carried")
     {
         REQUIRE(h.agent->start(request));
         h.fake->data(frame(json{{"turn", "t1"}, {"calls", json::array({call("call-1", "workspace_inspect")})}}));
@@ -1027,7 +1028,7 @@ TEST_CASE("the record gets every item sent, never a call without its result nor 
         REQUIRE(h.agent->continue_after_tool(AgentToolResult{"call-1", "succeeded", R"({"state":"succeeded"})"}));
         h.fake->error(429);
         REQUIRE(h.poll_until(AgentEventKind::Failed));
-        CHECK(recorded == std::vector<std::string>{"user"});
+        CHECK(recorded == std::vector<std::string>{"user", "operator Skill one.", "assistant"});
     }
     SECTION("a turn the app started on its note keeps the turn's workspace with the note, once answered")
     {

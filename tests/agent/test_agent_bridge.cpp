@@ -7495,9 +7495,10 @@ TEST_CASE("a request the provider refuses leaves nothing in the chat's record", 
 }
 
 // A turn whose first request the provider took keeps that request's person
-// side when a later request is refused, and nothing after it: the next turn
-// never carries a call without its result.
-TEST_CASE("a turn refused after its first request keeps only what the provider took", "[agent][record][history-prefix]")
+// side and the reply to it when a later request is refused, and nothing the
+// refused request carried. The next turn answers the reply's call with a
+// result saying the turn ended, as a provider takes no call without one.
+TEST_CASE("a turn refused after its first request keeps what the provider took and answered", "[agent][record][history-prefix]")
 {
     for (const WireFormat& wire : {anthropic_wire(), responses_wire()}) {
         DYNAMIC_SECTION(wire.provider)
@@ -7509,7 +7510,8 @@ TEST_CASE("a turn refused after its first request keeps only what the provider t
             CHECK(chat.harness->host.conversation().back().state == MessageState::Failed);
             chat.person_turn("Thanks.", {{"You are welcome."}});
             const std::string& next = chat.provider->replies.back();
-            CHECK(next.find("call_slice") == std::string::npos);
+            CHECK(occurrences(next, "call_slice") == 2);
+            CHECK(occurrences(next, "turn_ended") == 1);
             CHECK(occurrences(next, "Slice it.") == 1);
             // The record ends on the person's side, and Anthropic takes
             // consecutive user messages as one: the next turn's words join
