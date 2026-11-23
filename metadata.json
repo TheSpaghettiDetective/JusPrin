@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M84N0SR13ZQVX00JAP2AM8A6",
+  "strategy": "manual-commit",
+  "branch": "claude/sentry-user-id",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "tests/agent/test_cloud_account.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 280,
+    "cache_creation_tokens": 1466780,
+    "cache_read_tokens": 43497603,
+    "output_tokens": 159987,
+    "api_call_count": 140
+  }
+}
