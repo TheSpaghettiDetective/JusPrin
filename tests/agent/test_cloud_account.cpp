@@ -260,6 +260,8 @@ TEST_CASE("a token the browser brings back is checked, stored and handed over as
     REQUIRE(f.stored.has_value());
     CHECK(f.stored->token == "tok-1");
     CHECK(f.stored->email == "alex@example.com");
+    // Error reports name the person by the account's number.
+    CHECK(f.stored->account_id == "7");
     CHECK(f.stored->formats == std::vector<std::pair<std::string, std::string>>{{"slicer-1", "anthropic"}, {"slicer-2", "responses"}});
     // The agent is for the provider's default model, in its format.
     REQUIRE(f.built.size() == 1);
@@ -364,6 +366,18 @@ TEST_CASE("an account check whose answer will not read is unexpected", "[agent][
     CHECK(f.sign_in->phase() == CloudSignInPhase::Idle);
 }
 
+TEST_CASE("an account check that names no account number is unexpected, and nothing is stored", "[agent][account][errors]")
+{
+    Fixture f;
+    REQUIRE(f.sign_in->start(CloudBrowserStart::Google));
+    f.browser_returns("tok-1");
+    f.machine.answer(kWho, 200, json{{"user", {{"email", "alex@example.com"}}}}.dump());
+    f.machine.answer(kModels, 200, models_body({{"slicer-1", "anthropic"}}));
+    CHECK_THROWS_WITH(f.sign_in->poll(), ContainsSubstring("without the account's number"));
+    CHECK(f.sign_in->phase() == CloudSignInPhase::Idle);
+    CHECK_FALSE(f.stored.has_value());
+}
+
 TEST_CASE("a stored sign-in the server refuses is reported expired and kept", "[agent][account]")
 {
     Fixture f;
@@ -393,6 +407,8 @@ TEST_CASE("a stored sign-in that still works refreshes the account's formats", "
     REQUIRE(outcome.has_value());
     CHECK(outcome->kind == CloudSignInOutcome::Kind::SignedIn);
     CHECK(f.stored->email == "alex@example.com");
+    // A sign-in kept from before the app stored the account's number gets it.
+    CHECK(f.stored->account_id == "7");
     CHECK(f.stored->formats == std::vector<std::pair<std::string, std::string>>{{"slicer-1", "responses"}});
 }
 

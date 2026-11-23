@@ -389,10 +389,15 @@ std::optional<CloudSignInOutcome> CloudSignIn::finish_check()
         unexpected("JusPrin's account check answered HTTP " + std::to_string(who.status) + ": " + who.body +
                    ", and its model list HTTP " + std::to_string(models.status) + ": " + models.body);
 
+    // /jusprin/api/me/ answers {"user": {"id", "email", ...}, "ai_credits": {...}}.
+    const json account_id = who_json.value("/user/id"_json_pointer, json());
+    if (!account_id.is_number_integer())
+        unexpected("JusPrin's account check answered without the account's number: " + who.body);
+
     CloudAccountRecord record;
-    record.token = m_token;
-    // /jusprin/api/me/ answers {"user": {"email", ...}, "ai_credits": {...}}.
-    record.email = who_json.value("/user/email"_json_pointer, std::string());
+    record.token      = m_token;
+    record.email      = who_json.value("/user/email"_json_pointer, std::string());
+    record.account_id = std::to_string(account_id.get<long long>());
     for (const json& entry : models_json["data"]) {
         const std::string id = entry.value("id", ""), format = entry.value("format", "");
         if (!id.empty() && !format.empty())

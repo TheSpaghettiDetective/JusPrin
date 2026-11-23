@@ -42,6 +42,9 @@ std::string sentry_dsn()
 }
 
 bool g_started = false;
+// Who reports and crashes name: the account signed in, or else the install.
+std::string g_install_id;
+std::string g_account_id;
 
 // The SDK hands each envelope to OrcaSlicer's own HTTP client, which knows
 // the system's certificates and proxy on every platform; the SDK's own curl
@@ -116,9 +119,26 @@ std::optional<std::filesystem::path> log_file(const std::string& data_dir)
     return std::nullopt;
 }
 
+// The person is the signed-in account, or else this install. The install
+// is a tag as well, so one person's reports from before and after signing in
+// can be matched, and matched to the server's record of the install's starts.
+void name_person()
+{
+    if (!g_install_id.empty())
+        sentry_set_tag("install_id", g_install_id.c_str());
+    const std::string& id = g_account_id.empty() ? g_install_id : g_account_id;
+    if (id.empty()) {
+        sentry_remove_user();
+        return;
+    }
+    sentry_value_t user = sentry_value_new_object();
+    sentry_value_set_by_key(user, "id", sentry_value_new_string(id.c_str()));
+    sentry_set_user(user);
+}
+
 } // namespace
 
-void start_sentry(const std::string& data_dir, bool reports_automatically)
+void start_sentry(const std::string& data_dir, bool reports_automatically, const std::string& install_id)
 {
     if (g_started)
         return;
@@ -169,6 +189,8 @@ void start_sentry(const std::string& data_dir, bool reports_automatically)
         return;
     }
     g_started = true;
+    g_install_id = install_id;
+    name_person();
     start_recording_throws();
     sentry_follow_setting(reports_automatically);
 }
@@ -213,6 +235,13 @@ void sentry_send(const ErrorReport& report, bool reports_automatically)
     sentry_user_consent_give();
     sentry_capture_event(event);
     sentry_user_consent_revoke();
+}
+
+void sentry_set_account(const std::string& account_id)
+{
+    g_account_id = account_id;
+    if (g_started)
+        name_person();
 }
 
 void sentry_breadcrumb(const char* category, const std::string& message)

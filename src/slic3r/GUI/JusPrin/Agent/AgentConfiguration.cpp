@@ -5,10 +5,12 @@
 #include "ModelCatalogFetch.hpp"
 #include "OpenAIResponsesAgent.hpp"
 #include "ProviderFactory.hpp"
+#include "ProviderProfile.hpp"
 #include "libslic3r/AppConfig.hpp"
 #include "libslic3r/Exception.hpp"
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/JusPrin/Support/PageLanguage.hpp"
+#include "slic3r/GUI/JusPrin/Support/SentryClient.hpp"
 
 #include <boost/log/trivial.hpp>
 
@@ -30,10 +32,11 @@ constexpr const char* kSection = "jusprin_agent";
 constexpr const char* kServerSection = "jusprin_server";
 
 std::string api_key_item_for(const std::string& provider) { return provider + "_api_key"; }
-// An account provider keeps the account's email and the wire format of each
-// of its models beside the token.
+// An account provider keeps the account's email, its number and the wire
+// format of each of its models beside the token.
 std::string account_item_for(const std::string& provider) { return provider + "_account"; }
 std::string formats_item_for(const std::string& provider) { return provider + "_model_formats"; }
+std::string account_id_item_for(const std::string& provider) { return provider + "_account_id"; }
 
 // The server JUSPRIN_SERVER_URL names, otherwise the settings file's. The
 // variable lets a test run reach a staging server without writing a settings
@@ -108,6 +111,9 @@ void remove_provider_key(AppConfig* config, const std::string& provider)
     config->erase(kSection, api_key_item_for(provider));
     config->erase(kSection, account_item_for(provider));
     config->erase(kSection, formats_item_for(provider));
+    config->erase(kSection, account_id_item_for(provider));
+    if (provider == account_provider().id)
+        sentry_set_account({});
     if (config->get(kSection, "provider") == provider)
         for (const ProviderProfile& profile : provider_profiles())
             if (!config->get(kSection, api_key_item_for(profile.id)).empty()) {
@@ -231,6 +237,11 @@ std::string cloud_account_token(const AppConfig* config)
     return load_provider_api_key(config, account_provider().id);
 }
 
+std::string cloud_account_id(const AppConfig* config)
+{
+    return config == nullptr ? std::string() : config->get(kSection, account_id_item_for(account_provider().id));
+}
+
 CloudSignInPtr make_cloud_sign_in(AppConfig* config)
 {
     const ProviderProfile& row     = account_provider();
@@ -243,6 +254,7 @@ CloudSignInPtr make_cloud_sign_in(AppConfig* config)
         record.token   = config->get(kSection, api_key_item_for(id));
         record.email   = config->get(kSection, account_item_for(id));
         record.formats = stored_formats(config, id);
+        record.account_id = config->get(kSection, account_id_item_for(id));
         return record;
     };
     // Signing in is choosing the account as the Agent's provider, after the
@@ -252,6 +264,8 @@ CloudSignInPtr make_cloud_sign_in(AppConfig* config)
         config->set(kSection, api_key_item_for(id), record.token);
         config->set(kSection, account_item_for(id), record.email);
         store_formats(config, id, record.formats);
+        config->set(kSection, account_id_item_for(id), record.account_id);
+        sentry_set_account(record.account_id);
         config->set(kSection, "provider", id);
         config->set(kSection, "enabled", "true");
         config->set(kSection, "cloud_consent", "true");
