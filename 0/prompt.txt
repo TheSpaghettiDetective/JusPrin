@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bi5krgor3</task-id>
+<tool-use-id>toolu_016QPsSuojwJEHzQapJxPjow</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-claude-cowork-wd/acec8758-e267-4d72-9bfa-8a20ffd3d65e/tasks/bi5krgor3.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the lint on this change against jusprin-dev, as CI does" completed (exit code 0)</summary>
+</task-notification>
