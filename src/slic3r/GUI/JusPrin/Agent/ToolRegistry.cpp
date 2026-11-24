@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <charconv>
+#include <cstddef>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -131,6 +132,13 @@ bool optional_string(const json& arguments, const char* key)
 bool optional_number(const json& arguments, const char* key)
 {
     return !arguments.contains(key) || arguments[key].is_number();
+}
+
+// Characters as a person reads them, rather than UTF-8 bytes.
+std::size_t characters_in(const std::string& text)
+{
+    return static_cast<std::size_t>(
+        std::count_if(text.begin(), text.end(), [](unsigned char byte) { return (byte & 0xc0) != 0x80; }));
 }
 
 // Prose the agent writes: present or absent, a string either way, and bounded
@@ -781,9 +789,7 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
         // a person reads them rather than as UTF-8 bytes.
         if (arguments.contains("purpose")) {
             const std::string& purpose = arguments["purpose"].get_ref<const std::string&>();
-            const auto characters = std::count_if(purpose.begin(), purpose.end(),
-                                                  [](unsigned char byte) { return (byte & 0xc0) != 0x80; });
-            if (purpose.empty() || characters > 60)
+            if (purpose.empty() || characters_in(purpose) > 60)
                 return false;
         }
         // The plan is the rest, flat beside the purpose (a nested object came
@@ -1904,6 +1910,16 @@ ToolValidationResult ToolRegistry::validate_call(const ToolDefinition& definitio
                 if (property != properties.end() && property->contains("enum") &&
                     std::find((*property)["enum"].begin(), (*property)["enum"].end(), item.value()) == (*property)["enum"].end())
                     outside += (outside.empty() ? "" : "; ") + item.key() + " must be one of " + (*property)["enum"].dump();
+                // JUSPRIN-APP-A, JusPrin 2.0.1: a turn ended on a third refused
+                // setup_record, its Portuguese purpose 63 characters, while
+                // this message named nothing.
+                if (property != properties.end() && property->contains("maxLength") && item.value().is_string()) {
+                    const std::size_t limit      = (*property)["maxLength"].get<std::size_t>();
+                    const std::size_t characters = characters_in(item.value().get_ref<const std::string&>());
+                    if (characters > limit)
+                        outside += (outside.empty() ? "" : "; ") + item.key() + " is " + std::to_string(characters) +
+                                   " characters, and it takes at most " + std::to_string(limit);
+                }
             }
             if (!unexpected.empty())
                 message += " Not a parameter of this tool: " + unexpected + ".";

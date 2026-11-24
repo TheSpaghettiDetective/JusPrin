@@ -221,3 +221,18 @@ TEST_CASE("skill_read takes one skill name and nothing else", "[tools][registry]
     CHECK_FALSE(ToolRegistry::instance().validate_call(definition, R"({"name":7})").valid());
     CHECK_FALSE(ToolRegistry::instance().validate_call(definition, R"({"name":"a","index":true})").valid());
 }
+
+TEST_CASE("a setup_record purpose over 60 characters is refused with its length", "[tools][registry][validation]")
+{
+    // JUSPRIN-APP-A: the turn ended on a third refused call with this
+    // purpose, 63 characters, while the refusal named nothing.
+    const ToolDefinition& definition = *ToolRegistry::instance().find("setup_record");
+    const std::string     too_long   = "Orelha decorativa, acabamento perfeito, suporte fácil de soltar";
+    const auto refused = ToolRegistry::instance().validate_call(definition, nlohmann::json{{"purpose", too_long}}.dump());
+    REQUIRE_FALSE(refused.valid());
+    CHECK(refused.error->message.find("purpose is 63 characters, and it takes at most 60.") != std::string::npos);
+    // Characters, not bytes: 60 of them with an accent is 61 bytes and fits.
+    CHECK(ToolRegistry::instance()
+              .validate_call(definition, nlohmann::json{{"purpose", "Orelha decorativa, acabamento perfeito, suporte fácil soltar"}}.dump())
+              .valid());
+}
