@@ -15,7 +15,9 @@
 #include "SliceWarnings.hpp"
 #include "Workspace.hpp"
 
+#include "libslic3r/AppConfig.hpp"
 #include "libslic3r/ClipperUtils.hpp"
+#include "libslic3r/Config.hpp"
 #include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/Measure.hpp"
 #include "libslic3r/Orient.hpp"
@@ -61,6 +63,7 @@
 #include <array>
 #include <cctype>
 #include <cmath>
+#include <cstdio>
 #include <iterator>
 #include <limits>
 #include <memory>
@@ -1335,6 +1338,35 @@ std::vector<std::string> supported_plates(const PresetCollection& printers, cons
                 result.push_back(label);
     return result;
 }
+
+// The number of filament slots the project has once Orca has switched to a
+// printer. With Remember printer configuration on, which is the default,
+// Tab::select_preset runs PresetBundle::update_selections: it replaces the
+// list with the one last used on that printer, its filament plus filament_01,
+// filament_02 and so on, which is one slot on a printer never used before.
+// update_filament_count then raises the count to min_filament_count: one per
+// nozzle, unless the printer runs every filament through one nozzle.
+std::size_t filament_slots_after_switch(const PresetBundle& bundle, const Preset& printer)
+{
+    std::size_t slots  = bundle.filament_presets.size();
+    AppConfig*  config = wxGetApp().app_config;
+    if (config != nullptr && config->get_bool("remember_printer_config")) {
+        slots = 1;
+        for (unsigned int index = 1; index < 1000; ++index) {
+            char key[16];
+            std::snprintf(key, sizeof(key), "filament_%02u", index);
+            if (config->get_printer_setting(printer.name, key).empty())
+                break;
+            ++slots;
+        }
+    }
+    std::size_t minimum = 1;
+    const auto* shared  = printer.config.option<ConfigOptionBool>("single_extruder_multi_material");
+    const auto* nozzles = printer.config.option<ConfigOptionFloats>("nozzle_diameter");
+    if ((shared == nullptr || !shared->value) && nozzles != nullptr && !nozzles->values.empty())
+        minimum = nozzles->values.size();
+    return std::max(slots, minimum);
+}
 } // namespace
 
 std::string OrcaWorkspaceAdapter::current_process_preset() const
@@ -1406,9 +1438,15 @@ PrinterSetupPreview OrcaWorkspaceAdapter::preview_printer_setup(const PrinterSet
 
     const PresetCollection&  filaments = bundle->filaments;
     std::vector<std::string> filament_names = bundle->filament_presets;
+    // A printer switch changes the number of slots before any filament is
+    // selected, so the request is held to the count after the switch.
+    if (printer_changes)
+        filament_names.resize(filament_slots_after_switch(*bundle, *printer), filament_names.empty() ? std::string() : filament_names.back());
     if (request.filament_presets) {
         if (request.filament_presets->size() > filament_names.size())
-            issue("invalid_arguments", "This project has " + std::to_string(filament_names.size()) + " filament slots.");
+            issue("invalid_arguments", (printer_changes ? "With " + printer_name + " selected, this project has " : "This project has ") +
+                                           std::to_string(filament_names.size()) +
+                                           (filament_names.size() == 1 ? " filament slot." : " filament slots."));
         for (std::size_t slot = 0; slot < request.filament_presets->size() && slot < filament_names.size(); ++slot) {
             const std::string& name  = (*request.filament_presets)[slot];
             const Preset*      found = Printers::preset_by_name(*bundle, Preset::TYPE_FILAMENT, name);
