@@ -1,0 +1,37 @@
+how should we support local models, such as ollama (are there otgher popular local model frameowrks?)
+
+---
+
+Yes, try it
+
+---
+
+based on the AI model that we need do you think it's realistic for some users with a pretty pp MacBook mini or MacBooks to do to run the local model that actually will work for us in
+
+---
+
+Yes, download both
+
+---
+
+<task-notification>
+<task-id>bejl2hppw</task-id>
+<tool-use-id>toolu_013jQTBxxDMrN3tkbjJMbLjJ</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/27aeb673-3e7e-4b6a-bee5-c6666cf59545/tasks/bejl2hppw.output</output-file>
+<status>failed</status>
+<summary>Background command "Run the local command server for the chat page" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bgvrrkvt7</task-id>
+<tool-use-id>toolu_01QubwENNiHuEo6V8wuyBSEm</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/27aeb673-3e7e-4b6a-bee5-c6666cf59545/tasks/bgvrrkvt7.output</output-file>
+<status>failed</status>
+<summary>Background command "Run the local command server on port 8793" failed with exit code 144</summary>
+</task-notification>
+
+---
+
+Decide first
