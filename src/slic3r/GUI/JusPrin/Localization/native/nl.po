@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-24 08:31-0800\n"
+"POT-Creation-Date: 2026-11-24 13:37-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3192,6 +3192,29 @@ msgid "%1% point"
 msgid_plural "%1% points"
 msgstr[0] "%1% punt"
 msgstr[1] "%1% punten"
+
+# AI Translated
+#. TRN The OpenGL context could not be made current, so nothing can be drawn in the 3D view.
+msgid "OpenGL could not be activated for the 3D view, so it cannot be shown."
+msgstr "OpenGL kon niet worden geactiveerd voor de 3D-weergave, dus die kan niet worden getoond."
+
+# AI Translated
+#. TRN %1% is the name of a graphics card or display adapter as Windows reports it, such as "Microsoft Basic Display Adapter".
+#, boost-format
+msgid "The window is on a display driven by \"%1%\"."
+msgstr "Het venster staat op een beeldscherm dat wordt aangestuurd door \"%1%\"."
+
+# AI Translated
+msgid "Make sure the display adapter driving this window's display is enabled and its driver is installed and up to date."
+msgstr "Zorg ervoor dat de beeldschermadapter die het beeldscherm van dit venster aanstuurt is ingeschakeld en dat het stuurprogramma ervan is geïnstalleerd en up-to-date is."
+
+# AI Translated
+msgid "If the computer has more than one graphics card, connecting the monitor to another one may help."
+msgstr "Als de computer meer dan één grafische kaart heeft, kan het helpen om de monitor op een andere aan te sluiten."
+
+# AI Translated
+msgid "If the problem remains, close any overlay or screen capture software and try again."
+msgstr "Als het probleem blijft, sluit dan alle overlay- of schermopnamesoftware en probeer het opnieuw."
 
 # AI Translated
 #~ msgid "JusPrin's view couldn't be opened."

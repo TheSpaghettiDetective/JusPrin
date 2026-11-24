@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-24 08:31-0800\n"
+"POT-Creation-Date: 2026-11-24 13:37-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3150,6 +3150,29 @@ msgstr[0] "항목 %1%개"
 msgid "%1% point"
 msgid_plural "%1% points"
 msgstr[0] "점 %1%개"
+
+# AI Translated
+#. TRN The OpenGL context could not be made current, so nothing can be drawn in the 3D view.
+msgid "OpenGL could not be activated for the 3D view, so it cannot be shown."
+msgstr "3D 뷰에서 OpenGL을 활성화할 수 없어 표시할 수 없습니다."
+
+# AI Translated
+#. TRN %1% is the name of a graphics card or display adapter as Windows reports it, such as "Microsoft Basic Display Adapter".
+#, boost-format
+msgid "The window is on a display driven by \"%1%\"."
+msgstr "이 창은 \"%1%\"이(가) 구동하는 디스플레이에 있습니다."
+
+# AI Translated
+msgid "Make sure the display adapter driving this window's display is enabled and its driver is installed and up to date."
+msgstr "이 창의 디스플레이를 구동하는 디스플레이 어댑터가 활성화되어 있고, 해당 드라이버가 설치되어 최신 상태인지 확인하세요."
+
+# AI Translated
+msgid "If the computer has more than one graphics card, connecting the monitor to another one may help."
+msgstr "컴퓨터에 그래픽 카드가 두 개 이상 있다면 모니터를 다른 그래픽 카드에 연결하면 도움이 될 수 있습니다."
+
+# AI Translated
+msgid "If the problem remains, close any overlay or screen capture software and try again."
+msgstr "문제가 계속되면 오버레이 또는 화면 캡처 소프트웨어를 모두 닫고 다시 시도하세요."
 
 # AI Translated
 #~ msgid "JusPrin's view couldn't be opened."

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-24 08:31-0800\n"
+"POT-Creation-Date: 2026-11-24 13:37-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3162,6 +3162,29 @@ msgstr[0] "%1% 個項目"
 msgid "%1% point"
 msgid_plural "%1% points"
 msgstr[0] "%1% 個點"
+
+# AI Translated
+#. TRN The OpenGL context could not be made current, so nothing can be drawn in the 3D view.
+msgid "OpenGL could not be activated for the 3D view, so it cannot be shown."
+msgstr "無法為 3D 視圖啟用 OpenGL，因此無法顯示。"
+
+# AI Translated
+#. TRN %1% is the name of a graphics card or display adapter as Windows reports it, such as "Microsoft Basic Display Adapter".
+#, boost-format
+msgid "The window is on a display driven by \"%1%\"."
+msgstr "視窗所在的顯示器由「%1%」驅動。"
+
+# AI Translated
+msgid "Make sure the display adapter driving this window's display is enabled and its driver is installed and up to date."
+msgstr "請確認驅動此視窗所在顯示器的顯示卡已啟用，且其驅動程式已安裝並為最新版本。"
+
+# AI Translated
+msgid "If the computer has more than one graphics card, connecting the monitor to another one may help."
+msgstr "如果電腦有多張顯示卡，將顯示器接到另一張顯示卡上可能會有幫助。"
+
+# AI Translated
+msgid "If the problem remains, close any overlay or screen capture software and try again."
+msgstr "如果問題仍然存在，請關閉所有疊加層或螢幕錄製軟體，然後再試一次。"
 
 # AI Translated
 #~ msgid "JusPrin's view couldn't be opened."

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-24 08:31-0800\n"
+"POT-Creation-Date: 2026-11-24 13:37-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3185,6 +3185,29 @@ msgid "%1% point"
 msgid_plural "%1% points"
 msgstr[0] "%1% puntu"
 msgstr[1] "%1% puntu"
+
+# AI Translated
+#. TRN The OpenGL context could not be made current, so nothing can be drawn in the 3D view.
+msgid "OpenGL could not be activated for the 3D view, so it cannot be shown."
+msgstr "Ezin izan da OpenGL aktibatu 3D ikuspegirako; beraz, ezin da erakutsi."
+
+# AI Translated
+#. TRN %1% is the name of a graphics card or display adapter as Windows reports it, such as "Microsoft Basic Display Adapter".
+#, boost-format
+msgid "The window is on a display driven by \"%1%\"."
+msgstr "Leihoa \"%1%\" gailuak kontrolatzen duen pantaila batean dago."
+
+# AI Translated
+msgid "Make sure the display adapter driving this window's display is enabled and its driver is installed and up to date."
+msgstr "Ziurtatu leiho honen pantaila kontrolatzen duen pantaila-egokigailua gaituta dagoela eta haren kontrolatzailea instalatuta eta eguneratuta dagoela."
+
+# AI Translated
+msgid "If the computer has more than one graphics card, connecting the monitor to another one may help."
+msgstr "Ordenagailuak txartel grafiko bat baino gehiago baditu, monitorea beste batera konektatzeak lagun dezake."
+
+# AI Translated
+msgid "If the problem remains, close any overlay or screen capture software and try again."
+msgstr "Arazoak jarraitzen badu, itxi gainjartze- edo pantaila-grabaketa-software guztiak eta saiatu berriro."
 
 # AI Translated
 #~ msgid "JusPrin's view couldn't be opened."

@@ -7,8 +7,9 @@ OrcaSlicer release never conflicts in a catalog:
   * native/JusPrin.pot and native/<lang>.po hold the text the native windows
     mark with _L, _u8L, L, _L_CONTEXT and _L_PLURAL under src/slic3r/GUI/JusPrin.
     Text OrcaSlicer's own template already has is left out: its translations
-    come from upstream. Brand/brand_catalogs.py merges these into the catalog
-    the app loads.
+    come from upstream. The OrcaSlicer files in UPSTREAM_AHEAD are read too,
+    for text the fork took from upstream before upstream's catalogs had it.
+    Brand/brand_catalogs.py merges these into the catalog the app loads.
   * pages/<lang>.po hold the text of the AI and Home pages, marked with the
     Lingui macros (t, Trans, Plural). Lingui's own extractor writes them.
 
@@ -43,6 +44,14 @@ XGETTEXT_KEYWORDS = [
     "--keyword=L_CONTEXT:1,2c", "--keyword=_L_CONTEXT:1,2c", "--keyword=_u8L_CONTEXT:1,2c",
     "--keyword=_L_PLURAL:1,2", "--keyword=translated_plural:1,2", "--keyword=plural_title:1,2", "--keyword=plural_words:1,2",
 ]
+# OrcaSlicer files holding text the fork took from upstream before upstream's
+# template had it, so it reaches the person translated now. Only their text
+# missing from OrcaSlicer.pot becomes a JusPrin entry; once upstream's template
+# has it, it leaves JusPrin's catalogs on the next run, and the file can leave
+# this list.
+#   OpenGLManager.cpp: the Windows dialog for a 3D view OpenGL cannot be
+#   activated for (upstream 3c72223aaf7, taken as a0dfb4c868 for JUSPRIN-APP-D).
+UPSTREAM_AHEAD = ["src/slic3r/GUI/OpenGLManager.cpp"]
 # Test doubles and the page projects are not native interface text.
 SKIP_DIRS = {"Testing", "AgentUI", "HomeUI", "WebShared", "node_modules", "Localization"}
 
@@ -69,7 +78,7 @@ def native_sources():
     for f in sorted(JUSPRIN.rglob("*")):
         if f.suffix in (".cpp", ".hpp") and not SKIP_DIRS.intersection(f.relative_to(JUSPRIN).parts):
             files.append(str(f.relative_to(ROOT)))
-    return files
+    return files + UPSTREAM_AHEAD
 
 
 def upstream_header_line(lang, name):

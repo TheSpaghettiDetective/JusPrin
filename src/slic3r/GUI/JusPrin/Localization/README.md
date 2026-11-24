@@ -14,6 +14,14 @@ conflicts in a translation file:
 Native text that OrcaSlicer's template already has is left out of
 `native/JusPrin.pot`; upstream's translation is used.
 
+Text the fork takes from upstream before upstream's catalogs have it, such as
+a cherry-picked fix with a new message, would reach the person in English.
+`update_catalogs.py` also reads the OrcaSlicer files listed in its
+`UPSTREAM_AHEAD`; their text missing from OrcaSlicer's template becomes JusPrin
+entries, and leaves again once upstream's template has it. Add a file there
+when taking such a change, and remove it once upstream's catalogs carry its
+text.
+
 ## Updating the catalogs
 
 After marking or changing text:
