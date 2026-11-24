@@ -29,6 +29,10 @@ name: JusPrin nightly
 #   scheduled run lands in those hours, because this repo's schedules start
 #   hours late. A run whose only failures are such jobs starts the nightly
 #   again, up to 8 runs a day for one commit.
+# - The Mac jobs go to the self-hosted Mac only when someone starting the
+#   nightly by hand ticks "Build the Mac jobs on the self-hosted Mac", as on
+#   the release's form (jusprin_release.yml). The scheduled nightly always
+#   uses GitHub's Macs.
 #
 # Run it by hand from Actions > JusPrin nightly > Run workflow, with the
 # branch set to jusprin-dev.
@@ -44,6 +48,10 @@ on:
         default: true
       only_if_changed:
         description: 'Skip the build when jusprin-dev has not changed since the last nightly'
+        type: boolean
+        default: false
+      self_hosted_mac:
+        description: 'Build the Mac jobs on the self-hosted Mac (when GitHub had no Mac machine)'
         type: boolean
         default: false
 
@@ -114,8 +122,8 @@ jobs:
     with:
       version: ${{ needs.prepare.outputs.version }}
       sign_macos: ${{ inputs.sign_macos }}
-      # The nightly builds on GitHub's Macs, never on the self-hosted Mac.
-      mac_runner: false
+      # GitHub's Macs unless the box was ticked.
+      mac_runner: ${{ inputs.self_hosted_mac }}
     secrets: inherit
 
   publish:
@@ -180,6 +188,7 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       SIGN_MACOS: ${{ inputs.sign_macos }}
+      SELF_HOSTED_MAC: ${{ inputs.self_hosted_mac }}
       MAX_RUNS: 8
     steps:
       - name: Start the nightly again
@@ -205,4 +214,4 @@ jobs:
           echo "These jobs got no runner: $unstarted. Starting run $((runs + 1)) of $MAX_RUNS."
           # It waits in the jusprin-nightly concurrency group until this run ends.
           gh workflow run jusprin_nightly.yml --repo "$GITHUB_REPOSITORY" --ref jusprin-dev \
-            -f sign_macos="$SIGN_MACOS" -f only_if_changed=true
+            -f sign_macos="$SIGN_MACOS" -f self_hosted_mac="$SELF_HOSTED_MAC" -f only_if_changed=true
