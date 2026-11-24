@@ -12,6 +12,7 @@ import type {
   PrinterBlock,
   PrinterCardInfo,
   PrinterCredentialRequest,
+  PrinterFormField,
 } from '../bridge/protocol';
 import { decimalText } from '../i18n';
 
@@ -137,11 +138,24 @@ export const PrinterBlockView = memo(function PrinterBlockView({
   );
 });
 
+// Each box's label, and whether what is typed in it is hidden.
+function formField(id: PrinterFormField): { label: string; secret: boolean } {
+  switch (id) {
+    case 'apiKey': return { label: t`API key`, secret: true };
+    case 'accessCode': return { label: t`Access code`, secret: true };
+    case 'serialNumber': return { label: t`Serial number`, secret: false };
+    case 'userName': return { label: t`User name`, secret: false };
+    case 'password': return { label: t`Password`, secret: true };
+    // TRN A box where the person types which printer, of those a Repetier Server drives, to connect.
+    case 'printerOnServer': return { label: t`Printer name on Repetier Server`, secret: false };
+  }
+}
+
 // Local input for printer_bambu_connect, and for printer_host_connect when
-// the host refused its test. The call waits for this form, so each way out
-// ends it: Connect starts the attempt, and the person can also say they have
-// no credential, or close the form. The credential goes directly to the
-// printer session, never into the call.
+// it asks for boxes or the host refused its test. The call waits for this
+// form, so each way out ends it: Connect starts the attempt, and the person
+// can also ask for help finding what it asks for, or close the form. What is
+// typed goes directly to the printer session, never into the call.
 export function PrinterCredentialForm({
   request,
   title,
@@ -151,40 +165,50 @@ export function PrinterCredentialForm({
   request: PrinterCredentialRequest;
   // The waiting call's title, which names what it waits for.
   title: string;
-  onConnect: (actionId: string, credential: string) => void;
-  onClose: (actionId: string, missing: boolean) => void;
+  onConnect: (actionId: string, values: Partial<Record<PrinterFormField, string>>) => void;
+  onClose: (actionId: string, help: boolean) => void;
 }) {
-  const [credential, setCredential] = useState('');
-  const bambu = request.provider === 'bambu';
+  const [values, setValues] = useState<Partial<Record<PrinterFormField, string>>>({});
+  const one = request.fields.length === 1 ? request.fields[0] : undefined;
   return (
     <form
       className="printer-credential"
       data-testid={`credential-${request.actionId}`}
       onSubmit={(event) => {
         event.preventDefault();
-        onConnect(request.actionId, credential);
+        onConnect(request.actionId, Object.fromEntries(request.fields.map((id) => [id, values[id] ?? ''])));
       }}
     >
       <div className="printer-notice-heading">
         <PrinterGlyph className="printer-credential-glyph" />
         <span className="tool-title">{title}</span>
       </div>
-      <label className="printer-credential-field">
-        <span>{bambu ? t`Access code` : t`API key`}</span>
-        <input
-          type="password"
-          className="printer-credential-input"
-          autoComplete="off"
-          value={credential}
-          onChange={(event) => setCredential(event.target.value)}
-        />
-      </label>
-      <p className="printer-credential-note"><Trans>Stays on this computer.</Trans></p>
+      {request.fields.map((id) => {
+        const field = formField(id);
+        return (
+          <label key={id} className="printer-credential-field">
+            <span>{field.label}</span>
+            <input
+              type={field.secret ? 'password' : 'text'}
+              className="printer-credential-input"
+              autoComplete="off"
+              spellCheck={false}
+              value={values[id] ?? ''}
+              onChange={(event) => setValues({ ...values, [id]: event.target.value })}
+            />
+          </label>
+        );
+      })}
+      <p className="printer-credential-note">
+        {one
+          ? t`The app saves this for this printer and sends it only to the printer. The AI doesn’t see it.`
+          : t`The app saves these for this printer and sends them only to the printer. The AI doesn’t see them.`}
+      </p>
       <span className="printer-credential-actions">
-        {/* Enabled while empty: a printer that already has its code needs none. */}
+        {/* Enabled while empty: a printer that already has what it needs needs nothing typed. */}
         <button type="submit" className="primary"><Trans>Connect</Trans></button>
         <button type="button" className="link" onClick={() => onClose(request.actionId, true)}>
-          {bambu ? t`Help me find the code` : t`Help me find the key`}
+          {one === 'apiKey' ? t`Help me find the key` : one === 'accessCode' ? t`Help me find the code` : t`Help me find these`}
         </button>
         <button type="button" className="link" onClick={() => onClose(request.actionId, false)}>{t`Cancel`}</button>
       </span>

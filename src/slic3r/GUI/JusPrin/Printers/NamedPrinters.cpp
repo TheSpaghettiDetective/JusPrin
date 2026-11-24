@@ -347,8 +347,7 @@ wxString link_named_printer(const std::string& name, const std::string& device_i
     return {};
 }
 
-wxString configure_named_printer_host(const std::string& name, PrintHostType type, const std::string& address,
-                                     const std::string& api_key)
+wxString configure_named_printer_host(const std::string& name, const DynamicPrintConfig& settings)
 {
     auto& printers = bundle().printers;
     Preset* saved = saved_preset(name);
@@ -357,17 +356,14 @@ wxString configure_named_printer_host(const std::string& name, PrintHostType typ
     // Same persistence boundary as changing a named printer's nozzle. Patch
     // only connection options, which the project's copy then takes over; its
     // other unsaved edits stay as they are. Never select another printer.
-    saved->config.set_key_value("host_type", new ConfigOptionEnum<PrintHostType>(type));
-    saved->config.set_key_value("print_host", new ConfigOptionString(address));
-    saved->config.set_key_value("printhost_apikey", new ConfigOptionString(api_key));
+    saved->config.apply(settings);
     const Preset* parent = printers.get_preset_parent(*saved);
     DynamicPrintConfig parent_config = parent ? parent->config : DynamicPrintConfig();
     saved->save(parent ? &parent_config : nullptr);
     saved->sync_info = "update";
     saved->save_info();
     if (is_selected(name)) {
-        for (const char* key : {"host_type", "print_host", "printhost_apikey"})
-            printers.get_edited_preset().config.set_key_value(key, saved->config.option(key)->clone());
+        printers.get_edited_preset().config.apply(settings);
         printer_tab().reload_config();
         printer_tab().update_tab_ui();
     }

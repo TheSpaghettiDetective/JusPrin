@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-21 09:12-0800\n"
+"POT-Creation-Date: 2026-11-24 08:31-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -19,6 +19,10 @@ msgstr ""
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
 msgid "Something went wrong on our side"
+msgstr ""
+
+#. TRN Said in the chat when a project opens whose chats a newer version of JusPrin saved; they are kept, not shown.
+msgid "This project's chats were saved by a newer version of JusPrin. Get the new version to see them."
 msgstr ""
 
 msgid "Project chat is blocked until restoration is recovered."
@@ -1374,6 +1378,11 @@ msgstr ""
 #. TRN %1% is a printer's name.
 #, boost-format
 msgid "Waiting for the access code for %1%"
+msgstr ""
+
+#. TRN %1% is a print host's address, such as 192.168.1.20. The heading of the form where the person types what the printer needs to connect.
+#, boost-format
+msgid "Connect to the printer at %1%"
 msgstr ""
 
 #. TRN %1% is a print host's address, such as 192.168.1.20.

@@ -2098,6 +2098,11 @@ msgid "Help me find the key"
 msgstr "Segíts megtalálni a kulcsot"
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Help me find these"
+msgstr "Segíts megtalálni őket"
+
+# AI Translated
 #: ../HomeUI/src/components/AgentGroup.tsx
 msgid "Hide"
 msgstr "Elrejtés"
@@ -3123,6 +3128,7 @@ msgid "Partly"
 msgstr "Részben"
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
 #: src/components/SignInDoor.tsx
 #: src/components/SignInDoor.tsx
 msgid "Password"
@@ -3280,6 +3286,12 @@ msgstr "A nyomtató legutóbbi jelentése: {observed}"
 #: ../HomeUI/src/components/PrinterMenu.tsx
 msgid "Printer name"
 msgstr "Nyomtató neve"
+
+# AI Translated
+# Needs human review: the suffix on Repetier Server
+#: src/components/PrinterPanel.tsx
+msgid "Printer name on Repetier Server"
+msgstr "Nyomtató neve a Repetier Serverben"
 
 # AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
@@ -3826,6 +3838,11 @@ msgid "Sent. Saved snapshot: the canvas shows your current project."
 msgstr "Elküldve. Mentett pillanatkép: a vászon az aktuális projektedet mutatja."
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Serial number"
+msgstr "Sorozatszám"
+
+# AI Translated
 #: src/components/AllSettings.tsx
 msgid "Set on this plate"
 msgstr "Ezen a tálcán beállítva"
@@ -4106,11 +4123,6 @@ msgid "Starting the AI panel."
 msgstr "Az AI-panel indítása."
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Stays on this computer."
-msgstr "Ezen a számítógépen marad."
-
-# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Step {step} of {steps}"
 msgstr "{step}. lépés / {steps}"
@@ -4252,6 +4264,16 @@ msgstr "Az AI-szeletelő, amely segít jobb nyomatokat készíteni."
 #: src/components/SignInDoor.tsx
 msgid "The app continues on its own once the browser is done."
 msgstr "Amint a böngészőben végeztél, az app magától folytatja."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "The app saves these for this printer and sends them only to the printer. The AI doesn’t see them."
+msgstr "Az alkalmazás ehhez a nyomtatóhoz menti őket, és csak a nyomtatónak küldi el. Az AI nem látja őket."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "The app saves this for this printer and sends it only to the printer. The AI doesn’t see it."
+msgstr "Az alkalmazás ehhez a nyomtatóhoz menti ezt az értéket, és csak a nyomtatónak küldi el. Az AI nem látja."
 
 # AI Translated
 #: src/components/AddPrinterForm.tsx
@@ -4590,6 +4612,11 @@ msgstr "Projektérték használata ehhez: {label}"
 #: ../HomeUI/src/components/Onboarding.tsx
 msgid "Use your own AI account"
 msgstr "Saját AI-fiók használata"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "User name"
+msgstr "Felhasználónév"
 
 # AI Translated
 #: src/components/AllSettings.tsx

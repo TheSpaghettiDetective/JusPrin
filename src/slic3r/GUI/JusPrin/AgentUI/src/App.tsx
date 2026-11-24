@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { BridgeClient, ConnectionState, Transport } from './bridge/client';
-import { AttachmentPickKind, AttachmentSource, Envelope, FileDroppedPayload } from './bridge/protocol';
+import { AttachmentPickKind, AttachmentSource, Envelope, FileDroppedPayload, PrinterFormField } from './bridge/protocol';
 import { AgentUiState, initialState, reducer } from './state/store';
 import { applyAppearance } from './tokens';
 import { SetupCard, formatMoment } from './components/SetupCard';
@@ -326,8 +326,8 @@ export function App({
 
   // A printer access code goes straight to the printer session and never
   // enters a tool activity or chat.
-  const connectPrinter = (actionId: string, credential: string) => {
-    client.send('printer_action', { action: 'connect', actionId, credential });
+  const connectPrinter = (actionId: string, values: Partial<Record<PrinterFormField, string>>) => {
+    client.send('printer_action', { action: 'connect', actionId, values });
   };
   const closeCredentialForm = (actionId: string, help: boolean) => {
     client.send('printer_action', { action: help ? 'credential_help' : 'credential_dismissed', actionId });

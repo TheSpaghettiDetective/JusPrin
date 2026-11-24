@@ -1703,6 +1703,10 @@ msgstr "Help me find the code"
 msgid "Help me find the key"
 msgstr "Help me find the key"
 
+#: src/components/PrinterPanel.tsx
+msgid "Help me find these"
+msgstr "Help me find these"
+
 #: ../HomeUI/src/components/AgentGroup.tsx
 msgid "Hide"
 msgstr "Hide"
@@ -2531,6 +2535,7 @@ msgstr "Pan"
 msgid "Partly"
 msgstr "Partly"
 
+#: src/components/PrinterPanel.tsx
 #: src/components/SignInDoor.tsx
 #: src/components/SignInDoor.tsx
 msgid "Password"
@@ -2659,6 +2664,10 @@ msgstr "Printer last reported {observed}"
 #: ../HomeUI/src/components/PrinterMenu.tsx
 msgid "Printer name"
 msgstr "Printer name"
+
+#: src/components/PrinterPanel.tsx
+msgid "Printer name on Repetier Server"
+msgstr "Printer name on Repetier Server"
 
 #: ../HomeUI/src/components/PrinterMenu.tsx
 msgid "Printer settings…"
@@ -3101,6 +3110,10 @@ msgstr "Sent to {printer}. Saved snapshot: the canvas shows your current project
 msgid "Sent. Saved snapshot: the canvas shows your current project."
 msgstr "Sent. Saved snapshot: the canvas shows your current project."
 
+#: src/components/PrinterPanel.tsx
+msgid "Serial number"
+msgstr "Serial number"
+
 #: src/components/AllSettings.tsx
 msgid "Set on this plate"
 msgstr "Set on this plate"
@@ -3328,10 +3341,6 @@ msgstr "Starting Home."
 msgid "Starting the AI panel."
 msgstr "Starting the AI panel."
 
-#: src/components/PrinterPanel.tsx
-msgid "Stays on this computer."
-msgstr "Stays on this computer."
-
 #: src/components/AddPrinterForm.tsx
 msgid "Step {step} of {steps}"
 msgstr "Step {step} of {steps}"
@@ -3446,6 +3455,14 @@ msgstr "The AI slicer that helps you get better prints."
 #: src/components/SignInDoor.tsx
 msgid "The app continues on its own once the browser is done."
 msgstr "The app continues on its own once the browser is done."
+
+#: src/components/PrinterPanel.tsx
+msgid "The app saves these for this printer and sends them only to the printer. The AI doesn’t see them."
+msgstr "The app saves these for this printer and sends them only to the printer. The AI doesn’t see them."
+
+#: src/components/PrinterPanel.tsx
+msgid "The app saves this for this printer and sends it only to the printer. The AI doesn’t see it."
+msgstr "The app saves this for this printer and sends it only to the printer. The AI doesn’t see it."
 
 #: src/components/AddPrinterForm.tsx
 msgid "The Create filament window opens"
@@ -3719,6 +3736,10 @@ msgstr "Use project value for {label}"
 #: ../HomeUI/src/components/Onboarding.tsx
 msgid "Use your own AI account"
 msgstr "Use your own AI account"
+
+#: src/components/PrinterPanel.tsx
+msgid "User name"
+msgstr "User name"
 
 #: src/components/AllSettings.tsx
 msgid "Variable layer height"

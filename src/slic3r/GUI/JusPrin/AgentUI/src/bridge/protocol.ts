@@ -1051,10 +1051,15 @@ export interface PrinterFormOptions {
   error: string; // the profiles could not be read
 }
 
+// A box in the connect form (printer_host_connect's ask). The app knows the
+// printer setting each fills; the page, its label and whether it is hidden.
+export type PrinterFormField = 'apiKey' | 'accessCode' | 'serialNumber' | 'userName' | 'password' | 'printerOnServer';
+
 export interface PrinterCredentialRequest {
   actionId: string;
   target: string;
   provider: 'bambu' | 'host';
+  fields: PrinterFormField[];
 }
 
 export interface PrinterContext {

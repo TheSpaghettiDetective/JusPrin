@@ -161,18 +161,18 @@ private:
     Result change(const nlohmann::json& arguments);
     Result connection_status(const std::string& name, const Agent::ToolActivity& activity);
     // The two connection tools leave their call open until it has an
-    // outcome: printer_bambu_connect opens the form at once, and
-    // printer_host_connect tests first and opens it only for a host that
-    // asks for a key. The person's answer in the form, and the attempt it
+    // outcome: printer_bambu_connect opens the form at once, as does
+    // printer_host_connect given boxes to ask for; without them it tests
+    // first and opens the form only for a host that asks for a key. The person's answer in the form, and the attempt it
     // starts, end the same call.
     Result request_credential(const nlohmann::json& arguments, const Agent::ToolActivity& activity);
     Result host_connect(const nlohmann::json& arguments, const Agent::ToolActivity& activity);
     void   host_tested(const std::string& action_id, const nlohmann::json& arguments, const HostTestOutcome& outcome);
-    // The test with the key typed in the form.
+    // The test with what was typed in the form.
     void   form_tested(const HostTestOutcome& outcome);
     Result open_issue(const nlohmann::json& arguments);
-    // The form's Connect: starts the attempt with what was typed.
-    void   connect(const nlohmann::json& arguments, const std::string& credential);
+    // The form's Connect: starts the attempt with what was typed, by box.
+    void   connect(const nlohmann::json& arguments, const nlohmann::json& values);
     // The form's other ways out: the person has no credential, or closed it.
     void   close_credential(bool help);
     void   open_connect_call(const Agent::ToolActivity& activity);

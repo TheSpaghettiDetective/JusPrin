@@ -2096,6 +2096,11 @@ msgid "Help me find the key"
 msgstr "キーを探すのを手伝って"
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Help me find these"
+msgstr "これらを探すのを手伝って"
+
+# AI Translated
 #: ../HomeUI/src/components/AgentGroup.tsx
 msgid "Hide"
 msgstr "非表示"
@@ -3121,6 +3126,7 @@ msgid "Partly"
 msgstr "一部うまくいった"
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
 #: src/components/SignInDoor.tsx
 #: src/components/SignInDoor.tsx
 msgid "Password"
@@ -3278,6 +3284,11 @@ msgstr "プリンターの最終報告: {observed}"
 #: ../HomeUI/src/components/PrinterMenu.tsx
 msgid "Printer name"
 msgstr "プリンター名"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Printer name on Repetier Server"
+msgstr "Repetier Server上のプリンター名"
 
 # AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
@@ -3824,6 +3835,11 @@ msgid "Sent. Saved snapshot: the canvas shows your current project."
 msgstr "送信済み。保存したスナップショット: キャンバスには現在のプロジェクトが表示されています。"
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Serial number"
+msgstr "シリアル番号"
+
+# AI Translated
 #: src/components/AllSettings.tsx
 msgid "Set on this plate"
 msgstr "このプレートで設定"
@@ -4104,11 +4120,6 @@ msgid "Starting the AI panel."
 msgstr "AIパネルを起動中。"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Stays on this computer."
-msgstr "このコンピューターに保存されます。"
-
-# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Step {step} of {steps}"
 msgstr "ステップ {step} / {steps}"
@@ -4250,6 +4261,16 @@ msgstr "よりよい印刷をサポートするAIスライサー。"
 #: src/components/SignInDoor.tsx
 msgid "The app continues on its own once the browser is done."
 msgstr "ブラウザーでの操作が終わると、アプリは自動的に続行します。"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "The app saves these for this printer and sends them only to the printer. The AI doesn’t see them."
+msgstr "アプリはこれらをこのプリンター用に保存し、このプリンターにだけ送信します。AIには見えません。"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "The app saves this for this printer and sends it only to the printer. The AI doesn’t see it."
+msgstr "アプリはこれをこのプリンター用に保存し、このプリンターにだけ送信します。AIには見えません。"
 
 # AI Translated
 #: src/components/AddPrinterForm.tsx
@@ -4588,6 +4609,11 @@ msgstr "{label}にプロジェクトの値を使用"
 #: ../HomeUI/src/components/Onboarding.tsx
 msgid "Use your own AI account"
 msgstr "自分のAIアカウントを使う"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "User name"
+msgstr "ユーザー名"
 
 # AI Translated
 #: src/components/AllSettings.tsx

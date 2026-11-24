@@ -2112,6 +2112,11 @@ msgid "Help me find the key"
 msgstr "Help me de sleutel te vinden"
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Help me find these"
+msgstr "Help me deze te vinden"
+
+# AI Translated
 #: ../HomeUI/src/components/AgentGroup.tsx
 msgid "Hide"
 msgstr "Verbergen"
@@ -3143,6 +3148,7 @@ msgid "Partly"
 msgstr "Gedeeltelijk"
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
 #: src/components/SignInDoor.tsx
 #: src/components/SignInDoor.tsx
 msgid "Password"
@@ -3303,6 +3309,11 @@ msgstr "Printer meldde voor het laatst {observed}"
 #: ../HomeUI/src/components/PrinterMenu.tsx
 msgid "Printer name"
 msgstr "Printernaam"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Printer name on Repetier Server"
+msgstr "Printernaam in Repetier Server"
 
 # AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
@@ -3851,6 +3862,11 @@ msgid "Sent. Saved snapshot: the canvas shows your current project."
 msgstr "Verzonden. Opgeslagen momentopname: het canvas toont uw huidige project."
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Serial number"
+msgstr "Serienummer"
+
+# AI Translated
 #: src/components/AllSettings.tsx
 msgid "Set on this plate"
 msgstr "Ingesteld op dit printbed"
@@ -4134,11 +4150,6 @@ msgid "Starting the AI panel."
 msgstr "Het AI-paneel wordt gestart."
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Stays on this computer."
-msgstr "Blijft op deze computer."
-
-# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Step {step} of {steps}"
 msgstr "Stap {step} van {steps}"
@@ -4280,6 +4291,16 @@ msgstr "De AI-slicer die u helpt betere prints te maken."
 #: src/components/SignInDoor.tsx
 msgid "The app continues on its own once the browser is done."
 msgstr "De app gaat vanzelf verder zodra de browser klaar is."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "The app saves these for this printer and sends them only to the printer. The AI doesn’t see them."
+msgstr "De app bewaart deze voor deze printer en stuurt ze alleen naar de printer. De AI ziet ze niet."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "The app saves this for this printer and sends it only to the printer. The AI doesn’t see it."
+msgstr "De app bewaart dit voor deze printer en stuurt het alleen naar de printer. De AI ziet het niet."
 
 # AI Translated
 #: src/components/AddPrinterForm.tsx
@@ -4620,6 +4641,11 @@ msgstr "Projectwaarde gebruiken voor {label}"
 #: ../HomeUI/src/components/Onboarding.tsx
 msgid "Use your own AI account"
 msgstr "Uw eigen AI-account gebruiken"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "User name"
+msgstr "Gebruikersnaam"
 
 # AI Translated
 #: src/components/AllSettings.tsx

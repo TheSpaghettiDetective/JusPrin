@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-21 09:12-0800\n"
+"POT-Creation-Date: 2026-11-24 08:31-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -20,6 +20,11 @@ msgstr ""
 # AI Translated
 msgid "Something went wrong on our side"
 msgstr "Valami hiba történt nálunk"
+
+# AI Translated
+#. TRN Said in the chat when a project opens whose chats a newer version of JusPrin saved; they are kept, not shown.
+msgid "This project's chats were saved by a newer version of JusPrin. Get the new version to see them."
+msgstr "A projekt csevegéseit a JusPrin egy újabb verziója mentette. A megtekintésükhöz töltsd le az új verziót."
 
 # AI Translated
 # Needs human review: "until restoration is recovered": check what the person must do before the chat unlocks
@@ -1716,6 +1721,12 @@ msgstr "%1%. tálca szeletelése"
 #, boost-format
 msgid "Waiting for the access code for %1%"
 msgstr "Várakozás a(z) %1% hozzáférési kódjára"
+
+# AI Translated
+#. TRN %1% is a print host's address, such as 192.168.1.20. The heading of the form where the person types what the printer needs to connect.
+#, boost-format
+msgid "Connect to the printer at %1%"
+msgstr "Csatlakozás a(z) %1% címen lévő nyomtatóhoz"
 
 # AI Translated
 #. TRN %1% is a print host's address, such as 192.168.1.20.

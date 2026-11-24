@@ -91,18 +91,19 @@ describe('the cards the agent draws', () => {
 describe('the local credential form', () => {
   it('asks a host printer for an API key under the waiting call\'s title, and connects with or without one', async () => {
     const input = vi.fn();
-    render(<PrinterCredentialForm request={{ actionId: 't1', target: '192.168.1.42', provider: 'host' }}
+    render(<PrinterCredentialForm request={{ actionId: 't1', target: '192.168.1.42', provider: 'host', fields: ['apiKey'] }}
       title="Waiting for an API key for 192.168.1.42" onConnect={input} onClose={vi.fn()} />);
     expect(screen.getByText('Waiting for an API key for 192.168.1.42')).toBeInTheDocument();
-    expect(screen.getByText('Stays on this computer.')).toBeInTheDocument();
+    expect(screen.getByText('The app saves this for this printer and sends it only to the printer. The AI doesn’t see it.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Help me find the key' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Connect' }));
-    expect(input).toHaveBeenLastCalledWith('t1', '');
+    expect(input).toHaveBeenLastCalledWith('t1', { apiKey: '' });
     await userEvent.type(screen.getByLabelText('API key'), 'key123{Enter}');
-    expect(input).toHaveBeenLastCalledWith('t1', 'key123');
+    expect(input).toHaveBeenLastCalledWith('t1', { apiKey: 'key123' });
   });
 
   it('asks a Bambu Lab printer for its access code in a field that hides it', () => {
-    render(<PrinterCredentialForm request={{ actionId: 't1', target: 'Studio A1', provider: 'bambu' }}
+    render(<PrinterCredentialForm request={{ actionId: 't1', target: 'Studio A1', provider: 'bambu', fields: ['accessCode'] }}
       title="Waiting for the access code for Studio A1" onConnect={vi.fn()} onClose={vi.fn()} />);
     expect(screen.getByLabelText('Access code')).toHaveAttribute('type', 'password');
   });
@@ -110,7 +111,7 @@ describe('the local credential form', () => {
   it('ends the waiting call when the person has no credential or closes the form, and sends nothing typed', async () => {
     const connect = vi.fn();
     const close = vi.fn();
-    render(<PrinterCredentialForm request={{ actionId: 't1', target: 'Studio A1', provider: 'bambu' }}
+    render(<PrinterCredentialForm request={{ actionId: 't1', target: 'Studio A1', provider: 'bambu', fields: ['accessCode'] }}
       title="Waiting for the access code for Studio A1" onConnect={connect} onClose={close} />);
     await userEvent.type(screen.getByLabelText('Access code'), '12345678');
     await userEvent.click(screen.getByRole('button', { name: 'Help me find the code' }));
@@ -118,5 +119,27 @@ describe('the local credential form', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(close).toHaveBeenLastCalledWith('t1', false);
     expect(connect).not.toHaveBeenCalled();
+  });
+
+  it('asks for every box the call lists, hides only the secret ones, and sends each value by its box', async () => {
+    const connect = vi.fn();
+    render(<PrinterCredentialForm
+      request={{ actionId: 't1', target: '192.168.1.42', provider: 'host', fields: ['serialNumber', 'accessCode'] }}
+      title="Connect to the printer at 192.168.1.42" onConnect={connect} onClose={vi.fn()} />);
+    expect(screen.getByLabelText('Serial number')).toHaveAttribute('type', 'text');
+    expect(screen.getByLabelText('Access code')).toHaveAttribute('type', 'password');
+    expect(screen.getByText('The app saves these for this printer and sends them only to the printer. The AI doesn’t see them.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Help me find these' })).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText('Serial number'), 'SNMQRB9400123');
+    await userEvent.type(screen.getByLabelText('Access code'), 'ab12cd34{Enter}');
+    expect(connect).toHaveBeenLastCalledWith('t1', { serialNumber: 'SNMQRB9400123', accessCode: 'ab12cd34' });
+  });
+
+  it('hides a password and shows a user name', () => {
+    render(<PrinterCredentialForm
+      request={{ actionId: 't1', target: '192.168.1.37', provider: 'host', fields: ['userName', 'password'] }}
+      title="Connect to the printer at 192.168.1.37" onConnect={vi.fn()} onClose={vi.fn()} />);
+    expect(screen.getByLabelText('User name')).toHaveAttribute('type', 'text');
+    expect(screen.getByLabelText('Password')).toHaveAttribute('type', 'password');
   });
 });

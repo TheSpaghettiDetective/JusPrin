@@ -391,7 +391,7 @@ describe('the printer panel page', () => {
     };
     const identify = { ...connect, actionId: 't-identify', tool: 'printer_identify', title: 'Show the printers you mean', state: 'succeeded' as const };
     const host = open(state({ toolActivities: [identify, connect], session: session({
-      credentialRequest: { actionId: 't-connect', target: 'Workshop', provider: 'bambu' },
+      credentialRequest: { actionId: 't-connect', target: 'Workshop', provider: 'bambu', fields: ['accessCode'] },
     }) }));
     // Only the local form is drawn, under the waiting call's title.
     expect(screen.queryByText('Show the printers you mean')).toBeNull();
@@ -404,7 +404,7 @@ describe('the printer panel page', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(host.lastOfType('printer_action')!.payload).toEqual({ action: 'credential_dismissed', actionId: 't-connect' });
     await userEvent.click(screen.getByRole('button', { name: 'Connect' }));
-    expect(host.lastOfType('printer_action')!.payload).toEqual({ action: 'connect', actionId: 't-connect', credential: 'secretcode' });
+    expect(host.lastOfType('printer_action')!.payload).toEqual({ action: 'connect', actionId: 't-connect', values: { accessCode: 'secretcode' } });
   });
 
   it('shows the call as checking once the form is submitted', () => {

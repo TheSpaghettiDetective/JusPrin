@@ -669,6 +669,16 @@ namespace Slic3r::GUI::JusPrin {
 
 namespace {
 
+// A print host connection with no key, as configure_named_printer_host saves it.
+DynamicPrintConfig host_settings(PrintHostType type, const std::string& address)
+{
+    DynamicPrintConfig settings;
+    settings.set_key_value("host_type", new ConfigOptionEnum<PrintHostType>(type));
+    settings.set_key_value("print_host", new ConfigOptionString(address));
+    settings.set_key_value("printhost_apikey", new ConfigOptionString(""));
+    return settings;
+}
+
 // Whether a Bambu connection lists the in-process fake printer. The list is
 // every printer the app knows of, and Orca keeps the LAN printers of other
 // printer agents in it too, such as the stand-in Moonraker printers that
@@ -5703,7 +5713,7 @@ private:
                                         const auto request = credential();
                                         if (!request.empty())
                                             live_send("printer_action", {{"action", "connect"}, {"actionId", request["actionId"]},
-                                                                          {"credential", kCode}});
+                                                                          {"values", {{"accessCode", kCode}}}});
                                     },
                                     [this] {
                                         const auto calls = live_calls("printer_bambu_connect");
@@ -5765,7 +5775,7 @@ private:
                                         const auto request = credential();
                                         if (!request.empty())
                                             live_send("printer_action", {{"action", "connect"}, {"actionId", request["actionId"]},
-                                                                          {"credential", kKey}});
+                                                                          {"values", {{"apiKey", kKey}}}});
                                         say("how long does this take?");
                                     },
                                     [this, card] { return card() != nullptr && live_note_after(card()->correlation_id) && live_settled(); },
@@ -5865,7 +5875,7 @@ private:
                                     const auto request = live_panel()->session_json().value("credentialRequest", nlohmann::json::object());
                                     if (!request.empty())
                                         live_send("printer_action", {{"action", "connect"}, {"actionId", request["actionId"]},
-                                                                      {"credential", "moonkey123"}});
+                                                                      {"values", {{"apiKey", "moonkey123"}}}});
                                 },
                                 [this] {
                                     const auto* card = last_connect();
@@ -6465,7 +6475,7 @@ private:
                                             if (*sent)
                                                 live_send("printer_action", {{"action", "connect"},
                                                                              {"actionId", state.at("credentialRequest").at("actionId")},
-                                                                             {"credential", key}});
+                                                                             {"values", {{"apiKey", key}}}});
                                         },
                                         [this, sent, attempts] {
                                             return !*sent || (!live_panel()->session_json().contains("credentialRequest") && p1s_quiet() &&
@@ -6548,7 +6558,7 @@ private:
                                     if (state.contains("credentialRequest"))
                                         live_send("printer_action", {{"action", "connect"},
                                                                      {"actionId", state.at("credentialRequest").at("actionId")},
-                                                                     {"credential", code}});
+                                                                     {"values", {{"accessCode", code}}}});
                                 },
                                 [this, failure] { return p1s_quiet() && p1s_outcomes("failed") >= failure; },
                                 [this] { p1s_watch(); }});
@@ -6620,7 +6630,7 @@ private:
                                         if (!code.empty() && state.contains("credentialRequest"))
                                             live_send("printer_action", {{"action", "connect"},
                                                                          {"actionId", state.at("credentialRequest").at("actionId")},
-                                                                         {"credential", code}});
+                                                                         {"values", {{"accessCode", code}}}});
                                     },
                                     [this, started = std::chrono::steady_clock::now()] {
                                         p1s_watch();
@@ -6734,7 +6744,7 @@ private:
         timer.Start(100);
         const auto        start   = std::chrono::steady_clock::now();
         bool              tested  = false;
-        const std::string problem = backend.connect_host(name, kind, address, "",
+        const std::string problem = backend.connect_host(name, kind, address, {},
                                                          [&tested](const PrinterSetup::HostTestOutcome&) { tested = true; });
         // The test's end is delivered on an idle event, which an event loop
         // sends and wxYield does not.
@@ -7000,7 +7010,7 @@ private:
         {
             // Would answer in two seconds; cancelled first.
             StandInHost late(2000ms, /*answer=*/true);
-            check(backend.connect_host(kAddedPrinter, "moonraker", late.address(), "", [](const PrinterSetup::HostTestOutcome&) {}).empty() &&
+            check(backend.connect_host(kAddedPrinter, "moonraker", late.address(), {}, [](const PrinterSetup::HostTestOutcome&) {}).empty() &&
                       backend.connection(kAddedPrinter).state == "connecting",
                   "host_attempt_starts_waiting");
             backend.cancel_connection(kAddedPrinter);
@@ -7011,7 +7021,7 @@ private:
         {
             // Replaced by a second attempt, to a closed port, before it answers.
             StandInHost late(2000ms, /*answer=*/true);
-            check(backend.connect_host(kAddedPrinter, "moonraker", late.address(), "", [](const PrinterSetup::HostTestOutcome&) {}).empty(), "host_first_attempt_starts");
+            check(backend.connect_host(kAddedPrinter, "moonraker", late.address(), {}, [](const PrinterSetup::HostTestOutcome&) {}).empty(), "host_first_attempt_starts");
             const HostOutcome second = connect_host_and_wait(backend, kAddedPrinter, "http://127.0.0.1:1", 20s);
             wait_for([] { return false; }, 3000ms);
             check(second.state == "failed" && backend.connection(kAddedPrinter).state == "failed" && saved_address() == answered,
@@ -7192,7 +7202,9 @@ private:
         // connection tool once, as a model would. When the host asks for a
         // key, the call waits on the form, which is answered with the key in
         // the named variable (or empty), or with MISSING or CANCEL for the
-        // form's other ways out. What the model reads back is printed.
+        // form's other ways out. "ask=serialNumber:SERIAL,accessCode:CODE"
+        // instead has the call ask for those boxes, each answered from its
+        // variable. What the model reads back is printed.
         PrinterSetup::PrinterPanel* panel = installed_shell()->printer_panel();
         std::ifstream               cases(m_state->host_check_cases);
         std::string                 line;
@@ -7202,7 +7214,18 @@ private:
             if (!(words >> kind >> address))
                 continue;
             words >> key_variable;
-            const char*       key  = key_variable.empty() ? nullptr : std::getenv(key_variable.c_str());
+            nlohmann::json arguments{{"hostType", kind}, {"address", address}};
+            nlohmann::json asked_values = nlohmann::json::object();
+            if (key_variable.rfind("ask=", 0) == 0) {
+                std::istringstream boxes(key_variable.substr(4));
+                for (std::string box; std::getline(boxes, box, ',');) {
+                    const std::string field    = box.substr(0, box.find(':'));
+                    const char*       variable = box.find(':') == std::string::npos ? nullptr : std::getenv(box.substr(box.find(':') + 1).c_str());
+                    arguments["ask"].push_back(field);
+                    asked_values[field] = variable ? variable : "";
+                }
+            }
+            const char*       key  = key_variable.empty() || arguments.contains("ask") ? nullptr : std::getenv(key_variable.c_str());
             const std::string name = kind + ' ' + address + (key_variable.empty() ? "" : " form " + key_variable);
             open_printer_chat(PrinterSetup::ConversationMode::Connect, added.name, "host_check");
             const bool loaded = wait_for([panel] {
@@ -7213,7 +7236,7 @@ private:
                 return finish();
             Agent::AgentHost*        host = panel->host();
             std::vector<std::string> results;
-            host->set_agent(std::make_unique<ToolCallingAgent>(kHostConnectTool, nlohmann::json{{"hostType", kind}, {"address", address}},
+            host->set_agent(std::make_unique<ToolCallingAgent>(kHostConnectTool, arguments,
                                                                nullptr, &results),
                             Agent::AgentAvailability::Ready);
             const auto notes = [panel] {
@@ -7244,13 +7267,16 @@ private:
                 check(results.empty(), "host_check_call_waits_for_the_form");
                 const bool        missing  = key_variable == "MISSING";
                 const bool        closed   = key_variable == "CANCEL";
-                std::cerr << "HARNESS HOST " << name << " -> after " << since() << " ms the call waits on the key form, card \""
+                std::cerr << "HARNESS HOST " << name << " -> after " << since() << " ms the call waits on the form for "
+                          << request.value("fields", nlohmann::json::array()).dump() << ", card \""
                           << card() << "\"; " << (missing ? std::string("saying there is no key") : closed ? std::string("closing it") :
+                                                    arguments.contains("ask") ? "submitting it with the asked values" :
                                                     "submitting it " + (key ? "with " + key_variable : std::string("empty")))
                           << '\n';
                 const nlohmann::json payload = missing || closed ?
                     nlohmann::json{{"action", missing ? "credential_help" : "credential_dismissed"}, {"actionId", request.value("actionId", "")}} :
-                    nlohmann::json{{"action", "connect"}, {"actionId", request.value("actionId", "")}, {"credential", key ? key : ""}};
+                    nlohmann::json{{"action", "connect"}, {"actionId", request.value("actionId", "")},
+                                   {"values", arguments.contains("ask") ? asked_values : nlohmann::json{{"apiKey", key ? key : ""}}}};
                 host->on_page_message(nlohmann::json{{"protocol", Agent::Protocol::kName},
                                                      {"version", Agent::Protocol::kVersion},
                                                      {"id", "host-check-form"},
@@ -7456,7 +7482,7 @@ private:
             const auto        start  = std::chrono::steady_clock::now();
             const std::string action = state.at("credentialRequest").at("actionId");
             live_send("printer_action", cancel ? nlohmann::json{{"action", "credential_dismissed"}, {"actionId", action}} :
-                                                 nlohmann::json{{"action", "connect"}, {"actionId", action}, {"credential", code}});
+                                                 nlohmann::json{{"action", "connect"}, {"actionId", action}, {"values", {{"accessCode", code}}}});
             std::string outcome;
             check(wait_for([&] {
                 const Agent::ToolActivity* call = panel->host()->tools().find(action);
@@ -7754,14 +7780,14 @@ private:
               "named_host_failure_keeps_the_saved_address");
         auto& printer_presets = wxGetApp().preset_bundle->printers;
         const bool dirty_on_selected = m_plater->is_project_dirty();
-        check(Printers::configure_named_printer_host(second, htOctoPrint, "http://127.0.0.1:1", "").empty() &&
+        check(Printers::configure_named_printer_host(second, host_settings(htOctoPrint, "http://127.0.0.1:1")).empty() &&
                   printer_presets.get_edited_preset().config.opt_string("print_host") == "http://127.0.0.1:1" &&
                   !printer_presets.current_is_dirty() && m_plater->is_project_dirty() == dirty_on_selected,
               "named_host_settings_update_selected_printer_without_changing_project_edits");
         // Connecting over unsaved edits saves the connection; the project's
         // copy takes it over and keeps its other edits, unsaved.
         printer_presets.get_edited_preset().config.set_key_value("printer_notes", new ConfigOptionString("unsaved"));
-        check(Printers::configure_named_printer_host(second, htMoonraker, "http://127.0.0.1:2", "").empty() &&
+        check(Printers::configure_named_printer_host(second, host_settings(htMoonraker, "http://127.0.0.1:2")).empty() &&
                   printer_presets.get_edited_preset().config.opt_string("printer_notes") == "unsaved" &&
                   printer_presets.get_edited_preset().config.opt_string("print_host") == "http://127.0.0.1:2" &&
                   printer_profile(second)->config.opt_string("print_host") == "http://127.0.0.1:2",

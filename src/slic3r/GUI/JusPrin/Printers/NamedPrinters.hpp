@@ -19,6 +19,7 @@
 #include "InstalledModels.hpp"
 #include "PrinterOrigin.hpp"
 #include "libslic3r/Preset.hpp"
+#include "libslic3r/PrintConfig.hpp"
 
 #include <wx/string.h>
 
@@ -85,7 +86,7 @@ std::vector<std::string> name_installed_printers(Plater& plater, const VendorMap
 // Its message, and configure_named_printer_host's, reach the printer chat's
 // model, so they are in English.
 wxString link_named_printer(const std::string& name, const std::string& device_id);
-wxString configure_named_printer_host(const std::string& name, PrintHostType type, const std::string& address,
-                                     const std::string& api_key);
+// Saves `settings`, the printer's connection settings, on the named printer.
+wxString configure_named_printer_host(const std::string& name, const DynamicPrintConfig& settings);
 
 } // namespace Slic3r::GUI::JusPrin::Printers

@@ -382,9 +382,25 @@ describe('the connection skills', () => {
     expect(host).toContain('printer_connection_status gives the type this printer is saved with');
     expect(host).toContain('that type is only the default in the printer\'s profile, which the person never chose');
     expect(host).toContain('A printer whose page is Mainsail or Fluidd runs Moonraker, whatever its profile says.');
-    // What the app sends cannot finish these; the person can, in the app's window.
-    expect(host).toContain('Repetier, which also needs the printer chosen on the host');
+    // What the form cannot ask for the person can finish in the app's window.
     expect(host).toContain('View › Switch to classic view…, then the Wi-Fi icon beside "Printer" (seen 2026-11-16)');
+  });
+
+  it('ask for more than an address in the form, and send to the classic window only what the form cannot ask for', () => {
+    // A Creator 5 Pro in LAN Only mode answers only the local API, which the app's
+    // Flashforge test uses only with the serial number and access code set.
+    expect(host).toContain('call printer_host_connect with `ask`, the boxes the app\'s form shows the person');
+    expect(host).toContain('Never ask for any of these in chat, not even a serial number');
+    expect(host).toContain('**Flashforge** (`flashforge`), such as a Creator 5 Pro in LAN Only mode: ask for `serialNumber` and `accessCode`.');
+    expect(host).toContain('**PrusaLink set up with a user name and password** instead of a key: ask for `userName` and `password`.');
+    expect(host).toContain('**Repetier** (`repetier`): ask for `apiKey` and `printerOnServer`');
+    expect(host).toContain('The profiles for the Flashforge Creator 5, AD5X, Adventurer A5, Guider 3 Ultra and Guider 4 name OctoPrint');
+    // Only UltiMaker is still sent to the classic window: its login is made on the printer.
+    expect(host).toContain('UltiMaker cannot be finished from this chat');
+    expect(host).not.toContain('cannot be finished from this chat: Flashforge');
+    expect(host).not.toContain('Repetier, which also needs the printer chosen on the host');
+    // MKS and ESP3D fail on an address with http:// in front.
+    expect(host).toContain('MKS and ESP3D take the address without `http://`');
   });
 
   it('explain Elegoo Link from the app\'s own test, model by model', () => {

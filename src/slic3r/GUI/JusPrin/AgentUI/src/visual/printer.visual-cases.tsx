@@ -39,8 +39,8 @@ export const printerCases: VisualCase[] = [
   card('missing-image', 'Missing image candidate', ['printer-card-picture-empty', 'Bambu Lab A1 mini', '180 × 180 × 180 mm'],
     block({ kind: 'printers', printers: [{ catalogId: 'a1-mini', name: 'Bambu Lab A1 mini', buildVolume: '180 × 180 × 180 mm', picture: '' }] })),
   { node: '1572:2336', matrix: 'Printer chat', id: 'printer-credential', name: 'Local credential form', frame: 'card',
-    expects: ['Waiting for the access code for Studio A1', 'Access code', 'Stays on this computer.', 'Connect', 'Help me find the code'],
-    build: () => mounted(<PrinterCredentialForm request={{ actionId: 'c-1', target: 'Studio A1', provider: 'bambu' }}
+    expects: ['Waiting for the access code for Studio A1', 'Access code', 'The app saves this for this printer and sends it only to the printer. The AI doesn’t see it.', 'Connect', 'Help me find the code'],
+    build: () => mounted(<PrinterCredentialForm request={{ actionId: 'c-1', target: 'Studio A1', provider: 'bambu', fields: ['accessCode'] }}
       title="Waiting for the access code for Studio A1" onConnect={noop} onClose={noop} />) },
   // The same cards with the details the app does not send yet (model, brand,
   // percentage): made-up values in the optional slots, as Figma draws them.

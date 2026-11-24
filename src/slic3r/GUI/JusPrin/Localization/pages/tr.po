@@ -2100,6 +2100,11 @@ msgid "Help me find the key"
 msgstr "Anahtarı bulmama yardım et"
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Help me find these"
+msgstr "Bunları bulmama yardım et"
+
+# AI Translated
 #: ../HomeUI/src/components/AgentGroup.tsx
 msgid "Hide"
 msgstr "Gizle"
@@ -3125,6 +3130,7 @@ msgid "Partly"
 msgstr "Kısmen"
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
 #: src/components/SignInDoor.tsx
 #: src/components/SignInDoor.tsx
 msgid "Password"
@@ -3282,6 +3288,11 @@ msgstr "Yazıcının son bildirdiği: {observed}"
 #: ../HomeUI/src/components/PrinterMenu.tsx
 msgid "Printer name"
 msgstr "Yazıcı adı"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Printer name on Repetier Server"
+msgstr "Repetier Server’daki yazıcı adı"
 
 # AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
@@ -3830,6 +3841,11 @@ msgid "Sent. Saved snapshot: the canvas shows your current project."
 msgstr "Gönderildi. Kayıtlı anlık görüntü: tuvalde geçerli projeniz gösteriliyor."
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Serial number"
+msgstr "Seri numarası"
+
+# AI Translated
 #: src/components/AllSettings.tsx
 msgid "Set on this plate"
 msgstr "Bu plakada ayarlandı"
@@ -4110,11 +4126,6 @@ msgid "Starting the AI panel."
 msgstr "Yapay zeka paneli başlatılıyor."
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Stays on this computer."
-msgstr "Bu bilgisayarda kalır."
-
-# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Step {step} of {steps}"
 msgstr "Adım {step} / {steps}"
@@ -4256,6 +4267,16 @@ msgstr "Daha iyi baskılar almanıza yardımcı olan yapay zekalı dilimleyici."
 #: src/components/SignInDoor.tsx
 msgid "The app continues on its own once the browser is done."
 msgstr "Tarayıcıdaki işlem bitince uygulama kendiliğinden devam eder."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "The app saves these for this printer and sends them only to the printer. The AI doesn’t see them."
+msgstr "Uygulama bunları bu yazıcı için kaydeder ve yalnızca yazıcıya gönderir. Yapay zeka bunları görmez."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "The app saves this for this printer and sends it only to the printer. The AI doesn’t see it."
+msgstr "Uygulama bunu bu yazıcı için kaydeder ve yalnızca yazıcıya gönderir. Yapay zeka bunu görmez."
 
 # AI Translated
 #: src/components/AddPrinterForm.tsx
@@ -4594,6 +4615,11 @@ msgstr "{label} için proje değerini kullan"
 #: ../HomeUI/src/components/Onboarding.tsx
 msgid "Use your own AI account"
 msgstr "Kendi yapay zeka hesabınızı kullanın"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "User name"
+msgstr "Kullanıcı adı"
 
 # AI Translated
 #: src/components/AllSettings.tsx

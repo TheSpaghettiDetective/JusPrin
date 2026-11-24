@@ -91,6 +91,15 @@ const std::vector<std::string>& host_types()
     return types;
 }
 
+// The boxes printer_host_connect's form can ask for. PrinterConversation
+// knows which printer setting each fills; the page knows its label and
+// whether what is typed in it is hidden.
+const std::vector<std::string>& connect_form_fields()
+{
+    static const std::vector<std::string> fields{"apiKey", "accessCode", "serialNumber", "userName", "password", "printerOnServer"};
+    return fields;
+}
+
 bool has_only(const json& value, std::initializer_list<std::string_view> allowed)
 {
     if (!value.is_object())
@@ -687,10 +696,22 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
     const auto given = [&arguments](const char* key) {
         return arguments.contains(key) && arguments[key].is_string() && !arguments[key].get_ref<const std::string&>().empty();
     };
+    // ask lists the form's boxes, one to three of them.
+    const auto valid_ask = [&arguments] {
+        if (!arguments.contains("ask"))
+            return true;
+        const json& ask = arguments["ask"];
+        if (!ask.is_array() || ask.empty() || ask.size() > 3)
+            return false;
+        const std::vector<std::string>& fields = connect_form_fields();
+        return std::all_of(ask.begin(), ask.end(), [&fields](const json& id) {
+            return id.is_string() && std::count(fields.begin(), fields.end(), id.get<std::string>()) == 1;
+        });
+    };
     if (definition.handler == ToolHandler::PrinterHostConnect)
-        return has_only(arguments, {"hostType", "address"}) && optional_text(arguments, "address") && given("address") &&
+        return has_only(arguments, {"hostType", "address", "ask"}) && optional_text(arguments, "address") && given("address") &&
                arguments.contains("hostType") && arguments["hostType"].is_string() &&
-               std::count(host_types().begin(), host_types().end(), arguments["hostType"].get<std::string>()) == 1;
+               std::count(host_types().begin(), host_types().end(), arguments["hostType"].get<std::string>()) == 1 && valid_ask();
     if (definition.handler == ToolHandler::PrinterBambuConnect)
         return has_only(arguments, {"deviceId"}) && optional_text(arguments, "deviceId") && given("deviceId");
 
@@ -1695,17 +1716,25 @@ std::vector<ToolDefinition> make_definitions()
          "type as its connection once the host accepts the test. hostType is the program the app talks to at that "
          "address; printer_connection_status gives the type this printer is saved with. The call returns once the "
          "connection has an outcome. "
-         "It first tests with the API key the app already holds for that address and type, or with none, for at most 30 "
-         "seconds. If the host refuses that test (HTTP 401 or 403), the app opens a form in "
-         "this chat where the person types an API key themselves, never in chat, and the call waits for them: when they "
-         "submit it, the app tests again with that key. The result is verified (connected and saved; for Moonraker it gives "
-         "Klipper's state, which Moonraker reports whether or not Klipper can reach the printer's board), failed (with the "
-         "host's or the network's own words), help_requested (the person tapped \"Help me find the key\" in the form and wants help finding it) or dismissed "
-         "(they closed the form). It says what each host answered and which API key each test sent. Pass hostType and the "
-         "address with its port when it has one. For a Bambu Lab printer use printer_bambu_connect instead.",
+         "Without ask, it first tests with what the app already holds for that address and type, or with nothing, for at "
+         "most 30 seconds. If the host refuses that test (HTTP 401 or 403), the app opens a form in this chat where the "
+         "person types an API key themselves, never in chat, and the call waits for them: when they submit it, the app "
+         "tests again with it. With ask, the app opens the form at once with those boxes and tests only once the person "
+         "submits it. Nothing typed in the form reaches you. The result is verified (connected and saved; for Moonraker it "
+         "gives Klipper's state, which Moonraker reports whether or not Klipper can reach the printer's board), failed (with "
+         "the host's or the network's own words), help_requested (the person tapped the form's help link and wants help "
+         "finding what it asks for) or dismissed (they closed the form). It says what each host answered and what each "
+         "test sent. Pass hostType and the address with its port when it has one. For a Bambu Lab printer use "
+         "printer_bambu_connect instead.",
          object_schema(json{{"hostType", {{"type", "string"}, {"enum", host_types()}}},
                             {"address", {{"type", "string"}, {"maxLength", 256},
-                                         {"description", "The print host's address, an IP address or a name, with its port when it has one."}}}},
+                                         {"description", "The print host's address, an IP address or a name, with its port when it has one."}}},
+                            {"ask", {{"type", "array"}, {"minItems", 1}, {"maxItems", 3},
+                                     {"items", {{"type", "string"}, {"enum", connect_form_fields()}}},
+                                     {"description", "The boxes the form asks the person to fill in, for a host that needs more "
+                                                     "than an address: apiKey or accessCode (the same setting, named as the "
+                                                     "printer names it), serialNumber, userName, password, printerOnServer "
+                                                     "(which printer on a Repetier server)."}}}},
                        json::array({"hostType", "address"})),
          object_schema(json{{"state", {{"type", "string"}, {"enum", json::array({"verified", "failed", "help_requested", "dismissed"})}}},
                             {"message", string_schema()}},

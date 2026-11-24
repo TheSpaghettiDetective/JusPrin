@@ -2098,6 +2098,11 @@ msgid "Help me find the key"
 msgstr "Lagundu gakoa aurkitzen"
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Help me find these"
+msgstr "Lagundu hauek aurkitzen"
+
+# AI Translated
 #: ../HomeUI/src/components/AgentGroup.tsx
 msgid "Hide"
 msgstr "Ezkutatu"
@@ -3123,6 +3128,7 @@ msgid "Partly"
 msgstr "Partzialki"
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
 #: src/components/SignInDoor.tsx
 #: src/components/SignInDoor.tsx
 msgid "Password"
@@ -3280,6 +3286,12 @@ msgstr "Inprimagailuaren azken txostena: {observed}"
 #: ../HomeUI/src/components/PrinterMenu.tsx
 msgid "Printer name"
 msgstr "Inprimagailuaren izena"
+
+# AI Translated
+# Needs human review: the case ending after Repetier Server
+#: src/components/PrinterPanel.tsx
+msgid "Printer name on Repetier Server"
+msgstr "Inprimagailuaren izena Repetier Server-en"
 
 # AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
@@ -3826,6 +3838,11 @@ msgid "Sent. Saved snapshot: the canvas shows your current project."
 msgstr "Bidalia. Argazki gordea: 3D ikuspegiak zure uneko proiektua erakusten du."
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Serial number"
+msgstr "Serie-zenbakia"
+
+# AI Translated
 #: src/components/AllSettings.tsx
 msgid "Set on this plate"
 msgstr "Plaka honetan ezarria"
@@ -4106,11 +4123,6 @@ msgid "Starting the AI panel."
 msgstr "AA panela abiarazten."
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Stays on this computer."
-msgstr "Ordenagailu honetan geratzen da."
-
-# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Step {step} of {steps}"
 msgstr "{step}. urratsa ({steps} guztira)"
@@ -4252,6 +4264,18 @@ msgstr "Inprimaketa hobeak lortzen laguntzen dizun AA xerratzailea."
 #: src/components/SignInDoor.tsx
 msgid "The app continues on its own once the browser is done."
 msgstr "Aplikazioak bere kabuz jarraituko du nabigatzailean amaitzen duzunean."
+
+# AI Translated
+# Needs human review: the verb agreement of the plural and singular note
+#: src/components/PrinterPanel.tsx
+msgid "The app saves these for this printer and sends them only to the printer. The AI doesn’t see them."
+msgstr "Aplikazioak inprimagailu honetarako gordetzen ditu, eta inprimagailuari bakarrik bidaltzen dizkio. AAk ez ditu ikusten."
+
+# AI Translated
+# Needs human review: the verb agreement of the plural and singular note
+#: src/components/PrinterPanel.tsx
+msgid "The app saves this for this printer and sends it only to the printer. The AI doesn’t see it."
+msgstr "Aplikazioak inprimagailu honetarako gordetzen du, eta inprimagailuari bakarrik bidaltzen dio. AAk ez du ikusten."
 
 # AI Translated
 #: src/components/AddPrinterForm.tsx
@@ -4591,6 +4615,11 @@ msgstr "Erabili proiektuaren balioa honetarako: {label}"
 #: ../HomeUI/src/components/Onboarding.tsx
 msgid "Use your own AI account"
 msgstr "Erabili zure AA kontu propioa"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "User name"
+msgstr "Erabiltzaile-izena"
 
 # AI Translated
 #: src/components/AllSettings.tsx

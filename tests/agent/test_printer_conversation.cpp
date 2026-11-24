@@ -190,10 +190,14 @@ public:
     }
     // The test's end, for a test to call with the outcome it wants.
     std::function<void(const HostTestOutcome&)> tested;
-    std::string connect_host(const std::string& name, const std::string& type, const std::string& address, const std::string& key,
+    // What each print host test was handed, by setting.
+    std::vector<HostLogin> logins;
+    std::string connect_host(const std::string& name, const std::string& type, const std::string& address, const HostLogin& typed,
                              std::function<void(const HostTestOutcome&)> end) override
     {
-        connects.push_back({name, type, address, key});
+        const auto key = typed.find("printhost_apikey");
+        connects.push_back({name, type, address, key == typed.end() ? std::string() : key->second});
+        logins.push_back(typed);
         if (connection_error.empty())
             tested = std::move(end);
         return connection_error;
@@ -1596,13 +1600,14 @@ Agent::ToolExecutionCoordinator::ExtensionResult tap_connect(PrinterConversation
     activity.action_id           = action;
     const auto result = conversation.execute_tool(Agent::ToolHandler::PrinterBambuConnect, activity);
     conversation.handle_page_message("printer_action",
-                                     json{{"action", "connect"}, {"actionId", action}, {"credential", credential}});
+                                     json{{"action", "connect"}, {"actionId", action}, {"values", {{"accessCode", credential}}}});
     return result;
 }
 
 const json kHostArguments{{"printerName", "Lab Printer"}, {"hostType", "moonraker"}, {"address", "192.168.1.42"},
                           {"provider", "host"},           {"target", "192.168.1.42"}};
-const json kBambuArguments{{"printerName", "Lab Printer"}, {"deviceId", "01P00A3B"}, {"provider", "bambu"}, {"target", "Workshop"}};
+const json kBambuArguments{{"printerName", "Lab Printer"}, {"deviceId", "01P00A3B"}, {"provider", "bambu"}, {"target", "Workshop"},
+                           {"ask", {"accessCode"}}};
 
 // Runs printer_host_connect as the coordinator would, after its preflight.
 Agent::ToolExecutionCoordinator::ExtensionResult host_connect(PrinterConversation& conversation, const std::string& action,
@@ -1670,7 +1675,7 @@ TEST_CASE("an Elegoo Link printer connects from the chat as its profile saved it
     backend.tested(HostTestOutcome{"needs_credential", "Elegoo Link at 192.168.1.77 refused the test: HTTP 401: Unauthorized. "
                                                        "The test sent no API key.", "none"});
     CHECK(conversation.state_json().at("credentialRequest").at("actionId") == "a-1");
-    conversation.handle_page_message("printer_action", json{{"action", "connect"}, {"actionId", "a-1"}, {"credential", "654321"}});
+    conversation.handle_page_message("printer_action", json{{"action", "connect"}, {"actionId", "a-1"}, {"values", {{"apiKey", "654321"}}}});
     CHECK(backend.connects.back() == std::vector<std::string>{"Lab Printer", "elegoolink", "192.168.1.77", "654321"});
 }
 
@@ -1714,7 +1719,7 @@ TEST_CASE("printer_host_connect tests during the call and ends it with what the 
         CHECK(conversation.state_json().at("credentialRequest").at("actionId") == "a-1");
 
         backend.tested = nullptr;
-        conversation.handle_page_message("printer_action", json{{"action", "connect"}, {"actionId", "a-1"}, {"credential", "key123"}});
+        conversation.handle_page_message("printer_action", json{{"action", "connect"}, {"actionId", "a-1"}, {"values", {{"apiKey", "key123"}}}});
         CHECK(backend.connects.back() == std::vector<std::string>{"Lab Printer", "moonraker", "192.168.1.42", "key123"});
         CHECK(std::get<1>(panel.updates.back()) == "Checking 192.168.1.42");
         // Its own work runs now, and the app's dialogs are part of it.
@@ -1726,7 +1731,7 @@ TEST_CASE("printer_host_connect tests during the call and ends it with what the 
                                        "typed"});
         CHECK(finished_output(panel, "a-1") ==
               json{{"state", "verified"},
-                   {"message", refused + " The person typed a key in the form, and the app tested again: Moonraker at 192.168.1.42 "
+                   {"message", refused + " The person filled in the form, and the app tested again: Moonraker at 192.168.1.42 "
                                          "accepted the test. The test sent the API key typed in the form."}});
         CHECK(panel.notes.empty());
         CHECK(panel.turns == 0);
@@ -1734,7 +1739,7 @@ TEST_CASE("printer_host_connect tests during the call and ends it with what the 
     SECTION("a typed key the host refuses ends the call failed, with both answers")
     {
         backend.tested(HostTestOutcome{"needs_credential", refused, "none"});
-        conversation.handle_page_message("printer_action", json{{"action", "connect"}, {"actionId", "a-1"}, {"credential", "wrong"}});
+        conversation.handle_page_message("printer_action", json{{"action", "connect"}, {"actionId", "a-1"}, {"values", {{"apiKey", "wrong"}}}});
         backend.tested(HostTestOutcome{"needs_credential", "Moonraker refused the test. The test sent the API key typed in the form.", "typed"});
         const json output = finished_output(panel, "a-1");
         CHECK(output.at("state") == "failed");
@@ -1755,8 +1760,8 @@ TEST_CASE("printer_host_connect tests during the call and ends it with what the 
         const json output = finished_output(panel, "a-1");
         CHECK(output.at("state") == (missing ? "help_requested" : "dismissed"));
         CHECK(output.at("message") ==
-              refused + (missing ? " The person tapped \"Help me find the key\" in the form: they need help finding the API key for 192.168.1.42. Help them find it." :
-                                   " The person closed the form for the API key for 192.168.1.42 without connecting.") +
+              refused + (missing ? " The person tapped the form's help link: they need help finding the API key of the printer at 192.168.1.42. Help them find it." :
+                                   " The person closed the form for the API key of the printer at 192.168.1.42 without connecting.") +
                   " Nothing was sent.");
         CHECK(backend.connects.size() == 1);
         CHECK_FALSE(conversation.state_json().contains("credentialRequest"));
@@ -1780,7 +1785,7 @@ TEST_CASE("printer_host_connect tests during the call and ends it with what the 
         CHECK_FALSE(conversation.state_json().contains("credentialRequest"));
         CHECK(panel.finished.empty());
         // A Connect the page sent before it redrew starts nothing.
-        conversation.handle_page_message("printer_action", json{{"action", "connect"}, {"actionId", "a-1"}, {"credential", "key"}});
+        conversation.handle_page_message("printer_action", json{{"action", "connect"}, {"actionId", "a-1"}, {"values", {{"apiKey", "key"}}}});
         CHECK(backend.connects.size() == 1);
     }
     SECTION("a second call while one runs replaces it, and ends the first with why")
@@ -1828,6 +1833,79 @@ TEST_CASE("a connection call still waiting when the chat closes ends saying the 
     REQUIRE(panel.finished.back().second.error.has_value());
     CHECK(panel.finished.back().second.error->code == "cancelled");
     CHECK(panel.finished.back().second.error->message == "The person closed the printer chat before connecting was finished.");
+}
+
+TEST_CASE("printer_host_connect asks only for the form's own boxes", "[printer-conversation]")
+{
+    const auto&                  registry = Agent::ToolRegistry::instance();
+    const Agent::ToolDefinition* host     = registry.find("printer_host_connect");
+    REQUIRE(host != nullptr);
+    const auto checked = [&](const json& ask) {
+        return registry.validate_call(*host, json{{"hostType", "flashforge"}, {"address", "192.168.1.42"}, {"ask", ask}}.dump()).valid();
+    };
+    CHECK(checked(json{"serialNumber", "accessCode"}));
+    CHECK(checked(json{"userName", "password"}));
+    CHECK(checked(json{"apiKey", "printerOnServer"}));
+    CHECK_FALSE(checked(json::array()));
+    CHECK_FALSE(checked(json{"ipAddress"}));
+    CHECK_FALSE(checked(json{"apiKey", "serialNumber", "userName", "password"}));
+}
+
+TEST_CASE("printer_host_connect given boxes opens the form first and tests with what was typed, box by box",
+          "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    backend.saved                     = {lab_printer()};
+    backend.connection_info           = PrinterConnectionInfo{"host", "not_configured"};
+    backend.connection_info.host_type = "octoprint";
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Connect, "Lab Printer");
+    const json asked{{"hostType", "flashforge"}, {"address", "192.168.1.42"}, {"ask", {"serialNumber", "accessCode", "serialNumber"}}};
+    Agent::ToolActivity activity = call("printer_host_connect", asked, "m-1");
+    activity.action_id           = "a-1";
+    REQUIRE_FALSE(conversation.preflight_tool(Agent::ToolHandler::PrinterHostConnect, activity));
+    CHECK(activity.title == "Connect to the printer at 192.168.1.42");
+    const auto result = conversation.execute_tool(Agent::ToolHandler::PrinterHostConnect, activity);
+    REQUIRE_FALSE(result.error.has_value());
+    CHECK(result.pending);
+    // Nothing is tested before the person fills in the form.
+    CHECK(backend.connects.empty());
+    const json request = conversation.state_json().at("credentialRequest");
+    CHECK(request.at("actionId") == "a-1");
+    CHECK(request.at("provider") == "host");
+    CHECK(request.at("fields") == json{"serialNumber", "accessCode"});
+
+    SECTION("Connect tests with each value in the setting its box fills, and the call ends with the test")
+    {
+        conversation.handle_page_message("printer_action",
+                                         json{{"action", "connect"},
+                                              {"actionId", "a-1"},
+                                              {"values", {{"serialNumber", "SNMQRB9400123"}, {"accessCode", "ab12cd34"}, {"password", "unasked"}}}});
+        REQUIRE(backend.logins.size() == 1);
+        CHECK(backend.logins.back() == HostLogin{{"flashforge_serial_number", "SNMQRB9400123"}, {"printhost_apikey", "ab12cd34"}});
+        CHECK(backend.connects.back() == std::vector<std::string>{"Lab Printer", "flashforge", "192.168.1.42", "ab12cd34"});
+        REQUIRE(backend.tested);
+        backend.tested(HostTestOutcome{"verified", "Flashforge at 192.168.1.42 accepted the test. The test sent what the person "
+                                                   "typed in the form.", "typed"});
+        const json output = finished_output(panel, "a-1");
+        CHECK(output == json{{"state", "verified"},
+                             {"message", "The person filled in the form, and the app tested with it: Flashforge at 192.168.1.42 "
+                                         "accepted the test. The test sent what the person typed in the form."}});
+        CHECK_THAT(output.dump(), !ContainsSubstring("ab12cd34"));
+        CHECK_THAT(output.dump(), !ContainsSubstring("SNMQRB9400123"));
+    }
+    SECTION("help or Cancel names what the form asked for, and nothing is tested")
+    {
+        const bool help = GENERATE(true, false);
+        form_answer(conversation, "a-1", help ? "credential_help" : "credential_dismissed");
+        CHECK(finished_output(panel, "a-1").at("message") ==
+              (help ? "The person tapped the form's help link: they need help finding the serial number and access code of the "
+                      "printer at 192.168.1.42. Help them find them. Nothing was sent." :
+                      "The person closed the form for the serial number and access code of the printer at 192.168.1.42 without "
+                      "connecting. Nothing was sent."));
+        CHECK(backend.connects.empty());
+    }
 }
 
 TEST_CASE("printer_host_connect refused before its test starts says so in the call", "[printer-conversation]")
@@ -1923,7 +2001,7 @@ TEST_CASE("a Bambu Lab connection waits for the form and the printer, then ends 
     form_answer(conversation, "a-3", "credential_help");
     CHECK(finished_output(panel, "a-3") ==
           json{{"state", "help_requested"},
-               {"message", "The person tapped \"Help me find the code\" in the form: they need help finding the printer's access code. Help them find it. Nothing was sent."}});
+               {"message", "The person tapped the form's help link: they need help finding the access code for Workshop. Help them find it. Nothing was sent."}});
     CHECK(backend.connects.size() == 2);
 }
 
@@ -2846,7 +2924,7 @@ TEST_CASE("the credential reaches the printer and nothing else", "[printer-conve
     const Agent::ToolActivity request = submit_connect(harness);
     CHECK(request.title == "Waiting for the access code for Workshop");
 
-    harness.page("printer_action", {{"action", "connect"}, {"actionId", request.action_id}, {"credential", secret}});
+    harness.page("printer_action", {{"action", "connect"}, {"actionId", request.action_id}, {"values", {{"accessCode", secret}}}});
     harness.pump();
     REQUIRE(harness.backend.connects.size() == 1);
     CHECK(harness.backend.connects.front() == std::vector<std::string>{"Lab Printer", "01P00A3B", secret});
@@ -2879,7 +2957,7 @@ TEST_CASE("printer_bambu_connect stays open through the form and the attempt, an
     CHECK(harness.agent->busy());
     const std::size_t requests = harness.agent->requests.size();
 
-    harness.page("printer_action", {{"action", "connect"}, {"actionId", request.action_id}, {"credential", "1234"}});
+    harness.page("printer_action", {{"action", "connect"}, {"actionId", request.action_id}, {"values", {{"accessCode", "1234"}}}});
     harness.pump();
     CHECK(harness.activities().front().title == "Checking Workshop");
     CHECK(harness.activities().front().state == Agent::ToolState::Running);
@@ -3824,10 +3902,14 @@ TEST_CASE("the print host skill names only states seen from a real host", "[prin
         {"verified", "Moonraker in Docker and on a Raspberry Pi, OctoPrint in Docker, 2026-11-04, --print-host-check"},
     };
     std::set<std::string> names{"printer_host_connect", "printer_connection_status", "issue_report_open", "web_search",
-                                "trusted_clients", "[authorization]", "hostType"};
+                                "trusted_clients", "[authorization]", "hostType", "ask"};
     // The connection types printer_host_connect takes, as its schema lists them.
     for (const json& type : Agent::ToolRegistry::instance().find("printer_host_connect")->input_schema.at("properties").at("hostType").at("enum"))
         names.insert(type.get<std::string>());
+    // The form's boxes, as ask lists them.
+    for (const json& field :
+         Agent::ToolRegistry::instance().find("printer_host_connect")->input_schema.at("properties").at("ask").at("items").at("enum"))
+        names.insert(field.get<std::string>());
     {
         const std::string text = skill_text("connect-print-host");
         std::set<std::string> named;

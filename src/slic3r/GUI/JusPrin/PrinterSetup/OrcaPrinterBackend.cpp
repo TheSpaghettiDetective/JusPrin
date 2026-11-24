@@ -199,8 +199,10 @@ HostAnswer upstream_answer(std::shared_ptr<PrintHost> host)
         wxString   said;
         HostAnswer answer{host->test(said)};
         answer.said = one_line(said.ToUTF8().data());
+        // No space after the colon: one_line drops the one an empty body
+        // leaves at the end ("HTTP 401: " becomes "HTTP 401:").
         std::smatch status;
-        if (!answer.passed && std::regex_search(answer.said, status, std::regex(R"(\bHTTP (\d{3}): )")))
+        if (!answer.passed && std::regex_search(answer.said, status, std::regex(R"(\bHTTP (\d{3}):)")))
             answer.status = static_cast<unsigned>(std::stoul(status[1].str()));
         return answer;
     });
@@ -636,9 +638,10 @@ PrinterConnectionInfo OrcaPrinterBackend::connection(const std::string& name)
             auto& attempt = *m_host_attempt;
             // Only a verified attempt saved its settings; it holds while the
             // printer is still set up as it was tested.
-            if (attempt.state == "verified" &&
-                (info.address != attempt.address || info.host_type != attempt.host_type ||
-                 preset->config.opt_string("printhost_apikey") != attempt.api_key)) {
+            const auto& keys = attempt.settings.keys();
+            if (attempt.state == "verified" && std::any_of(keys.begin(), keys.end(), [&](const std::string& key) {
+                    return !preset->config.has(key) || preset->config.opt_serialize(key) != attempt.settings.opt_serialize(key);
+                })) {
                 info.message = "Connection settings changed. Test the new connection again.";
                 return info;
             }
@@ -812,7 +815,7 @@ std::string OrcaPrinterBackend::connect_printer(const std::string& name, const s
 }
 
 std::string OrcaPrinterBackend::connect_host(const std::string& name, const std::string& host_type, const std::string& address,
-                                             const std::string& api_key, std::function<void(const HostTestOutcome&)> tested)
+                                             const HostLogin& typed, std::function<void(const HostTestOutcome&)> tested)
 {
     const auto info = connection(name);
     if (info.provider != "host" || info.state == "unavailable")
@@ -827,18 +830,34 @@ std::string OrcaPrinterBackend::connect_host(const std::string& name, const std:
     const auto* preset = wxGetApp().preset_bundle->printers.find_preset(name, false, true);
     if (!preset)
         return "This printer was renamed or removed.";
-    // Reuse a saved secret only for the same endpoint and provider.
-    const std::string key = api_key.empty() && address == info.address && host_type == info.host_type ?
-        preset->config.opt_string("printhost_apikey") : api_key;
-    // A 401 reads the same for no key and a wrong one, so every outcome says
-    // which was sent.
-    const std::string key_sent = !api_key.empty() ? "typed" : !key.empty() ? "saved" : "none";
+    // Every setting the form can fill. What the printer has saved is reused
+    // only for the same endpoint and type.
+    const bool same_host = address == info.address && host_type == info.host_type;
+    DynamicPrintConfig settings;
+    settings.set_key_value("host_type", new ConfigOptionEnum<PrintHostType>(type));
+    settings.set_key_value("print_host", new ConfigOptionString(address));
+    bool any_typed = false, any_saved = false;
+    for (const char* setting : {"printhost_apikey", "flashforge_serial_number", "printhost_user", "printhost_password", "printhost_port"}) {
+        const auto        it    = typed.find(setting);
+        const auto*       saved = preset->config.option<ConfigOptionString>(setting);
+        const bool        typed_here = it != typed.end() && !it->second.empty();
+        const std::string value = typed_here ? it->second : same_host && saved ? saved->value : std::string();
+        any_typed = any_typed || typed_here;
+        any_saved = any_saved || (!typed_here && !value.empty());
+        settings.set_key_value(setting, new ConfigOptionString(value));
+    }
+    // A host signed in to with a user name and password, such as PrusaLink
+    // set up that way, takes them instead of a key.
+    const bool user = !settings.opt_string("printhost_user").empty() || !settings.opt_string("printhost_password").empty();
+    settings.set_key_value("printhost_authorization_type",
+                           new ConfigOptionEnum<AuthorizationType>(user ? atUserPassword : atKeyPassword));
+    // A 401 reads the same for nothing sent and a wrong value, so every
+    // outcome says what was sent.
+    const std::string key_sent = any_typed ? "typed" : any_saved ? "saved" : "none";
     // Tested on a copy: the printer's own settings change only once the host
     // has accepted the test.
     DynamicPrintConfig config = preset->config;
-    config.set_key_value("host_type", new ConfigOptionEnum<PrintHostType>(type));
-    config.set_key_value("print_host", new ConfigOptionString(address));
-    config.set_key_value("printhost_apikey", new ConfigOptionString(key));
+    config.apply(settings);
     std::function<HostAnswer()> test;
     if (type == htMoonraker)
         test = [host = std::make_shared<MoonrakerTest>(&config)] { return host->answer(); };
@@ -862,7 +881,7 @@ std::string OrcaPrinterBackend::connect_host(const std::string& name, const std:
             m_host_worker->process_events();
         });
     }
-    m_host_attempt = HostAttempt{name, host_type, address, key, "connecting", {}};
+    m_host_attempt = HostAttempt{name, host_type, address, settings, "connecting", {}};
     auto answer    = std::make_shared<HostAnswer>();
     // A test still running is dropped: its end comes back canceled.
     replace_job(
@@ -887,13 +906,12 @@ HostTestOutcome OrcaPrinterBackend::settle(const HostAnswer& answer, const std::
     if (!ConfigOptionEnum<PrintHostType>::from_string(attempt.host_type, type))
         throw std::logic_error("A print host attempt holds a type connect_host refuses: " + attempt.host_type);
     const std::string host = type == htMoonraker ? "Moonraker" : type == htOctoPrint ? "OctoPrint" : host_label(attempt.host_type);
-    const std::string key     = key_sent == "typed" ? "The test sent the API key typed in the form." :
-                                key_sent == "saved" ? "The test sent the API key saved for this printer." :
-                                                      "The test sent no API key.";
+    const std::string key     = key_sent == "typed" ? "The test sent what the person typed in the form." :
+                                key_sent == "saved" ? "The test sent what the app has saved for this printer." :
+                                                      "The test sent no API key or password.";
     HostTestOutcome   outcome{"failed", {}, key_sent};
     if (answer.passed) {
-        const wxString problem = Printers::configure_named_printer_host(
-            attempt.name, type, attempt.address, attempt.api_key);
+        const wxString problem = Printers::configure_named_printer_host(attempt.name, attempt.settings);
         if (problem.empty()) {
             // The test's answer is Home's first word on this host.
             Printers::note_host_answered(attempt.name);

@@ -2095,6 +2095,11 @@ msgid "Help me find the key"
 msgstr "Giúp tôi tìm khóa"
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Help me find these"
+msgstr "Giúp tôi tìm các thông tin này"
+
+# AI Translated
 #: ../HomeUI/src/components/AgentGroup.tsx
 msgid "Hide"
 msgstr "Ẩn"
@@ -3120,6 +3125,7 @@ msgid "Partly"
 msgstr "Một phần"
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
 #: src/components/SignInDoor.tsx
 #: src/components/SignInDoor.tsx
 msgid "Password"
@@ -3277,6 +3283,11 @@ msgstr "Máy in báo cáo lần cuối {observed}"
 #: ../HomeUI/src/components/PrinterMenu.tsx
 msgid "Printer name"
 msgstr "Tên máy in"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Printer name on Repetier Server"
+msgstr "Tên máy in trên Repetier Server"
 
 # AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
@@ -3823,6 +3834,11 @@ msgid "Sent. Saved snapshot: the canvas shows your current project."
 msgstr "Đã gửi. Trạng thái đã lưu: khung vẽ hiển thị dự án hiện tại của bạn."
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Serial number"
+msgstr "Số sê-ri"
+
+# AI Translated
 #: src/components/AllSettings.tsx
 msgid "Set on this plate"
 msgstr "Đặt trên plate này"
@@ -4103,11 +4119,6 @@ msgid "Starting the AI panel."
 msgstr "Đang khởi động bảng AI."
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Stays on this computer."
-msgstr "Chỉ lưu trên máy tính này."
-
-# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Step {step} of {steps}"
 msgstr "Bước {step} / {steps}"
@@ -4249,6 +4260,16 @@ msgstr "Trình slice AI giúp bạn có bản in tốt hơn."
 #: src/components/SignInDoor.tsx
 msgid "The app continues on its own once the browser is done."
 msgstr "Ứng dụng sẽ tự tiếp tục khi bạn xong việc trên trình duyệt."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "The app saves these for this printer and sends them only to the printer. The AI doesn’t see them."
+msgstr "Ứng dụng lưu các thông tin này cho máy in này và chỉ gửi chúng đến máy in. AI không thấy chúng."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "The app saves this for this printer and sends it only to the printer. The AI doesn’t see it."
+msgstr "Ứng dụng lưu thông tin này cho máy in này và chỉ gửi nó đến máy in. AI không thấy nó."
 
 # AI Translated
 #: src/components/AddPrinterForm.tsx
@@ -4587,6 +4608,11 @@ msgstr "Dùng giá trị của dự án cho {label}"
 #: ../HomeUI/src/components/Onboarding.tsx
 msgid "Use your own AI account"
 msgstr "Dùng tài khoản AI của riêng bạn"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "User name"
+msgstr "Tên người dùng"
 
 # AI Translated
 #: src/components/AllSettings.tsx

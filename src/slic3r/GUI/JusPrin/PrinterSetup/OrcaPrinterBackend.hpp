@@ -8,6 +8,7 @@
 #include "PrinterBackend.hpp"
 #include "PrinterCatalog.hpp"
 #include "libslic3r/Preset.hpp"
+#include "libslic3r/PrintConfig.hpp"
 #include "slic3r/GUI/GUI_Utils.hpp"
 #include <chrono>
 #include <memory>
@@ -59,7 +60,7 @@ public:
     std::string connect_printer(const std::string& name, const std::string& device_id,
                                const std::string& access_code) override;
     std::string connect_host(const std::string& name, const std::string& host_type, const std::string& address,
-                             const std::string& api_key, std::function<void(const HostTestOutcome&)> tested) override;
+                             const HostLogin& typed, std::function<void(const HostTestOutcome&)> tested) override;
     void cancel_connection(const std::string& name) override;
 
 private:
@@ -95,7 +96,9 @@ private:
     // The print host test last started: "connecting" while its Job runs, then
     // what it came to, which connection() reports.
     struct HostAttempt {
-        std::string name, host_type, address, api_key;
+        std::string name, host_type, address;
+        // Every connection setting the test used, which a pass saves.
+        DynamicPrintConfig settings;
         std::string state;
         std::string message;
     };

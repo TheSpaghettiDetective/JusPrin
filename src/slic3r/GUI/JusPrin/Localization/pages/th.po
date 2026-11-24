@@ -2105,6 +2105,11 @@ msgid "Help me find the key"
 msgstr "ช่วยฉันหาคีย์"
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Help me find these"
+msgstr "ช่วยฉันหาข้อมูลเหล่านี้"
+
+# AI Translated
 #: ../HomeUI/src/components/AgentGroup.tsx
 msgid "Hide"
 msgstr "ซ่อน"
@@ -3135,6 +3140,7 @@ msgid "Partly"
 msgstr "ได้ผลบางส่วน"
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
 #: src/components/SignInDoor.tsx
 #: src/components/SignInDoor.tsx
 msgid "Password"
@@ -3292,6 +3298,11 @@ msgstr "เครื่องพิมพ์รายงานล่าสุด
 #: ../HomeUI/src/components/PrinterMenu.tsx
 msgid "Printer name"
 msgstr "ชื่อเครื่องพิมพ์"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Printer name on Repetier Server"
+msgstr "ชื่อเครื่องพิมพ์ใน Repetier Server"
 
 # AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
@@ -3839,6 +3850,11 @@ msgid "Sent. Saved snapshot: the canvas shows your current project."
 msgstr "ส่งแล้ว สแนปช็อตที่บันทึกไว้: มุมมอง 3 มิติแสดงโปรเจกต์ปัจจุบันของคุณ"
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Serial number"
+msgstr "หมายเลขซีเรียล"
+
+# AI Translated
 #: src/components/AllSettings.tsx
 msgid "Set on this plate"
 msgstr "ตั้งค่าบนเพลตนี้"
@@ -4121,11 +4137,6 @@ msgid "Starting the AI panel."
 msgstr "กำลังเริ่มแผง AI"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Stays on this computer."
-msgstr "เก็บไว้บนคอมพิวเตอร์เครื่องนี้"
-
-# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Step {step} of {steps}"
 msgstr "ขั้นตอนที่ {step} จาก {steps}"
@@ -4267,6 +4278,16 @@ msgstr "สไลเซอร์ AI ที่ช่วยให้คุณไ�
 #: src/components/SignInDoor.tsx
 msgid "The app continues on its own once the browser is done."
 msgstr "แอปจะดำเนินการต่อเองเมื่อเสร็จในเบราว์เซอร์"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "The app saves these for this printer and sends them only to the printer. The AI doesn’t see them."
+msgstr "แอปจะบันทึกข้อมูลเหล่านี้ไว้สำหรับเครื่องพิมพ์นี้และส่งให้เครื่องพิมพ์นี้เท่านั้น AI จะไม่เห็นข้อมูลเหล่านี้"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "The app saves this for this printer and sends it only to the printer. The AI doesn’t see it."
+msgstr "แอปจะบันทึกข้อมูลนี้ไว้สำหรับเครื่องพิมพ์นี้และส่งให้เครื่องพิมพ์นี้เท่านั้น AI จะไม่เห็นข้อมูลนี้"
 
 # AI Translated
 #: src/components/AddPrinterForm.tsx
@@ -4609,6 +4630,11 @@ msgstr "ใช้ค่าของโปรเจกต์สำหรับ {l
 #: ../HomeUI/src/components/Onboarding.tsx
 msgid "Use your own AI account"
 msgstr "ใช้บัญชี AI ของคุณเอง"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "User name"
+msgstr "ชื่อผู้ใช้"
 
 # AI Translated
 #: src/components/AllSettings.tsx

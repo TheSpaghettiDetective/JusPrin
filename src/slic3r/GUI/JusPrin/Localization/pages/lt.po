@@ -2099,6 +2099,11 @@ msgid "Help me find the key"
 msgstr "Padėkite rasti raktą"
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Help me find these"
+msgstr "Padėkite juos rasti"
+
+# AI Translated
 #: ../HomeUI/src/components/AgentGroup.tsx
 msgid "Hide"
 msgstr "Slėpti"
@@ -3124,6 +3129,7 @@ msgid "Partly"
 msgstr "Iš dalies"
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
 #: src/components/SignInDoor.tsx
 #: src/components/SignInDoor.tsx
 msgid "Password"
@@ -3281,6 +3287,12 @@ msgstr "Spausdintuvas paskutinį kartą pranešė {observed}"
 #: ../HomeUI/src/components/PrinterMenu.tsx
 msgid "Printer name"
 msgstr "Spausdintuvo pavadinimas"
+
+# AI Translated
+# Needs human review: whether Repetier Server needs a case ending here
+#: src/components/PrinterPanel.tsx
+msgid "Printer name on Repetier Server"
+msgstr "Spausdintuvo pavadinimas Repetier Server"
 
 # AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
@@ -3827,6 +3839,11 @@ msgid "Sent. Saved snapshot: the canvas shows your current project."
 msgstr "Išsiųsta. Išsaugota momentinė kopija: 3D vaizde rodomas jūsų dabartinis projektas."
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Serial number"
+msgstr "Serijos numeris"
+
+# AI Translated
 #: src/components/AllSettings.tsx
 msgid "Set on this plate"
 msgstr "Nustatyta šiai plokštei"
@@ -4107,11 +4124,6 @@ msgid "Starting the AI panel."
 msgstr "Paleidžiamas DI skydelis."
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Stays on this computer."
-msgstr "Lieka šiame kompiuteryje."
-
-# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Step {step} of {steps}"
 msgstr "{step} žingsnis iš {steps}"
@@ -4253,6 +4265,16 @@ msgstr "DI pjaustyklė, padedanti gauti geresnius spaudinius."
 #: src/components/SignInDoor.tsx
 msgid "The app continues on its own once the browser is done."
 msgstr "Kai naršyklėje baigsite, programa tęs darbą pati."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "The app saves these for this printer and sends them only to the printer. The AI doesn’t see them."
+msgstr "Programa juos išsaugo šiam spausdintuvui ir siunčia tik spausdintuvui. DI jų nemato."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "The app saves this for this printer and sends it only to the printer. The AI doesn’t see it."
+msgstr "Programa šią reikšmę išsaugo šiam spausdintuvui ir siunčia tik spausdintuvui. DI jos nemato."
 
 # AI Translated
 #: src/components/AddPrinterForm.tsx
@@ -4592,6 +4614,11 @@ msgstr "Naudoti projekto reikšmę: {label}"
 #: ../HomeUI/src/components/Onboarding.tsx
 msgid "Use your own AI account"
 msgstr "Naudoti savo DI paskyrą"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "User name"
+msgstr "Naudotojo vardas"
 
 # AI Translated
 #: src/components/AllSettings.tsx

@@ -12,6 +12,7 @@
 
 #include <chrono>
 #include <functional>
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -196,11 +197,18 @@ struct PrinterConnectionInfo
 // stopping and starting discovery nor reloading the plug-in takes it up.
 enum class DiscoveryPort { Ours, Taken, Free };
 
+// What the person typed in the printer chat's connect form, by the printer
+// setting each value fills: printhost_apikey, flashforge_serial_number,
+// printhost_user, printhost_password or printhost_port. A setting left out
+// or empty keeps what the printer has saved for the same address and type.
+using HostLogin = std::map<std::string, std::string>;
+
 // What a print host test came to, worded for the model. `state` is
 // "verified" (the host accepted the test, and the address is saved as the
 // printer's connection), "needs_credential" (Moonraker answered HTTP 401 or
-// OctoPrint 403) or "failed". Every message says which API key was sent, and
-// `key` names it: "typed", "saved" (the one held for that address) or "none".
+// OctoPrint 403) or "failed". Every message says what the test sent, and
+// `key` names it: "typed" (in the form), "saved" (what the printer holds for
+// that address) or "none".
 struct HostTestOutcome
 {
     std::string state;
@@ -285,7 +293,7 @@ public:
     virtual std::string connect_printer(const std::string& name, const std::string& device_id,
                                        const std::string& access_code) { return "Connection is unavailable."; }
     virtual std::string connect_host(const std::string& name, const std::string& host_type, const std::string& address,
-                                     const std::string& api_key, std::function<void(const HostTestOutcome&)> tested)
+                                     const HostLogin& typed, std::function<void(const HostTestOutcome&)> tested)
     {
         return "Connection is unavailable.";
     }

@@ -11,6 +11,7 @@
 #include <fstream>
 #include <regex>
 #include <sstream>
+#include <stdexcept>
 
 // Also built into tests that have no GUI: the printer form's own text is
 // marked with L() and translated with translated() (Localization/README.md).
@@ -154,6 +155,40 @@ bool found_on_network(const PrinterConnectionInfo& info)
 {
     return std::any_of(info.candidates.begin(), info.candidates.end(),
                        [](const ConnectionCandidate& candidate) { return !candidate.account_only; });
+}
+
+// The connect form's boxes (printer_host_connect's ask, ToolRegistry.cpp):
+// the printer setting each fills, and its name in what the model reads.
+struct FormField
+{
+    const char* id;
+    const char* setting;
+    const char* named;
+};
+constexpr FormField kFormFields[] = {
+    {"apiKey", "printhost_apikey", "API key"},
+    {"accessCode", "printhost_apikey", "access code"},
+    {"serialNumber", "flashforge_serial_number", "serial number"},
+    {"userName", "printhost_user", "user name"},
+    {"password", "printhost_password", "password"},
+    {"printerOnServer", "printhost_port", "printer's name on the Repetier server"},
+};
+
+const FormField& form_field(const std::string& id)
+{
+    for (const FormField& field : kFormFields)
+        if (id == field.id)
+            return field;
+    throw std::invalid_argument("The connect form has no box " + id);
+}
+
+// What the form asks for, as the model reads it: "the serial number and access code".
+std::string asked_for(const json& ask)
+{
+    std::string text = "the ";
+    for (std::size_t i = 0; i < ask.size(); ++i)
+        text += (i == 0 ? "" : i + 1 == ask.size() ? " and " : ", ") + std::string(form_field(ask[i]).named);
+    return text;
 }
 
 // An issue holds neither an access code nor an API key. The form's credential
@@ -452,7 +487,8 @@ json PrinterConversation::state_json() const
     if (!m_credential_action.empty())
         state["credentialRequest"] = json{{"actionId", m_credential_action},
                                            {"target", m_credential_arguments.at("target")},
-                                           {"provider", m_credential_arguments.at("provider")}};
+                                           {"provider", m_credential_arguments.at("provider")},
+                                           {"fields", m_credential_arguments.at("ask")}};
     return state;
 }
 
@@ -550,13 +586,25 @@ std::optional<ToolError> PrinterConversation::preflight_tool(ToolHandler handler
         Agent::set_title(activity, Agent::title_of(L("Waiting for the access code for %1%"), found->name));
         arguments["deviceId"] = found->id;
         arguments["target"]   = found->name;
+        arguments["ask"]      = json::array({"accessCode"});
     } else if (info.provider == "host") {
         if (handler == ToolHandler::PrinterBambuConnect)
             return ToolError{"address_needed", "This printer connects through a print host at an address, not as a Bambu Lab device: "
                                                "call printer_host_connect with hostType and the print host's address."};
         m_host_type = arguments["hostType"].get<std::string>();
-        // TRN %1% is a print host's address, such as 192.168.1.20.
-        Agent::set_title(activity, Agent::title_of(L("Checking %1%"), arguments["address"].get<std::string>()));
+        const std::string address = arguments["address"].get<std::string>();
+        if (arguments.contains("ask")) {
+            // Each box once, in the order asked.
+            json ask = json::array();
+            for (const json& id : arguments["ask"])
+                if (std::find(ask.begin(), ask.end(), id) == ask.end())
+                    ask.push_back(id);
+            arguments["ask"] = ask;
+            // TRN %1% is a print host's address, such as 192.168.1.20. The heading of the form where the person types what the printer needs to connect.
+            Agent::set_title(activity, Agent::title_of(L("Connect to the printer at %1%"), address));
+        } else
+            // TRN %1% is a print host's address, such as 192.168.1.20.
+            Agent::set_title(activity, Agent::title_of(L("Checking %1%"), address));
         arguments["target"] = arguments["address"];
     } else
         return ToolError{"connection_unavailable", info.message};
@@ -842,7 +890,13 @@ Result PrinterConversation::host_connect(const json& arguments, const ToolActivi
     const std::string action_id = activity.action_id;
     // One test at a time: the worker runs one, and the form answers one.
     abandon_connection("A later printer_host_connect call started another test, so this one was dropped.");
-    // A key the app holds for that address is sent; none otherwise.
+    // Asked for boxes, the form opens at once, and the test waits for it.
+    if (arguments.contains("ask")) {
+        open_connect_call(activity);
+        ask_credential(arguments);
+        return pending();
+    }
+    // What the app holds for that address is sent; nothing otherwise.
     const std::string problem = m_backend.connect_host(name, arguments.at("hostType"), arguments.at("address"), {},
                                                        [this, action_id, arguments](const HostTestOutcome& outcome) {
                                                            host_tested(action_id, arguments, outcome);
@@ -873,19 +927,30 @@ void PrinterConversation::host_tested(const std::string& action_id, const json& 
                            // TRN %1% is a print host's address.
                            Agent::title_of(L("Waiting for an API key for %1%"), address),
                        false);
-    ask_credential(arguments);
+    json asking   = arguments;
+    asking["ask"] = json::array({"apiKey"});
+    ask_credential(asking);
 }
 
 void PrinterConversation::form_tested(const HostTestOutcome& outcome)
 {
     m_host_testing.clear();
-    // A key the host refused is the person's failed attempt.
+    // What the host refused is the person's failed attempt.
     end_connect_call(outcome.state == "verified" ? "verified" : "failed",
-                     m_connect_said + " The person typed a key in the form, and the app tested again: " + outcome.message);
+                     m_connect_said.empty() ? "The person filled in the form, and the app tested with it: " + outcome.message :
+                                              m_connect_said + " The person filled in the form, and the app tested again: " + outcome.message);
 }
 
-void PrinterConversation::connect(const json& arguments, const std::string& credential)
+void PrinterConversation::connect(const json& arguments, const json& values)
 {
+    // Only what the form asked for, each value by the setting it fills.
+    HostLogin typed;
+    for (const json& id : arguments.at("ask")) {
+        const auto value = values.find(id.get<std::string>());
+        if (value != values.end() && value->is_string())
+            typed[form_field(id).setting] = value->get<std::string>();
+    }
+    const std::string credential = typed.count("printhost_apikey") ? typed["printhost_apikey"] : std::string();
     const std::string name   = arguments.at("printerName");
     const std::string target = arguments.at("target");
     const bool        host   = arguments.at("provider") == "host";
@@ -893,7 +958,7 @@ void PrinterConversation::connect(const json& arguments, const std::string& cred
     // TRN %1% is a printer's name or a print host's address.
     m_host.update_tool(m_connect_call, Agent::title_of(L("Checking %1%"), target), true);
     const std::string problem =
-        host ? m_backend.connect_host(name, arguments.at("hostType"), arguments.at("address"), credential,
+        host ? m_backend.connect_host(name, arguments.at("hostType"), arguments.at("address"), typed,
                                       [this](const HostTestOutcome& outcome) { form_tested(outcome); }) :
                m_backend.connect_printer(name, arguments.at("deviceId"), credential);
     if (!problem.empty()) {
@@ -916,9 +981,9 @@ void PrinterConversation::close_credential(bool help)
 {
     const bool        bambu  = m_credential_arguments.at("provider") == "bambu";
     const std::string target = m_credential_arguments.at("target");
-    const std::string asked  = bambu ? "the printer's access code" : "the API key for " + target;
-    const std::string what   = help ? std::string("The person tapped \"Help me find the ") + (bambu ? "code" : "key") +
-                                          "\" in the form: they need help finding " + asked + ". Help them find it." :
+    const std::string asked  = asked_for(m_credential_arguments.at("ask")) + (bambu ? " for " : " of the printer at ") + target;
+    const std::string what   = help ? "The person tapped the form's help link: they need help finding " + asked + ". Help them find " +
+                                          (m_credential_arguments.at("ask").size() == 1 ? "it." : "them.") :
                                       "The person closed the form for " + asked + " without connecting.";
     end_connect_call(help ? "help_requested" : "dismissed",
                      (m_connect_said.empty() ? std::string() : m_connect_said + " ") + what + " Nothing was sent.");
@@ -1210,10 +1275,10 @@ bool PrinterConversation::handle_page_message(const std::string& type, const jso
             m_host.start_turn();
         }
     } else if (action == "connect" && !m_credential_action.empty() && payload.value("actionId", std::string()) == m_credential_action &&
-               payload.contains("credential") && payload["credential"].is_string()) {
+               payload.contains("values") && payload["values"].is_object()) {
         const json arguments = std::exchange(m_credential_arguments, json::object());
         m_credential_action.clear();
-        connect(arguments, payload["credential"].get<std::string>());
+        connect(arguments, payload["values"]);
     } else if ((action == "credential_help" || action == "credential_dismissed") && !m_credential_action.empty() &&
                payload.value("actionId", std::string()) == m_credential_action)
         close_credential(action == "credential_help"); else if (action == "open_printer_settings" && !m_printer_name.empty()) {

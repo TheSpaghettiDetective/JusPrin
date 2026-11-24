@@ -2095,6 +2095,11 @@ msgid "Help me find the key"
 msgstr "帮我找到密钥"
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Help me find these"
+msgstr "帮我找到这些信息"
+
+# AI Translated
 #: ../HomeUI/src/components/AgentGroup.tsx
 msgid "Hide"
 msgstr "隐藏"
@@ -3120,6 +3125,7 @@ msgid "Partly"
 msgstr "部分成功"
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
 #: src/components/SignInDoor.tsx
 #: src/components/SignInDoor.tsx
 msgid "Password"
@@ -3277,6 +3283,11 @@ msgstr "打印机上次报告的是 {observed}"
 #: ../HomeUI/src/components/PrinterMenu.tsx
 msgid "Printer name"
 msgstr "打印机名称"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Printer name on Repetier Server"
+msgstr "Repetier Server 中的打印机名称"
 
 # AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
@@ -3823,6 +3834,11 @@ msgid "Sent. Saved snapshot: the canvas shows your current project."
 msgstr "已发送。已保存的快照：画布显示的是您当前的项目。"
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Serial number"
+msgstr "序列号"
+
+# AI Translated
 #: src/components/AllSettings.tsx
 msgid "Set on this plate"
 msgstr "在此盘上设置"
@@ -4103,11 +4119,6 @@ msgid "Starting the AI panel."
 msgstr "正在启动 AI 面板。"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Stays on this computer."
-msgstr "仅保存在此计算机上。"
-
-# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Step {step} of {steps}"
 msgstr "第 {step} 步，共 {steps} 步"
@@ -4249,6 +4260,16 @@ msgstr "帮助您获得更好打印效果的 AI 切片软件。"
 #: src/components/SignInDoor.tsx
 msgid "The app continues on its own once the browser is done."
 msgstr "浏览器中的操作完成后，应用会自动继续。"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "The app saves these for this printer and sends them only to the printer. The AI doesn’t see them."
+msgstr "应用会为这台打印机保存这些信息，并只发送给这台打印机。AI 看不到它们。"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "The app saves this for this printer and sends it only to the printer. The AI doesn’t see it."
+msgstr "应用会为这台打印机保存此信息，并只发送给这台打印机。AI 看不到它。"
 
 # AI Translated
 #: src/components/AddPrinterForm.tsx
@@ -4587,6 +4608,11 @@ msgstr "对 {label} 使用项目值"
 #: ../HomeUI/src/components/Onboarding.tsx
 msgid "Use your own AI account"
 msgstr "使用您自己的 AI 账户"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "User name"
+msgstr "用户名"
 
 # AI Translated
 #: src/components/AllSettings.tsx

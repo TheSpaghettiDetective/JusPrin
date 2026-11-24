@@ -2095,6 +2095,11 @@ msgid "Help me find the key"
 msgstr "Pomozte mi najít klíč"
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Help me find these"
+msgstr "Pomozte mi je najít"
+
+# AI Translated
 #: ../HomeUI/src/components/AgentGroup.tsx
 msgid "Hide"
 msgstr "Skrýt"
@@ -3122,6 +3127,7 @@ msgid "Partly"
 msgstr "Částečně"
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
 #: src/components/SignInDoor.tsx
 #: src/components/SignInDoor.tsx
 msgid "Password"
@@ -3279,6 +3285,12 @@ msgstr "Tiskárna naposledy hlásila {observed}"
 #: ../HomeUI/src/components/PrinterMenu.tsx
 msgid "Printer name"
 msgstr "Název tiskárny"
+
+# AI Translated
+# Needs human review: the case of Repetier Serveru
+#: src/components/PrinterPanel.tsx
+msgid "Printer name on Repetier Server"
+msgstr "Název tiskárny v Repetier Serveru"
 
 # AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
@@ -3826,6 +3838,11 @@ msgid "Sent. Saved snapshot: the canvas shows your current project."
 msgstr "Odesláno. Uložený snímek: plátno zobrazuje váš aktuální projekt."
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Serial number"
+msgstr "Sériové číslo"
+
+# AI Translated
 #: src/components/AllSettings.tsx
 msgid "Set on this plate"
 msgstr "Nastaveno pro tuto desku"
@@ -4106,11 +4123,6 @@ msgid "Starting the AI panel."
 msgstr "Spouštění panelu AI."
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Stays on this computer."
-msgstr "Zůstává v tomto počítači."
-
-# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Step {step} of {steps}"
 msgstr "Krok {step} z {steps}"
@@ -4252,6 +4264,16 @@ msgstr "AI slicer, který vám pomůže k lepším tiskům."
 #: src/components/SignInDoor.tsx
 msgid "The app continues on its own once the browser is done."
 msgstr "Jakmile v prohlížeči skončíte, aplikace bude pokračovat sama."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "The app saves these for this printer and sends them only to the printer. The AI doesn’t see them."
+msgstr "Aplikace je uloží pro tuto tiskárnu a pošle je jen tiskárně. AI je nevidí."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "The app saves this for this printer and sends it only to the printer. The AI doesn’t see it."
+msgstr "Aplikace tuto hodnotu uloží pro tuto tiskárnu a pošle ji jen tiskárně. AI ji nevidí."
 
 # AI Translated
 #: src/components/AddPrinterForm.tsx
@@ -4590,6 +4612,11 @@ msgstr "Použít hodnotu projektu pro {label}"
 #: ../HomeUI/src/components/Onboarding.tsx
 msgid "Use your own AI account"
 msgstr "Použijte vlastní účet AI"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "User name"
+msgstr "Uživatelské jméno"
 
 # AI Translated
 #: src/components/AllSettings.tsx

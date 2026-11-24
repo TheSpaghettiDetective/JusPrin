@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-21 09:12-0800\n"
+"POT-Creation-Date: 2026-11-24 08:31-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -20,6 +20,11 @@ msgstr ""
 # AI Translated
 msgid "Something went wrong on our side"
 msgstr "我们这边出了问题"
+
+# AI Translated
+#. TRN Said in the chat when a project opens whose chats a newer version of JusPrin saved; they are kept, not shown.
+msgid "This project's chats were saved by a newer version of JusPrin. Get the new version to see them."
+msgstr "此项目的对话由更新版本的 JusPrin 保存。请获取新版本以查看它们。"
 
 # AI Translated
 msgid "Project chat is blocked until restoration is recovered."
@@ -1702,6 +1707,12 @@ msgstr "正在切片盘 %1%"
 #, boost-format
 msgid "Waiting for the access code for %1%"
 msgstr "正在等待 %1% 的访问码"
+
+# AI Translated
+#. TRN %1% is a print host's address, such as 192.168.1.20. The heading of the form where the person types what the printer needs to connect.
+#, boost-format
+msgid "Connect to the printer at %1%"
+msgstr "连接到 %1% 的打印机"
 
 # AI Translated
 #. TRN %1% is a print host's address, such as 192.168.1.20.

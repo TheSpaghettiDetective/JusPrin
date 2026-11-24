@@ -2108,6 +2108,11 @@ msgid "Help me find the key"
 msgstr "幫我找到金鑰"
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Help me find these"
+msgstr "幫我找到這些資訊"
+
+# AI Translated
 #: ../HomeUI/src/components/AgentGroup.tsx
 msgid "Hide"
 msgstr "隱藏"
@@ -3141,6 +3146,7 @@ msgid "Partly"
 msgstr "部分成功"
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
 #: src/components/SignInDoor.tsx
 #: src/components/SignInDoor.tsx
 msgid "Password"
@@ -3300,6 +3306,11 @@ msgstr "列印裝置上次回報於 {observed}"
 #: ../HomeUI/src/components/PrinterMenu.tsx
 msgid "Printer name"
 msgstr "列印裝置名稱"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Printer name on Repetier Server"
+msgstr "Repetier Server 中的列印裝置名稱"
 
 # AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
@@ -3849,6 +3860,11 @@ msgid "Sent. Saved snapshot: the canvas shows your current project."
 msgstr "已傳送。已儲存的快照：畫布顯示的是您目前的專案。"
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Serial number"
+msgstr "序號"
+
+# AI Translated
 #: src/components/AllSettings.tsx
 msgid "Set on this plate"
 msgstr "在此列印板上設定"
@@ -4131,11 +4147,6 @@ msgid "Starting the AI panel."
 msgstr "正在啟動 AI 面板。"
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Stays on this computer."
-msgstr "僅保留在這台電腦上。"
-
-# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Step {step} of {steps}"
 msgstr "第 {step} 步，共 {steps} 步"
@@ -4277,6 +4288,16 @@ msgstr "幫助您印出更好成品的 AI 切片軟體。"
 #: src/components/SignInDoor.tsx
 msgid "The app continues on its own once the browser is done."
 msgstr "瀏覽器完成後，App 會自動繼續。"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "The app saves these for this printer and sends them only to the printer. The AI doesn’t see them."
+msgstr "應用程式會為這台列印裝置儲存這些資訊，並只傳送給這台列印裝置。AI 看不到它們。"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "The app saves this for this printer and sends it only to the printer. The AI doesn’t see it."
+msgstr "應用程式會為這台列印裝置儲存此資訊，並只傳送給這台列印裝置。AI 看不到它。"
 
 # AI Translated
 #: src/components/AddPrinterForm.tsx
@@ -4617,6 +4638,11 @@ msgstr "對 {label} 使用專案值"
 #: ../HomeUI/src/components/Onboarding.tsx
 msgid "Use your own AI account"
 msgstr "使用您自己的 AI 帳號"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "User name"
+msgstr "使用者名稱"
 
 # AI Translated
 #: src/components/AllSettings.tsx

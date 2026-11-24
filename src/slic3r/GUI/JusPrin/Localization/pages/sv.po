@@ -2105,6 +2105,11 @@ msgid "Help me find the key"
 msgstr "Hjälp mig hitta nyckeln"
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Help me find these"
+msgstr "Hjälp mig hitta dem"
+
+# AI Translated
 #: ../HomeUI/src/components/AgentGroup.tsx
 msgid "Hide"
 msgstr "Dölj"
@@ -3134,6 +3139,7 @@ msgid "Partly"
 msgstr "Delvis"
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
 #: src/components/SignInDoor.tsx
 #: src/components/SignInDoor.tsx
 msgid "Password"
@@ -3292,6 +3298,11 @@ msgstr "Skrivaren rapporterade senast {observed}"
 #: ../HomeUI/src/components/PrinterMenu.tsx
 msgid "Printer name"
 msgstr "Skrivarnamn"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Printer name on Repetier Server"
+msgstr "Skrivarnamn i Repetier Server"
 
 # AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
@@ -3839,6 +3850,11 @@ msgid "Sent. Saved snapshot: the canvas shows your current project."
 msgstr "Skickad. Sparad ögonblicksbild: arbetsytan visar ditt aktuella projekt."
 
 # AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "Serial number"
+msgstr "Serienummer"
+
+# AI Translated
 #: src/components/AllSettings.tsx
 msgid "Set on this plate"
 msgstr "Angiven för den här plattan"
@@ -4121,11 +4137,6 @@ msgid "Starting the AI panel."
 msgstr "Startar AI-panelen."
 
 # AI Translated
-#: src/components/PrinterPanel.tsx
-msgid "Stays on this computer."
-msgstr "Stannar på den här datorn."
-
-# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "Step {step} of {steps}"
 msgstr "Steg {step} av {steps}"
@@ -4267,6 +4278,16 @@ msgstr "AI-beredaren som hjälper dig att få bättre utskrifter."
 #: src/components/SignInDoor.tsx
 msgid "The app continues on its own once the browser is done."
 msgstr "Appen fortsätter av sig själv när du är klar i webbläsaren."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "The app saves these for this printer and sends them only to the printer. The AI doesn’t see them."
+msgstr "Appen sparar dem för den här skrivaren och skickar dem bara till skrivaren. AI:n ser dem inte."
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "The app saves this for this printer and sends it only to the printer. The AI doesn’t see it."
+msgstr "Appen sparar det för den här skrivaren och skickar det bara till skrivaren. AI:n ser det inte."
 
 # AI Translated
 # Needs human review: 'Create filament' window name; check the translated window title in the app
@@ -4607,6 +4628,11 @@ msgstr "Använd projektets värde för {label}"
 #: ../HomeUI/src/components/Onboarding.tsx
 msgid "Use your own AI account"
 msgstr "Använd ditt eget AI-konto"
+
+# AI Translated
+#: src/components/PrinterPanel.tsx
+msgid "User name"
+msgstr "Användarnamn"
 
 # AI Translated
 #: src/components/AllSettings.tsx
