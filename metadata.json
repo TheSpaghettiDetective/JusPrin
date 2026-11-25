@@ -3,7 +3,7 @@
   "checkpoint_id": "01M883YFQXZFAR0TZ6PZS4FBYJ",
   "strategy": "manual-commit",
   "branch": "claude/error-rules-whose",
-  "checkpoints_count": 3,
+  "checkpoints_count": 8,
   "files_touched": [
     "AGENTS.md"
   ],
@@ -21,13 +21,20 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 1452,
-    "cache_creation_tokens": 2201332,
-    "cache_read_tokens": 158575121,
-    "output_tokens": 393184,
-    "api_call_count": 727
+    "input_tokens": 1458,
+    "cache_creation_tokens": 2208112,
+    "cache_read_tokens": 160443341,
+    "output_tokens": 397053,
+    "api_call_count": 730
   }
 }

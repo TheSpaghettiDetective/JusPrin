@@ -1,0 +1,77 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M883YFQXZFAR0TZ6PZS4FBYJ",
+  "session_id": "8772d764-7c06-42be-b50f-e5c960517568",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-25T01:08:37.880885Z",
+  "branch": "claude/error-rules-whose",
+  "checkpoints_count": 5,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-2",
+  "turn_id": "5da137eb24d8",
+  "checkpoint_transcript_start": 1907,
+  "transcript_lines_at_start": 1907,
+  "compact_transcript_start": 262,
+  "token_usage": {
+    "input_tokens": 6,
+    "cache_creation_tokens": 6780,
+    "cache_read_tokens": 1868220,
+    "output_tokens": 3869,
+    "api_call_count": 3
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_015nUGpumCwyVj99umYHBoku",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "error-handling"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "5da137eb24d8",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 352,
+        "end": 353,
+        "entry_ids": [
+          "c81446bf-b7bf-483b-9ddc-12c831035431"
+        ],
+        "tool_use_id": "toolu_015nUGpumCwyVj99umYHBoku"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_015nUGpumCwyVj99umYHBoku"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: error-handling",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 5
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
