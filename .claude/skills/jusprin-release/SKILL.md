@@ -229,8 +229,10 @@ around with a skip box.
 
 The Mac jobs build on GitHub's Macs. If GitHub has no Mac machine for the
 repo, they end "cancelled" 15 minutes after they were queued, with no runner
-and no steps. Tell Kenneth. With his yes, start the run again on Kenneth's
-own Mac (the self-hosted runner, user `jusprin-ci`):
+and no steps. GitHub can also cancel a Mac job that is already building, for
+lack of capacity: its log then ends with only "The operation was canceled".
+Either way, tell Kenneth. With his yes, start the run again on Kenneth's own
+Mac (the self-hosted runner, user `jusprin-ci`):
 
 ```bash
 gh workflow run jusprin_release.yml --ref main -f sign_macos=true -f self_hosted_mac=true
@@ -244,6 +246,11 @@ check that Preferences shows the new version, have one chat and slice, and
 check each fix in the notes on the platform where it mattered. Kenneth signs
 in, or you use a test account he names; never type a password. A chat spends
 that account's credits.
+
+Never print the app's settings file (the `.conf` file in its data folder), on
+the VMs or here: it holds saved API keys and sign-ins, and whatever a command
+prints stays in the session's log. Read or change the one setting you need,
+such as the language, with a command that prints only that setting.
 
 Sentry must be able to read this release's stacks. Kenneth gives you
 `SENTRY_URL`, `SENTRY_ORG`, `SENTRY_PROJECT` and a read-only
