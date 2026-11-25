@@ -1,0 +1,44 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M883YFQXZFAR0TZ6PZS4FBYJ",
+  "session_id": "b575a9e5-080c-46d7-b71a-f5842e099a04",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-25T01:08:39.975337Z",
+  "branch": "claude/error-rules-whose",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "AGENTS.md"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "bf23146924be",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 8,
+    "cache_creation_tokens": 74281,
+    "cache_read_tokens": 374864,
+    "output_tokens": 2038,
+    "api_call_count": 4
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-25T01:08:39.932835Z",
+    "agent_lines": 21,
+    "agent_removed": 30,
+    "human_added": 65,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 86,
+    "total_lines_changed": 166,
+    "agent_percentage": 30.72289156626506,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
