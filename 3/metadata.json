@@ -1,0 +1,79 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M8A9RE0QJ3FPX29AWKEZ4H1J",
+  "session_id": "a665c976-0975-4700-aae0-a4a17abfbdb9",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-25T21:28:40.83735Z",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/jusprin_release.yml"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-2",
+  "turn_id": "6af3cc74816f",
+  "checkpoint_transcript_start": 2331,
+  "transcript_lines_at_start": 2331,
+  "compact_transcript_start": 313,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_015nUGpumCwyVj99umYHBoku",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "error-handling"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "6af3cc74816f",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 352,
+        "end": 353,
+        "entry_ids": [
+          "c81446bf-b7bf-483b-9ddc-12c831035431"
+        ],
+        "tool_use_id": "toolu_015nUGpumCwyVj99umYHBoku"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_015nUGpumCwyVj99umYHBoku"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: error-handling",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "initial_attribution": {
+    "calculated_at": "2026-11-25T21:28:40.538527Z",
+    "agent_lines": 3,
+    "agent_removed": 1,
+    "human_added": 9,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 12,
+    "total_lines_changed": 15,
+    "agent_percentage": 26.666666666666668,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}

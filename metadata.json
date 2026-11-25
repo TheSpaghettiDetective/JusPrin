@@ -2,7 +2,7 @@
   "cli_version": "0.10.5",
   "checkpoint_id": "01M8A9RE0QJ3FPX29AWKEZ4H1J",
   "strategy": "manual-commit",
-  "checkpoints_count": 4,
+  "checkpoints_count": 5,
   "files_touched": [
     ".github/workflows/jusprin_release.yml"
   ],
@@ -26,6 +26,13 @@
       "transcript": "/2/full.jsonl",
       "compact_transcript": "/2/transcript.jsonl",
       "content_hash": "/2/content_hash.txt",
+      "prompt": ""
+    },
+    {
+      "metadata": "/3/metadata.json",
+      "transcript": "/3/full.jsonl",
+      "compact_transcript": "/3/transcript.jsonl",
+      "content_hash": "/3/content_hash.txt",
       "prompt": ""
     }
   ],
