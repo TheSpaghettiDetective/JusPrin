@@ -1,0 +1,16 @@
+<cross-session-message from="local_db60e2e7-b0be-4347-8dbf-ce2ca8cf0ce0" from-name="btw: The chat sends an address and one key - Why do we do that?…">
+Kenneth says go ahead: widen the chat's print-host connect so Flashforge, Repetier, UltiMaker and PrusaLink with a password can be finished in the chat, starting with design boards for the form.
+
+His words, from the forked side session: "tell the main session to do it". He said it after the side session told him the address-plus-one-key limit is a choice in our code, not a rule, and asked whether to widen it for all four types, starting with design boards for the form.
+
+What the side session established:
+- Nothing requires the chat to send only an address and one key. printer_host_connect takes only hostType and address, and configure_named_printer_host (NamedPrinters.cpp) writes only host_type, print_host and printhost_apikey. The issue-40 session (commit f88b40865c) wrote the three types in connect-print-host/SKILL.md off as "cannot be finished from this chat" and never considered widening the tool.
+- The one real rule: secrets (passwords, keys, access codes) are never typed in the chat; they go through the app's form.
+- What each type's OrcaSlicer test reads, beyond the address and key:
+  - Flashforge: flashforge_serial_number, which Flashforge::discover_printers (UDP 48899) can fill in, plus the access code in printhost_apikey. Today the test falls back to TCP 8899, which the Creator 5 Pro refuses (GitHub issue 42). The access-code form only opens on 401/403, so for Flashforge it would have to open up front.
+  - Repetier: printhost_port, the printer chosen on the host.
+  - UltiMaker and PrusaLink with a password: printhost_user and printhost_password, which would mean a multi-field form.
+- flashforge_serial_number is on the blocked list in SettingsSupport.hpp. Getting it from the network search, or as a tool argument, avoids writing it as a setting.
+
+Per the design guidelines, boards come before code.
+</cross-session-message>
