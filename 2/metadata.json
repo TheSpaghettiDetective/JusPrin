@@ -1,0 +1,85 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M8A0RN4C2ZWY3QFV0NX9EH0B",
+  "session_id": "a665c976-0975-4700-aae0-a4a17abfbdb9",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-25T18:51:28.630611Z",
+  "branch": "claude/misrouted-failures",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Agent/CloudSignInMachine.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ModelCatalogFetch.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ProviderAgent.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/SetupOptionsLoader.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/SetupOptionsLoader.hpp",
+    "tests/agent/test_anthropic_codec.cpp",
+    "tests/agent/test_provider_agent.cpp",
+    "tests/jusprin/test_setup_options.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-2",
+  "turn_id": "6af3cc74816f",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 394,
+    "cache_creation_tokens": 2729179,
+    "cache_read_tokens": 76919203,
+    "output_tokens": 256203,
+    "api_call_count": 200
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_015nUGpumCwyVj99umYHBoku",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "error-handling"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "6af3cc74816f",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 352,
+        "end": 353,
+        "entry_ids": [
+          "c81446bf-b7bf-483b-9ddc-12c831035431"
+        ],
+        "tool_use_id": "toolu_015nUGpumCwyVj99umYHBoku"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_015nUGpumCwyVj99umYHBoku"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: error-handling",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "initial_attribution": {
+    "calculated_at": "2026-11-25T18:51:28.348498Z",
+    "agent_lines": 43,
+    "agent_removed": 22,
+    "human_added": 2,
+    "human_modified": 3,
+    "human_removed": 0,
+    "total_committed": 48,
+    "total_lines_changed": 70,
+    "agent_percentage": 92.85714285714286,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
