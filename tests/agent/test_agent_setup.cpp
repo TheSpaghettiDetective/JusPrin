@@ -246,6 +246,25 @@ TEST_CASE("an OpenRouter key is checked against OpenRouter, and only the table d
     CHECK(outcome->error.message.find("The OpenRouter API key was rejected") == 0);
 }
 
+TEST_CASE("a key check the service refuses in its own words shows them", "[agent][setup][openrouter]")
+{
+    // What OpenRouter answered the key check of a person whose workspace takes only their own provider keys.
+    const std::string words = "No endpoints found that can be served by your own provider keys. This workspace is restricted to "
+                              "BYOK capacity. Add provider keys at https://openrouter.ai/workspaces/default/byok";
+    Fixture fixture;
+    SetupCredentials credentials;
+    credentials.provider = "openrouter";
+    credentials.api_key  = "sk-or-secret";
+    REQUIRE(fixture.setup->start_check(credentials));
+    deliver(fixture.log, AgentHttpEvent{AgentHttpEvent::Kind::Error,
+                                        json{{"error", json{{"message", words}, {"code", 404}}}}.dump(), "HTTP 404", 404});
+    const std::optional<SetupOutcome> outcome = fixture.setup->poll();
+    REQUIRE(outcome.has_value());
+    CHECK_FALSE(outcome->ok);
+    CHECK(outcome->error.message == "OpenRouter says: \u201c" + words + "\u201d");
+    CHECK(fixture.committed.empty());
+}
+
 TEST_CASE("the endpoint override redirects whichever provider is being checked", "[agent][setup][openrouter]")
 {
     TransportLog log;

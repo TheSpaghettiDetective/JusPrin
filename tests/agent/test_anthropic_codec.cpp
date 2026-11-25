@@ -738,8 +738,11 @@ TEST_CASE("each stop reason ends the response as it should", "[agent][anthropic]
         Agent agent;
         REQUIRE(agent.service->start(request_fixture()));
         agent.fake->data(sse(json{{"type", "error"}, {"error", json{{"type", "overloaded_error"}, {"message", "Overloaded"}}}}));
-        CHECK_THROWS_WITH(agent.poll_until(AgentEventKind::Failed),
-                          Catch::Matchers::ContainsSubstring("overloaded_error") && Catch::Matchers::ContainsSubstring("Overloaded"));
+        // The service of the person's own key, overloaded: nobody here can fix it.
+        const auto overloaded = agent.poll_until(AgentEventKind::Failed);
+        REQUIRE(overloaded);
+        REQUIRE(overloaded->error);
+        CHECK(overloaded->error->code == "network_error");
 
         REQUIRE(agent.service->start(request_fixture()));
         agent.fake->data(sse(json{{"type", "content_block_start"}, {"index", 0}, {"content_block", tool_use("toolu_x", "workspace_inspect")}}) +

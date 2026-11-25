@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-24 16:23-0800\n"
+"POT-Creation-Date: 2026-11-25 12:11-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1456,11 +1456,6 @@ msgstr ""
 msgid "I can help with settings for %1% in slot %2%. What would you like to change?"
 msgstr ""
 
-#. TRN %1% is the profile loader's own error, in English.
-#, boost-format
-msgid "The printer profiles could not be read: %1%"
-msgstr ""
-
 msgid "Enter a name for the printer."
 msgstr ""
 
@@ -2455,6 +2450,11 @@ msgid "Configure a printer connection in Printer settings before printing. You c
 msgstr ""
 
 msgid "Printer connection required"
+msgstr ""
+
+#. TRN %1% is an AI provider or the operating system, such as OpenAI or macOS. %2% is what it answered, in its own words and language.
+#, boost-format
+msgid "%1% says: “%2%”"
 msgstr ""
 
 msgid "No more plates can be added"

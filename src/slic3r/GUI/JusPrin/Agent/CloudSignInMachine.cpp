@@ -186,6 +186,12 @@ CloudAccountDeps make_cloud_account_deps()
             .timeout_connect(10)
             .timeout_max(30)
             .on_error(reported("signing out of JusPrin", [url](std::string body, std::string error, unsigned status) {
+                // No answer, such as no network: the token is already
+                // forgotten on this computer, and nobody can act on it.
+                if (status == 0) {
+                    BOOST_LOG_TRIVIAL(warning) << "Signing out of JusPrin reached no server at " << url << ": " << error;
+                    return;
+                }
                 // Forgotten on this computer, the token still works on the
                 // server.
                 throw RuntimeError("revoking the token at " + url + " answered " + std::to_string(status) + ": " + error +

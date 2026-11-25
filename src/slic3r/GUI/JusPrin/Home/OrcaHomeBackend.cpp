@@ -39,6 +39,7 @@
 #include "slic3r/GUI/JusPrin/Support/DecimalText.hpp"
 #include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 #include "slic3r/GUI/JusPrin/Support/Files.hpp"
+#include "slic3r/GUI/JusPrin/Support/SaidBy.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/CloudAccount.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ManufacturingHistory.hpp"
@@ -1334,7 +1335,20 @@ void OrcaHomeBackend::export_gcode(const std::string& project_id, const std::str
             return;
         target = std::filesystem::u8path(chosen);
     }
-    recorder->export_kept_copy(project_id, hash, target);
+    try {
+        recorder->export_kept_copy(project_id, hash, target);
+    } catch (const std::filesystem::filesystem_error& error) {
+        // The system refusing the copy into the folder the person chose, such
+        // as a full or locked card: theirs, in the system's own words. Any
+        // other failure is ours. macOS's library names the target first,
+        // the others second.
+        if (error.path1() != target && error.path2() != target)
+            throw;
+        OrcaMessages::show_own_message(&m_frame,
+                                       wxString::FromUTF8(said_by(kSystemName, target.parent_path().u8string() + ": " +
+                                                                                   error.code().message())),
+                                       _L("Couldn't export G-code"), wxOK | wxICON_WARNING);
+    }
 }
 
 bool OrcaHomeBackend::reports_offered() const

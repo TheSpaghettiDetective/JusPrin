@@ -974,14 +974,18 @@ TEST_CASE("a chat more than the model takes is too large, before the reply or in
     }
 }
 
-TEST_CASE("a 403 or an event that names no cause the person can act on is still unexpected", "[agent][openai][errors]")
+TEST_CASE("OpenAI's 403 for a country is shown in OpenAI's words", "[agent][openai][errors]")
 {
-    SECTION("OpenAI's 403 for a country")
-    {
-        Responses r("openai");
-        r.fake->refuse(403, R"({"error":{"code":"unsupported_country_region_territory","message":"Country, region, or territory not supported","param":null,"type":"request_forbidden"}})");
-        CHECK_THROWS_WITH(r.failure(), Catch::Matchers::ContainsSubstring("unsupported_country_region_territory"));
-    }
+    Responses r("openai");
+    r.fake->refuse(403, R"({"error":{"code":"unsupported_country_region_territory","message":"Country, region, or territory not supported","param":null,"type":"request_forbidden"}})");
+    const auto error = r.failure();
+    REQUIRE(error);
+    CHECK(error->code == "provider_refused");
+    CHECK(error->message == "OpenAI says: \u201cCountry, region, or territory not supported\u201d");
+}
+
+TEST_CASE("an event that names no cause the person can act on is still unexpected", "[agent][openai][errors]")
+{
     SECTION("a failed response for a picture")
     {
         Responses r("openai");

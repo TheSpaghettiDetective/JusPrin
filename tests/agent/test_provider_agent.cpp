@@ -595,12 +595,24 @@ TEST_CASE("HTTP failures are mapped to safe errors that name the provider", "[ag
                           {429, "sensitive upstream body", "rate_limited", true, "The Test Provider service is rate limited"},
                           {0, "Operation timed out", "network_error", true, "could not reach the Test Provider service"},
                           {0, "could not resolve host", "network_error", true, "could not reach the Test Provider service"},
-                          {413, "body omitted", "request_too_large", false, "too large for the Test Provider service"}};
+                          {413, "body omitted", "request_too_large", false, "too large for the Test Provider service"},
+                          // The service of the person's own key failing on its side.
+                          {500, "sensitive upstream body", "network_error", true, "could not reach the Test Provider service"},
+                          {503, "sensitive upstream body", "network_error", true, "could not reach the Test Provider service"},
+                          {529, "sensitive upstream body", "network_error", true, "could not reach the Test Provider service"},
+                          // A refusal of what the key, its account or its settings allow, in the service's words.
+                          {429, R"({"error":{"message":"Rate limit exceeded: limit_rpm"}})", "rate_limited", true,
+                           "Test Provider says: \u201cRate limit exceeded: limit_rpm\u201d"},
+                          {403, R"({"error":{"message":"Country, region, or territory not supported","code":"unsupported_country_region_territory"}})",
+                           "provider_refused", false, "Test Provider says: \u201cCountry, region, or territory not supported\u201d"}};
     for (const Case& item : cases) {
         CAPTURE(item.status, item.detail);
         Harness h;
         REQUIRE(h.agent->start(request_fixture()));
-        h.fake->error(item.status, item.detail);
+        if (item.detail[0] == '{')
+            h.fake->refuse(item.status, item.detail);
+        else
+            h.fake->error(item.status, item.detail);
         const auto event = h.poll_until(AgentEventKind::Failed);
         REQUIRE(event);
         REQUIRE(event->error);
@@ -615,7 +627,7 @@ TEST_CASE("HTTP failures are mapped to safe errors that name the provider", "[ag
 TEST_CASE("an answer that names nothing a person can act on stops the turn with the service's status and text", "[agent][loop][errors]")
 {
     const std::string not_found = R"({"error":{"message":"The model `gpt-x` does not exist","type":"invalid_request_error","code":"model_not_found"}})";
-    for (const unsigned status : {400u, 403u, 404u, 408u, 500u, 503u, 529u}) {
+    for (const unsigned status : {400u, 404u, 408u}) {
         CAPTURE(status);
         Harness h;
         REQUIRE(h.agent->start(request_fixture()));

@@ -5,6 +5,8 @@
 // check the rules the loader applies, not which presets ship today.
 
 #include <catch2/catch_all.hpp>
+#include <catch2/matchers/catch_matchers.hpp>
+#include <catch2/matchers/catch_matchers_string.hpp>
 
 #include "slic3r/GUI/JusPrin/PrinterSetup/SetupOptionsLoader.hpp"
 
@@ -258,11 +260,11 @@ TEST_CASE("a printer whose profile turns on several plate types offers them", "[
     CHECK_FALSE(options.plates.empty());
 }
 
-TEST_CASE("a folder without the profiles is reported, and an unknown profile is a bug", "[setup-options]")
+TEST_CASE("a folder without the profiles, like an unknown profile, is a bug", "[setup-options]")
 {
-    const SetupOptions missing = load_setup_options(kProfiles + "/nowhere", "Prusa", "Prusa MK4 0.4 nozzle");
-    CHECK_FALSE(missing.error.empty());
-    CHECK(missing.filaments.empty());
+    // The shipped profiles fail to read only on a broken install.
+    CHECK_THROWS_WITH(load_setup_options(kProfiles + "/nowhere", "Prusa", "Prusa MK4 0.4 nozzle"),
+                      Catch::Matchers::ContainsSubstring("shipped printer profiles of Prusa"));
     CHECK_THROWS_AS(load_setup_options(kProfiles, "Prusa", "Prusa MK99 0.4 nozzle"), std::logic_error);
 }
 

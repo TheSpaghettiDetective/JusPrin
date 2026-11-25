@@ -18,6 +18,7 @@
 #include <utility>
 
 #include "libslic3r/format.hpp"
+#include "slic3r/GUI/JusPrin/Support/SaidBy.hpp"
 // Last: it defines the L marker.
 #include "slic3r/GUI/JusPrin/Support/Translate.hpp"
 
@@ -712,7 +713,8 @@ std::optional<AgentEvent> ProviderAgent::poll()
 //   request_too_large only.
 //   An own key, by what the service names in its answer or in the event that
 //   fails a reply: its account out of credits, the key refused, the chat more
-//   than the model takes, too many requests.
+//   than the model takes, too many requests, and a refusal of what the key,
+//   its account or its settings allow, shown in the service's own words.
 //   No answer at all: the network.
 namespace {
 
@@ -841,6 +843,19 @@ AgentError ProviderAgent::http_error(const AgentHttpEvent& event)
     const std::string& words   = event.data.empty() ? event.error : event.data;
     if (expected)
         return this->expected(std::move(*expected), answered, words);
+    // The service of the person's own key failing on its side: whoever runs
+    // it can fix it, and nobody here can.
+    if (!m_config.profile.account_sign_in && !m_config.profile.on_this_computer && event.status >= 500)
+        // TRN %1% is an AI provider, such as OpenAI.
+        return this->expected({"network_error", Slic3r::format(translated(L("The AI request could not reach the %1% service.")), m_config.profile.display_name), true},
+                              answered, words);
+    // The key check (setup_probe_request) sends the same request for every
+    // person; only the key and its account differ. A refusal of it in the
+    // service's words is about the key's account, such as an OpenRouter
+    // workspace limited to the person's own provider keys.
+    if (!m_config.profile.account_sign_in && m_transcript.request_id == "setup-key-check" && event.status < 500)
+        if (const std::string message = service_says(json::parse(event.data, nullptr, false)).message; !message.empty())
+            return this->expected({"provider_refused", said_by(m_config.profile.display_name, message), false}, answered, words);
     unexpected(answered, words);
 }
 
@@ -886,14 +901,28 @@ std::optional<AgentError> ProviderAgent::provider_answer(unsigned status, const 
     if (too_long(status, says))
         return too_large(name);
     if (status == 429)
-        return rate_limited(name);
+        return says.message.empty() ? rate_limited(name) : AgentError{"rate_limited", said_by(name, says.message), true};
+    // The service refusing what the person's key, account or settings allow,
+    // in words that say what to do: OpenAI's unsupported country,
+    // OpenRouter's guardrails, spending limits and flagged input.
+    if (status == 403 && !says.message.empty())
+        return AgentError{"provider_refused", said_by(name, says.message), false};
     return std::nullopt;
 }
 
 std::optional<AgentError> ProviderAgent::in_reply_answer(const json& answer) const
 {
-    if (!m_config.profile.account_sign_in)
+    if (!m_config.profile.account_sign_in) {
+        // The service of the person's own key overloaded or failing on its
+        // side, as Anthropic, OpenAI and OpenRouter name it inside a reply.
+        const ServiceSays says = service_says(answer);
+        if (!m_config.profile.on_this_computer &&
+            (says.type == "overloaded_error" || says.type == "api_error" || says.code == "server_error" ||
+             says.error_type == "provider_overloaded" || says.error_type == "provider_unavailable" || says.error_type == "server"))
+            // TRN %1% is an AI provider, such as OpenAI.
+            return AgentError{"network_error", Slic3r::format(translated(L("The AI request could not reach the %1% service.")), m_config.profile.display_name), true};
         return provider_answer(0, answer);
+    }
     // Inside a reply the gateway names one cause a person can act on: a chat
     // more than the model takes.
     const std::string code = service_says(answer).code;

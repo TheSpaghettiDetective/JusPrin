@@ -78,6 +78,10 @@ void request_page(std::shared_ptr<Fetch> fetch, const std::string& after)
             if (const std::optional<AgentError> outdated = update_required(status, body))
                 fetch->result.update_message = outdated->message;
             fetch->done(std::move(fetch->result));
+            // The service of the person's own key failing on its side is for
+            // whoever runs it; the list is marked failed above.
+            if (!fetch->profile.account_sign_in && !fetch->profile.on_this_computer && status >= 500)
+                return;
             if (const std::optional<std::string> fault = model_list_fault(status, body))
                 throw std::runtime_error(*fault);
         }))

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-24 16:23-0800\n"
+"POT-Creation-Date: 2026-11-25 12:11-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1828,12 +1828,6 @@ msgid "I can help with settings for %1% in slot %2%. What would you like to chan
 msgstr "Mogę pomóc z ustawieniami %1% w gnieździe %2%. Co chcesz zmienić?"
 
 # AI Translated
-#. TRN %1% is the profile loader's own error, in English.
-#, boost-format
-msgid "The printer profiles could not be read: %1%"
-msgstr "Nie udało się odczytać profili drukarek: %1%"
-
-# AI Translated
 msgid "Enter a name for the printer."
 msgstr "Wprowadź nazwę drukarki."
 
@@ -3140,6 +3134,12 @@ msgid "Printer connection required"
 msgstr "Wymagane połączenie z drukarką"
 
 # AI Translated
+#. TRN %1% is an AI provider or the operating system, such as OpenAI or macOS. %2% is what it answered, in its own words and language.
+#, boost-format
+msgid "%1% says: “%2%”"
+msgstr "%1% informuje: „%2%”"
+
+# AI Translated
 msgid "No more plates can be added"
 msgstr "Nie można dodać więcej płyt"
 
@@ -3264,6 +3264,11 @@ msgstr "Jeśli komputer ma więcej niż jedną kartę graficzną, może pomóc p
 # AI Translated
 msgid "If the problem remains, close any overlay or screen capture software and try again."
 msgstr "Jeśli problem nie ustąpi, zamknij wszelkie oprogramowanie nakładek lub nagrywania ekranu i spróbuj ponownie."
+
+# AI Translated
+#, boost-format
+#~ msgid "The printer profiles could not be read: %1%"
+#~ msgstr "Nie udało się odczytać profili drukarek: %1%"
 
 # AI Translated
 #~ msgid "JusPrin's view couldn't be opened."

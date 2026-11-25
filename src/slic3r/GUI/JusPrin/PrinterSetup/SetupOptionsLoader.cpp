@@ -1,19 +1,15 @@
 #include "SetupOptionsLoader.hpp"
 
+#include "libslic3r/Config.hpp"
 #include "libslic3r/Preset.hpp"
 #include "libslic3r/PresetBundle.hpp"
 #include "libslic3r/PrintConfig.hpp"
-#include "libslic3r/format.hpp"
 
 #include <boost/algorithm/string/case_conv.hpp>
 
 #include <algorithm>
 #include <set>
 #include <stdexcept>
-
-// Also built into tests that have no GUI: text a person reads is marked with
-// L() and translated with translated() (Localization/README.md).
-#include "slic3r/GUI/JusPrin/Support/Translate.hpp"
 
 namespace Slic3r::GUI::JusPrin::PrinterSetup {
 
@@ -76,15 +72,12 @@ SetupOptions load_setup_options(const std::string& profiles_directory, const std
 {
     SetupOptions options;
     PresetBundle bundle;
-    // A vendor that cannot be read is named, not thrown; its error is in the text.
+    // The profiles shipped with the app fail to read only on a broken
+    // install, which is ours. The loader logs each file's error, with its path.
     std::vector<std::string> failed;
-    const std::string errors =
-        bundle.load_system_vendor_from_dir(profiles_directory, vendor_id, ForwardCompatibilitySubstitutionRule::EnableSilent, &failed).second;
-    if (!failed.empty()) {
-        // TRN %1% is the profile loader's own error, in English.
-        options.error = Slic3r::format(translated(L("The printer profiles could not be read: %1%")), errors);
-        return options;
-    }
+    bundle.load_system_vendor_from_dir(profiles_directory, vendor_id, ForwardCompatibilitySubstitutionRule::EnableSilent, &failed);
+    if (!failed.empty())
+        throw std::runtime_error("The shipped printer profiles of " + vendor_id + " could not be read");
 
     const Preset* printer = bundle.printers.find_preset(printer_preset, false);
     if (printer == nullptr || printer->name != printer_preset)
