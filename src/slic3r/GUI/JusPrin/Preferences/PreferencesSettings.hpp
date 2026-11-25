@@ -49,6 +49,10 @@ struct Facts
     // Providers with a stored key, in setup's order: what a new chat can
     // start with.
     std::vector<std::string> configured_providers;
+    // The model on this computer, once set up: its name and the app that
+    // runs it, as the choice of what new chats start with names it.
+    std::string local_model;
+    std::string local_label;
 };
 
 // The page's preferences payload: {kind: "preferences", ...}.

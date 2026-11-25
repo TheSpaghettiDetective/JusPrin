@@ -217,9 +217,19 @@ msgid "{count, plural, one {+{n} credit} other {+{n} credits}}"
 msgstr "{count, plural, other {+{n} 积分}}"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "{count, plural, one {LM Studio at {address} has # model. Pick the one your chats should use.} other {LM Studio at {address} has # models. Pick the one your chats should use.}}"
+msgstr "{count, plural, other {{address} 上的 LM Studio 有 # 个模型。请选择对话要使用的模型。}}"
+
+# AI Translated
 #: src/components/AllSettings.tsx
 msgid "{count, plural, one {Negative part} other {Negative parts}}"
 msgstr "{count, plural, other {负零件}}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "{count, plural, one {Ollama at {address} has # model. Pick the one your chats should use.} other {Ollama at {address} has # models. Pick the one your chats should use.}}"
+msgstr "{count, plural, other {{address} 上的 Ollama 有 # 个模型。请选择对话要使用的模型。}}"
 
 # AI Translated
 #: src/components/AllSettings.tsx
@@ -235,6 +245,11 @@ msgstr "{count, plural, other {支撑屏蔽器}}"
 #: src/components/AllSettings.tsx
 msgid "{count, plural, one {Support enforcer} other {Support enforcers}}"
 msgstr "{count, plural, other {支撑生成器}}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "{count, plural, one {The app at {address} has # model. Pick the one your chats should use.} other {The app at {address} has # models. Pick the one your chats should use.}}"
+msgstr "{count, plural, other {{address} 上的应用有 # 个模型。请选择对话要使用的模型。}}"
 
 # AI Translated
 #: src/components/TurnActivity.tsx
@@ -634,6 +649,11 @@ msgid "{reportCredits, plural, one {Share how it printed and get {reportCredits}
 msgstr "{reportCredits, plural, other {分享打印效果，获得 {reportCredits} 积分}}"
 
 # AI Translated
+#: src/components/ModelPickers.tsx
+msgid "{runtime} · no credits"
+msgstr "{runtime} · 不消耗积分"
+
+# AI Translated
 #. A duration in seconds, abbreviated: 45s
 #: ../HomeUI/src/history.ts
 msgid "{secs}s"
@@ -829,6 +849,12 @@ msgid "A chat keeps the model it started with."
 msgstr "对话会保持其开始时使用的模型。"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+#: src/components/LocalModelGroup.tsx
+msgid "A model on this computer"
+msgstr "此计算机上的模型"
+
+# AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
 msgid "A new name has to differ from the old one by more than capitalization."
 msgstr "新名称与旧名称的区别不能仅在于大小写。"
@@ -904,6 +930,11 @@ msgstr "添加您的打印机"
 #: src/components/PrinterPanel.tsx
 msgid "Added: <0>{name}</0>"
 msgstr "已添加：<0>{name}</0>"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Address of the app that runs the model"
+msgstr "运行模型的应用的地址"
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -1212,8 +1243,8 @@ msgstr "自带 AI"
 
 # AI Translated
 #: src/components/Preferences.tsx
-msgid "Bring Your Own AI: an API key or an AI app you already pay for. No JusPrin account needed. Set up as many as you like; each chat picks a model from them."
-msgstr "自带 AI：使用您已付费的 API 密钥或 AI 应用。无需 JusPrin 账户。您可以设置任意多个；每个对话从中选择一个模型。"
+msgid "Bring Your Own AI: an API key, an AI app you already pay for, or a model you run on this computer. No JusPrin account needed. Set up as many as you like; each chat picks a model from them."
+msgstr "自带 AI：API 密钥、您已付费的 AI 应用，或在此计算机上运行的模型。无需 JusPrin 账户。可以设置任意多个；每个对话会从中选择一个模型。"
 
 # AI Translated
 #: ../HomeUI/src/components/Onboarding.tsx
@@ -1246,6 +1277,11 @@ msgid "Camera view of {name}"
 msgstr "{name} 的摄像头画面"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Can see pictures"
+msgstr "可以查看图片"
+
+# AI Translated
 #: src/components/SetupLocalTool.tsx
 msgid "Can’t be stopped once started; it takes a moment."
 msgstr "一旦开始便无法停止；需要一点时间。"
@@ -1259,6 +1295,11 @@ msgstr "找不到您的打印机？<0>询问 AI</0>"
 #: src/components/OrcaImport.tsx
 msgid "Can’t import"
 msgstr "无法导入"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Can’t see pictures. The AI works without seeing your model."
+msgstr "无法查看图片。AI 会在看不到您的模型的情况下工作。"
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -1283,6 +1324,8 @@ msgstr "无法写入设置文件。"
 #: src/components/ChangeRows.tsx
 #: src/components/ChatNavigation.tsx
 #: src/components/ChatNavigation.tsx
+#: src/components/LocalModelGroup.tsx
+#: src/components/LocalModelGroup.tsx
 #: src/components/OrcaImport.tsx
 #: src/components/OrcaImport.tsx
 #: src/components/Preferences.tsx
@@ -1304,6 +1347,11 @@ msgstr "已取消"
 #: src/components/ToolActivityCard.tsx
 msgid "Cancelled — nothing was changed"
 msgstr "已取消——未做任何更改"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Change"
+msgstr "更改"
 
 # AI Translated
 #: src/components/SignInDoor.tsx
@@ -1353,6 +1401,11 @@ msgid "Chats"
 msgstr "对话"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Chats can use"
+msgstr "对话可使用"
+
+# AI Translated
 #: src/components/Panels.tsx
 msgid "Chatting here needs AI."
 msgstr "在这里对话需要 AI。"
@@ -1386,6 +1439,11 @@ msgstr "请检查拼写或尝试其他词语。您也可以询问 AI：在“帮
 #: src/components/SignInDoor.tsx
 msgid "Check your email."
 msgstr "请查收您的邮件。"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Checking {pickedModel}. A local model can take a minute to answer the first time."
+msgstr "正在检查 {pickedModel}。本地模型首次回答可能需要一分钟左右。"
 
 # AI Translated
 #: src/components/Preferences.tsx
@@ -1925,6 +1983,11 @@ msgid "Find a language"
 msgstr "查找语言"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Find models"
+msgstr "查找模型"
+
+# AI Translated
 #: src/components/SignInDoor.tsx
 msgid "Finish in your browser."
 msgstr "请在浏览器中完成。"
@@ -2135,6 +2198,11 @@ msgstr "打印效果如何？"
 #: src/printerWords.ts
 msgid "How do I check?"
 msgstr "我该怎么检查？"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "How to check and change this"
+msgstr "如何检查和更改"
 
 # AI Translated
 #: src/components/OrcaImport.tsx
@@ -2512,6 +2580,16 @@ msgid "Live URL (developer only — this can change after restart)"
 msgstr "实时 URL（仅限开发者——重启后可能会变化）"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "LM Studio at {address}"
+msgstr "{address} 上的 LM Studio"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "LM Studio at {address} has no models. Download one in LM Studio, then find models again."
+msgstr "{address} 上的 LM Studio 没有模型。请在 LM Studio 中下载一个模型，然后重新查找模型。"
+
+# AI Translated
 #: ../HomeUI/src/components/PrinterPickerHost.tsx
 msgid "Loading JusPrin’s settings for this printer…"
 msgstr "正在加载 JusPrin 对此打印机的设置…"
@@ -2525,6 +2603,11 @@ msgstr "正在加载模型…"
 #: ../HomeUI/src/components/PrintHistory.tsx
 msgid "Loading print history…"
 msgstr "正在加载打印历史…"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Local model"
+msgstr "本地模型"
 
 # AI Translated
 #: src/components/Preferences.tsx
@@ -2550,6 +2633,11 @@ msgstr "已在 {path} 中查找"
 #: src/components/Preferences.tsx
 msgid "Looking for a newer version on GitHub…"
 msgstr "正在 GitHub 上查找新版本…"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Looking for models at {typedAddress}…"
+msgstr "正在 {typedAddress} 查找模型…"
 
 # AI Translated
 #. A thinking level of the AI model
@@ -2624,6 +2712,7 @@ msgid "Minimal"
 msgstr "最低"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
 #: src/components/ModelPickers.tsx
 #: src/components/Preferences.tsx
 #: src/components/Preferences.tsx
@@ -2782,6 +2871,11 @@ msgid "No chats yet. Start a new chat about this project."
 msgstr "还没有对话。为此项目新建一个对话吧。"
 
 # AI Translated
+#: src/components/ModelPickers.tsx
+msgid "No credits"
+msgstr "不消耗积分"
+
+# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "No filament for the {modelName} matches “{search}”."
 msgstr "没有与“{search}”匹配的 {modelName} 耗材丝。"
@@ -2918,6 +3012,11 @@ msgid "Not saved"
 msgstr "未保存"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Not set up"
+msgstr "未设置"
+
+# AI Translated
 #: src/components/Panels.tsx
 msgid "NOT SET UP"
 msgstr "未设置"
@@ -2986,6 +3085,16 @@ msgstr "关闭"
 #: src/components/PrinterPanel.tsx
 msgid "Offline"
 msgstr "离线"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Ollama at {address}"
+msgstr "{address} 上的 Ollama"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Ollama at {address} has no models. Download one in Ollama, then find models again."
+msgstr "{address} 上的 Ollama 没有模型。请在 Ollama 中下载一个模型，然后重新查找模型。"
 
 # AI Translated
 #: src/components/AllSettings.tsx
@@ -3445,6 +3554,7 @@ msgstr "明天提醒我"
 #: src/components/AgentConnection.tsx
 #: src/components/AllSettings.tsx
 #: src/components/AttachmentChip.tsx
+#: src/components/LocalModelGroup.tsx
 msgid "Remove"
 msgstr "移除"
 
@@ -3842,6 +3952,11 @@ msgstr "序列号"
 #: src/components/AllSettings.tsx
 msgid "Set on this plate"
 msgstr "在此盘上设置"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Set up"
+msgstr "设置"
 
 # AI Translated
 #: ../HomeUI/src/components/AgentGroup.tsx
@@ -4257,6 +4372,16 @@ msgid "The AI slicer that helps you get better prints."
 msgstr "帮助您获得更好打印效果的 AI 切片软件。"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The app at {address}"
+msgstr "{address} 上的应用"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The app at {address} has no models. Download one in that app, then find models again."
+msgstr "{address} 上的应用没有模型。请在该应用中下载一个模型，然后重新查找模型。"
+
+# AI Translated
 #: src/components/SignInDoor.tsx
 msgid "The app continues on its own once the browser is done."
 msgstr "浏览器中的操作完成后，应用会自动继续。"
@@ -4305,6 +4430,21 @@ msgstr "来自 OrcaSlicer（JusPrin 的基础）的完整偏好设置窗口。"
 #: src/components/AgentConnection.tsx
 msgid "The key could not be checked. Nothing was saved."
 msgstr "无法检查该密钥。未保存任何内容。"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The model must support tools, and its context length in LM Studio must be at least 32k."
+msgstr "模型必须支持工具（tools），并且它在 LM Studio 中的上下文长度至少为 32k。"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The model must support tools, and its context length in Ollama must be at least 32k."
+msgstr "模型必须支持工具（tools），并且它在 Ollama 中的上下文长度至少为 32k。"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The model must support tools, and its context length in the app that runs it must be at least 32k."
+msgstr "模型必须支持工具（tools），并且它在运行它的应用中的上下文长度至少为 32k。"
 
 # AI Translated
 #: src/components/OrcaImport.tsx
@@ -4395,6 +4535,11 @@ msgid "This is an internal connection inside JusPrin, not a network service. The
 msgstr "这是 JusPrin 内部的连接，不是网络服务。3D 画布和所有其他控件仍可正常使用。"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "This is Ollama’s address. For LM Studio, use <0>http://127.0.0.1:1234</0>."
+msgstr "这是 Ollama 的地址。如使用 LM Studio，请填写 <0>http://127.0.0.1:1234</0>。"
+
+# AI Translated
 #: src/printerWords.ts
 msgid "This is the {name}. Tell me what changed on it, or ask anything about it."
 msgstr "这是 {name}。告诉我它有哪些变化，或者问我关于它的任何问题。"
@@ -4408,6 +4553,11 @@ msgstr "这是您的打印机。告诉我它有哪些变化，或者问我关于
 #: src/components/AllSettings.tsx
 msgid "This JusPrin build cannot list the settings."
 msgstr "此 JusPrin 版本无法列出设置。"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "This model can’t see pictures, so the AI works without seeing your model."
+msgstr "此模型无法查看图片，因此 AI 会在看不到您的模型的情况下工作。"
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -4585,6 +4735,11 @@ msgid "Updates come from the Microsoft Store."
 msgstr "更新来自 Microsoft Store。"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Use a model you run yourself with Ollama, LM Studio or a similar app. Your messages go to that app, not to an online AI service, and there is nothing to pay. Local models are slower and make more mistakes than the cloud models above."
+msgstr "使用您通过 Ollama、LM Studio 或类似应用自行运行的模型。您的消息会发送到该应用，而不是在线 AI 服务，并且无需付费。本地模型比上方的云端模型更慢，出错也更多。"
+
+# AI Translated
 #: src/components/SignInDoor.tsx
 msgid "Use a password instead"
 msgstr "改用密码"
@@ -4603,6 +4758,11 @@ msgstr "使用项目值"
 #: src/components/AllSettings.tsx
 msgid "Use project value for {label}"
 msgstr "对 {label} 使用项目值"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Use this model"
+msgstr "使用此模型"
 
 # AI Translated
 #: ../HomeUI/src/components/Onboarding.tsx

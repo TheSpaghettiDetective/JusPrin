@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-24 13:37-0800\n"
+"POT-Creation-Date: 2026-11-24 16:23-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -184,6 +184,13 @@ msgid "AI could not receive the native tool result."
 msgstr ""
 
 msgid "The AI request failed."
+msgstr ""
+
+#. TRN The heading of the chat's model menu over a model that runs on this computer.
+msgid "On this computer"
+msgstr ""
+
+msgid "This chat ran on a model on this computer that is no longer set up. Set it up again in the AI settings to continue it, or start a new chat."
 msgstr ""
 
 #. TRN %1% is an AI provider's account, such as JusPrin.
@@ -412,6 +419,13 @@ msgstr ""
 #. TRN %1% is an AI provider, such as OpenAI.
 #, boost-format
 msgid "The request was too large for the %1% service."
+msgstr ""
+
+#, boost-format
+msgid "Nothing is answering at %1%. Start Ollama or LM Studio, then try again."
+msgstr ""
+
+msgid "This model can't run the app's tools. Pick a model with tool support and a context of at least 32k."
 msgstr ""
 
 #. TRN %1% is an AI provider, such as OpenAI.
@@ -1298,6 +1312,13 @@ msgstr ""
 msgid "local sessions"
 msgstr ""
 
+#. TRN Names where a model runs when the app could not tell which app runs it: "qwen3.5:9b · this computer".
+msgid "this computer"
+msgstr ""
+
+msgid "The app couldn't open your browser."
+msgstr ""
+
 msgid "JusPrin couldn't close the project, so it didn't restart. Your project stays open, and JusPrin will use the new language the next time it starts."
 msgstr ""
 
@@ -1462,9 +1483,6 @@ msgstr ""
 
 #, c-format, boost-format
 msgid "Other printer profiles are based on \"%s\". Remove those first in Printer settings."
-msgstr ""
-
-msgid "The app couldn't open your browser."
 msgstr ""
 
 msgid "About JusPrin"

@@ -217,9 +217,19 @@ msgid "{count, plural, one {+{n} credit} other {+{n} credits}}"
 msgstr "{count, plural, other {+{n} tín dụng}}"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "{count, plural, one {LM Studio at {address} has # model. Pick the one your chats should use.} other {LM Studio at {address} has # models. Pick the one your chats should use.}}"
+msgstr "{count, plural, other {LM Studio tại {address} có # mô hình. Hãy chọn mô hình mà các cuộc trò chuyện sẽ dùng.}}"
+
+# AI Translated
 #: src/components/AllSettings.tsx
 msgid "{count, plural, one {Negative part} other {Negative parts}}"
 msgstr "{count, plural, other {Phần âm}}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "{count, plural, one {Ollama at {address} has # model. Pick the one your chats should use.} other {Ollama at {address} has # models. Pick the one your chats should use.}}"
+msgstr "{count, plural, other {Ollama tại {address} có # mô hình. Hãy chọn mô hình mà các cuộc trò chuyện sẽ dùng.}}"
 
 # AI Translated
 #: src/components/AllSettings.tsx
@@ -235,6 +245,11 @@ msgstr "{count, plural, other {Chặn support}}"
 #: src/components/AllSettings.tsx
 msgid "{count, plural, one {Support enforcer} other {Support enforcers}}"
 msgstr "{count, plural, other {Bắt buộc support}}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "{count, plural, one {The app at {address} has # model. Pick the one your chats should use.} other {The app at {address} has # models. Pick the one your chats should use.}}"
+msgstr "{count, plural, other {Ứng dụng tại {address} có # mô hình. Hãy chọn mô hình mà các cuộc trò chuyện sẽ dùng.}}"
 
 # AI Translated
 #: src/components/TurnActivity.tsx
@@ -634,6 +649,11 @@ msgid "{reportCredits, plural, one {Share how it printed and get {reportCredits}
 msgstr "{reportCredits, plural, other {Chia sẻ kết quả in và nhận {reportCredits} tín dụng}}"
 
 # AI Translated
+#: src/components/ModelPickers.tsx
+msgid "{runtime} · no credits"
+msgstr "{runtime} · không tốn tín dụng"
+
+# AI Translated
 #. A duration in seconds, abbreviated: 45s
 #: ../HomeUI/src/history.ts
 msgid "{secs}s"
@@ -829,6 +849,12 @@ msgid "A chat keeps the model it started with."
 msgstr "Mỗi cuộc trò chuyện giữ nguyên mô hình ban đầu."
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+#: src/components/LocalModelGroup.tsx
+msgid "A model on this computer"
+msgstr "Mô hình trên máy tính này"
+
+# AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
 msgid "A new name has to differ from the old one by more than capitalization."
 msgstr "Tên mới phải khác tên cũ không chỉ ở chữ hoa, chữ thường."
@@ -904,6 +930,11 @@ msgstr "Thêm máy in của bạn"
 #: src/components/PrinterPanel.tsx
 msgid "Added: <0>{name}</0>"
 msgstr "Đã thêm: <0>{name}</0>"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Address of the app that runs the model"
+msgstr "Địa chỉ của ứng dụng chạy mô hình"
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -1212,8 +1243,8 @@ msgstr "Dùng AI của riêng bạn"
 
 # AI Translated
 #: src/components/Preferences.tsx
-msgid "Bring Your Own AI: an API key or an AI app you already pay for. No JusPrin account needed. Set up as many as you like; each chat picks a model from them."
-msgstr "Dùng AI của riêng bạn: một khóa API hoặc một ứng dụng AI bạn đã trả phí. Không cần tài khoản JusPrin. Thiết lập bao nhiêu tùy thích; mỗi cuộc trò chuyện chọn một mô hình từ đó."
+msgid "Bring Your Own AI: an API key, an AI app you already pay for, or a model you run on this computer. No JusPrin account needed. Set up as many as you like; each chat picks a model from them."
+msgstr "Dùng AI của riêng bạn: một khóa API, một ứng dụng AI bạn đã trả phí, hoặc một mô hình bạn chạy trên máy tính này. Không cần tài khoản JusPrin. Thiết lập bao nhiêu tùy thích; mỗi cuộc trò chuyện sẽ chọn một mô hình trong số đó."
 
 # AI Translated
 #: ../HomeUI/src/components/Onboarding.tsx
@@ -1246,6 +1277,11 @@ msgid "Camera view of {name}"
 msgstr "Camera của {name}"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Can see pictures"
+msgstr "Xem được hình ảnh"
+
+# AI Translated
 #: src/components/SetupLocalTool.tsx
 msgid "Can’t be stopped once started; it takes a moment."
 msgstr "Không thể dừng sau khi đã bắt đầu; sẽ mất một lúc."
@@ -1259,6 +1295,11 @@ msgstr "Không tìm thấy máy in của bạn? <0>Hỏi AI</0>"
 #: src/components/OrcaImport.tsx
 msgid "Can’t import"
 msgstr "Không thể nhập"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Can’t see pictures. The AI works without seeing your model."
+msgstr "Không xem được hình ảnh. AI sẽ làm việc mà không nhìn thấy mô hình của bạn."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -1283,6 +1324,8 @@ msgstr "Không thể ghi file cài đặt."
 #: src/components/ChangeRows.tsx
 #: src/components/ChatNavigation.tsx
 #: src/components/ChatNavigation.tsx
+#: src/components/LocalModelGroup.tsx
+#: src/components/LocalModelGroup.tsx
 #: src/components/OrcaImport.tsx
 #: src/components/OrcaImport.tsx
 #: src/components/Preferences.tsx
@@ -1304,6 +1347,11 @@ msgstr "Đã hủy"
 #: src/components/ToolActivityCard.tsx
 msgid "Cancelled — nothing was changed"
 msgstr "Đã hủy — không có gì thay đổi"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Change"
+msgstr "Thay đổi"
 
 # AI Translated
 #: src/components/SignInDoor.tsx
@@ -1353,6 +1401,11 @@ msgid "Chats"
 msgstr "Trò chuyện"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Chats can use"
+msgstr "Trò chuyện dùng"
+
+# AI Translated
 #: src/components/Panels.tsx
 msgid "Chatting here needs AI."
 msgstr "Trò chuyện ở đây cần có AI."
@@ -1386,6 +1439,11 @@ msgstr "Hãy kiểm tra chính tả hoặc thử từ khác. Bạn cũng có th�
 #: src/components/SignInDoor.tsx
 msgid "Check your email."
 msgstr "Hãy kiểm tra email của bạn."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Checking {pickedModel}. A local model can take a minute to answer the first time."
+msgstr "Đang kiểm tra {pickedModel}. Mô hình cục bộ có thể mất khoảng một phút để trả lời lần đầu."
 
 # AI Translated
 #: src/components/Preferences.tsx
@@ -1925,6 +1983,11 @@ msgid "Find a language"
 msgstr "Tìm ngôn ngữ"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Find models"
+msgstr "Tìm mô hình"
+
+# AI Translated
 #: src/components/SignInDoor.tsx
 msgid "Finish in your browser."
 msgstr "Hãy hoàn tất trong trình duyệt."
@@ -2135,6 +2198,11 @@ msgstr "Kết quả in thế nào?"
 #: src/printerWords.ts
 msgid "How do I check?"
 msgstr "Kiểm tra bằng cách nào?"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "How to check and change this"
+msgstr "Cách kiểm tra và thay đổi"
 
 # AI Translated
 #: src/components/OrcaImport.tsx
@@ -2512,6 +2580,16 @@ msgid "Live URL (developer only — this can change after restart)"
 msgstr "URL trực tiếp (chỉ dành cho nhà phát triển — có thể thay đổi sau khi khởi động lại)"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "LM Studio at {address}"
+msgstr "LM Studio tại {address}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "LM Studio at {address} has no models. Download one in LM Studio, then find models again."
+msgstr "LM Studio tại {address} chưa có mô hình nào. Hãy tải một mô hình trong LM Studio, rồi tìm mô hình lại."
+
+# AI Translated
 #: ../HomeUI/src/components/PrinterPickerHost.tsx
 msgid "Loading JusPrin’s settings for this printer…"
 msgstr "Đang tải cài đặt của JusPrin cho máy in này…"
@@ -2525,6 +2603,11 @@ msgstr "Đang tải mô hình…"
 #: ../HomeUI/src/components/PrintHistory.tsx
 msgid "Loading print history…"
 msgstr "Đang tải lịch sử in…"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Local model"
+msgstr "Mô hình cục bộ"
 
 # AI Translated
 #: src/components/Preferences.tsx
@@ -2550,6 +2633,11 @@ msgstr "Đã tìm trong {path}"
 #: src/components/Preferences.tsx
 msgid "Looking for a newer version on GitHub…"
 msgstr "Đang tìm phiên bản mới hơn trên GitHub…"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Looking for models at {typedAddress}…"
+msgstr "Đang tìm mô hình tại {typedAddress}…"
 
 # AI Translated
 #. A thinking level of the AI model
@@ -2624,6 +2712,7 @@ msgid "Minimal"
 msgstr "Tối thiểu"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
 #: src/components/ModelPickers.tsx
 #: src/components/Preferences.tsx
 #: src/components/Preferences.tsx
@@ -2782,6 +2871,11 @@ msgid "No chats yet. Start a new chat about this project."
 msgstr "Chưa có cuộc trò chuyện nào. Hãy bắt đầu cuộc trò chuyện mới về dự án này."
 
 # AI Translated
+#: src/components/ModelPickers.tsx
+msgid "No credits"
+msgstr "Không tốn tín dụng"
+
+# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "No filament for the {modelName} matches “{search}”."
 msgstr "Không có filament nào cho {modelName} khớp với “{search}”."
@@ -2918,6 +3012,11 @@ msgid "Not saved"
 msgstr "Chưa lưu"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Not set up"
+msgstr "Chưa thiết lập"
+
+# AI Translated
 #: src/components/Panels.tsx
 msgid "NOT SET UP"
 msgstr "CHƯA THIẾT LẬP"
@@ -2986,6 +3085,16 @@ msgstr "Tắt"
 #: src/components/PrinterPanel.tsx
 msgid "Offline"
 msgstr "Ngoại tuyến"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Ollama at {address}"
+msgstr "Ollama tại {address}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Ollama at {address} has no models. Download one in Ollama, then find models again."
+msgstr "Ollama tại {address} chưa có mô hình nào. Hãy tải một mô hình trong Ollama, rồi tìm mô hình lại."
 
 # AI Translated
 #: src/components/AllSettings.tsx
@@ -3445,6 +3554,7 @@ msgstr "Nhắc tôi vào ngày mai"
 #: src/components/AgentConnection.tsx
 #: src/components/AllSettings.tsx
 #: src/components/AttachmentChip.tsx
+#: src/components/LocalModelGroup.tsx
 msgid "Remove"
 msgstr "Xóa"
 
@@ -3842,6 +3952,11 @@ msgstr "Số sê-ri"
 #: src/components/AllSettings.tsx
 msgid "Set on this plate"
 msgstr "Đặt trên plate này"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Set up"
+msgstr "Thiết lập"
 
 # AI Translated
 #: ../HomeUI/src/components/AgentGroup.tsx
@@ -4257,6 +4372,16 @@ msgid "The AI slicer that helps you get better prints."
 msgstr "Trình slice AI giúp bạn có bản in tốt hơn."
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The app at {address}"
+msgstr "Ứng dụng tại {address}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The app at {address} has no models. Download one in that app, then find models again."
+msgstr "Ứng dụng tại {address} chưa có mô hình nào. Hãy tải một mô hình trong ứng dụng đó, rồi tìm mô hình lại."
+
+# AI Translated
 #: src/components/SignInDoor.tsx
 msgid "The app continues on its own once the browser is done."
 msgstr "Ứng dụng sẽ tự tiếp tục khi bạn xong việc trên trình duyệt."
@@ -4305,6 +4430,21 @@ msgstr "Cửa sổ tùy chọn đầy đủ của OrcaSlicer, nền tảng mà J
 #: src/components/AgentConnection.tsx
 msgid "The key could not be checked. Nothing was saved."
 msgstr "Không thể kiểm tra khóa. Chưa có gì được lưu."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The model must support tools, and its context length in LM Studio must be at least 32k."
+msgstr "Mô hình phải hỗ trợ công cụ (tools), và độ dài ngữ cảnh của nó trong LM Studio phải từ 32k trở lên."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The model must support tools, and its context length in Ollama must be at least 32k."
+msgstr "Mô hình phải hỗ trợ công cụ (tools), và độ dài ngữ cảnh của nó trong Ollama phải từ 32k trở lên."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The model must support tools, and its context length in the app that runs it must be at least 32k."
+msgstr "Mô hình phải hỗ trợ công cụ (tools), và độ dài ngữ cảnh của nó trong ứng dụng chạy mô hình phải từ 32k trở lên."
 
 # AI Translated
 #: src/components/OrcaImport.tsx
@@ -4395,6 +4535,11 @@ msgid "This is an internal connection inside JusPrin, not a network service. The
 msgstr "Đây là kết nối nội bộ bên trong JusPrin, không phải dịch vụ mạng. Khung 3D và mọi điều khiển khác vẫn hoạt động."
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "This is Ollama’s address. For LM Studio, use <0>http://127.0.0.1:1234</0>."
+msgstr "Đây là địa chỉ của Ollama. Với LM Studio, hãy dùng <0>http://127.0.0.1:1234</0>."
+
+# AI Translated
 #: src/printerWords.ts
 msgid "This is the {name}. Tell me what changed on it, or ask anything about it."
 msgstr "Đây là {name}. Hãy cho tôi biết điều gì đã thay đổi trên máy, hoặc hỏi bất cứ điều gì về nó."
@@ -4408,6 +4553,11 @@ msgstr "Đây là máy in của bạn. Hãy cho tôi biết điều gì đã tha
 #: src/components/AllSettings.tsx
 msgid "This JusPrin build cannot list the settings."
 msgstr "Bản dựng JusPrin này không thể liệt kê các cài đặt."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "This model can’t see pictures, so the AI works without seeing your model."
+msgstr "Mô hình này không xem được hình ảnh, nên AI sẽ làm việc mà không nhìn thấy mô hình của bạn."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -4585,6 +4735,11 @@ msgid "Updates come from the Microsoft Store."
 msgstr "Bản cập nhật đến từ Microsoft Store."
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Use a model you run yourself with Ollama, LM Studio or a similar app. Your messages go to that app, not to an online AI service, and there is nothing to pay. Local models are slower and make more mistakes than the cloud models above."
+msgstr "Dùng một mô hình bạn tự chạy bằng Ollama, LM Studio hoặc ứng dụng tương tự. Tin nhắn của bạn được gửi đến ứng dụng đó, không phải đến dịch vụ AI trực tuyến, và bạn không phải trả phí. Mô hình cục bộ chậm hơn và mắc lỗi nhiều hơn các mô hình đám mây ở trên."
+
+# AI Translated
 #: src/components/SignInDoor.tsx
 msgid "Use a password instead"
 msgstr "Dùng mật khẩu"
@@ -4603,6 +4758,11 @@ msgstr "Dùng giá trị của dự án"
 #: src/components/AllSettings.tsx
 msgid "Use project value for {label}"
 msgstr "Dùng giá trị của dự án cho {label}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Use this model"
+msgstr "Dùng mô hình này"
 
 # AI Translated
 #: ../HomeUI/src/components/Onboarding.tsx

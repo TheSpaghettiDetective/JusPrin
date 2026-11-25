@@ -73,6 +73,10 @@ describe('protocol constants', () => {
       'account_password',
       'account_reopen',
       'account_open_link',
+      'local_find',
+      'local_check',
+      'local_cancel',
+      'local_remove',
     ]);
     expect(protocolJson.hostMessageTypes).toContain('hello_ack');
     expect(protocolJson.hostMessageTypes).toContain('assistant_delta');

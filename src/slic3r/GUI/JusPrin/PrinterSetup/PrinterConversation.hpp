@@ -234,6 +234,7 @@ private:
     std::vector<DiscoveredPrinter> m_network;
     // The model's instructions, as the page wrote them for this session.
     std::string m_instructions;
+    std::string m_instructions_without_web_search;
 
     // What this session added, by catalogue id: the saved printer's name.
     std::map<std::string, std::string> m_added;

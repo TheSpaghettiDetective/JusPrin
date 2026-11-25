@@ -332,6 +332,7 @@ void PrinterConversation::start(ConversationMode mode, const std::string& printe
     m_opened       = false;
     // A new session's page writes its instructions again.
     m_instructions.clear();
+    m_instructions_without_web_search.clear();
     m_network.clear();
     m_credential_action.clear();
     m_credential_arguments = json::object();
@@ -471,7 +472,8 @@ Agent::AgentSessionProfile PrinterConversation::profile() const
     profile.tool_names = session_tools();
     const std::vector<std::string> settings = settings_tools();
     profile.tool_names.insert(profile.tool_names.end(), settings.begin(), settings.end());
-    profile.instructions = m_instructions;
+    profile.instructions                    = m_instructions;
+    profile.instructions_without_web_search = m_instructions_without_web_search;
     // This conversation is about a machine, not about the open project, and
     // what the app does on its own reaches the model as notes.
     profile.include_workspace          = false;
@@ -1228,7 +1230,8 @@ bool PrinterConversation::handle_page_message(const std::string& type, const jso
         // Bounded: the page's words become every request's system prompt.
         const std::string text = payload.value("text", std::string());
         if (text.size() <= kInstructionsLimit && text != m_instructions) {
-            m_instructions = text;
+            m_instructions                    = text;
+            m_instructions_without_web_search = payload.value("withoutWebSearch", std::string());
             m_host.profile_changed();
         }
         return true;

@@ -20,6 +20,8 @@ import {
   SavedKeyInfo,
   SetupKeysPayload,
   SetupStatusPayload,
+  LocalModelInfo,
+  LocalStatusPayload,
   ConfirmPayload,
   StatePayload,
   ToolActivityInfo,
@@ -102,6 +104,10 @@ export interface AgentUiState {
   // Providers with a stored key, by hint: never the key. The host sends it
   // after each handshake and whenever a key is stored, removed or refused.
   savedKeys: SavedKeyInfo[];
+  // The model on this computer that is set up, and how setting one up is
+  // going, mirrored from the host like `setup`.
+  localModel: LocalModelInfo | null;
+  localSetup: LocalStatusPayload;
   // Progress of a JusPrin sign-in, mirrored from the host like `setup`.
   account: AccountStatusPayload;
   mcpCatalog: McpCatalogPayload | null;
@@ -144,6 +150,8 @@ export const initialState: AgentUiState = {
   context: null,
   setup: { phase: 'idle' },
   savedKeys: [],
+  localModel: null,
+  localSetup: { phase: 'idle' },
   account: { phase: 'idle' },
   creditAccount: null,
   chatTitles: {},
@@ -249,6 +257,7 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
         // A full state answers a fresh handshake; any check that was in
         // flight before belonged to the previous page.
         setup: { phase: 'idle' },
+        localSetup: { phase: 'idle' },
         mcpStatus: { phase: 'idle' },
         needsResync: false,
       };
@@ -279,8 +288,12 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
       return { ...state, confirmation: envelope.payload as ConfirmPayload };
     case 'reveal_item':
       return { ...state, reveal: { itemId: payload.itemId as string, count: (state.reveal?.count ?? 0) + 1 } };
-    case 'setup_keys':
-      return { ...state, savedKeys: (envelope.payload as SetupKeysPayload).keys };
+    case 'setup_keys': {
+      const keys = envelope.payload as SetupKeysPayload;
+      return { ...state, savedKeys: keys.keys, localModel: keys.local ?? null };
+    }
+    case 'local_status':
+      return { ...state, localSetup: envelope.payload as LocalStatusPayload };
     case 'account_status':
       return { ...state, account: envelope.payload as AccountStatusPayload };
     case 'account':

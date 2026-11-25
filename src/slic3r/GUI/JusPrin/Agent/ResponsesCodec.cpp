@@ -45,7 +45,9 @@ json tools_json(const std::vector<OfferedTool>& tools, const ProviderProfile& pr
     // The provider's own web search, which the instructions tell the model
     // to use before it guesses. The provider runs it inside the response, so
     // its call and the cited text come back among the output items.
-    items.push_back(json{{"type", profile.web_search_type}});
+    // A provider without one, such as a model on this computer, gets none.
+    if (!profile.web_search_type.empty())
+        items.push_back(json{{"type", profile.web_search_type}});
     return items;
 }
 

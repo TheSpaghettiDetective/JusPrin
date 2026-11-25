@@ -220,9 +220,19 @@ msgid "{count, plural, one {+{n} credit} other {+{n} credits}}"
 msgstr "{count, plural, one {+{n} kredit} other {+{n} kredit}}"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "{count, plural, one {LM Studio at {address} has # model. Pick the one your chats should use.} other {LM Studio at {address} has # models. Pick the one your chats should use.}}"
+msgstr "{count, plural, one {Az LM Studióban ({address}) # modell van. Válaszd ki, melyiket használják a csevegéseid.} other {Az LM Studióban ({address}) # modell van. Válaszd ki, melyiket használják a csevegéseid.}}"
+
+# AI Translated
 #: src/components/AllSettings.tsx
 msgid "{count, plural, one {Negative part} other {Negative parts}}"
 msgstr "{count, plural, one {Negatív tárgy} other {Negatív tárgyak}}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "{count, plural, one {Ollama at {address} has # model. Pick the one your chats should use.} other {Ollama at {address} has # models. Pick the one your chats should use.}}"
+msgstr "{count, plural, one {Az Ollamában ({address}) # modell van. Válaszd ki, melyiket használják a csevegéseid.} other {Az Ollamában ({address}) # modell van. Válaszd ki, melyiket használják a csevegéseid.}}"
 
 # AI Translated
 #: src/components/AllSettings.tsx
@@ -238,6 +248,11 @@ msgstr "{count, plural, one {Támasz blokkoló} other {Támasz blokkolók}}"
 #: src/components/AllSettings.tsx
 msgid "{count, plural, one {Support enforcer} other {Support enforcers}}"
 msgstr "{count, plural, one {Támasz kényszerítő} other {Támasz kényszerítők}}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "{count, plural, one {The app at {address} has # model. Pick the one your chats should use.} other {The app at {address} has # models. Pick the one your chats should use.}}"
+msgstr "{count, plural, one {Az alkalmazásban ({address}) # modell van. Válaszd ki, melyiket használják a csevegéseid.} other {Az alkalmazásban ({address}) # modell van. Válaszd ki, melyiket használják a csevegéseid.}}"
 
 # AI Translated
 #: src/components/TurnActivity.tsx
@@ -637,6 +652,11 @@ msgid "{reportCredits, plural, one {Share how it printed and get {reportCredits}
 msgstr "{reportCredits, plural, one {Oszd meg, hogyan sikerült a nyomtatás, és kapj {reportCredits} kreditet} other {Oszd meg, hogyan sikerült a nyomtatás, és kapj {reportCredits} kreditet}}"
 
 # AI Translated
+#: src/components/ModelPickers.tsx
+msgid "{runtime} · no credits"
+msgstr "{runtime} · kredit nélkül"
+
+# AI Translated
 #. A duration in seconds, abbreviated: 45s
 #: ../HomeUI/src/history.ts
 msgid "{secs}s"
@@ -832,6 +852,12 @@ msgid "A chat keeps the model it started with."
 msgstr "A csevegés megtartja azt a modellt, amellyel indult."
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+#: src/components/LocalModelGroup.tsx
+msgid "A model on this computer"
+msgstr "Modell ezen a számítógépen"
+
+# AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
 msgid "A new name has to differ from the old one by more than capitalization."
 msgstr "Az új névnek nemcsak a kis- és nagybetűkben kell különböznie a régitől."
@@ -907,6 +933,11 @@ msgstr "Add hozzá a nyomtatódat"
 #: src/components/PrinterPanel.tsx
 msgid "Added: <0>{name}</0>"
 msgstr "Hozzáadva: <0>{name}</0>"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Address of the app that runs the model"
+msgstr "A modellt futtató alkalmazás címe"
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -1215,8 +1246,8 @@ msgstr "Saját AI használata"
 
 # AI Translated
 #: src/components/Preferences.tsx
-msgid "Bring Your Own AI: an API key or an AI app you already pay for. No JusPrin account needed. Set up as many as you like; each chat picks a model from them."
-msgstr "Saját AI használata: egy API-kulcs vagy egy AI-alkalmazás, amelyért már fizetsz. Nem kell hozzá JusPrin-fiók. Annyit állíthatsz be, amennyit szeretnél; minden csevegés ezek közül választ modellt."
+msgid "Bring Your Own AI: an API key, an AI app you already pay for, or a model you run on this computer. No JusPrin account needed. Set up as many as you like; each chat picks a model from them."
+msgstr "Saját AI használata: API-kulcs, egy AI-alkalmazás, amelyért már fizetsz, vagy egy modell, amelyet ezen a számítógépen futtatsz. Nem kell JusPrin-fiók. Annyit állíthatsz be, amennyit csak szeretnél; minden csevegés ezek közül választ modellt."
 
 # AI Translated
 #: ../HomeUI/src/components/Onboarding.tsx
@@ -1249,6 +1280,11 @@ msgid "Camera view of {name}"
 msgstr "{name} kameraképe"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Can see pictures"
+msgstr "Lát képeket"
+
+# AI Translated
 #: src/components/SetupLocalTool.tsx
 msgid "Can’t be stopped once started; it takes a moment."
 msgstr "Elindítás után nem állítható le; egy kis ideig tart."
@@ -1262,6 +1298,11 @@ msgstr "Nem találod a nyomtatódat? <0>Kérdezd az AI-t</0>"
 #: src/components/OrcaImport.tsx
 msgid "Can’t import"
 msgstr "Nem importálható"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Can’t see pictures. The AI works without seeing your model."
+msgstr "Nem lát képeket. Az AI a 3D-modelled megtekintése nélkül dolgozik."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -1286,6 +1327,8 @@ msgstr "A beállításfájl nem írható."
 #: src/components/ChangeRows.tsx
 #: src/components/ChatNavigation.tsx
 #: src/components/ChatNavigation.tsx
+#: src/components/LocalModelGroup.tsx
+#: src/components/LocalModelGroup.tsx
 #: src/components/OrcaImport.tsx
 #: src/components/OrcaImport.tsx
 #: src/components/Preferences.tsx
@@ -1307,6 +1350,11 @@ msgstr "Megszakítva"
 #: src/components/ToolActivityCard.tsx
 msgid "Cancelled — nothing was changed"
 msgstr "Megszakítva – semmi sem módosult"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Change"
+msgstr "Módosítás"
 
 # AI Translated
 #: src/components/SignInDoor.tsx
@@ -1356,6 +1404,11 @@ msgid "Chats"
 msgstr "Csevegések"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Chats can use"
+msgstr "Csevegésekhez használható"
+
+# AI Translated
 #: src/components/Panels.tsx
 msgid "Chatting here needs AI."
 msgstr "Az itteni csevegéshez AI szükséges."
@@ -1389,6 +1442,11 @@ msgstr "Ellenőrizd a helyesírást, vagy próbálj más szavakat. Az AI-t is me
 #: src/components/SignInDoor.tsx
 msgid "Check your email."
 msgstr "Nézd meg az e-mailjeidet."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Checking {pickedModel}. A local model can take a minute to answer the first time."
+msgstr "{pickedModel} ellenőrzése. Egy helyi modellnek első alkalommal akár egy percbe is telhet, mire válaszol."
 
 # AI Translated
 #: src/components/Preferences.tsx
@@ -1928,6 +1986,11 @@ msgid "Find a language"
 msgstr "Nyelv keresése"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Find models"
+msgstr "Modellek keresése"
+
+# AI Translated
 #: src/components/SignInDoor.tsx
 msgid "Finish in your browser."
 msgstr "Fejezd be a böngésződben."
@@ -2138,6 +2201,11 @@ msgstr "Hogyan sikerült?"
 #: src/printerWords.ts
 msgid "How do I check?"
 msgstr "Hogyan ellenőrizzem?"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "How to check and change this"
+msgstr "Hogyan ellenőrizheted és módosíthatod"
 
 # AI Translated
 #: src/components/OrcaImport.tsx
@@ -2515,6 +2583,16 @@ msgid "Live URL (developer only — this can change after restart)"
 msgstr "Élő URL (csak fejlesztőknek – újraindítás után megváltozhat)"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "LM Studio at {address}"
+msgstr "LM Studio itt: {address}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "LM Studio at {address} has no models. Download one in LM Studio, then find models again."
+msgstr "Az LM Studióban ({address}) nincs modell. Tölts le egyet az LM Studióban, majd keresd meg újra a modelleket."
+
+# AI Translated
 #: ../HomeUI/src/components/PrinterPickerHost.tsx
 msgid "Loading JusPrin’s settings for this printer…"
 msgstr "A JusPrin beállításainak betöltése ehhez a nyomtatóhoz…"
@@ -2528,6 +2606,11 @@ msgstr "Modellek betöltése…"
 #: ../HomeUI/src/components/PrintHistory.tsx
 msgid "Loading print history…"
 msgstr "Nyomtatási előzmények betöltése…"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Local model"
+msgstr "Helyi modell"
 
 # AI Translated
 #: src/components/Preferences.tsx
@@ -2553,6 +2636,11 @@ msgstr "Itt keresett: {path}"
 #: src/components/Preferences.tsx
 msgid "Looking for a newer version on GitHub…"
 msgstr "Újabb verzió keresése a GitHubon…"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Looking for models at {typedAddress}…"
+msgstr "Modellek keresése itt: {typedAddress}…"
 
 # AI Translated
 #. A thinking level of the AI model
@@ -2627,6 +2715,7 @@ msgid "Minimal"
 msgstr "Minimális"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
 #: src/components/ModelPickers.tsx
 #: src/components/Preferences.tsx
 #: src/components/Preferences.tsx
@@ -2785,6 +2874,11 @@ msgid "No chats yet. Start a new chat about this project."
 msgstr "Még nincsenek csevegések. Kezdj új csevegést erről a projektről."
 
 # AI Translated
+#: src/components/ModelPickers.tsx
+msgid "No credits"
+msgstr "Kredit nélkül"
+
+# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "No filament for the {modelName} matches “{search}”."
 msgstr "Egyetlen {modelName}-filament sem egyezik ezzel: „{search}”."
@@ -2921,6 +3015,11 @@ msgid "Not saved"
 msgstr "Nincs mentve"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Not set up"
+msgstr "Nincs beállítva"
+
+# AI Translated
 #: src/components/Panels.tsx
 msgid "NOT SET UP"
 msgstr "NINCS BEÁLLÍTVA"
@@ -2989,6 +3088,16 @@ msgstr "Ki"
 #: src/components/PrinterPanel.tsx
 msgid "Offline"
 msgstr "Offline"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Ollama at {address}"
+msgstr "Ollama itt: {address}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Ollama at {address} has no models. Download one in Ollama, then find models again."
+msgstr "Az Ollamában ({address}) nincs modell. Tölts le egyet az Ollamában, majd keresd meg újra a modelleket."
 
 # AI Translated
 #: src/components/AllSettings.tsx
@@ -3449,6 +3558,7 @@ msgstr "Emlékeztess holnap"
 #: src/components/AgentConnection.tsx
 #: src/components/AllSettings.tsx
 #: src/components/AttachmentChip.tsx
+#: src/components/LocalModelGroup.tsx
 msgid "Remove"
 msgstr "Eltávolítás"
 
@@ -3846,6 +3956,11 @@ msgstr "Sorozatszám"
 #: src/components/AllSettings.tsx
 msgid "Set on this plate"
 msgstr "Ezen a tálcán beállítva"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Set up"
+msgstr "Beállítás"
 
 # AI Translated
 #: ../HomeUI/src/components/AgentGroup.tsx
@@ -4261,6 +4376,16 @@ msgid "The AI slicer that helps you get better prints."
 msgstr "Az AI-szeletelő, amely segít jobb nyomatokat készíteni."
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The app at {address}"
+msgstr "Az alkalmazás itt: {address}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The app at {address} has no models. Download one in that app, then find models again."
+msgstr "Az alkalmazásban ({address}) nincs modell. Tölts le egyet abban az alkalmazásban, majd keresd meg újra a modelleket."
+
+# AI Translated
 #: src/components/SignInDoor.tsx
 msgid "The app continues on its own once the browser is done."
 msgstr "Amint a böngészőben végeztél, az app magától folytatja."
@@ -4309,6 +4434,21 @@ msgstr "Az OrcaSlicer teljes beállítási ablaka, amelyre a JusPrin épül."
 #: src/components/AgentConnection.tsx
 msgid "The key could not be checked. Nothing was saved."
 msgstr "A kulcsot nem sikerült ellenőrizni. Semmi sem lett mentve."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The model must support tools, and its context length in LM Studio must be at least 32k."
+msgstr "A modellnek támogatnia kell az eszközöket, és az LM Studióban beállított kontextushossz legalább 32k legyen."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The model must support tools, and its context length in Ollama must be at least 32k."
+msgstr "A modellnek támogatnia kell az eszközöket, és az Ollamában beállított kontextushossz legalább 32k legyen."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The model must support tools, and its context length in the app that runs it must be at least 32k."
+msgstr "A modellnek támogatnia kell az eszközöket, és a modellt futtató alkalmazásban beállított kontextushossz legalább 32k legyen."
 
 # AI Translated
 #: src/components/OrcaImport.tsx
@@ -4399,6 +4539,11 @@ msgid "This is an internal connection inside JusPrin, not a network service. The
 msgstr "Ez a JusPrinen belüli kapcsolat, nem hálózati szolgáltatás. A 3D-vászon és minden más vezérlő tovább működik."
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "This is Ollama’s address. For LM Studio, use <0>http://127.0.0.1:1234</0>."
+msgstr "Ez az Ollama címe. LM Studióhoz ezt használd: <0>http://127.0.0.1:1234</0>."
+
+# AI Translated
 #: src/printerWords.ts
 msgid "This is the {name}. Tell me what changed on it, or ask anything about it."
 msgstr "Ez a(z) {name}. Mondd el, mi változott rajta, vagy kérdezz róla bármit."
@@ -4412,6 +4557,11 @@ msgstr "Ez a te nyomtatód. Mondd el, mi változott rajta, vagy kérdezz róla b
 #: src/components/AllSettings.tsx
 msgid "This JusPrin build cannot list the settings."
 msgstr "Ez a JusPrin-verzió nem tudja kilistázni a beállításokat."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "This model can’t see pictures, so the AI works without seeing your model."
+msgstr "Ez a modell nem lát képeket, ezért az AI a 3D-modelled megtekintése nélkül dolgozik."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -4589,6 +4739,11 @@ msgid "Updates come from the Microsoft Store."
 msgstr "A frissítések a Microsoft Store-ból érkeznek."
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Use a model you run yourself with Ollama, LM Studio or a similar app. Your messages go to that app, not to an online AI service, and there is nothing to pay. Local models are slower and make more mistakes than the cloud models above."
+msgstr "Használj egy modellt, amelyet te magad futtatsz az Ollamával, az LM Studióval vagy egy hasonló alkalmazással. Az üzeneteid ahhoz az alkalmazáshoz kerülnek, nem egy online AI-szolgáltatáshoz, és semmit sem kell fizetni. A helyi modellek lassabbak, és több hibát vétenek, mint a fenti felhőalapú modellek."
+
+# AI Translated
 #: src/components/SignInDoor.tsx
 msgid "Use a password instead"
 msgstr "Inkább jelszó használata"
@@ -4607,6 +4762,11 @@ msgstr "Projektérték használata"
 #: src/components/AllSettings.tsx
 msgid "Use project value for {label}"
 msgstr "Projektérték használata ehhez: {label}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Use this model"
+msgstr "Modell használata"
 
 # AI Translated
 #: ../HomeUI/src/components/Onboarding.tsx

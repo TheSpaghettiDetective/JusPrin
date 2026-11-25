@@ -62,14 +62,24 @@ const SETTINGS =
   '- After a change is applied, say what changed in the person\'s terms and end with "Choices: Done".\n';
 
 // Shared with the filament and project chats (filamentInstructions.ts,
-// projectInstructions.ts): every request of all three offers the provider's
-// own web search beside the app's tools (the codecs add it).
+// projectInstructions.ts): a request of all three offers the provider's own
+// web search beside the app's tools (the codecs add it), unless the provider
+// has none.
 export const LOOK_IT_UP =
   'You have web_search. Before you say where a menu or setting is on their printer or in a program they use, what ' +
   'a message or failure means, or how a printer or filament behaves, search for it, with their printer\'s model ' +
   'or the program\'s version where it matters, and say what you found and that it comes from the web. Guess only ' +
   'what the search does not answer, and say it is a guess. How this app works is not on the web: that comes from ' +
   'the tools and the app\'s messages.';
+
+// The same instructions for a model with no web search of its own (a model
+// on this computer): the app sends a chat on such a model this copy, so it
+// is never told it has a tool it lacks.
+export function withoutLookItUp(instructions: string): string {
+  const paragraph = '\n' + LOOK_IT_UP;
+  if (!instructions.includes(paragraph)) throw new Error('These instructions do not offer web_search');
+  return instructions.replace(paragraph, '');
+}
 
 const CONDUCT =
   'Use plain language, one to three short sentences. Ask one question at a time, and say where to find any answer you ask ' +

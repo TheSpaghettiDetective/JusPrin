@@ -218,9 +218,19 @@ msgid "{count, plural, one {+{n} credit} other {+{n} credits}}"
 msgstr "{count, plural, other {+{n} เครดิต}}"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "{count, plural, one {LM Studio at {address} has # model. Pick the one your chats should use.} other {LM Studio at {address} has # models. Pick the one your chats should use.}}"
+msgstr "{count, plural, other {LM Studio ที่ {address} มี # โมเดล เลือกโมเดลที่แชทของคุณจะใช้}}"
+
+# AI Translated
 #: src/components/AllSettings.tsx
 msgid "{count, plural, one {Negative part} other {Negative parts}}"
 msgstr "{count, plural, other {ส่วนเชิงลบ}}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "{count, plural, one {Ollama at {address} has # model. Pick the one your chats should use.} other {Ollama at {address} has # models. Pick the one your chats should use.}}"
+msgstr "{count, plural, other {Ollama ที่ {address} มี # โมเดล เลือกโมเดลที่แชทของคุณจะใช้}}"
 
 # AI Translated
 #: src/components/AllSettings.tsx
@@ -236,6 +246,11 @@ msgstr "{count, plural, other {ตัวบล็อกส่วนรองร�
 #: src/components/AllSettings.tsx
 msgid "{count, plural, one {Support enforcer} other {Support enforcers}}"
 msgstr "{count, plural, other {กำหนดส่วนรองรับ}}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "{count, plural, one {The app at {address} has # model. Pick the one your chats should use.} other {The app at {address} has # models. Pick the one your chats should use.}}"
+msgstr "{count, plural, other {แอปที่ {address} มี # โมเดล เลือกโมเดลที่แชทของคุณจะใช้}}"
 
 # AI Translated
 #: src/components/TurnActivity.tsx
@@ -635,6 +650,11 @@ msgid "{reportCredits, plural, one {Share how it printed and get {reportCredits}
 msgstr "{reportCredits, plural, other {แชร์ผลการพิมพ์และรับ {reportCredits} เครดิต}}"
 
 # AI Translated
+#: src/components/ModelPickers.tsx
+msgid "{runtime} · no credits"
+msgstr "{runtime} · ไม่ใช้เครดิต"
+
+# AI Translated
 #. A duration in seconds, abbreviated: 45s
 #: ../HomeUI/src/history.ts
 msgid "{secs}s"
@@ -833,6 +853,12 @@ msgid "A chat keeps the model it started with."
 msgstr "แชทจะใช้โมเดลที่เริ่มต้นไว้ตลอด"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+#: src/components/LocalModelGroup.tsx
+msgid "A model on this computer"
+msgstr "โมเดลบนคอมพิวเตอร์เครื่องนี้"
+
+# AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
 msgid "A new name has to differ from the old one by more than capitalization."
 msgstr "ชื่อใหม่ต้องต่างจากชื่อเดิมมากกว่าแค่ตัวพิมพ์เล็ก-ใหญ่"
@@ -908,6 +934,11 @@ msgstr "เพิ่มเครื่องพิมพ์ของคุณ"
 #: src/components/PrinterPanel.tsx
 msgid "Added: <0>{name}</0>"
 msgstr "เพิ่มแล้ว: <0>{name}</0>"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Address of the app that runs the model"
+msgstr "ที่อยู่ของแอปที่รันโมเดล"
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -1218,8 +1249,8 @@ msgstr "ใช้ AI ของคุณเอง"
 
 # AI Translated
 #: src/components/Preferences.tsx
-msgid "Bring Your Own AI: an API key or an AI app you already pay for. No JusPrin account needed. Set up as many as you like; each chat picks a model from them."
-msgstr "ใช้ AI ของคุณเอง: คีย์ API หรือแอป AI ที่คุณจ่ายเงินอยู่แล้ว ไม่ต้องมีบัญชี JusPrin ตั้งค่าได้มากเท่าที่ต้องการ แต่ละแชทจะเลือกโมเดลจากรายการเหล่านี้"
+msgid "Bring Your Own AI: an API key, an AI app you already pay for, or a model you run on this computer. No JusPrin account needed. Set up as many as you like; each chat picks a model from them."
+msgstr "ใช้ AI ของคุณเอง: คีย์ API, แอป AI ที่คุณจ่ายเงินอยู่แล้ว หรือโมเดลที่คุณรันบนคอมพิวเตอร์เครื่องนี้ ไม่ต้องมีบัญชี JusPrin ตั้งค่าได้มากเท่าที่ต้องการ แต่ละแชทจะเลือกโมเดลจากรายการเหล่านี้"
 
 # AI Translated
 #: ../HomeUI/src/components/Onboarding.tsx
@@ -1252,6 +1283,11 @@ msgid "Camera view of {name}"
 msgstr "ภาพจากกล้องของ {name}"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Can see pictures"
+msgstr "มองเห็นรูปภาพได้"
+
+# AI Translated
 #: src/components/SetupLocalTool.tsx
 msgid "Can’t be stopped once started; it takes a moment."
 msgstr "หยุดไม่ได้เมื่อเริ่มแล้ว และใช้เวลาสักครู่"
@@ -1265,6 +1301,11 @@ msgstr "หาเครื่องพิมพ์ของคุณไม่เ
 #: src/components/OrcaImport.tsx
 msgid "Can’t import"
 msgstr "นำเข้าไม่ได้"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Can’t see pictures. The AI works without seeing your model."
+msgstr "มองไม่เห็นรูปภาพ AI จะทำงานโดยไม่เห็นโมเดลของคุณ"
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -1289,6 +1330,8 @@ msgstr "เขียนไฟล์การตั้งค่าไม่ได
 #: src/components/ChangeRows.tsx
 #: src/components/ChatNavigation.tsx
 #: src/components/ChatNavigation.tsx
+#: src/components/LocalModelGroup.tsx
+#: src/components/LocalModelGroup.tsx
 #: src/components/OrcaImport.tsx
 #: src/components/OrcaImport.tsx
 #: src/components/Preferences.tsx
@@ -1310,6 +1353,11 @@ msgstr "ยกเลิกแล้ว"
 #: src/components/ToolActivityCard.tsx
 msgid "Cancelled — nothing was changed"
 msgstr "ยกเลิกแล้ว ไม่มีการเปลี่ยนแปลงใดๆ"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Change"
+msgstr "เปลี่ยน"
 
 # AI Translated
 #: src/components/SignInDoor.tsx
@@ -1359,6 +1407,11 @@ msgid "Chats"
 msgstr "แชท"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Chats can use"
+msgstr "แชทใช้ได้"
+
+# AI Translated
 #: src/components/Panels.tsx
 msgid "Chatting here needs AI."
 msgstr "การแชทที่นี่ต้องใช้ AI"
@@ -1392,6 +1445,11 @@ msgstr "ตรวจสอบการสะกดหรือลองใช้
 #: src/components/SignInDoor.tsx
 msgid "Check your email."
 msgstr "ตรวจสอบอีเมลของคุณ"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Checking {pickedModel}. A local model can take a minute to answer the first time."
+msgstr "กำลังตรวจสอบ {pickedModel} โมเดลในเครื่องอาจใช้เวลาราวหนึ่งนาทีในการตอบครั้งแรก"
 
 # AI Translated
 #: src/components/Preferences.tsx
@@ -1935,6 +1993,11 @@ msgid "Find a language"
 msgstr "ค้นหาภาษา"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Find models"
+msgstr "ค้นหาโมเดล"
+
+# AI Translated
 #: src/components/SignInDoor.tsx
 msgid "Finish in your browser."
 msgstr "ดำเนินการต่อให้เสร็จในเบราว์เซอร์ของคุณ"
@@ -2145,6 +2208,11 @@ msgstr "ผลออกมาเป็นอย่างไร?"
 #: src/printerWords.ts
 msgid "How do I check?"
 msgstr "ตรวจสอบอย่างไร?"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "How to check and change this"
+msgstr "วิธีตรวจสอบและเปลี่ยนค่านี้"
 
 # AI Translated
 #: src/components/OrcaImport.tsx
@@ -2524,6 +2592,16 @@ msgid "Live URL (developer only — this can change after restart)"
 msgstr "URL สด (สำหรับนักพัฒนาเท่านั้น อาจเปลี่ยนหลังเริ่มใหม่)"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "LM Studio at {address}"
+msgstr "LM Studio ที่ {address}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "LM Studio at {address} has no models. Download one in LM Studio, then find models again."
+msgstr "LM Studio ที่ {address} ไม่มีโมเดล ดาวน์โหลดโมเดลใน LM Studio แล้วค้นหาโมเดลอีกครั้ง"
+
+# AI Translated
 #: ../HomeUI/src/components/PrinterPickerHost.tsx
 msgid "Loading JusPrin’s settings for this printer…"
 msgstr "กำลังโหลดการตั้งค่าของ JusPrin สำหรับเครื่องพิมพ์นี้…"
@@ -2537,6 +2615,11 @@ msgstr "กำลังโหลดโมเดล…"
 #: ../HomeUI/src/components/PrintHistory.tsx
 msgid "Loading print history…"
 msgstr "กำลังโหลดประวัติการพิมพ์…"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Local model"
+msgstr "โมเดลในเครื่อง"
 
 # AI Translated
 #: src/components/Preferences.tsx
@@ -2562,6 +2645,11 @@ msgstr "ค้นหาใน {path} แล้ว"
 #: src/components/Preferences.tsx
 msgid "Looking for a newer version on GitHub…"
 msgstr "กำลังค้นหาเวอร์ชันที่ใหม่กว่าบน GitHub…"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Looking for models at {typedAddress}…"
+msgstr "กำลังค้นหาโมเดลที่ {typedAddress}…"
 
 # AI Translated
 #. A thinking level of the AI model
@@ -2636,6 +2724,7 @@ msgid "Minimal"
 msgstr "น้อยที่สุด"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
 #: src/components/ModelPickers.tsx
 #: src/components/Preferences.tsx
 #: src/components/Preferences.tsx
@@ -2794,6 +2883,11 @@ msgid "No chats yet. Start a new chat about this project."
 msgstr "ยังไม่มีแชท เริ่มแชทใหม่เกี่ยวกับโปรเจกต์นี้"
 
 # AI Translated
+#: src/components/ModelPickers.tsx
+msgid "No credits"
+msgstr "ไม่ใช้เครดิต"
+
+# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "No filament for the {modelName} matches “{search}”."
 msgstr "ไม่มีเส้นพลาสติกสำหรับ {modelName} ที่ตรงกับ “{search}”"
@@ -2931,6 +3025,11 @@ msgid "Not saved"
 msgstr "ยังไม่ได้บันทึก"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Not set up"
+msgstr "ยังไม่ได้ตั้งค่า"
+
+# AI Translated
 #: src/components/Panels.tsx
 msgid "NOT SET UP"
 msgstr "ยังไม่ได้ตั้งค่า"
@@ -2999,6 +3098,16 @@ msgstr "ปิด"
 #: src/components/PrinterPanel.tsx
 msgid "Offline"
 msgstr "ออฟไลน์"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Ollama at {address}"
+msgstr "Ollama ที่ {address}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Ollama at {address} has no models. Download one in Ollama, then find models again."
+msgstr "Ollama ที่ {address} ไม่มีโมเดล ดาวน์โหลดโมเดลใน Ollama แล้วค้นหาโมเดลอีกครั้ง"
 
 # AI Translated
 #: src/components/AllSettings.tsx
@@ -3460,6 +3569,7 @@ msgstr "เตือนฉันพรุ่งนี้"
 #: src/components/AgentConnection.tsx
 #: src/components/AllSettings.tsx
 #: src/components/AttachmentChip.tsx
+#: src/components/LocalModelGroup.tsx
 msgid "Remove"
 msgstr "ลบ"
 
@@ -3858,6 +3968,11 @@ msgstr "หมายเลขซีเรียล"
 #: src/components/AllSettings.tsx
 msgid "Set on this plate"
 msgstr "ตั้งค่าบนเพลตนี้"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Set up"
+msgstr "ตั้งค่า"
 
 # AI Translated
 #: ../HomeUI/src/components/AgentGroup.tsx
@@ -4275,6 +4390,16 @@ msgid "The AI slicer that helps you get better prints."
 msgstr "สไลเซอร์ AI ที่ช่วยให้คุณได้งานพิมพ์ที่ดีขึ้น"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The app at {address}"
+msgstr "แอปที่ {address}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The app at {address} has no models. Download one in that app, then find models again."
+msgstr "แอปที่ {address} ไม่มีโมเดล ดาวน์โหลดโมเดลในแอปนั้น แล้วค้นหาโมเดลอีกครั้ง"
+
+# AI Translated
 #: src/components/SignInDoor.tsx
 msgid "The app continues on its own once the browser is done."
 msgstr "แอปจะดำเนินการต่อเองเมื่อเสร็จในเบราว์เซอร์"
@@ -4324,6 +4449,21 @@ msgstr "หน้าต่างการตั้งค่าฉบับเต
 #: src/components/AgentConnection.tsx
 msgid "The key could not be checked. Nothing was saved."
 msgstr "ตรวจสอบคีย์ไม่ได้ ไม่มีการบันทึกใดๆ"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The model must support tools, and its context length in LM Studio must be at least 32k."
+msgstr "โมเดลต้องรองรับเครื่องมือ (tools) และความยาวบริบทใน LM Studio ต้องมีอย่างน้อย 32k"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The model must support tools, and its context length in Ollama must be at least 32k."
+msgstr "โมเดลต้องรองรับเครื่องมือ (tools) และความยาวบริบทใน Ollama ต้องมีอย่างน้อย 32k"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The model must support tools, and its context length in the app that runs it must be at least 32k."
+msgstr "โมเดลต้องรองรับเครื่องมือ (tools) และความยาวบริบทในแอปที่รันโมเดลนั้นต้องมีอย่างน้อย 32k"
 
 # AI Translated
 #: src/components/OrcaImport.tsx
@@ -4415,6 +4555,11 @@ msgid "This is an internal connection inside JusPrin, not a network service. The
 msgstr "นี่คือการเชื่อมต่อภายใน JusPrin ไม่ใช่บริการเครือข่าย มุมมอง 3 มิติและตัวควบคุมอื่นทั้งหมดยังทำงานได้ตามปกติ"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "This is Ollama’s address. For LM Studio, use <0>http://127.0.0.1:1234</0>."
+msgstr "นี่คือที่อยู่ของ Ollama สำหรับ LM Studio ให้ใช้ <0>http://127.0.0.1:1234</0>"
+
+# AI Translated
 #: src/printerWords.ts
 msgid "This is the {name}. Tell me what changed on it, or ask anything about it."
 msgstr "นี่คือ {name} บอกฉันได้ว่ามีอะไรเปลี่ยนไปบ้าง หรือถามอะไรเกี่ยวกับเครื่องนี้ก็ได้"
@@ -4428,6 +4573,11 @@ msgstr "นี่คือเครื่องพิมพ์ของคุณ
 #: src/components/AllSettings.tsx
 msgid "This JusPrin build cannot list the settings."
 msgstr "บิลด์ JusPrin นี้แสดงรายการการตั้งค่าไม่ได้"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "This model can’t see pictures, so the AI works without seeing your model."
+msgstr "โมเดลนี้มองไม่เห็นรูปภาพ AI จึงทำงานโดยไม่เห็นโมเดลของคุณ"
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -4607,6 +4757,11 @@ msgid "Updates come from the Microsoft Store."
 msgstr "อัปเดตมาจาก Microsoft Store"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Use a model you run yourself with Ollama, LM Studio or a similar app. Your messages go to that app, not to an online AI service, and there is nothing to pay. Local models are slower and make more mistakes than the cloud models above."
+msgstr "ใช้โมเดลที่คุณรันเองด้วย Ollama, LM Studio หรือแอปที่คล้ายกัน ข้อความของคุณจะส่งไปยังแอปนั้น ไม่ใช่บริการ AI ออนไลน์ และไม่มีค่าใช้จ่าย โมเดลในเครื่องทำงานช้ากว่าและผิดพลาดบ่อยกว่าโมเดลบนคลาวด์ด้านบน"
+
+# AI Translated
 #: src/components/SignInDoor.tsx
 msgid "Use a password instead"
 msgstr "ใช้รหัสผ่านแทน"
@@ -4625,6 +4780,11 @@ msgstr "ใช้ค่าของโปรเจกต์"
 #: src/components/AllSettings.tsx
 msgid "Use project value for {label}"
 msgstr "ใช้ค่าของโปรเจกต์สำหรับ {label}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Use this model"
+msgstr "ใช้โมเดลนี้"
 
 # AI Translated
 #: ../HomeUI/src/components/Onboarding.tsx

@@ -86,6 +86,11 @@ struct AgentSessionProfile
     // The whole system prompt, written by the session's page; the project
     // assistant's comes from AgentUI/src/projectInstructions.ts.
     std::string              instructions;
+    // The same prompt without the paragraph that offers the provider's web
+    // search (withoutLookItUp in printerInstructions.ts), for a provider
+    // that has none, such as a model on this computer. Empty when the
+    // instructions offer no web search.
+    std::string              instructions_without_web_search;
     std::vector<std::string> tool_names;               // empty: every in-app tool
     bool                     include_workspace{true};  // the open project's state
 };

@@ -120,16 +120,18 @@ bool config_true(const AppConfig* config, const char* key)
     return value == "true" || value == "1";
 }
 
-// AI is on only while a key or an account sign-in is saved: signing out or
-// removing the last key leaves "enabled" set, and Home offers setup again.
+// AI is on only while a key, an account sign-in or a model on this computer
+// is saved: signing out or removing the last one leaves "enabled" set, and
+// Home offers setup again.
 bool ai_key_saved(const AppConfig* config)
 {
     if (config == nullptr || config->get("jusprin_agent", "enabled") != "true")
         return false;
     const std::vector<Agent::ProviderProfile>& profiles = Agent::provider_profiles();
-    return std::any_of(profiles.begin(), profiles.end(), [config](const Agent::ProviderProfile& profile) {
-        return !Agent::load_provider_api_key(config, profile.id).empty();
-    });
+    return Agent::load_local_model(config).has_value() ||
+           std::any_of(profiles.begin(), profiles.end(), [config](const Agent::ProviderProfile& profile) {
+               return !Agent::load_provider_api_key(config, profile.id).empty();
+           });
 }
 
 // The printer first run installed for a person who skipped choosing one, by

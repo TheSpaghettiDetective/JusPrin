@@ -9,6 +9,7 @@
 #include "AgentTransport.hpp"
 #include "slic3r/GUI/JusPrin/Updates/Version.hpp"
 
+#include <cstddef>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -20,7 +21,8 @@ namespace Slic3r::GUI::JusPrin::Agent {
 enum class ProviderFamily { Responses, Anthropic };
 
 // How the API key travels: `Authorization: Bearer <key>`, or `x-api-key: <key>`.
-enum class AuthStyle { Bearer, ApiKeyHeader };
+// None sends no credential: a model on this computer needs none.
+enum class AuthStyle { Bearer, ApiKeyHeader, None };
 
 struct ProviderProfile
 {
@@ -56,6 +58,14 @@ struct ProviderProfile
     // the row gives its own. The Messages API has one spelling, which
     // AnthropicCodec writes.
     std::string    web_search_type{"web_search"};
+    // The most seconds one request may take, answer included; 0 sets no
+    // limit. A model on this computer can take minutes on a large request,
+    // and the person can stop the turn.
+    long           request_timeout_seconds{120};
+    // A model the person runs on this computer with an app such as Ollama
+    // or LM Studio, at an address they entered (local_endpoint()). It needs
+    // no key and no cloud consent: nothing leaves the computer.
+    bool           on_this_computer{false};
 };
 
 // Every provider this build can talk to, in the order setup lists them.
@@ -86,6 +96,11 @@ inline const std::vector<ProviderProfile>& provider_profiles()
         // value Anthropic suggests for streaming requests.
         {"anthropic", ProviderFamily::Anthropic, "https://api.anthropic.com/v1/messages", AuthStyle::ApiKeyHeader,
          "claude-opus-5-5", "Anthropic", {{"anthropic-version", "2023-06-01"}}, 64000},
+        // A model on this computer, served by Ollama, LM Studio or another
+        // app with an OpenAI-style Responses endpoint. The endpoint and the
+        // model are the ones the person set up; the row has neither. It has
+        // no web search of its own, and no time limit.
+        {"local", ProviderFamily::Responses, {}, AuthStyle::None, {}, "the model on this computer", {}, 0, {}, false, {}, 0, true},
     };
     return rows;
 }
@@ -100,6 +115,47 @@ inline const ProviderProfile* profile_for(const std::string& id)
 }
 
 inline const ProviderProfile& openai_profile() { return *profile_for("openai"); }
+
+// The provider id of a model on this computer.
+inline constexpr const char* kLocalProvider = "local";
+
+// The address a person enters for the app that runs their model, as the app
+// keeps it: "http://" added when no scheme is given, and a trailing "/" or
+// "/v1" left off, so "localhost:11434/v1/" is "http://localhost:11434".
+inline std::string normalized_local_address(std::string address)
+{
+    const auto blank = [](char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r'; };
+    while (!address.empty() && blank(address.front()))
+        address.erase(address.begin());
+    while (!address.empty() && blank(address.back()))
+        address.pop_back();
+    if (address.empty())
+        return address;
+    if (address.find("://") == std::string::npos)
+        address = "http://" + address;
+    while (!address.empty() && address.back() == '/')
+        address.pop_back();
+    if (address.size() >= 3 && address.compare(address.size() - 3, 3, "/v1") == 0)
+        address.erase(address.size() - 3);
+    while (!address.empty() && address.back() == '/')
+        address.pop_back();
+    return address;
+}
+
+// The Responses endpoint at a local address.
+inline std::string local_endpoint(const std::string& address) { return normalized_local_address(address) + "/v1/responses"; }
+
+// The address as the person reads it in a sentence: no scheme, no path,
+// "127.0.0.1:11434".
+inline std::string local_address_shown(const std::string& address_or_endpoint)
+{
+    std::string shown = normalized_local_address(address_or_endpoint);
+    if (const std::size_t scheme = shown.find("://"); scheme != std::string::npos)
+        shown.erase(0, scheme + 3);
+    if (const std::size_t path = shown.find('/'); path != std::string::npos)
+        shown.erase(path);
+    return shown;
+}
 
 // The provider a JusPrin account signs in to.
 inline const ProviderProfile& account_provider()

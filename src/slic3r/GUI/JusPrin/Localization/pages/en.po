@@ -178,9 +178,17 @@ msgstr "{count, plural, one {# setting} other {# settings}}"
 msgid "{count, plural, one {+{n} credit} other {+{n} credits}}"
 msgstr "{count, plural, one {+{n} credit} other {+{n} credits}}"
 
+#: src/components/LocalModelGroup.tsx
+msgid "{count, plural, one {LM Studio at {address} has # model. Pick the one your chats should use.} other {LM Studio at {address} has # models. Pick the one your chats should use.}}"
+msgstr "{count, plural, one {LM Studio at {address} has # model. Pick the one your chats should use.} other {LM Studio at {address} has # models. Pick the one your chats should use.}}"
+
 #: src/components/AllSettings.tsx
 msgid "{count, plural, one {Negative part} other {Negative parts}}"
 msgstr "{count, plural, one {Negative part} other {Negative parts}}"
+
+#: src/components/LocalModelGroup.tsx
+msgid "{count, plural, one {Ollama at {address} has # model. Pick the one your chats should use.} other {Ollama at {address} has # models. Pick the one your chats should use.}}"
+msgstr "{count, plural, one {Ollama at {address} has # model. Pick the one your chats should use.} other {Ollama at {address} has # models. Pick the one your chats should use.}}"
 
 #: src/components/AllSettings.tsx
 msgid "{count, plural, one {Part} other {Parts}}"
@@ -193,6 +201,10 @@ msgstr "{count, plural, one {Support blocker} other {Support blockers}}"
 #: src/components/AllSettings.tsx
 msgid "{count, plural, one {Support enforcer} other {Support enforcers}}"
 msgstr "{count, plural, one {Support enforcer} other {Support enforcers}}"
+
+#: src/components/LocalModelGroup.tsx
+msgid "{count, plural, one {The app at {address} has # model. Pick the one your chats should use.} other {The app at {address} has # models. Pick the one your chats should use.}}"
+msgstr "{count, plural, one {The app at {address} has # model. Pick the one your chats should use.} other {The app at {address} has # models. Pick the one your chats should use.}}"
 
 #: src/components/TurnActivity.tsx
 msgid "{count, plural, one {Worked for {elapsed} · # action} other {Worked for {elapsed} · # actions}}"
@@ -514,6 +526,10 @@ msgstr "{remaining} left"
 msgid "{reportCredits, plural, one {Share how it printed and get {reportCredits} credit} other {Share how it printed and get {reportCredits} credits}}"
 msgstr "{reportCredits, plural, one {Share how it printed and get {reportCredits} credit} other {Share how it printed and get {reportCredits} credits}}"
 
+#: src/components/ModelPickers.tsx
+msgid "{runtime} · no credits"
+msgstr "{runtime} · no credits"
+
 #. A duration in seconds, abbreviated: 45s
 #: ../HomeUI/src/history.ts
 msgid "{secs}s"
@@ -671,6 +687,11 @@ msgstr "A chat keeps the model and thinking level it started with. Start a new c
 msgid "A chat keeps the model it started with."
 msgstr "A chat keeps the model it started with."
 
+#: src/components/LocalModelGroup.tsx
+#: src/components/LocalModelGroup.tsx
+msgid "A model on this computer"
+msgstr "A model on this computer"
+
 #: ../HomeUI/src/components/PrinterMenu.tsx
 msgid "A new name has to differ from the old one by more than capitalization."
 msgstr "A new name has to differ from the old one by more than capitalization."
@@ -732,6 +753,10 @@ msgstr "Add your printer"
 #: src/components/PrinterPanel.tsx
 msgid "Added: <0>{name}</0>"
 msgstr "Added: <0>{name}</0>"
+
+#: src/components/LocalModelGroup.tsx
+msgid "Address of the app that runs the model"
+msgstr "Address of the app that runs the model"
 
 #: src/components/SetupLocalTool.tsx
 msgid "Advanced / developer details"
@@ -982,8 +1007,8 @@ msgid "Bring Your Own AI"
 msgstr "Bring Your Own AI"
 
 #: src/components/Preferences.tsx
-msgid "Bring Your Own AI: an API key or an AI app you already pay for. No JusPrin account needed. Set up as many as you like; each chat picks a model from them."
-msgstr "Bring Your Own AI: an API key or an AI app you already pay for. No JusPrin account needed. Set up as many as you like; each chat picks a model from them."
+msgid "Bring Your Own AI: an API key, an AI app you already pay for, or a model you run on this computer. No JusPrin account needed. Set up as many as you like; each chat picks a model from them."
+msgstr "Bring Your Own AI: an API key, an AI app you already pay for, or a model you run on this computer. No JusPrin account needed. Set up as many as you like; each chat picks a model from them."
 
 #: ../HomeUI/src/components/Onboarding.tsx
 msgid "Bring your printers from {app}?"
@@ -1009,6 +1034,10 @@ msgstr "Calibrate…"
 msgid "Camera view of {name}"
 msgstr "Camera view of {name}"
 
+#: src/components/LocalModelGroup.tsx
+msgid "Can see pictures"
+msgstr "Can see pictures"
+
 #: src/components/SetupLocalTool.tsx
 msgid "Can’t be stopped once started; it takes a moment."
 msgstr "Can’t be stopped once started; it takes a moment."
@@ -1020,6 +1049,10 @@ msgstr "Can’t find your printer? <0>Ask AI</0>"
 #: src/components/OrcaImport.tsx
 msgid "Can’t import"
 msgstr "Can’t import"
+
+#: src/components/LocalModelGroup.tsx
+msgid "Can’t see pictures. The AI works without seeing your model."
+msgstr "Can’t see pictures. The AI works without seeing your model."
 
 #: src/components/SetupLocalTool.tsx
 msgid "Can’t write {path}."
@@ -1041,6 +1074,8 @@ msgstr "Can’t write the settings file."
 #: src/components/ChangeRows.tsx
 #: src/components/ChatNavigation.tsx
 #: src/components/ChatNavigation.tsx
+#: src/components/LocalModelGroup.tsx
+#: src/components/LocalModelGroup.tsx
 #: src/components/OrcaImport.tsx
 #: src/components/OrcaImport.tsx
 #: src/components/Preferences.tsx
@@ -1060,6 +1095,10 @@ msgstr "Cancelled"
 #: src/components/ToolActivityCard.tsx
 msgid "Cancelled — nothing was changed"
 msgstr "Cancelled — nothing was changed"
+
+#: src/components/LocalModelGroup.tsx
+msgid "Change"
+msgstr "Change"
 
 #: src/components/SignInDoor.tsx
 #: src/components/SignInDoor.tsx
@@ -1099,6 +1138,10 @@ msgstr "Chat title"
 msgid "Chats"
 msgstr "Chats"
 
+#: src/components/LocalModelGroup.tsx
+msgid "Chats can use"
+msgstr "Chats can use"
+
 #: src/components/Panels.tsx
 msgid "Chatting here needs AI."
 msgstr "Chatting here needs AI."
@@ -1126,6 +1169,10 @@ msgstr "Check the spelling or try other words. You can also ask AI: choose Ask A
 #: src/components/SignInDoor.tsx
 msgid "Check your email."
 msgstr "Check your email."
+
+#: src/components/LocalModelGroup.tsx
+msgid "Checking {pickedModel}. A local model can take a minute to answer the first time."
+msgstr "Checking {pickedModel}. A local model can take a minute to answer the first time."
 
 #: src/components/Preferences.tsx
 msgid "Checking for a newer version"
@@ -1564,6 +1611,10 @@ msgstr "Filter"
 msgid "Find a language"
 msgstr "Find a language"
 
+#: src/components/LocalModelGroup.tsx
+msgid "Find models"
+msgstr "Find models"
+
 #: src/components/SignInDoor.tsx
 msgid "Finish in your browser."
 msgstr "Finish in your browser."
@@ -1736,6 +1787,10 @@ msgstr "How did it come out?"
 #: src/printerWords.ts
 msgid "How do I check?"
 msgstr "How do I check?"
+
+#: src/components/LocalModelGroup.tsx
+msgid "How to check and change this"
+msgstr "How to check and change this"
 
 #: src/components/OrcaImport.tsx
 msgid "If {app} keeps its settings somewhere else, choose that folder."
@@ -2040,6 +2095,14 @@ msgstr "LIVE"
 msgid "Live URL (developer only — this can change after restart)"
 msgstr "Live URL (developer only — this can change after restart)"
 
+#: src/components/LocalModelGroup.tsx
+msgid "LM Studio at {address}"
+msgstr "LM Studio at {address}"
+
+#: src/components/LocalModelGroup.tsx
+msgid "LM Studio at {address} has no models. Download one in LM Studio, then find models again."
+msgstr "LM Studio at {address} has no models. Download one in LM Studio, then find models again."
+
 #: ../HomeUI/src/components/PrinterPickerHost.tsx
 msgid "Loading JusPrin’s settings for this printer…"
 msgstr "Loading JusPrin’s settings for this printer…"
@@ -2051,6 +2114,10 @@ msgstr "Loading models…"
 #: ../HomeUI/src/components/PrintHistory.tsx
 msgid "Loading print history…"
 msgstr "Loading print history…"
+
+#: src/components/LocalModelGroup.tsx
+msgid "Local model"
+msgstr "Local model"
 
 #: src/components/Preferences.tsx
 msgid "Local work never needs an account. Your own API key or AI tool works without one; set those up in the <0>BYOAI</0> section."
@@ -2071,6 +2138,10 @@ msgstr "Looked in {path}"
 #: src/components/Preferences.tsx
 msgid "Looking for a newer version on GitHub…"
 msgstr "Looking for a newer version on GitHub…"
+
+#: src/components/LocalModelGroup.tsx
+msgid "Looking for models at {typedAddress}…"
+msgstr "Looking for models at {typedAddress}…"
 
 #. A thinking level of the AI model
 #: src/components/ModelPickers.tsx
@@ -2131,6 +2202,7 @@ msgstr "Millimetres"
 msgid "Minimal"
 msgstr "Minimal"
 
+#: src/components/LocalModelGroup.tsx
 #: src/components/ModelPickers.tsx
 #: src/components/Preferences.tsx
 #: src/components/Preferences.tsx
@@ -2259,6 +2331,10 @@ msgstr "No bridge messages recorded."
 msgid "No chats yet. Start a new chat about this project."
 msgstr "No chats yet. Start a new chat about this project."
 
+#: src/components/ModelPickers.tsx
+msgid "No credits"
+msgstr "No credits"
+
 #: src/components/AddPrinterForm.tsx
 msgid "No filament for the {modelName} matches “{search}”."
 msgstr "No filament for the {modelName} matches “{search}”."
@@ -2368,6 +2444,10 @@ msgstr "Not run"
 msgid "Not saved"
 msgstr "Not saved"
 
+#: src/components/LocalModelGroup.tsx
+msgid "Not set up"
+msgstr "Not set up"
+
 #: src/components/Panels.tsx
 msgid "NOT SET UP"
 msgstr "NOT SET UP"
@@ -2424,6 +2504,14 @@ msgstr "Off"
 #: src/components/PrinterPanel.tsx
 msgid "Offline"
 msgstr "Offline"
+
+#: src/components/LocalModelGroup.tsx
+msgid "Ollama at {address}"
+msgstr "Ollama at {address}"
+
+#: src/components/LocalModelGroup.tsx
+msgid "Ollama at {address} has no models. Download one in Ollama, then find models again."
+msgstr "Ollama at {address} has no models. Download one in Ollama, then find models again."
 
 #: src/components/AllSettings.tsx
 msgid "On"
@@ -2795,6 +2883,7 @@ msgstr "Remind me tomorrow"
 #: src/components/AgentConnection.tsx
 #: src/components/AllSettings.tsx
 #: src/components/AttachmentChip.tsx
+#: src/components/LocalModelGroup.tsx
 msgid "Remove"
 msgstr "Remove"
 
@@ -3117,6 +3206,10 @@ msgstr "Serial number"
 #: src/components/AllSettings.tsx
 msgid "Set on this plate"
 msgstr "Set on this plate"
+
+#: src/components/LocalModelGroup.tsx
+msgid "Set up"
+msgstr "Set up"
 
 #: ../HomeUI/src/components/AgentGroup.tsx
 #: src/components/ChatNavigation.tsx
@@ -3452,6 +3545,14 @@ msgstr "The AI panel has no connection to JusPrin"
 msgid "The AI slicer that helps you get better prints."
 msgstr "The AI slicer that helps you get better prints."
 
+#: src/components/LocalModelGroup.tsx
+msgid "The app at {address}"
+msgstr "The app at {address}"
+
+#: src/components/LocalModelGroup.tsx
+msgid "The app at {address} has no models. Download one in that app, then find models again."
+msgstr "The app at {address} has no models. Download one in that app, then find models again."
+
 #: src/components/SignInDoor.tsx
 msgid "The app continues on its own once the browser is done."
 msgstr "The app continues on its own once the browser is done."
@@ -3491,6 +3592,18 @@ msgstr "The full preferences window from OrcaSlicer, which JusPrin is built on."
 #: src/components/AgentConnection.tsx
 msgid "The key could not be checked. Nothing was saved."
 msgstr "The key could not be checked. Nothing was saved."
+
+#: src/components/LocalModelGroup.tsx
+msgid "The model must support tools, and its context length in LM Studio must be at least 32k."
+msgstr "The model must support tools, and its context length in LM Studio must be at least 32k."
+
+#: src/components/LocalModelGroup.tsx
+msgid "The model must support tools, and its context length in Ollama must be at least 32k."
+msgstr "The model must support tools, and its context length in Ollama must be at least 32k."
+
+#: src/components/LocalModelGroup.tsx
+msgid "The model must support tools, and its context length in the app that runs it must be at least 32k."
+msgstr "The model must support tools, and its context length in the app that runs it must be at least 32k."
 
 #: src/components/OrcaImport.tsx
 msgid "The open project still uses the same printer as before. {app}’s own files were not changed."
@@ -3563,6 +3676,10 @@ msgstr "This G-code is no longer kept. Open the project and slice it to print it
 msgid "This is an internal connection inside JusPrin, not a network service. The 3D canvas and all other controls keep working."
 msgstr "This is an internal connection inside JusPrin, not a network service. The 3D canvas and all other controls keep working."
 
+#: src/components/LocalModelGroup.tsx
+msgid "This is Ollama’s address. For LM Studio, use <0>http://127.0.0.1:1234</0>."
+msgstr "This is Ollama’s address. For LM Studio, use <0>http://127.0.0.1:1234</0>."
+
 #: src/printerWords.ts
 msgid "This is the {name}. Tell me what changed on it, or ask anything about it."
 msgstr "This is the {name}. Tell me what changed on it, or ask anything about it."
@@ -3574,6 +3691,10 @@ msgstr "This is your printer. Tell me what changed on it, or ask anything about 
 #: src/components/AllSettings.tsx
 msgid "This JusPrin build cannot list the settings."
 msgstr "This JusPrin build cannot list the settings."
+
+#: src/components/LocalModelGroup.tsx
+msgid "This model can’t see pictures, so the AI works without seeing your model."
+msgstr "This model can’t see pictures, so the AI works without seeing your model."
 
 #: src/components/SetupLocalTool.tsx
 msgid "This tool isn’t installed."
@@ -3717,6 +3838,10 @@ msgstr "Updates"
 msgid "Updates come from the Microsoft Store."
 msgstr "Updates come from the Microsoft Store."
 
+#: src/components/LocalModelGroup.tsx
+msgid "Use a model you run yourself with Ollama, LM Studio or a similar app. Your messages go to that app, not to an online AI service, and there is nothing to pay. Local models are slower and make more mistakes than the cloud models above."
+msgstr "Use a model you run yourself with Ollama, LM Studio or a similar app. Your messages go to that app, not to an online AI service, and there is nothing to pay. Local models are slower and make more mistakes than the cloud models above."
+
 #: src/components/SignInDoor.tsx
 msgid "Use a password instead"
 msgstr "Use a password instead"
@@ -3732,6 +3857,10 @@ msgstr "Use project value"
 #: src/components/AllSettings.tsx
 msgid "Use project value for {label}"
 msgstr "Use project value for {label}"
+
+#: src/components/LocalModelGroup.tsx
+msgid "Use this model"
+msgstr "Use this model"
 
 #: ../HomeUI/src/components/Onboarding.tsx
 msgid "Use your own AI account"

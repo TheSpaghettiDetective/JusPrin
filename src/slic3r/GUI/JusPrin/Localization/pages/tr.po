@@ -218,9 +218,19 @@ msgid "{count, plural, one {+{n} credit} other {+{n} credits}}"
 msgstr "{count, plural, one {+{n} kredi} other {+{n} kredi}}"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "{count, plural, one {LM Studio at {address} has # model. Pick the one your chats should use.} other {LM Studio at {address} has # models. Pick the one your chats should use.}}"
+msgstr "{count, plural, one {{address} adresindeki LM Studio’da # model var. Sohbetlerinizin kullanacağı modeli seçin.} other {{address} adresindeki LM Studio’da # model var. Sohbetlerinizin kullanacağı modeli seçin.}}"
+
+# AI Translated
 #: src/components/AllSettings.tsx
 msgid "{count, plural, one {Negative part} other {Negative parts}}"
 msgstr "{count, plural, one {Negatif parça} other {Negatif parçalar}}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "{count, plural, one {Ollama at {address} has # model. Pick the one your chats should use.} other {Ollama at {address} has # models. Pick the one your chats should use.}}"
+msgstr "{count, plural, one {{address} adresindeki Ollama’da # model var. Sohbetlerinizin kullanacağı modeli seçin.} other {{address} adresindeki Ollama’da # model var. Sohbetlerinizin kullanacağı modeli seçin.}}"
 
 # AI Translated
 #: src/components/AllSettings.tsx
@@ -236,6 +246,11 @@ msgstr "{count, plural, one {Destek engelleyici} other {Destek engelleyiciler}}"
 #: src/components/AllSettings.tsx
 msgid "{count, plural, one {Support enforcer} other {Support enforcers}}"
 msgstr "{count, plural, one {Destek uygulayıcısı} other {Destek uygulayıcıları}}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "{count, plural, one {The app at {address} has # model. Pick the one your chats should use.} other {The app at {address} has # models. Pick the one your chats should use.}}"
+msgstr "{count, plural, one {{address} adresindeki uygulamada # model var. Sohbetlerinizin kullanacağı modeli seçin.} other {{address} adresindeki uygulamada # model var. Sohbetlerinizin kullanacağı modeli seçin.}}"
 
 # AI Translated
 #: src/components/TurnActivity.tsx
@@ -635,6 +650,11 @@ msgid "{reportCredits, plural, one {Share how it printed and get {reportCredits}
 msgstr "{reportCredits, plural, one {Nasıl yazdırıldığını paylaşın ve {reportCredits} kredi kazanın} other {Nasıl yazdırıldığını paylaşın ve {reportCredits} kredi kazanın}}"
 
 # AI Translated
+#: src/components/ModelPickers.tsx
+msgid "{runtime} · no credits"
+msgstr "{runtime} · kredisiz"
+
+# AI Translated
 #. A duration in seconds, abbreviated: 45s
 #: ../HomeUI/src/history.ts
 msgid "{secs}s"
@@ -831,6 +851,12 @@ msgid "A chat keeps the model it started with."
 msgstr "Bir sohbet, başladığı modeli korur."
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+#: src/components/LocalModelGroup.tsx
+msgid "A model on this computer"
+msgstr "Bu bilgisayardaki bir model"
+
+# AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
 msgid "A new name has to differ from the old one by more than capitalization."
 msgstr "Yeni ad, eskisinden yalnızca büyük/küçük harf farkından fazlasıyla ayrılmalıdır."
@@ -906,6 +932,11 @@ msgstr "Yazıcınızı ekleyin"
 #: src/components/PrinterPanel.tsx
 msgid "Added: <0>{name}</0>"
 msgstr "Eklendi: <0>{name}</0>"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Address of the app that runs the model"
+msgstr "Modeli çalıştıran uygulamanın adresi"
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -1215,8 +1246,8 @@ msgstr "Kendi yapay zekanızı kullanın"
 
 # AI Translated
 #: src/components/Preferences.tsx
-msgid "Bring Your Own AI: an API key or an AI app you already pay for. No JusPrin account needed. Set up as many as you like; each chat picks a model from them."
-msgstr "Kendi yapay zekanızı kullanın: zaten ödediğiniz bir API anahtarı veya yapay zeka uygulaması. JusPrin hesabı gerekmez. İstediğiniz kadar kurun; her sohbet bunlardan bir model seçer."
+msgid "Bring Your Own AI: an API key, an AI app you already pay for, or a model you run on this computer. No JusPrin account needed. Set up as many as you like; each chat picks a model from them."
+msgstr "Kendi yapay zekanızı kullanın: bir API anahtarı, zaten ödeme yaptığınız bir yapay zeka uygulaması veya bu bilgisayarda çalıştırdığınız bir model. JusPrin hesabı gerekmez. İstediğiniz kadarını kurun; her sohbet bunların arasından bir model seçer."
 
 # AI Translated
 #: ../HomeUI/src/components/Onboarding.tsx
@@ -1249,6 +1280,11 @@ msgid "Camera view of {name}"
 msgstr "{name} kamera görüntüsü"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Can see pictures"
+msgstr "Resimleri görebilir"
+
+# AI Translated
 #: src/components/SetupLocalTool.tsx
 msgid "Can’t be stopped once started; it takes a moment."
 msgstr "Başladıktan sonra durdurulamaz; biraz sürer."
@@ -1262,6 +1298,11 @@ msgstr "Yazıcınızı bulamıyor musunuz? <0>Yapay zekaya sorun</0>"
 #: src/components/OrcaImport.tsx
 msgid "Can’t import"
 msgstr "İçe aktarılamıyor"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Can’t see pictures. The AI works without seeing your model."
+msgstr "Resimleri göremez. Yapay zeka modelinizi görmeden çalışır."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -1286,6 +1327,8 @@ msgstr "Ayar dosyası yazılamıyor."
 #: src/components/ChangeRows.tsx
 #: src/components/ChatNavigation.tsx
 #: src/components/ChatNavigation.tsx
+#: src/components/LocalModelGroup.tsx
+#: src/components/LocalModelGroup.tsx
 #: src/components/OrcaImport.tsx
 #: src/components/OrcaImport.tsx
 #: src/components/Preferences.tsx
@@ -1307,6 +1350,11 @@ msgstr "İptal edildi"
 #: src/components/ToolActivityCard.tsx
 msgid "Cancelled — nothing was changed"
 msgstr "İptal edildi — hiçbir şey değiştirilmedi"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Change"
+msgstr "Değiştir"
 
 # AI Translated
 #: src/components/SignInDoor.tsx
@@ -1356,6 +1404,11 @@ msgid "Chats"
 msgstr "Sohbetler"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Chats can use"
+msgstr "Sohbetlerde kullanılabilir"
+
+# AI Translated
 #: src/components/Panels.tsx
 msgid "Chatting here needs AI."
 msgstr "Burada sohbet etmek için yapay zeka gerekir."
@@ -1389,6 +1442,11 @@ msgstr "Yazımı kontrol edin veya başka sözcükler deneyin. Yapay zekaya da s
 #: src/components/SignInDoor.tsx
 msgid "Check your email."
 msgstr "E-postanızı kontrol edin."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Checking {pickedModel}. A local model can take a minute to answer the first time."
+msgstr "{pickedModel} denetleniyor. Yerel bir modelin ilk seferde yanıt vermesi bir dakika kadar sürebilir."
 
 # AI Translated
 #: src/components/Preferences.tsx
@@ -1930,6 +1988,11 @@ msgid "Find a language"
 msgstr "Dil ara"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Find models"
+msgstr "Modelleri bul"
+
+# AI Translated
 #: src/components/SignInDoor.tsx
 msgid "Finish in your browser."
 msgstr "Tarayıcınızda tamamlayın."
@@ -2140,6 +2203,11 @@ msgstr "Nasıl çıktı?"
 #: src/printerWords.ts
 msgid "How do I check?"
 msgstr "Nasıl kontrol ederim?"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "How to check and change this"
+msgstr "Bu nasıl kontrol edilir ve değiştirilir"
 
 # AI Translated
 #: src/components/OrcaImport.tsx
@@ -2517,6 +2585,16 @@ msgid "Live URL (developer only — this can change after restart)"
 msgstr "Canlı URL (yalnızca geliştiriciler için — yeniden başlatmadan sonra değişebilir)"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "LM Studio at {address}"
+msgstr "{address} adresindeki LM Studio"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "LM Studio at {address} has no models. Download one in LM Studio, then find models again."
+msgstr "{address} adresindeki LM Studio’da hiç model yok. LM Studio’da bir model indirin, ardından modelleri yeniden arayın."
+
+# AI Translated
 #: ../HomeUI/src/components/PrinterPickerHost.tsx
 msgid "Loading JusPrin’s settings for this printer…"
 msgstr "JusPrin’in bu yazıcı için ayarları yükleniyor…"
@@ -2530,6 +2608,11 @@ msgstr "Modeller yükleniyor…"
 #: ../HomeUI/src/components/PrintHistory.tsx
 msgid "Loading print history…"
 msgstr "Baskı geçmişi yükleniyor…"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Local model"
+msgstr "Yerel model"
 
 # AI Translated
 #: src/components/Preferences.tsx
@@ -2555,6 +2638,11 @@ msgstr "Bakılan yer: {path}"
 #: src/components/Preferences.tsx
 msgid "Looking for a newer version on GitHub…"
 msgstr "GitHub’da daha yeni bir sürüm aranıyor…"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Looking for models at {typedAddress}…"
+msgstr "{typedAddress} adresinde modeller aranıyor…"
 
 # AI Translated
 #. A thinking level of the AI model
@@ -2629,6 +2717,7 @@ msgid "Minimal"
 msgstr "Asgari"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
 #: src/components/ModelPickers.tsx
 #: src/components/Preferences.tsx
 #: src/components/Preferences.tsx
@@ -2787,6 +2876,11 @@ msgid "No chats yet. Start a new chat about this project."
 msgstr "Henüz sohbet yok. Bu proje hakkında yeni bir sohbet başlatın."
 
 # AI Translated
+#: src/components/ModelPickers.tsx
+msgid "No credits"
+msgstr "Kredisiz"
+
+# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "No filament for the {modelName} matches “{search}”."
 msgstr "{modelName} için “{search}” ile eşleşen filament yok."
@@ -2923,6 +3017,11 @@ msgid "Not saved"
 msgstr "Kaydedilmedi"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Not set up"
+msgstr "Kurulmamış"
+
+# AI Translated
 #: src/components/Panels.tsx
 msgid "NOT SET UP"
 msgstr "KURULMADI"
@@ -2991,6 +3090,16 @@ msgstr "Kapalı"
 #: src/components/PrinterPanel.tsx
 msgid "Offline"
 msgstr "Çevrimdışı"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Ollama at {address}"
+msgstr "{address} adresindeki Ollama"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Ollama at {address} has no models. Download one in Ollama, then find models again."
+msgstr "{address} adresindeki Ollama’da hiç model yok. Ollama’da bir model indirin, ardından modelleri yeniden arayın."
 
 # AI Translated
 #: src/components/AllSettings.tsx
@@ -3451,6 +3560,7 @@ msgstr "Yarın hatırlat"
 #: src/components/AgentConnection.tsx
 #: src/components/AllSettings.tsx
 #: src/components/AttachmentChip.tsx
+#: src/components/LocalModelGroup.tsx
 msgid "Remove"
 msgstr "Kaldır"
 
@@ -3849,6 +3959,11 @@ msgstr "Seri numarası"
 #: src/components/AllSettings.tsx
 msgid "Set on this plate"
 msgstr "Bu plakada ayarlandı"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Set up"
+msgstr "Kur"
 
 # AI Translated
 #: ../HomeUI/src/components/AgentGroup.tsx
@@ -4264,6 +4379,16 @@ msgid "The AI slicer that helps you get better prints."
 msgstr "Daha iyi baskılar almanıza yardımcı olan yapay zekalı dilimleyici."
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The app at {address}"
+msgstr "{address} adresindeki uygulama"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The app at {address} has no models. Download one in that app, then find models again."
+msgstr "{address} adresindeki uygulamada hiç model yok. O uygulamada bir model indirin, ardından modelleri yeniden arayın."
+
+# AI Translated
 #: src/components/SignInDoor.tsx
 msgid "The app continues on its own once the browser is done."
 msgstr "Tarayıcıdaki işlem bitince uygulama kendiliğinden devam eder."
@@ -4312,6 +4437,21 @@ msgstr "JusPrin’in üzerine kurulduğu OrcaSlicer’ın tam tercihler penceres
 #: src/components/AgentConnection.tsx
 msgid "The key could not be checked. Nothing was saved."
 msgstr "Anahtar denetlenemedi. Hiçbir şey kaydedilmedi."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The model must support tools, and its context length in LM Studio must be at least 32k."
+msgstr "Model araçları (tools) desteklemeli ve LM Studio’daki bağlam uzunluğu en az 32k olmalıdır."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The model must support tools, and its context length in Ollama must be at least 32k."
+msgstr "Model araçları (tools) desteklemeli ve Ollama’daki bağlam uzunluğu en az 32k olmalıdır."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The model must support tools, and its context length in the app that runs it must be at least 32k."
+msgstr "Model araçları (tools) desteklemeli ve onu çalıştıran uygulamadaki bağlam uzunluğu en az 32k olmalıdır."
 
 # AI Translated
 #: src/components/OrcaImport.tsx
@@ -4402,6 +4542,11 @@ msgid "This is an internal connection inside JusPrin, not a network service. The
 msgstr "Bu, JusPrin içindeki dahili bir bağlantıdır, bir ağ hizmeti değildir. 3D tuval ve diğer tüm kontroller çalışmaya devam eder."
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "This is Ollama’s address. For LM Studio, use <0>http://127.0.0.1:1234</0>."
+msgstr "Bu, Ollama’nın adresidir. LM Studio için <0>http://127.0.0.1:1234</0> kullanın."
+
+# AI Translated
 #: src/printerWords.ts
 msgid "This is the {name}. Tell me what changed on it, or ask anything about it."
 msgstr "Bu {name}. Üzerinde neyin değiştiğini anlatın veya onunla ilgili her şeyi sorun."
@@ -4415,6 +4560,11 @@ msgstr "Bu sizin yazıcınız. Üzerinde neyin değiştiğini anlatın veya onun
 #: src/components/AllSettings.tsx
 msgid "This JusPrin build cannot list the settings."
 msgstr "Bu JusPrin derlemesi ayarları listeleyemiyor."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "This model can’t see pictures, so the AI works without seeing your model."
+msgstr "Bu model resimleri göremez, bu yüzden yapay zeka modelinizi görmeden çalışır."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -4592,6 +4742,11 @@ msgid "Updates come from the Microsoft Store."
 msgstr "Güncellemeler Microsoft Store’dan gelir."
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Use a model you run yourself with Ollama, LM Studio or a similar app. Your messages go to that app, not to an online AI service, and there is nothing to pay. Local models are slower and make more mistakes than the cloud models above."
+msgstr "Ollama, LM Studio veya benzer bir uygulamayla kendiniz çalıştırdığınız bir modeli kullanın. Mesajlarınız çevrimiçi bir yapay zeka hizmetine değil, o uygulamaya gider ve hiçbir ücret ödemezsiniz. Yerel modeller yukarıdaki bulut modellerinden daha yavaştır ve daha çok hata yapar."
+
+# AI Translated
 #: src/components/SignInDoor.tsx
 msgid "Use a password instead"
 msgstr "Bunun yerine parola kullan"
@@ -4610,6 +4765,11 @@ msgstr "Proje değerini kullan"
 #: src/components/AllSettings.tsx
 msgid "Use project value for {label}"
 msgstr "{label} için proje değerini kullan"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Use this model"
+msgstr "Bu modeli kullan"
 
 # AI Translated
 #: ../HomeUI/src/components/Onboarding.tsx

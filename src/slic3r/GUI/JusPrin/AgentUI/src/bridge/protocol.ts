@@ -51,6 +51,10 @@ export type PageMessageType =
   | 'save_proposal'
   | 'undo_receipt'
   | 'setup_remove_key'
+  | 'local_find'
+  | 'local_check'
+  | 'local_cancel'
+  | 'local_remove'
   | 'account_sign_in'
   | 'account_check'
   | 'account_cancel'
@@ -93,6 +97,7 @@ export type HostMessageType =
   | 'settings_catalog'
   | 'confirm'
   | 'setup_keys'
+  | 'local_status'
   | 'account_status'
   | 'account'
   | 'account_box'
@@ -326,6 +331,8 @@ export interface ProviderModelsInfo {
   models: ModelOptionInfo[];
   // The server's words when it no longer serves this release of the app.
   updateMessage?: string;
+  // For the model on this computer, the app that runs it ('Ollama').
+  runtime?: string;
 }
 
 export interface ModelCatalogPayload {
@@ -402,8 +409,40 @@ export interface AccountStatusPayload {
   error?: AgentErrorInfo;
 }
 
+// The model on this computer that is set up (local_model capability): the
+// address it answers at, as the person sees it (no http://), its name, the
+// app that runs it ('Ollama', 'LM Studio', or '' when the app could not
+// tell), and whether it reads pictures.
+export interface LocalModelInfo {
+  address: string;
+  model: string;
+  runtime: string;
+  images: boolean;
+}
+
 export interface SetupKeysPayload {
   keys: SavedKeyInfo[];
+  local?: LocalModelInfo;
+}
+
+// One model the app at an address has; tools and images are left out when
+// the app does not say.
+export interface LocalModelChoice {
+  id: string;
+  tools?: boolean;
+  images?: boolean;
+}
+
+// Where setting up a model on this computer has got to. 'models' carries
+// what a find gave; 'verified' says the checked model is stored.
+export interface LocalStatusPayload {
+  phase: 'idle' | 'finding' | 'models' | 'checking' | 'verified' | 'error';
+  address?: string;
+  runtime?: string;
+  models?: LocalModelChoice[];
+  model?: string;
+  elapsedMs?: number;
+  error?: AgentErrorInfo;
 }
 
 export interface McpToolInfo {

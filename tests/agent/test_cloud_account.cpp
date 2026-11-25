@@ -11,11 +11,13 @@
 
 #include "kept_turn.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentSetup.hpp"
+#include "slic3r/GUI/JusPrin/Agent/AgentService.hpp"
 #include "slic3r/GUI/JusPrin/Agent/CloudAccount.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ModelCatalog.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderFactory.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp"
 #include "slic3r/GUI/JusPrin/Agent/RecordConversion.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ToolExecution.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -762,6 +764,35 @@ TEST_CASE("a model without eyes is offered no picture tools", "[agent][account]"
     CHECK(without.count("view_render") == 0);
     CHECK(without.count("project_attachment_read") == 0);
     CHECK(without.count("slice_start") == 1);
+}
+
+TEST_CASE("a model without eyes is told a skill's plate picture is not attached, instead of being sent it", "[agent][account]")
+{
+    const auto sent = [](bool reads_pictures) {
+        std::vector<AgentHttpRequest>             requests;
+        std::vector<IAgentHttpTransport::EventFn> callbacks;
+        AgentServicePtr                           agent = account_agent(kFormatResponses, requests, callbacks);
+        AgentRequest                              request;
+        JusPrinTest::kept_nowhere(request);
+        request.request_id           = "turn";
+        request.user_text            = "hello";
+        request.model_reads_pictures = reads_pictures;
+        AgentSkillUse skill;
+        skill.name    = "file-loaded";
+        skill.text    = "Look at the picture of the plate.";
+        skill.trigger = "file_loaded";
+        skill.picture = std::make_shared<const ToolImage>(ToolImage{"image/png", "iVBORw0KGgo=", 2, 2});
+        request.skills.push_back(skill);
+        REQUIRE(agent->start(request));
+        return requests[0].body;
+    };
+    const std::string with = sent(true);
+    const std::string without = sent(false);
+    CHECK_THAT(with, ContainsSubstring("iVBORw0KGgo="));
+    CHECK_THAT(with, !ContainsSubstring("No picture of the plate is attached"));
+    CHECK_THAT(without, !ContainsSubstring("iVBORw0KGgo="));
+    CHECK_THAT(without, ContainsSubstring("No picture of the plate is attached"));
+    CHECK_THAT(without, ContainsSubstring("Look at the picture of the plate."));
 }
 
 // The app's own turns run on Expert (Anthropic's format) in a chat whose model

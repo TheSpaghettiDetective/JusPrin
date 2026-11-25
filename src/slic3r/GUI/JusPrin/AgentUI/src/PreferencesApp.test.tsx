@@ -509,6 +509,83 @@ describe('Preferences', () => {
     expect(screen.getByRole('heading', { name: 'BYOAI', level: 2 })).toBeInTheDocument();
   });
 
+  it('sets up a model on this computer: finds the models at an address, checks the one picked, then shows it', async () => {
+    render(<PreferencesApp getTransport={() => host.transport} />);
+    connect(host, preferences({ section: 'agent' }));
+    host.deliver('setup_keys', { keys: [] });
+    const group = () => within(screen.getByRole('region', { name: 'A model on this computer' }));
+    expect(group().getByText('Not set up')).toBeInTheDocument();
+
+    await userEvent.click(group().getByRole('button', { name: 'Set up' }));
+    expect(group().getByLabelText('Address of the app that runs the model')).toHaveValue('http://127.0.0.1:11434');
+    await userEvent.click(group().getByRole('button', { name: 'Find models' }));
+    expect(host.lastOfType('local_find')?.payload).toEqual({ address: 'http://127.0.0.1:11434' });
+
+    host.deliver('local_status', { phase: 'finding', address: 'http://127.0.0.1:11434' });
+    expect(group().getByText('Looking for models at 127.0.0.1:11434…')).toBeInTheDocument();
+    host.deliver('local_status', {
+      phase: 'models', address: 'http://127.0.0.1:11434', runtime: 'Ollama',
+      models: [{ id: 'qwen3.5:9b', tools: true, images: true }, { id: 'llama3.2:latest', tools: true, images: false }],
+    });
+    expect(group().getByText('Ollama at 127.0.0.1:11434 has 2 models. Pick the one your chats should use.')).toBeInTheDocument();
+    expect(group().getByRole('radio', { name: /qwen3\.5:9b/ })).toBeChecked();
+    expect(group().getByText('Can’t see pictures. The AI works without seeing your model.')).toBeInTheDocument();
+
+    await userEvent.click(group().getByRole('radio', { name: /llama3\.2:latest/ }));
+    await userEvent.click(group().getByRole('button', { name: 'Use this model' }));
+    expect(host.lastOfType('local_check')?.payload).toEqual({ model: 'llama3.2:latest' });
+    host.deliver('local_status', { phase: 'checking', model: 'llama3.2:latest' });
+    expect(group().getByText('Checking llama3.2:latest. A local model can take a minute to answer the first time.')).toBeInTheDocument();
+
+    host.deliver('local_status', { phase: 'verified', model: 'llama3.2:latest' });
+    host.deliver('setup_keys', { keys: [], local: { address: '127.0.0.1:11434', model: 'llama3.2:latest', runtime: 'Ollama', images: false } });
+    expect(group().getByTestId('agent-local-standing')).toHaveTextContent(/Chats can use\s*llama3\.2:latest/);
+    expect(group().getByText('Ollama at 127.0.0.1:11434')).toBeInTheDocument();
+    expect(group().getByText('This model can’t see pictures, so the AI works without seeing your model.')).toBeInTheDocument();
+
+    await userEvent.click(group().getByRole('button', { name: 'Remove' }));
+    expect(host.lastOfType('local_remove')).toBeTruthy();
+  });
+
+  it('shows what the app says went wrong where the person can fix it, and Change looks at the same address again', async () => {
+    render(<PreferencesApp getTransport={() => host.transport} />);
+    connect(host, preferences({ section: 'agent' }));
+    host.deliver('setup_keys', { keys: [], local: { address: '127.0.0.1:1234', model: 'qwen/qwen3-4b', runtime: 'LM Studio', images: true } });
+    const group = () => within(screen.getByRole('region', { name: 'A model on this computer' }));
+
+    await userEvent.click(group().getByRole('button', { name: 'Change' }));
+    expect(host.lastOfType('local_find')?.payload).toEqual({ address: 'http://127.0.0.1:1234' });
+    host.deliver('local_status', {
+      phase: 'error',
+      error: { code: 'local_unreachable', message: 'Nothing is answering at 127.0.0.1:1234. Start Ollama or LM Studio, then try again.', retryable: true },
+    });
+    expect(group().getByRole('alert')).toHaveTextContent('Nothing is answering at 127.0.0.1:1234.');
+    expect(group().getByLabelText('Address of the app that runs the model')).toHaveAttribute('aria-invalid', 'true');
+
+    await userEvent.click(group().getByRole('button', { name: 'Find models' }));
+    host.deliver('local_status', { phase: 'models', address: 'http://127.0.0.1:1234', runtime: 'LM Studio',
+      models: [{ id: 'qwen/qwen3-4b', tools: true, images: false }, { id: 'google/gemma-3-4b', tools: false, images: true }] });
+    // The stored model is the one picked to begin with.
+    expect(group().getByRole('radio', { name: /qwen\/qwen3-4b/ })).toBeChecked();
+    expect(group().getByText(/its context length in LM Studio must be at least 32k/)).toBeInTheDocument();
+    await userEvent.click(group().getByRole('radio', { name: /google\/gemma-3-4b/ }));
+    await userEvent.click(group().getByRole('button', { name: 'Use this model' }));
+    host.deliver('local_status', {
+      phase: 'error',
+      error: { code: 'local_cant_run', message: 'This model can’t run the app’s tools. Pick a model with tool support and a context of at least 32k.', retryable: false },
+    });
+    expect(group().getByRole('alert')).toHaveTextContent('This model can’t run the app’s tools.');
+    // The saved model is still what chats use until another one passes.
+    expect(group().getByTestId('agent-local-standing')).toHaveTextContent(/Chats can use\s*qwen\/qwen3-4b/);
+    expect(group().queryByText('Not set up')).not.toBeInTheDocument();
+
+    await userEvent.click(group().getByRole('button', { name: 'How to check and change this' }));
+    expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'open_link',
+      url: 'https://github.com/TheSpaghettiDetective/JusPrin/blob/main/docs/guide/ai-chats-and-account.md#use-a-model-on-this-computer' });
+    await userEvent.click(group().getByRole('button', { name: 'Cancel' }));
+    expect(group().getByTestId('agent-local-standing')).toHaveTextContent(/Chats can use\s*qwen\/qwen3-4b/);
+  });
+
   it('sends one change per control, by the name the app writes it under', async () => {
     render(<PreferencesApp getTransport={() => host.transport} />);
     connect(host, preferences({ section: 'appearance' }));

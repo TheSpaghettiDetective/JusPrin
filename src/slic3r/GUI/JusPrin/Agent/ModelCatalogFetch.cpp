@@ -2,11 +2,13 @@
 #include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 
 #include "CloudAccount.hpp"
+#include "LocalModelSetup.hpp"
 #include "ModelCatalog.hpp"
 #include "slic3r/Utils/Http.hpp"
 
 #include <nlohmann/json.hpp>
 
+#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -158,6 +160,25 @@ void delete_account(const ProviderProfile& profile, const std::string& token, co
             if (!*cancelled)
                 (*finished)(false);
         }))
+        .perform();
+}
+
+void fetch_local_app(const std::string& method, const std::string& url, const std::string& body,
+                     std::function<void(LocalModelSetup::Answer)> done)
+{
+    auto finished = std::make_shared<std::function<void(LocalModelSetup::Answer)>>(std::move(done));
+    auto http     = method == "POST" ? Slic3r::Http::post(url) : Slic3r::Http::get(url);
+    if (method == "POST")
+        http.header("Content-Type", "application/json").set_post_body(body);
+    http.header("Accept", "application/json")
+        .timeout_connect(5)
+        // Describing a model can wait on the app loading its list from disk.
+        .timeout_max(60)
+        .on_complete([finished](std::string answer, unsigned status) { (*finished)({status, std::move(answer), {}}); })
+        // A refused connection comes here with status 0.
+        .on_error([finished](std::string answer, std::string error, unsigned status) {
+            (*finished)({status, std::move(answer), std::move(error)});
+        })
         .perform();
 }
 

@@ -10,6 +10,7 @@
 #include "kept_turn.hpp"
 #include "slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderFactory.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ResponsesCodec.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolRegistry.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.hpp"
@@ -253,6 +254,29 @@ TEST_CASE("a configured model and endpoint replace the row's defaults", "[agent]
     REQUIRE(agent->start(request_fixture()));
     CHECK(fake->requests.front().url == "http://127.0.0.1:9/v1/responses");
     CHECK(json::parse(fake->requests.front().body)["model"] == "deepseek/deepseek-v4-flash");
+}
+
+TEST_CASE("a model on this computer is offered no web search and is not told it has one", "[agent][openai][local]")
+{
+    AgentRequest request                            = request_fixture();
+    request.session.instructions                    = "Ground rules.\nYou have web_search. Search first.";
+    request.session.instructions_without_web_search = "Ground rules.";
+    const auto first_body = [&request](const ProviderProfile& profile, const std::string& key) {
+        auto           transport = std::make_unique<FakeTransport>();
+        FakeTransport* fake      = transport.get();
+        AgentServicePtr agent    = make_provider_agent(profile, key, "qwen3.5:9b", local_endpoint("127.0.0.1:11434"), std::move(transport));
+        REQUIRE(agent->start(request));
+        return json::parse(fake->requests.front().body);
+    };
+    const json local = first_body(*profile_for("local"), "");
+    CHECK(local["instructions"] == "Ground rules.");
+    for (const json& tool : local["tools"])
+        CHECK(tool["type"] == "function");
+
+    // A provider with web search keeps the paragraph that offers it.
+    const json openrouter = first_body(*profile_for("openrouter"), "k");
+    CHECK(openrouter["instructions"] == request.session.instructions);
+    CHECK(openrouter["tools"].back() == json{{"type", "openrouter:web_search"}});
 }
 
 TEST_CASE("a chat's thinking level is sent as reasoning effort, and nothing when there is none", "[agent][openai][openrouter]")

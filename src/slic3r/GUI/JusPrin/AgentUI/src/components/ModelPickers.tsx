@@ -71,6 +71,15 @@ function providerDetail(provider: ModelCatalogPayload['providers'][number]): str
   return count > SEARCH_FROM ? plural(count, { one: '# model', other: '# models' }) : undefined;
 }
 
+// Under a model's name: what an account's model is for, or, for the model on
+// this computer, the app that runs it and that it costs nothing.
+function modelDetail(provider: ModelCatalogPayload['providers'][number], model: ModelOptionInfo): string | undefined {
+  if (model.tier) return TIER_USES[model.tier];
+  if (provider.id !== 'local') return undefined;
+  const runtime = provider.runtime;
+  return runtime ? t`${runtime} · no credits` : t`No credits`;
+}
+
 // Switching model keeps the thinking level when the new model has it, and
 // otherwise leaves the level to the new model's default.
 export function switchModel(choice: ChatModelChoice, provider: string, model: ModelOptionInfo): ChatModelChoice {
@@ -97,7 +106,7 @@ export function modelMenu(catalog: ModelCatalogPayload, choice: ChatModelChoice,
       entries.push({
         key: `${provider.id}/${model.id}`,
         label: price ? `${model.label} · ${price}` : model.label,
-        detail: model.tier ? TIER_USES[model.tier] : undefined,
+        detail: modelDetail(provider, model),
         current: provider.id === choice.provider && model.id === choice.model,
         matches: [model.label, provider.label],
         onSelect: () => onChoose(switchModel(choice, provider.id, model)),

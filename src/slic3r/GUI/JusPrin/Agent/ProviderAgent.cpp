@@ -1,6 +1,7 @@
 #include "ProviderAgent.hpp"
 #include "CloudAccount.hpp"
 #include "ManufacturingHistory.hpp"
+#include "ProviderProfile.hpp"
 #include "RecordConversion.hpp"
 #include "slic3r/GUI/JusPrin/Support/Base64.hpp"
 #include "ToolRegistry.hpp"
@@ -10,6 +11,7 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -223,13 +225,24 @@ RecordPart image_part(const ToolImage& image)
     return part;
 }
 
+// In place of a picture a model cannot read.
+constexpr const char* kNoPictureNote = "No picture of the plate is attached: the model in this chat cannot read pictures.";
+
+RecordPart text_part(std::string value)
+{
+    RecordPart part;
+    part.text = std::move(value);
+    return part;
+}
+
 AgentHttpHeader auth_header(const ProviderProfile& profile, const std::string& api_key)
 {
     switch (profile.auth) {
     case AuthStyle::Bearer: return {"Authorization", "Bearer " + api_key};
     case AuthStyle::ApiKeyHeader: return {"x-api-key", api_key};
+    case AuthStyle::None: break;
     }
-    return {"Authorization", "Bearer " + api_key};
+    throw std::logic_error("auth_header for a provider that sends no credential: " + profile.id);
 }
 
 } // namespace
@@ -243,7 +256,8 @@ ProviderAgent::~ProviderAgent() { cancel(); }
 
 bool ProviderAgent::ready() const
 {
-    return m_transport != nullptr && m_codec != nullptr && !m_config.api_key.empty() && !m_config.profile.model.empty() &&
+    return m_transport != nullptr && m_codec != nullptr &&
+           (m_config.profile.auth == AuthStyle::None || !m_config.api_key.empty()) && !m_config.profile.model.empty() &&
            !m_config.profile.endpoint.empty();
 }
 
@@ -255,8 +269,12 @@ void ProviderAgent::begin_transcript(const AgentRequest& request)
     m_transcript.request_id   = request.request_id;
     m_transcript.chat_key     = request.chat_key;
     m_transcript.chat_title   = request.chat_title;
-    m_transcript.instructions = request.session.instructions;
+    // A provider with no web search of its own is not told it has one.
+    m_transcript.instructions = m_config.profile.web_search_type.empty() && !request.session.instructions_without_web_search.empty()
+                                    ? request.session.instructions_without_web_search
+                                    : request.session.instructions;
     m_app_started             = request.app_started;
+    m_reads_pictures          = request.model_reads_pictures;
     m_on_recorded             = request.on_recorded;
     m_keep_blob               = request.keep_blob;
     std::vector<RecordItem>& items = m_transcript.items;
@@ -316,6 +334,10 @@ void ProviderAgent::begin_transcript(const AgentRequest& request)
     for (const auto& attachment : request.attachments) {
         if (attachment.bytes.empty() || (attachment.kind != "image" && attachment.kind != "pdf"))
             continue;
+        // A model that cannot read pictures is refused any request that
+        // carries one; the composer marked the picture as not sent.
+        if (attachment.kind == "image" && !request.model_reads_pictures)
+            continue;
         RecordPart part;
         part.kind   = attachment.kind == "image" ? RecordPart::Kind::Image : RecordPart::Kind::Pdf;
         part.mime   = attachment.mime.empty() ? "application/octet-stream" : attachment.mime;
@@ -345,8 +367,12 @@ void ProviderAgent::push_skills(const std::vector<AgentSkillUse>& skills, std::v
     // its notes, then every skill's text, for this request only where the
     // provider can clear it.
     for (const AgentSkillUse& skill : skills)
-        if (skill.picture)
+        if (skill.picture && m_reads_pictures)
             m_transcript.items.push_back(RecordItem{RecordItem::Kind::User, {}, {kept(image_part(*skill.picture))}});
+        else if (skill.picture)
+            // What the skill's text calls "the picture" is not there; the
+            // model is told, so it does not describe a plate it never saw.
+            m_transcript.items.push_back(RecordItem{RecordItem::Kind::User, {}, {text_part(kNoPictureNote)}});
     for (RecordItem& note : notes)
         m_transcript.items.push_back(std::move(note));
     for (const AgentSkillUse& skill : skills) {
@@ -400,7 +426,7 @@ bool ProviderAgent::continue_after_tool(const AgentToolResult& result)
     if (!m_busy || !m_waiting_for_tool || result.call_id != m_pending_call_id)
         return false;
     m_results.results.push_back(RecordResult{result.call_id, result.output_json, result.state != "succeeded",
-                                             result.image ? std::optional<RecordPart>(kept(image_part(*result.image))) : std::nullopt});
+                                             result.image && m_reads_pictures ? std::optional<RecordPart>(kept(image_part(*result.image))) : std::nullopt});
     for (const AgentSkillUse& skill : result.skills) {
         const auto same = std::find_if(m_step_skills.begin(), m_step_skills.end(),
                                        [&skill](const AgentSkillUse& pending) { return pending.name == skill.name; });
@@ -437,7 +463,9 @@ void ProviderAgent::post()
     ProviderRequest built = m_codec->build(m_transcript, m_config.profile, m_kind);
     AgentHttpRequest request;
     request.url = m_config.profile.endpoint;
-    request.headers.push_back(auth_header(m_config.profile, m_config.api_key));
+    request.request_timeout_seconds = m_config.profile.request_timeout_seconds;
+    if (m_config.profile.auth != AuthStyle::None)
+        request.headers.push_back(auth_header(m_config.profile, m_config.api_key));
     request.headers.insert(request.headers.end(), m_config.profile.headers.begin(), m_config.profile.headers.end());
     request.headers.insert(request.headers.end(), built.headers.begin(), built.headers.end());
     if (m_config.profile.account_sign_in) {
@@ -773,9 +801,30 @@ std::string error_code(const std::string& body)
 
 } // namespace
 
+AgentError local_unreachable(const std::string& address_or_endpoint)
+{
+    // TRN %1% is the address of the app that runs an AI model on this computer, such as 127.0.0.1:11434.
+    // Ollama and LM Studio are the names of two such apps.
+    return {"local_unreachable",
+            Slic3r::format(translated(L("Nothing is answering at %1%. Start Ollama or LM Studio, then try again.")),
+                           local_address_shown(address_or_endpoint)),
+            true};
+}
+
+AgentError local_cant_run()
+{
+    return {"local_cant_run",
+            translated(L("This model can't run the app's tools. Pick a model with tool support and a context of at least 32k.")),
+            false};
+}
+
 AgentError ProviderAgent::http_error(const AgentHttpEvent& event)
 {
-    // No answer at all: the connection failed or stalled.
+    // No answer at all: the connection failed or stalled. On this computer
+    // that is the app that runs the model not running, which the person can
+    // start.
+    if (event.status < 400 && m_config.profile.on_this_computer)
+        return expected(local_unreachable(m_config.profile.endpoint), "could not be reached", event.error);
     if (event.status < 400)
         // TRN %1% is an AI provider, such as OpenAI.
         return expected({"network_error", Slic3r::format(translated(L("The AI request could not reach the %1% service.")), m_config.profile.display_name), true},

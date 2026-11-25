@@ -4,6 +4,7 @@
 // ModelCatalog.cpp, which only reads the answer, because this needs Orca's
 // Http client and the GUI-free host tests do not link it.
 
+#include "LocalModelSetup.hpp"
 #include "ModelCatalog.hpp"
 
 #include <atomic>
@@ -45,6 +46,11 @@ void fetch_account_box(const ProviderProfile& profile, const std::string& token,
 // whether the server answered that it did (204), on the request's thread.
 void delete_account(const ProviderProfile& profile, const std::string& token, const std::string& url,
                     std::shared_ptr<std::atomic<bool>> cancelled, std::function<void(bool)> done);
+
+// One request to the app that runs a model on this computer, as
+// LocalModelSetup::Fetch asks it: `done` runs once, on the request's thread.
+void fetch_local_app(const std::string& method, const std::string& url, const std::string& body,
+                     std::function<void(LocalModelSetup::Answer)> done);
 
 void fetch_model_list(const ProviderProfile& profile, const std::string& api_key, const std::string& endpoint_override,
                       std::shared_ptr<std::atomic<bool>> cancelled, std::function<void(ModelListResult)> done);

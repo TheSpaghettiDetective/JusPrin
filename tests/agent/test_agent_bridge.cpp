@@ -363,7 +363,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kAccountCheck, Protocol::kAccountCancel,
                                               Protocol::kAccountEmail, Protocol::kAccountSendCode,
                                               Protocol::kAccountCode, Protocol::kAccountPassword,
-                                              Protocol::kAccountReopen, Protocol::kAccountOpenLink});
+                                              Protocol::kAccountReopen, Protocol::kAccountOpenLink, Protocol::kLocalFind, Protocol::kLocalCheck, Protocol::kLocalCancel, Protocol::kLocalRemove});
 
     const std::set<std::string> host_types(shared["hostMessageTypes"].begin(), shared["hostMessageTypes"].end());
     CHECK(host_types == std::set<std::string>{Protocol::kHelloAck, Protocol::kHelloReject, Protocol::kState, Protocol::kConversationsUpdated,
@@ -376,7 +376,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kModelCatalog, Protocol::kChatModel,
                                               Protocol::kBridgeError, Protocol::kAttachmentUpdated, Protocol::kFileDropped,
                                               Protocol::kPrinterSession, Protocol::kSettingsCatalog, Protocol::kConfirm,
-                                              Protocol::kSetupKeys, Protocol::kPreferences, Protocol::kAccountStatus, Protocol::kAccount, Protocol::kAccountBox});
+                                              Protocol::kSetupKeys, Protocol::kPreferences, Protocol::kAccountStatus, Protocol::kAccount, Protocol::kAccountBox, Protocol::kLocalStatus});
 }
 
 TEST_CASE("settings_catalog_request answers with every setting in force", "[agent][all_settings]")

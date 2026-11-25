@@ -35,6 +35,21 @@ describe('the model menu', () => {
     ]);
   });
 
+  it('names the app that runs a model on this computer under it, and that it costs nothing', () => {
+    const withLocal: ModelCatalogPayload = {
+      ...two,
+      providers: [...two.providers, { id: 'local', label: 'On this computer', defaultModel: 'qwen3.5:9b', state: 'ready',
+        runtime: 'Ollama', models: [{ id: 'qwen3.5:9b', label: 'qwen3.5:9b', efforts: [] }] }],
+    };
+    const entries = modelMenu(withLocal, onOpus, vi.fn());
+    const local = entries.find((entry) => 'key' in entry && entry.key === 'local/qwen3.5:9b');
+    expect(entries.some((entry) => 'section' in entry && entry.section === 'On this computer')).toBe(true);
+    expect(local && 'detail' in local ? local.detail : undefined).toBe('Ollama · no credits');
+    // Another provider's model has nothing under it.
+    const other = entries.find((entry) => 'key' in entry && entry.key === 'openai/gpt-5.4-mini');
+    expect(other && 'detail' in other ? other.detail : undefined).toBeUndefined();
+  });
+
   it('leaves the heading out with a single provider', () => {
     const one = { ...two, providers: [two.providers[1]] };
     const entries = modelMenu(one, { provider: 'openai', model: 'gpt-5.4-mini', effort: '' }, vi.fn());

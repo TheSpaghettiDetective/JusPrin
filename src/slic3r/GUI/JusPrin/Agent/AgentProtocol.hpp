@@ -32,7 +32,8 @@ inline const std::vector<std::string>& capabilities()
                                                  "printer_panel", "file_reports", "setup_differences", "work_log",
                                                  "project_instructions", "project_skills", "native_file_picker",
                                                  "model_choice", "all_settings", "settings_actions", "proposals",
-                                                 "saved_keys", "preferences", "cloud_account", "account_email"};
+                                                 "saved_keys", "preferences", "cloud_account", "account_email",
+                                                 "local_model"};
     return values;
 }
 
@@ -65,6 +66,14 @@ inline constexpr const char* kSetupRemoveKey     = "setup_remove_key";
 // way), or stop either. Progress comes back as account_status; the signed-in
 // account travels in setup_keys as the "jusprin" entry's account. Signing out
 // is setup_remove_key for "jusprin".
+// Setting up a model on this computer (local_model capability): list the
+// models at an address {address}, check one of that list and store it when
+// it passes {model}, stop either, or forget the stored one. Progress comes
+// back as local_status; the stored one travels in setup_keys as `local`.
+inline constexpr const char* kLocalFind          = "local_find";
+inline constexpr const char* kLocalCheck         = "local_check";
+inline constexpr const char* kLocalCancel        = "local_cancel";
+inline constexpr const char* kLocalRemove        = "local_remove";
 inline constexpr const char* kAccountSignIn      = "account_sign_in";
 inline constexpr const char* kAccountCheck       = "account_check";
 inline constexpr const char* kAccountCancel      = "account_cancel";
@@ -156,6 +165,13 @@ inline constexpr const char* kSetupStatus        = "setup_status";
 // an account provider. Sent after the handshake and whenever one
 // of them changes. saved_keys capability.
 inline constexpr const char* kSetupKeys          = "setup_keys";
+// Where setting up a model on this computer has got to: {phase:
+// idle|finding|models|checking|verified|error, address?, runtime?, models?:
+// [{id, tools?, images?}], model?, elapsedMs?, error?: {code, message,
+// retryable}}. models is the list a find gave (runtime "Ollama", "LM Studio"
+// or empty when the app could not tell); tools and images are left out when
+// the app does not say. local_model capability.
+inline constexpr const char* kLocalStatus        = "local_status";
 // Where a JusPrin sign-in has got to: {phase: idle|browser|email|checking,
 // url?, email?, expired?, error?: {code, message, retryable}, warning?}. url
 // is the page the browser was sent to, while in the browser phase; email is

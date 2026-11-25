@@ -212,6 +212,7 @@ void PrinterPanel::open_filament(std::size_t slot, const std::string& preset, co
     m_filament_name   = shown;
     m_filament_preset = preset;
     m_filament_instructions.clear();
+    m_filament_instructions_without_web_search.clear();
     m_return_label = return_label;
     build_runtime();
     Show();
@@ -296,6 +297,7 @@ Agent::AgentSessionProfile PrinterPanel::filament_profile() const
     Agent::AgentSessionProfile profile;
     profile.tool_names                 = PrinterConversation::settings_tools();
     profile.instructions               = m_filament_instructions;
+    profile.instructions_without_web_search = m_filament_instructions_without_web_search;
     profile.include_workspace          = false;
     return profile;
 }
@@ -330,7 +332,8 @@ bool PrinterPanel::handle_filament_page_message(const std::string& type, const n
         // Bounded: the page's words become every request's system prompt.
         const std::string text = payload.value("text", std::string());
         if (text.size() <= kFilamentInstructionsLimit && text != m_filament_instructions) {
-            m_filament_instructions = text;
+            m_filament_instructions                    = text;
+            m_filament_instructions_without_web_search = payload.value("withoutWebSearch", std::string());
             m_web_view->host().set_session_profile(filament_profile());
         }
         return true;

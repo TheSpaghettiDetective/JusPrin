@@ -2,6 +2,8 @@
 
 #include "AgentHost.hpp"
 #include "CloudSignInMachine.hpp"
+#include "LocalModelSetup.hpp"
+#include "ModelCatalog.hpp"
 #include "ModelCatalogFetch.hpp"
 #include "OpenAIResponsesAgent.hpp"
 #include "ProviderFactory.hpp"
@@ -15,6 +17,8 @@
 #include <boost/log/trivial.hpp>
 
 #include <cstdlib>
+#include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -98,6 +102,32 @@ std::string stored_format(const AppConfig* config, const std::string& provider, 
 
 void save_now(AppConfig& config);
 
+// The model on this computer's items.
+constexpr const char* kLocalAddress = "local_address";
+constexpr const char* kLocalModel   = "local_model";
+constexpr const char* kLocalRuntime = "local_runtime";
+constexpr const char* kLocalImages  = "local_images";
+
+bool provider_set_up(const AppConfig* config, const ProviderProfile& profile)
+{
+    if (profile.on_this_computer)
+        return !config->get(kSection, kLocalAddress).empty() && !config->get(kSection, kLocalModel).empty();
+    return !config->get(kSection, api_key_item_for(profile.id)).empty();
+}
+
+// A chat without a choice of its own talks to the recorded provider; once
+// `removed` is no longer set up, that is the first provider that still is.
+void move_default_off(AppConfig* config, const std::string& removed)
+{
+    if (config->get(kSection, "provider") != removed)
+        return;
+    for (const ProviderProfile& profile : provider_profiles())
+        if (profile.id != removed && provider_set_up(config, profile)) {
+            config->set(kSection, "provider", profile.id);
+            return;
+        }
+}
+
 // Deletes a provider's stored key, and an account's email and formats with
 // it. A chat without a choice of its own talks to the recorded provider; once
 // its key is gone, that is the first provider that still has one. Remove and
@@ -114,12 +144,7 @@ void remove_provider_key(AppConfig* config, const std::string& provider)
     config->erase(kSection, account_id_item_for(provider));
     if (provider == account_provider().id)
         sentry_set_account({});
-    if (config->get(kSection, "provider") == provider)
-        for (const ProviderProfile& profile : provider_profiles())
-            if (!config->get(kSection, api_key_item_for(profile.id)).empty()) {
-                config->set(kSection, "provider", profile.id);
-                break;
-            }
+    move_default_off(config, provider);
     // Saved now, as a stored key is: the person was just told it is gone.
     save_now(*config);
 }
@@ -160,6 +185,64 @@ std::string load_provider_api_key(const AppConfig* config, const std::string& pr
     return config == nullptr ? std::string() : config->get(kSection, api_key_item_for(provider));
 }
 
+std::optional<LocalModelRecord> load_local_model(const AppConfig* config)
+{
+    if (config == nullptr || !provider_set_up(config, *profile_for(kLocalProvider)))
+        return std::nullopt;
+    LocalModelRecord record;
+    record.address = config->get(kSection, kLocalAddress);
+    record.model   = config->get(kSection, kLocalModel);
+    record.runtime = config->get(kSection, kLocalRuntime);
+    record.images  = config->get(kSection, kLocalImages) != "false";
+    return record;
+}
+
+void store_local_model(AppConfig* config, const LocalModelRecord& record)
+{
+    if (config == nullptr)
+        throw std::logic_error("jusprin-agent-setup: storing a local model with no settings");
+    if (record.address.empty() || record.model.empty())
+        throw std::logic_error("jusprin-agent-setup: storing a local model with no address or model");
+    bool other_set_up = false;
+    for (const ProviderProfile& profile : provider_profiles())
+        if (!profile.on_this_computer && provider_set_up(config, profile))
+            other_set_up = true;
+    config->set(kSection, kLocalAddress, record.address);
+    config->set(kSection, kLocalModel, record.model);
+    config->set(kSection, kLocalRuntime, record.runtime);
+    config->set(kSection, kLocalImages, record.images ? "true" : "false");
+    config->set(kSection, "enabled", "true");
+    if (!other_set_up)
+        config->set(kSection, "provider", kLocalProvider);
+    save_now(*config);
+}
+
+void remove_local_model(AppConfig* config)
+{
+    if (config == nullptr)
+        throw std::logic_error("jusprin-agent-setup: removing a local model with no settings");
+    if (!load_local_model(config))
+        throw RuntimeError("jusprin-agent-setup: removing the local model, which is not set up");
+    for (const char* item : {kLocalAddress, kLocalModel, kLocalRuntime, kLocalImages})
+        config->erase(kSection, item);
+    move_default_off(config, kLocalProvider);
+    save_now(*config);
+}
+
+std::vector<std::string> configured_chat_providers(const AppConfig* config)
+{
+    std::vector<std::string> providers;
+    if (!configured_true(config, "enabled"))
+        return providers;
+    // Consent is to sending chats to a provider's servers; a model on this
+    // computer sends nothing off it.
+    const bool consent = configured_true(config, "cloud_consent");
+    for (const ProviderProfile& profile : provider_profiles())
+        if ((profile.on_this_computer || consent) && provider_set_up(config, profile))
+            providers.push_back(profile.id);
+    return providers;
+}
+
 AgentRuntime load_agent_runtime(AppConfig* config)
 {
     AgentSettings settings;
@@ -173,6 +256,12 @@ AgentRuntime load_agent_runtime(AppConfig* config)
     if (const ProviderProfile* profile = profile_for(settings.provider); profile != nullptr && profile->account_sign_in) {
         settings.format   = stored_format(config, profile->id, settings.model.empty() ? profile->model : settings.model);
         settings.endpoint = cloud_gateway(config, *profile);
+    }
+    if (settings.provider == kLocalProvider) {
+        if (const std::optional<LocalModelRecord> local = load_local_model(config)) {
+            settings.model    = local->model;
+            settings.endpoint = local_endpoint(local->address);
+        }
     }
     AgentRuntime runtime = resolve_agent_runtime(settings, agent_endpoint_override(), &make_openai_http_transport, logging_listeners());
     runtime.setup        = make_agent_setup(config);
@@ -200,9 +289,15 @@ AgentSetupServicePtr make_agent_setup(AppConfig* config)
     ProviderKeySetup::KeyStore keys;
     keys.load   = [config](const std::string& provider) { return load_provider_api_key(config, provider); };
     keys.remove = [config](const std::string& provider) { remove_provider_key(config, provider); };
+    LocalModelSetup::Store local;
+    local.load   = [config]() { return load_local_model(config); };
+    local.store  = [config](const LocalModelRecord& record) { store_local_model(config, record); };
+    local.remove = [config]() { remove_local_model(config); };
     return std::make_shared<ProviderKeySetup>(&make_openai_http_transport, std::move(commit), std::move(keys),
                                               agent_endpoint_override(), ProviderKeySetup::Clock{},
-                                              make_cloud_sign_in(config));
+                                              make_cloud_sign_in(config),
+                                              std::make_shared<LocalModelSetup>(&fetch_local_app, &make_openai_http_transport,
+                                                                                std::move(local)));
 }
 
 std::string cloud_web_link_url(const AppConfig* config)
@@ -306,13 +401,7 @@ public:
     // Read each time: setup may have stored a key since the last turn.
     std::vector<std::string> configured_providers() const override
     {
-        std::vector<std::string> providers;
-        if (!configured_true(m_config, "enabled") || !configured_true(m_config, "cloud_consent"))
-            return providers;
-        for (const ProviderProfile& profile : provider_profiles())
-            if (!load_provider_api_key(m_config, profile.id).empty())
-                providers.push_back(profile.id);
-        return providers;
+        return configured_chat_providers(m_config);
     }
 
     std::string default_provider() const override
@@ -324,7 +413,14 @@ public:
     AgentServicePtr make_agent(const ChatModelChoice& choice) override
     {
         const ProviderProfile* row = profile_for(choice.provider);
-        const std::string      key = load_provider_api_key(m_config, choice.provider);
+        if (row != nullptr && row->on_this_computer) {
+            const std::optional<LocalModelRecord> local = load_local_model(m_config);
+            if (!local)
+                return nullptr;
+            return make_provider_agent(*row, {}, choice.model, local_endpoint(local->address), make_openai_http_transport(),
+                                       logging_listeners());
+        }
+        const std::string key = load_provider_api_key(m_config, choice.provider);
         if (row == nullptr || key.empty())
             return nullptr;
         ProviderProfile profile = *row;
@@ -336,6 +432,21 @@ public:
         if (!served)
             return nullptr;
         return make_provider_agent(*served, key, choice.model, {}, make_openai_http_transport(), logging_listeners());
+    }
+
+    std::string default_model(const std::string& provider) const override
+    {
+        if (provider == kLocalProvider) {
+            const std::optional<LocalModelRecord> local = load_local_model(m_config);
+            return local ? local->model : std::string();
+        }
+        return IChatModelSource::default_model(provider);
+    }
+
+    std::string runtime(const std::string& provider) const override
+    {
+        const std::optional<LocalModelRecord> local = provider == kLocalProvider ? load_local_model(m_config) : std::nullopt;
+        return local ? local->runtime : std::string();
     }
 
     std::string model_format(const std::string& provider, const std::string& model) const override
@@ -389,7 +500,23 @@ public:
     void list_models(const std::string& provider, ModelsDone done) override
     {
         const ProviderProfile* profile = profile_for(provider);
-        const std::string      key     = load_provider_api_key(m_config, provider);
+        // The model on this computer is the one setup checked; its app's
+        // list is not asked again.
+        if (profile != nullptr && profile->on_this_computer) {
+            std::vector<ModelOption> models;
+            if (const std::optional<LocalModelRecord> local = load_local_model(m_config)) {
+                ModelOption option;
+                option.id     = local->model;
+                option.label  = local->model;
+                option.images = local->images;
+                models.push_back(std::move(option));
+            }
+            m_post([done = std::move(done), models = std::move(models)]() mutable {
+                done(!models.empty(), std::move(models), false, {});
+            });
+            return;
+        }
+        const std::string key = load_provider_api_key(m_config, provider);
         if (profile == nullptr || key.empty()) {
             done(false, {}, false, {});
             return;

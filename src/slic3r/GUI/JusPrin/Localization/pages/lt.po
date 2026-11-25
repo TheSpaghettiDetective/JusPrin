@@ -217,9 +217,19 @@ msgid "{count, plural, one {+{n} credit} other {+{n} credits}}"
 msgstr "{count, plural, one {+{n} kreditas} few {+{n} kreditai} many {+{n} kredito} other {+{n} kreditų}}"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "{count, plural, one {LM Studio at {address} has # model. Pick the one your chats should use.} other {LM Studio at {address} has # models. Pick the one your chats should use.}}"
+msgstr "{count, plural, one {LM Studio adresu {address} turi # modelį. Pasirinkite, kurį naudos jūsų pokalbiai.} few {LM Studio adresu {address} turi # modelius. Pasirinkite, kurį naudos jūsų pokalbiai.} many {LM Studio adresu {address} turi # modelio. Pasirinkite, kurį naudos jūsų pokalbiai.} other {LM Studio adresu {address} turi # modelių. Pasirinkite, kurį naudos jūsų pokalbiai.}}"
+
+# AI Translated
 #: src/components/AllSettings.tsx
 msgid "{count, plural, one {Negative part} other {Negative parts}}"
 msgstr "{count, plural, one {Neigiama dalis} few {Neigiamos dalys} many {Neigiamos dalys} other {Neigiamos dalys}}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "{count, plural, one {Ollama at {address} has # model. Pick the one your chats should use.} other {Ollama at {address} has # models. Pick the one your chats should use.}}"
+msgstr "{count, plural, one {Ollama adresu {address} turi # modelį. Pasirinkite, kurį naudos jūsų pokalbiai.} few {Ollama adresu {address} turi # modelius. Pasirinkite, kurį naudos jūsų pokalbiai.} many {Ollama adresu {address} turi # modelio. Pasirinkite, kurį naudos jūsų pokalbiai.} other {Ollama adresu {address} turi # modelių. Pasirinkite, kurį naudos jūsų pokalbiai.}}"
 
 # AI Translated
 #: src/components/AllSettings.tsx
@@ -236,6 +246,11 @@ msgstr "{count, plural, one {Atramų blokatorius} few {Atramų blokatoriai} many
 #: src/components/AllSettings.tsx
 msgid "{count, plural, one {Support enforcer} other {Support enforcers}}"
 msgstr "{count, plural, one {Priverstinės atramos} few {Priverstinės atramos} many {Priverstinės atramos} other {Priverstinės atramos}}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "{count, plural, one {The app at {address} has # model. Pick the one your chats should use.} other {The app at {address} has # models. Pick the one your chats should use.}}"
+msgstr "{count, plural, one {Programa adresu {address} turi # modelį. Pasirinkite, kurį naudos jūsų pokalbiai.} few {Programa adresu {address} turi # modelius. Pasirinkite, kurį naudos jūsų pokalbiai.} many {Programa adresu {address} turi # modelio. Pasirinkite, kurį naudos jūsų pokalbiai.} other {Programa adresu {address} turi # modelių. Pasirinkite, kurį naudos jūsų pokalbiai.}}"
 
 # AI Translated
 #: src/components/TurnActivity.tsx
@@ -635,6 +650,11 @@ msgid "{reportCredits, plural, one {Share how it printed and get {reportCredits}
 msgstr "{reportCredits, plural, one {Papasakokite, kaip pavyko spaudinys, ir gaukite {reportCredits} kreditą} few {Papasakokite, kaip pavyko spaudinys, ir gaukite {reportCredits} kreditus} many {Papasakokite, kaip pavyko spaudinys, ir gaukite {reportCredits} kredito} other {Papasakokite, kaip pavyko spaudinys, ir gaukite {reportCredits} kreditų}}"
 
 # AI Translated
+#: src/components/ModelPickers.tsx
+msgid "{runtime} · no credits"
+msgstr "{runtime} · be kreditų"
+
+# AI Translated
 #. A duration in seconds, abbreviated: 45s
 #: ../HomeUI/src/history.ts
 msgid "{secs}s"
@@ -831,6 +851,12 @@ msgid "A chat keeps the model it started with."
 msgstr "Pokalbis išlaiko modelį, su kuriuo buvo pradėtas."
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+#: src/components/LocalModelGroup.tsx
+msgid "A model on this computer"
+msgstr "Modelis šiame kompiuteryje"
+
+# AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
 msgid "A new name has to differ from the old one by more than capitalization."
 msgstr "Naujas pavadinimas turi skirtis nuo senojo ne tik didžiosiomis ir mažosiomis raidėmis."
@@ -906,6 +932,11 @@ msgstr "Pridėkite savo spausdintuvą"
 #: src/components/PrinterPanel.tsx
 msgid "Added: <0>{name}</0>"
 msgstr "Pridėta: <0>{name}</0>"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Address of the app that runs the model"
+msgstr "Programos, kuri vykdo modelį, adresas"
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -1215,8 +1246,8 @@ msgstr "Savas DI"
 
 # AI Translated
 #: src/components/Preferences.tsx
-msgid "Bring Your Own AI: an API key or an AI app you already pay for. No JusPrin account needed. Set up as many as you like; each chat picks a model from them."
-msgstr "Savas DI: API raktas arba DI programa, už kurią jau mokate. JusPrin paskyros nereikia. Nustatykite tiek, kiek norite; kiekvienas pokalbis pasirenka modelį iš jų."
+msgid "Bring Your Own AI: an API key, an AI app you already pay for, or a model you run on this computer. No JusPrin account needed. Set up as many as you like; each chat picks a model from them."
+msgstr "Savas DI: API raktas, DI programa, už kurią jau mokate, arba modelis, kurį vykdote šiame kompiuteryje. JusPrin paskyros nereikia. Nustatykite tiek, kiek norite; kiekvienas pokalbis pasirenka modelį iš jų."
 
 # AI Translated
 #: ../HomeUI/src/components/Onboarding.tsx
@@ -1249,6 +1280,11 @@ msgid "Camera view of {name}"
 msgstr "{name} kameros vaizdas"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Can see pictures"
+msgstr "Mato paveikslėlius"
+
+# AI Translated
 #: src/components/SetupLocalTool.tsx
 msgid "Can’t be stopped once started; it takes a moment."
 msgstr "Pradėjus sustabdyti negalima; tai užtrunka akimirką."
@@ -1262,6 +1298,11 @@ msgstr "Nerandate savo spausdintuvo? <0>Paklauskite DI</0>"
 #: src/components/OrcaImport.tsx
 msgid "Can’t import"
 msgstr "Negalima importuoti"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Can’t see pictures. The AI works without seeing your model."
+msgstr "Nemato paveikslėlių. DI dirba nematydamas jūsų 3D modelio."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -1286,6 +1327,8 @@ msgstr "Nepavyksta įrašyti nustatymų failo."
 #: src/components/ChangeRows.tsx
 #: src/components/ChatNavigation.tsx
 #: src/components/ChatNavigation.tsx
+#: src/components/LocalModelGroup.tsx
+#: src/components/LocalModelGroup.tsx
 #: src/components/OrcaImport.tsx
 #: src/components/OrcaImport.tsx
 #: src/components/Preferences.tsx
@@ -1307,6 +1350,11 @@ msgstr "Atšaukta"
 #: src/components/ToolActivityCard.tsx
 msgid "Cancelled — nothing was changed"
 msgstr "Atšaukta – niekas nepakeista"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Change"
+msgstr "Keisti"
 
 # AI Translated
 #: src/components/SignInDoor.tsx
@@ -1356,6 +1404,11 @@ msgid "Chats"
 msgstr "Pokalbiai"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Chats can use"
+msgstr "Pokalbiuose galima naudoti"
+
+# AI Translated
 #: src/components/Panels.tsx
 msgid "Chatting here needs AI."
 msgstr "Kad galėtumėte čia kalbėtis, reikia DI."
@@ -1389,6 +1442,11 @@ msgstr "Patikrinkite rašybą arba pabandykite kitus žodžius. Taip pat galite 
 #: src/components/SignInDoor.tsx
 msgid "Check your email."
 msgstr "Patikrinkite el. paštą."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Checking {pickedModel}. A local model can take a minute to answer the first time."
+msgstr "Tikrinamas {pickedModel}. Vietiniam modeliui pirmą kartą atsakyti gali prireikti minutės."
 
 # AI Translated
 #: src/components/Preferences.tsx
@@ -1929,6 +1987,11 @@ msgid "Find a language"
 msgstr "Rasti kalbą"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Find models"
+msgstr "Rasti modelius"
+
+# AI Translated
 #: src/components/SignInDoor.tsx
 msgid "Finish in your browser."
 msgstr "Užbaikite naršyklėje."
@@ -2139,6 +2202,11 @@ msgstr "Kaip pavyko?"
 #: src/printerWords.ts
 msgid "How do I check?"
 msgstr "Kaip patikrinti?"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "How to check and change this"
+msgstr "Kaip tai patikrinti ir pakeisti"
 
 # AI Translated
 #: src/components/OrcaImport.tsx
@@ -2516,6 +2584,16 @@ msgid "Live URL (developer only — this can change after restart)"
 msgstr "Tiesioginis URL (tik kūrėjams – po paleidimo iš naujo gali pasikeisti)"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "LM Studio at {address}"
+msgstr "LM Studio adresu {address}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "LM Studio at {address} has no models. Download one in LM Studio, then find models again."
+msgstr "LM Studio adresu {address} neturi modelių. Atsisiųskite modelį per LM Studio, tada vėl ieškokite modelių."
+
+# AI Translated
 #: ../HomeUI/src/components/PrinterPickerHost.tsx
 msgid "Loading JusPrin’s settings for this printer…"
 msgstr "Įkeliami JusPrin nustatymai šiam spausdintuvui…"
@@ -2529,6 +2607,11 @@ msgstr "Įkeliami modeliai…"
 #: ../HomeUI/src/components/PrintHistory.tsx
 msgid "Loading print history…"
 msgstr "Įkeliama spausdinimo istorija…"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Local model"
+msgstr "Vietinis modelis"
 
 # AI Translated
 #: src/components/Preferences.tsx
@@ -2554,6 +2637,11 @@ msgstr "Ieškota: {path}"
 #: src/components/Preferences.tsx
 msgid "Looking for a newer version on GitHub…"
 msgstr "Ieškoma naujesnės versijos GitHub…"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Looking for models at {typedAddress}…"
+msgstr "Ieškoma modelių adresu {typedAddress}…"
 
 # AI Translated
 #. A thinking level of the AI model
@@ -2628,6 +2716,7 @@ msgid "Minimal"
 msgstr "Minimalus"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
 #: src/components/ModelPickers.tsx
 #: src/components/Preferences.tsx
 #: src/components/Preferences.tsx
@@ -2786,6 +2875,11 @@ msgid "No chats yet. Start a new chat about this project."
 msgstr "Pokalbių dar nėra. Pradėkite naują pokalbį apie šį projektą."
 
 # AI Translated
+#: src/components/ModelPickers.tsx
+msgid "No credits"
+msgstr "Be kreditų"
+
+# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "No filament for the {modelName} matches “{search}”."
 msgstr "Nė viena gija spausdintuvui {modelName} neatitinka „{search}“."
@@ -2922,6 +3016,11 @@ msgid "Not saved"
 msgstr "Neišsaugota"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Not set up"
+msgstr "Nenustatyta"
+
+# AI Translated
 #: src/components/Panels.tsx
 msgid "NOT SET UP"
 msgstr "NENUSTATYTA"
@@ -2990,6 +3089,16 @@ msgstr "Išjungta"
 #: src/components/PrinterPanel.tsx
 msgid "Offline"
 msgstr "Neprisijungęs"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Ollama at {address}"
+msgstr "Ollama adresu {address}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Ollama at {address} has no models. Download one in Ollama, then find models again."
+msgstr "Ollama adresu {address} neturi modelių. Atsisiųskite modelį per Ollama, tada vėl ieškokite modelių."
 
 # AI Translated
 #: src/components/AllSettings.tsx
@@ -3450,6 +3559,7 @@ msgstr "Priminti rytoj"
 #: src/components/AgentConnection.tsx
 #: src/components/AllSettings.tsx
 #: src/components/AttachmentChip.tsx
+#: src/components/LocalModelGroup.tsx
 msgid "Remove"
 msgstr "Pašalinti"
 
@@ -3847,6 +3957,11 @@ msgstr "Serijos numeris"
 #: src/components/AllSettings.tsx
 msgid "Set on this plate"
 msgstr "Nustatyta šiai plokštei"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Set up"
+msgstr "Nustatyti"
 
 # AI Translated
 #: ../HomeUI/src/components/AgentGroup.tsx
@@ -4262,6 +4377,16 @@ msgid "The AI slicer that helps you get better prints."
 msgstr "DI pjaustyklė, padedanti gauti geresnius spaudinius."
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The app at {address}"
+msgstr "Programa adresu {address}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The app at {address} has no models. Download one in that app, then find models again."
+msgstr "Programa adresu {address} neturi modelių. Atsisiųskite modelį toje programoje, tada vėl ieškokite modelių."
+
+# AI Translated
 #: src/components/SignInDoor.tsx
 msgid "The app continues on its own once the browser is done."
 msgstr "Kai naršyklėje baigsite, programa tęs darbą pati."
@@ -4311,6 +4436,21 @@ msgstr "Visas OrcaSlicer, kurio pagrindu sukurta JusPrin, parinkčių langas."
 #: src/components/AgentConnection.tsx
 msgid "The key could not be checked. Nothing was saved."
 msgstr "Nepavyko patikrinti rakto. Niekas neišsaugota."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The model must support tools, and its context length in LM Studio must be at least 32k."
+msgstr "Modelis turi palaikyti įrankius, o jo konteksto ilgis LM Studio turi būti bent 32k."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The model must support tools, and its context length in Ollama must be at least 32k."
+msgstr "Modelis turi palaikyti įrankius, o jo konteksto ilgis Ollama turi būti bent 32k."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The model must support tools, and its context length in the app that runs it must be at least 32k."
+msgstr "Modelis turi palaikyti įrankius, o jo konteksto ilgis programoje, kuri jį vykdo, turi būti bent 32k."
 
 # AI Translated
 #: src/components/OrcaImport.tsx
@@ -4401,6 +4541,11 @@ msgid "This is an internal connection inside JusPrin, not a network service. The
 msgstr "Tai vidinis ryšys JusPrin viduje, o ne tinklo paslauga. 3D vaizdas ir visi kiti valdikliai toliau veikia."
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "This is Ollama’s address. For LM Studio, use <0>http://127.0.0.1:1234</0>."
+msgstr "Tai Ollama adresas. LM Studio atveju naudokite <0>http://127.0.0.1:1234</0>."
+
+# AI Translated
 #: src/printerWords.ts
 msgid "This is the {name}. Tell me what changed on it, or ask anything about it."
 msgstr "Tai {name}. Papasakokite, kas jame pasikeitė, arba klauskite bet ko apie jį."
@@ -4414,6 +4559,11 @@ msgstr "Tai jūsų spausdintuvas. Papasakokite, kas jame pasikeitė, arba klausk
 #: src/components/AllSettings.tsx
 msgid "This JusPrin build cannot list the settings."
 msgstr "Ši JusPrin versija negali pateikti nustatymų sąrašo."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "This model can’t see pictures, so the AI works without seeing your model."
+msgstr "Šis modelis nemato paveikslėlių, todėl DI dirba nematydamas jūsų 3D modelio."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -4591,6 +4741,11 @@ msgid "Updates come from the Microsoft Store."
 msgstr "Atnaujinimai gaunami iš Microsoft Store."
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Use a model you run yourself with Ollama, LM Studio or a similar app. Your messages go to that app, not to an online AI service, and there is nothing to pay. Local models are slower and make more mistakes than the cloud models above."
+msgstr "Naudokite modelį, kurį patys vykdote su Ollama, LM Studio ar panašia programa. Jūsų žinutės siunčiamos tai programai, o ne internetinei DI paslaugai, ir nieko mokėti nereikia. Vietiniai modeliai lėtesni ir daro daugiau klaidų nei aukščiau esantys debesijos modeliai."
+
+# AI Translated
 #: src/components/SignInDoor.tsx
 msgid "Use a password instead"
 msgstr "Verčiau naudoti slaptažodį"
@@ -4609,6 +4764,11 @@ msgstr "Naudoti projekto reikšmę"
 #: src/components/AllSettings.tsx
 msgid "Use project value for {label}"
 msgstr "Naudoti projekto reikšmę: {label}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Use this model"
+msgstr "Naudoti šį modelį"
 
 # AI Translated
 #: ../HomeUI/src/components/Onboarding.tsx

@@ -13,6 +13,7 @@
 // delivery happens from poll() on the GUI thread.
 
 #include "AgentService.hpp"
+#include "AgentProtocol.hpp"
 #include "AgentTransport.hpp"
 #include "ProviderCodec.hpp"
 #include "ProviderProfile.hpp"
@@ -44,6 +45,13 @@ struct SentRequest
 // X-JusPrin-Chat: the chat key hashed, so the gateway never sees a project or
 // chat id.
 std::string gateway_chat_id(const std::string& chat_key);
+
+// The two failures of a model on this computer the person can act on
+// (Kenneth, 2026-11-24, "Approve both"): nothing answers at the address they
+// set up, so they start the app that runs the model; and the model cannot
+// take the app's tools, or its context is under 32k, so they pick another.
+AgentError local_unreachable(const std::string& address_or_endpoint);
+AgentError local_cant_run();
 
 // An AI service's answer that names nothing a person can act on, in the
 // service's own words: its status or event, its request id, and the turn the
@@ -91,6 +99,9 @@ private:
 
     void begin_transcript(const AgentRequest& request);
     bool m_app_started{false};
+    // False for a model that cannot read pictures: no picture goes into its
+    // requests (AgentRequest::model_reads_pictures).
+    bool m_reads_pictures{true};
     void push_skills(const std::vector<AgentSkillUse>& skills, std::vector<RecordItem> notes = {});
     // The part with its blob written, ahead of the request that first sends it.
     RecordPart kept(RecordPart part);

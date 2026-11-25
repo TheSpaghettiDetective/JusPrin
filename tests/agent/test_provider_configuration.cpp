@@ -5,6 +5,7 @@
 
 #include "kept_turn.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderFactory.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp"
 
 #include <cstdlib>
 #include <set>
@@ -71,12 +72,14 @@ TEST_CASE("every provider row is complete and has an id of its own", "[agent][pr
     for (const ProviderProfile& profile : provider_profiles()) {
         CAPTURE(profile.id);
         CHECK(ids.insert(profile.id).second);
-        CHECK_FALSE(profile.endpoint.empty());
-        CHECK_FALSE(profile.model.empty());
+        // A model on this computer has the address and the model the person
+        // set up, and nothing of its own.
+        CHECK(profile.endpoint.empty() == profile.on_this_computer);
+        CHECK(profile.model.empty() == profile.on_this_computer);
         CHECK_FALSE(profile.display_name.empty());
         CHECK(profile_for(profile.id) == &profile);
     }
-    CHECK(ids == std::set<std::string>{"anthropic", "jusprin", "openai", "openrouter"});
+    CHECK(ids == std::set<std::string>{"anthropic", "jusprin", "local", "openai", "openrouter"});
     CHECK(profile_for("other") == nullptr);
     CHECK(&openai_profile() == profile_for("openai"));
 }
@@ -89,6 +92,20 @@ TEST_CASE("a stored OpenRouter choice loads a ready OpenRouter agent", "[agent][
     REQUIRE(runtime.service != nullptr);
     CHECK(runtime.service->ready());
     CHECK(runtime.unavailable_reason.empty());
+}
+
+TEST_CASE("a model on this computer loads with no key and no cloud consent, once its address and model are set", "[agent][providers]")
+{
+    AgentSettings settings = configured("local", "");
+    settings.cloud_consent = false;
+    CHECK(resolve_agent_runtime(settings, "", &null_transport).unavailable_reason == "No model on this computer is set up.");
+    settings.model    = "qwen3.5:9b";
+    settings.endpoint = local_endpoint("127.0.0.1:11434");
+    const AgentRuntime runtime = resolve_agent_runtime(settings, "", &null_transport);
+    CHECK(runtime.provider == "local");
+    CHECK(runtime.availability == AgentAvailability::Ready);
+    REQUIRE(runtime.service != nullptr);
+    CHECK(runtime.service->ready());
 }
 
 TEST_CASE("the stored choices say why there is no agent, in the provider's own name", "[agent][providers]")

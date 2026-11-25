@@ -16,6 +16,7 @@
 #include "AgentService.hpp"
 #include "AgentTransport.hpp"
 #include "CloudAccount.hpp"
+#include "LocalModelSetup.hpp"
 
 #include <chrono>
 #include <functional>
@@ -82,9 +83,16 @@ public:
 
     // Signing in to a JusPrin account, where this build can; null otherwise.
     virtual ICloudSignIn* cloud_sign_in() { return nullptr; }
+    // Setting up a model on this computer, where this build can; null otherwise.
+    virtual LocalModelSetup* local_model() { return nullptr; }
 };
 
 using AgentSetupServicePtr = std::shared_ptr<IAgentSetupService>;
+
+// The probe a key check and a local model's check send: a fixed sentence
+// and no project, so a provider not chosen yet receives nothing of the
+// person's.
+AgentRequest setup_probe_request();
 
 // Providers this build can verify. The page offers the same list; the host
 // checks anyway, so a page/host mismatch fails visibly instead of hanging.
@@ -117,7 +125,8 @@ public:
                      KeyStore         keys              = {},
                      std::string      endpoint_override = {},
                      Clock            clock             = {},
-                     CloudSignInPtr   cloud             = {});
+                     CloudSignInPtr   cloud             = {},
+                     std::shared_ptr<LocalModelSetup> local = {});
     ~ProviderKeySetup() override;
 
     bool                        busy() const override { return m_candidate != nullptr; }
@@ -128,6 +137,7 @@ public:
     std::vector<SavedKey>       saved_keys() const override;
     void                        remove_key(const std::string& provider) override;
     ICloudSignIn*               cloud_sign_in() override { return m_cloud.get(); }
+    LocalModelSetup*            local_model() override { return m_local.get(); }
 
 private:
     int          elapsed_ms() const;
@@ -139,6 +149,7 @@ private:
     std::string                           m_endpoint_override;
     Clock                                 m_clock;
     CloudSignInPtr                        m_cloud;
+    std::shared_ptr<LocalModelSetup>      m_local;
     AgentServicePtr                       m_candidate;
     std::chrono::steady_clock::time_point m_started{};
 };

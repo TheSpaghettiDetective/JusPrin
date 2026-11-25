@@ -21,6 +21,7 @@
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
+#include "slic3r/GUI/JusPrin/Agent/LocalModelSetup.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp"
 #include "slic3r/GUI/JusPrin/Shell/AgentPane.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ServerSheet.hpp"
@@ -34,6 +35,9 @@
 
 #include <nlohmann/json.hpp>
 
+#include <optional>
+#include <string>
+
 #include <wx/defs.h>
 #include <wx/dirdlg.h>
 #include <wx/msgdlg.h>
@@ -41,6 +45,7 @@
 #include <wx/sizer.h>
 #include <wx/timer.h>
 #include <wx/translation.h>
+#include <wx/utils.h>
 
 #include <wx/stdpaths.h>
 
@@ -138,9 +143,12 @@ Facts current_facts()
         facts.update_published = update.available->published;
         facts.update_notes     = update.available->notes;
     }
-    for (const Agent::ProviderProfile& profile : Agent::provider_profiles())
-        if (!Agent::load_provider_api_key(wxGetApp().app_config, profile.id).empty())
-            facts.configured_providers.push_back(profile.id);
+    facts.configured_providers = Agent::configured_chat_providers(wxGetApp().app_config);
+    if (const std::optional<Agent::LocalModelRecord> local = Agent::load_local_model(wxGetApp().app_config)) {
+        facts.local_model = local->model;
+        // TRN Names where a model runs when the app could not tell which app runs it: "qwen3.5:9b · this computer".
+        facts.local_label = local->runtime.empty() ? _u8L("this computer") : local->runtime;
+    }
     facts.versions_folder = (boost::filesystem::path(data_dir()) / "jusprin" / "projects").string();
 #ifdef _WIN32
     facts.windows = true;
@@ -244,6 +252,18 @@ bool PreferencesWindow::on_page_message(const std::string& type, const json& pay
                 if (m_view != nullptr)
                     m_view->host().refresh_account();
             });
+        }));
+        return true;
+    }
+    if (type == Agent::Protocol::kShellAction && payload.is_object() && payload.value("action", std::string()) == "open_link") {
+        // BYOAI's link to the guide's words on a local model. The page offers
+        // only https links; anything else is not one of its links.
+        const std::string url = payload.value("url", std::string());
+        if (url.rfind("https://", 0) != 0)
+            throw RuntimeError("jusprin-preferences: open_link to " + url + ", which is not an https link");
+        CallAfter(reported("opening the guide in the browser", [this, url] {
+            if (!wxLaunchDefaultBrowser(wxString::FromUTF8(url)))
+                OrcaMessages::show_own_message(this, _L("The app couldn't open your browser."), _L("Preferences"), wxOK | wxICON_WARNING);
         }));
         return true;
     }

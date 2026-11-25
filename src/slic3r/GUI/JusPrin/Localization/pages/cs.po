@@ -217,9 +217,19 @@ msgid "{count, plural, one {+{n} credit} other {+{n} credits}}"
 msgstr "{count, plural, one {+{n} kredit} few {+{n} kredity} many {+{n} kreditu} other {+{n} kreditů}}"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "{count, plural, one {LM Studio at {address} has # model. Pick the one your chats should use.} other {LM Studio at {address} has # models. Pick the one your chats should use.}}"
+msgstr "{count, plural, one {LM Studio na adrese {address} má # model. Vyberte ten, který mají vaše chaty používat.} few {LM Studio na adrese {address} má # modely. Vyberte ten, který mají vaše chaty používat.} many {LM Studio na adrese {address} má # modelu. Vyberte ten, který mají vaše chaty používat.} other {LM Studio na adrese {address} má # modelů. Vyberte ten, který mají vaše chaty používat.}}"
+
+# AI Translated
 #: src/components/AllSettings.tsx
 msgid "{count, plural, one {Negative part} other {Negative parts}}"
 msgstr "{count, plural, one {Negativní část} few {Negativní části} many {Negativní části} other {Negativní části}}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "{count, plural, one {Ollama at {address} has # model. Pick the one your chats should use.} other {Ollama at {address} has # models. Pick the one your chats should use.}}"
+msgstr "{count, plural, one {Ollama na adrese {address} má # model. Vyberte ten, který mají vaše chaty používat.} few {Ollama na adrese {address} má # modely. Vyberte ten, který mají vaše chaty používat.} many {Ollama na adrese {address} má # modelu. Vyberte ten, který mají vaše chaty používat.} other {Ollama na adrese {address} má # modelů. Vyberte ten, který mají vaše chaty používat.}}"
 
 # AI Translated
 #: src/components/AllSettings.tsx
@@ -235,6 +245,11 @@ msgstr "{count, plural, one {Blokátor podpory} few {Blokátory podpory} many {B
 #: src/components/AllSettings.tsx
 msgid "{count, plural, one {Support enforcer} other {Support enforcers}}"
 msgstr "{count, plural, one {Zesilovač podpory} few {Zesilovače podpory} many {Zesilovače podpory} other {Zesilovače podpory}}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "{count, plural, one {The app at {address} has # model. Pick the one your chats should use.} other {The app at {address} has # models. Pick the one your chats should use.}}"
+msgstr "{count, plural, one {Aplikace na adrese {address} má # model. Vyberte ten, který mají vaše chaty používat.} few {Aplikace na adrese {address} má # modely. Vyberte ten, který mají vaše chaty používat.} many {Aplikace na adrese {address} má # modelu. Vyberte ten, který mají vaše chaty používat.} other {Aplikace na adrese {address} má # modelů. Vyberte ten, který mají vaše chaty používat.}}"
 
 # AI Translated
 #: src/components/TurnActivity.tsx
@@ -634,6 +649,11 @@ msgid "{reportCredits, plural, one {Share how it printed and get {reportCredits}
 msgstr "{reportCredits, plural, one {Podělte se, jak se tisk povedl, a získejte {reportCredits} kredit} few {Podělte se, jak se tisk povedl, a získejte {reportCredits} kredity} many {Podělte se, jak se tisk povedl, a získejte {reportCredits} kreditu} other {Podělte se, jak se tisk povedl, a získejte {reportCredits} kreditů}}"
 
 # AI Translated
+#: src/components/ModelPickers.tsx
+msgid "{runtime} · no credits"
+msgstr "{runtime} · bez kreditů"
+
+# AI Translated
 #. A duration in seconds, abbreviated: 45s
 #: ../HomeUI/src/history.ts
 msgid "{secs}s"
@@ -829,6 +849,12 @@ msgid "A chat keeps the model it started with."
 msgstr "Chat si ponechává model, se kterým začal."
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+#: src/components/LocalModelGroup.tsx
+msgid "A model on this computer"
+msgstr "Model v tomto počítači"
+
+# AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
 msgid "A new name has to differ from the old one by more than capitalization."
 msgstr "Nový název se musí od starého lišit víc než jen velikostí písmen."
@@ -904,6 +930,11 @@ msgstr "Přidejte svou tiskárnu"
 #: src/components/PrinterPanel.tsx
 msgid "Added: <0>{name}</0>"
 msgstr "Přidáno: <0>{name}</0>"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Address of the app that runs the model"
+msgstr "Adresa aplikace, která model spouští"
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -1212,8 +1243,8 @@ msgstr "Vlastní AI (BYOAI)"
 
 # AI Translated
 #: src/components/Preferences.tsx
-msgid "Bring Your Own AI: an API key or an AI app you already pay for. No JusPrin account needed. Set up as many as you like; each chat picks a model from them."
-msgstr "Vlastní AI (Bring Your Own AI): klíč API nebo aplikace AI, kterou už platíte. Účet JusPrin není potřeba. Nastavte jich, kolik chcete; každý chat si z nich vybere model."
+msgid "Bring Your Own AI: an API key, an AI app you already pay for, or a model you run on this computer. No JusPrin account needed. Set up as many as you like; each chat picks a model from them."
+msgstr "Vlastní AI (BYOAI): klíč API, aplikace AI, kterou už platíte, nebo model, který spouštíte v tomto počítači. Účet JusPrin není potřeba. Nastavte jich, kolik chcete; každý chat si z nich vybere model."
 
 # AI Translated
 #: ../HomeUI/src/components/Onboarding.tsx
@@ -1246,6 +1277,11 @@ msgid "Camera view of {name}"
 msgstr "Pohled kamery tiskárny {name}"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Can see pictures"
+msgstr "Vidí obrázky"
+
+# AI Translated
 #: src/components/SetupLocalTool.tsx
 msgid "Can’t be stopped once started; it takes a moment."
 msgstr "Po spuštění nelze zastavit; chvíli to potrvá."
@@ -1259,6 +1295,11 @@ msgstr "Nemůžete najít svou tiskárnu? <0>Zeptejte se AI</0>"
 #: src/components/OrcaImport.tsx
 msgid "Can’t import"
 msgstr "Nelze importovat"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Can’t see pictures. The AI works without seeing your model."
+msgstr "Nevidí obrázky. AI pracuje, aniž by viděla váš 3D model."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -1283,6 +1324,8 @@ msgstr "Soubor s nastavením nelze zapsat."
 #: src/components/ChangeRows.tsx
 #: src/components/ChatNavigation.tsx
 #: src/components/ChatNavigation.tsx
+#: src/components/LocalModelGroup.tsx
+#: src/components/LocalModelGroup.tsx
 #: src/components/OrcaImport.tsx
 #: src/components/OrcaImport.tsx
 #: src/components/Preferences.tsx
@@ -1304,6 +1347,11 @@ msgstr "Zrušeno"
 #: src/components/ToolActivityCard.tsx
 msgid "Cancelled — nothing was changed"
 msgstr "Zrušeno — nic nebylo změněno"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Change"
+msgstr "Změnit"
 
 # AI Translated
 #: src/components/SignInDoor.tsx
@@ -1353,6 +1401,11 @@ msgid "Chats"
 msgstr "Chaty"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Chats can use"
+msgstr "Chaty mohou používat"
+
+# AI Translated
 #: src/components/Panels.tsx
 msgid "Chatting here needs AI."
 msgstr "Chatování zde vyžaduje AI."
@@ -1386,6 +1439,11 @@ msgstr "Zkontrolujte pravopis nebo zkuste jiná slova. Můžete se také zeptat 
 #: src/components/SignInDoor.tsx
 msgid "Check your email."
 msgstr "Zkontrolujte svůj e-mail."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Checking {pickedModel}. A local model can take a minute to answer the first time."
+msgstr "Kontroluje se {pickedModel}. Lokálnímu modelu může první odpověď trvat i minutu."
 
 # AI Translated
 #: src/components/Preferences.tsx
@@ -1925,6 +1983,11 @@ msgid "Find a language"
 msgstr "Najít jazyk"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Find models"
+msgstr "Najít modely"
+
+# AI Translated
 #: src/components/SignInDoor.tsx
 msgid "Finish in your browser."
 msgstr "Dokončete to v prohlížeči."
@@ -2135,6 +2198,11 @@ msgstr "Jak tisk dopadl?"
 #: src/printerWords.ts
 msgid "How do I check?"
 msgstr "Jak to mám zkontrolovat?"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "How to check and change this"
+msgstr "Jak to zkontrolovat a změnit"
 
 # AI Translated
 #: src/components/OrcaImport.tsx
@@ -2514,6 +2582,16 @@ msgid "Live URL (developer only — this can change after restart)"
 msgstr "Aktuální URL (jen pro vývojáře — po restartu se může změnit)"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "LM Studio at {address}"
+msgstr "LM Studio na adrese {address}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "LM Studio at {address} has no models. Download one in LM Studio, then find models again."
+msgstr "LM Studio na adrese {address} nemá žádné modely. Stáhněte si nějaký v LM Studiu a pak modely vyhledejte znovu."
+
+# AI Translated
 #: ../HomeUI/src/components/PrinterPickerHost.tsx
 msgid "Loading JusPrin’s settings for this printer…"
 msgstr "Načítání nastavení JusPrinu pro tuto tiskárnu…"
@@ -2527,6 +2605,11 @@ msgstr "Načítání modelů…"
 #: ../HomeUI/src/components/PrintHistory.tsx
 msgid "Loading print history…"
 msgstr "Načítání historie tisku…"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Local model"
+msgstr "Lokální model"
 
 # AI Translated
 #: src/components/Preferences.tsx
@@ -2552,6 +2635,11 @@ msgstr "Prohledáno: {path}"
 #: src/components/Preferences.tsx
 msgid "Looking for a newer version on GitHub…"
 msgstr "Hledá se novější verze na GitHubu…"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Looking for models at {typedAddress}…"
+msgstr "Hledají se modely na adrese {typedAddress}…"
 
 # AI Translated
 #. A thinking level of the AI model
@@ -2626,6 +2714,7 @@ msgid "Minimal"
 msgstr "Minimální"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
 #: src/components/ModelPickers.tsx
 #: src/components/Preferences.tsx
 #: src/components/Preferences.tsx
@@ -2784,6 +2873,11 @@ msgid "No chats yet. Start a new chat about this project."
 msgstr "Zatím žádné chaty. Začněte nový chat o tomto projektu."
 
 # AI Translated
+#: src/components/ModelPickers.tsx
+msgid "No credits"
+msgstr "Bez kreditů"
+
+# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "No filament for the {modelName} matches “{search}”."
 msgstr "Hledání „{search}“ neodpovídá žádný filament pro {modelName}."
@@ -2920,6 +3014,11 @@ msgid "Not saved"
 msgstr "Neuloženo"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Not set up"
+msgstr "Nenastaveno"
+
+# AI Translated
 #: src/components/Panels.tsx
 msgid "NOT SET UP"
 msgstr "NENASTAVENO"
@@ -2988,6 +3087,16 @@ msgstr "Vypnuto"
 #: src/components/PrinterPanel.tsx
 msgid "Offline"
 msgstr "Offline"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Ollama at {address}"
+msgstr "Ollama na adrese {address}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Ollama at {address} has no models. Download one in Ollama, then find models again."
+msgstr "Ollama na adrese {address} nemá žádné modely. Stáhněte si nějaký v Ollamě a pak modely vyhledejte znovu."
 
 # AI Translated
 #: src/components/AllSettings.tsx
@@ -3449,6 +3558,7 @@ msgstr "Připomenout zítra"
 #: src/components/AgentConnection.tsx
 #: src/components/AllSettings.tsx
 #: src/components/AttachmentChip.tsx
+#: src/components/LocalModelGroup.tsx
 msgid "Remove"
 msgstr "Odstranit"
 
@@ -3846,6 +3956,11 @@ msgstr "Sériové číslo"
 #: src/components/AllSettings.tsx
 msgid "Set on this plate"
 msgstr "Nastaveno pro tuto desku"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Set up"
+msgstr "Nastavit"
 
 # AI Translated
 #: ../HomeUI/src/components/AgentGroup.tsx
@@ -4261,6 +4376,16 @@ msgid "The AI slicer that helps you get better prints."
 msgstr "AI slicer, který vám pomůže k lepším tiskům."
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The app at {address}"
+msgstr "Aplikace na adrese {address}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The app at {address} has no models. Download one in that app, then find models again."
+msgstr "Aplikace na adrese {address} nemá žádné modely. Stáhněte si nějaký v té aplikaci a pak modely vyhledejte znovu."
+
+# AI Translated
 #: src/components/SignInDoor.tsx
 msgid "The app continues on its own once the browser is done."
 msgstr "Jakmile v prohlížeči skončíte, aplikace bude pokračovat sama."
@@ -4309,6 +4434,21 @@ msgstr "Úplné okno předvoleb z OrcaSliceru, na kterém je JusPrin postaven."
 #: src/components/AgentConnection.tsx
 msgid "The key could not be checked. Nothing was saved."
 msgstr "Klíč se nepodařilo ověřit. Nic nebylo uloženo."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The model must support tools, and its context length in LM Studio must be at least 32k."
+msgstr "Model musí podporovat nástroje (tools) a jeho délka kontextu v LM Studiu musí být alespoň 32k."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The model must support tools, and its context length in Ollama must be at least 32k."
+msgstr "Model musí podporovat nástroje (tools) a jeho délka kontextu v Ollamě musí být alespoň 32k."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The model must support tools, and its context length in the app that runs it must be at least 32k."
+msgstr "Model musí podporovat nástroje (tools) a jeho délka kontextu v aplikaci, která ho spouští, musí být alespoň 32k."
 
 # AI Translated
 #: src/components/OrcaImport.tsx
@@ -4399,6 +4539,11 @@ msgid "This is an internal connection inside JusPrin, not a network service. The
 msgstr "Jde o interní spojení uvnitř JusPrinu, nikoli o síťovou službu. 3D plátno a všechny ostatní ovládací prvky fungují dál."
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "This is Ollama’s address. For LM Studio, use <0>http://127.0.0.1:1234</0>."
+msgstr "Toto je adresa Ollamy. Pro LM Studio použijte <0>http://127.0.0.1:1234</0>."
+
+# AI Translated
 #: src/printerWords.ts
 msgid "This is the {name}. Tell me what changed on it, or ask anything about it."
 msgstr "Toto je {name}. Řekněte mi, co se na ní změnilo, nebo se zeptejte na cokoli, co se jí týká."
@@ -4412,6 +4557,11 @@ msgstr "Toto je vaše tiskárna. Řekněte mi, co se na ní změnilo, nebo se ze
 #: src/components/AllSettings.tsx
 msgid "This JusPrin build cannot list the settings."
 msgstr "Tato verze JusPrinu nemůže zobrazit seznam nastavení."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "This model can’t see pictures, so the AI works without seeing your model."
+msgstr "Tento model nevidí obrázky, takže AI pracuje, aniž by viděla váš 3D model."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -4589,6 +4739,11 @@ msgid "Updates come from the Microsoft Store."
 msgstr "Aktualizace přicházejí z Microsoft Store."
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Use a model you run yourself with Ollama, LM Studio or a similar app. Your messages go to that app, not to an online AI service, and there is nothing to pay. Local models are slower and make more mistakes than the cloud models above."
+msgstr "Použijte model, který sami spouštíte v Ollamě, LM Studiu nebo podobné aplikaci. Vaše zprávy jdou do této aplikace, ne do online služby AI, a nic se neplatí. Lokální modely jsou pomalejší a dělají víc chyb než cloudové modely výše."
+
+# AI Translated
 #: src/components/SignInDoor.tsx
 msgid "Use a password instead"
 msgstr "Použít raději heslo"
@@ -4607,6 +4762,11 @@ msgstr "Použít hodnotu projektu"
 #: src/components/AllSettings.tsx
 msgid "Use project value for {label}"
 msgstr "Použít hodnotu projektu pro {label}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Use this model"
+msgstr "Použít tento model"
 
 # AI Translated
 #: ../HomeUI/src/components/Onboarding.tsx

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-24 13:37-0800\n"
+"POT-Creation-Date: 2026-11-24 16:23-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -229,6 +229,15 @@ msgstr "AIがネイティブツールの結果を受け取れませんでした�
 # AI Translated
 msgid "The AI request failed."
 msgstr "AIリクエストが失敗しました。"
+
+# AI Translated
+#. TRN The heading of the chat's model menu over a model that runs on this computer.
+msgid "On this computer"
+msgstr "このコンピューター"
+
+# AI Translated
+msgid "This chat ran on a model on this computer that is no longer set up. Set it up again in the AI settings to continue it, or start a new chat."
+msgstr "このチャットは、このコンピューター上のモデルで実行されていましたが、そのモデルは現在設定されていません。続けるにはAI設定でもう一度設定するか、新しいチャットを開始してください。"
 
 # AI Translated
 #. TRN %1% is an AI provider's account, such as JusPrin.
@@ -516,6 +525,15 @@ msgstr "%1%サービスがレート制限中です。少し待ってからもう
 #, boost-format
 msgid "The request was too large for the %1% service."
 msgstr "リクエストが%1%サービスには大きすぎました。"
+
+# AI Translated
+#, boost-format
+msgid "Nothing is answering at %1%. Start Ollama or LM Studio, then try again."
+msgstr "%1%から応答がありません。OllamaまたはLM Studioを起動してから、もう一度お試しください。"
+
+# AI Translated
+msgid "This model can't run the app's tools. Pick a model with tool support and a context of at least 32k."
+msgstr "このモデルはアプリのツールを実行できません。ツールに対応し、コンテキストが32k以上のモデルを選んでください。"
 
 # AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.
@@ -1605,6 +1623,15 @@ msgid "local sessions"
 msgstr "ローカルセッション"
 
 # AI Translated
+#. TRN Names where a model runs when the app could not tell which app runs it: "qwen3.5:9b · this computer".
+msgid "this computer"
+msgstr "このコンピューター"
+
+# AI Translated
+msgid "The app couldn't open your browser."
+msgstr "ブラウザーを開けませんでした。"
+
+# AI Translated
 msgid "JusPrin couldn't close the project, so it didn't restart. Your project stays open, and JusPrin will use the new language the next time it starts."
 msgstr "JusPrinはプロジェクトを閉じられなかったため、再起動しませんでした。プロジェクトは開いたままです。次回JusPrinを起動したときに新しい言語が使われます。"
 
@@ -1810,10 +1837,6 @@ msgstr "新しい名前は、大文字と小文字の違い以外にも古い名
 #, c-format, boost-format
 msgid "Other printer profiles are based on \"%s\". Remove those first in Printer settings."
 msgstr "「%s」をベースにしたプリンタープロファイルがほかにあります。先にプリンター設定でそれらを削除してください。"
-
-# AI Translated
-msgid "The app couldn't open your browser."
-msgstr "ブラウザーを開けませんでした。"
 
 # AI Translated
 msgid "About JusPrin"

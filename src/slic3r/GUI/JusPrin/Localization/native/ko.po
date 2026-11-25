@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-24 13:37-0800\n"
+"POT-Creation-Date: 2026-11-24 16:23-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -228,6 +228,15 @@ msgstr "AI가 네이티브 도구 결과를 받지 못했습니다."
 # AI Translated
 msgid "The AI request failed."
 msgstr "AI 요청이 실패했습니다."
+
+# AI Translated
+#. TRN The heading of the chat's model menu over a model that runs on this computer.
+msgid "On this computer"
+msgstr "이 컴퓨터"
+
+# AI Translated
+msgid "This chat ran on a model on this computer that is no longer set up. Set it up again in the AI settings to continue it, or start a new chat."
+msgstr "이 채팅은 이 컴퓨터의 모델에서 실행되었지만 그 모델은 더 이상 설정되어 있지 않습니다. 계속하려면 AI 설정에서 다시 설정하거나 새 채팅을 시작하세요."
 
 # AI Translated
 #. TRN %1% is an AI provider's account, such as JusPrin.
@@ -515,6 +524,15 @@ msgstr "%1% 서비스의 요청 한도에 도달했습니다. 잠시 후 다시 
 #, boost-format
 msgid "The request was too large for the %1% service."
 msgstr "%1% 서비스에 보내기에는 요청이 너무 큽니다."
+
+# AI Translated
+#, boost-format
+msgid "Nothing is answering at %1%. Start Ollama or LM Studio, then try again."
+msgstr "%1%에서 응답이 없습니다. Ollama 또는 LM Studio를 실행한 후 다시 시도하세요."
+
+# AI Translated
+msgid "This model can't run the app's tools. Pick a model with tool support and a context of at least 32k."
+msgstr "이 모델은 앱의 도구를 실행할 수 없습니다. 도구를 지원하고 컨텍스트가 32k 이상인 모델을 선택하세요."
 
 # AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.
@@ -1604,6 +1622,15 @@ msgid "local sessions"
 msgstr "로컬 세션"
 
 # AI Translated
+#. TRN Names where a model runs when the app could not tell which app runs it: "qwen3.5:9b · this computer".
+msgid "this computer"
+msgstr "이 컴퓨터"
+
+# AI Translated
+msgid "The app couldn't open your browser."
+msgstr "앱에서 브라우저를 열 수 없습니다."
+
+# AI Translated
 msgid "JusPrin couldn't close the project, so it didn't restart. Your project stays open, and JusPrin will use the new language the next time it starts."
 msgstr "JusPrin에서 프로젝트를 닫지 못해 다시 시작하지 않았습니다. 프로젝트는 열린 상태로 유지되며, 다음에 JusPrin을 시작할 때 새 언어가 적용됩니다."
 
@@ -1809,10 +1836,6 @@ msgstr "새 이름은 대소문자 이외의 부분이 이전 이름과 달라�
 #, c-format, boost-format
 msgid "Other printer profiles are based on \"%s\". Remove those first in Printer settings."
 msgstr "다른 프린터 프로필이 \"%s\"을(를) 기반으로 합니다. 먼저 프린터 설정에서 해당 프로필을 제거하세요."
-
-# AI Translated
-msgid "The app couldn't open your browser."
-msgstr "앱에서 브라우저를 열 수 없습니다."
 
 # AI Translated
 msgid "About JusPrin"

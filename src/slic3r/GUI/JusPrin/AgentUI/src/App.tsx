@@ -10,7 +10,7 @@ import { MessageList } from './components/MessageList';
 import { Composer, ComposerCredits } from './components/Composer';
 import { PrinterCredentialForm } from './components/PrinterPanel';
 import { AddPrinterForm } from './components/AddPrinterForm';
-import { DONE_CHOICE, printerInstructions } from './printerInstructions';
+import { DONE_CHOICE, printerInstructions, withoutLookItUp } from './printerInstructions';
 import { filamentInstructions } from './filamentInstructions';
 import { skills } from './skills';
 import { projectInstructions } from './projectInstructions';
@@ -189,7 +189,7 @@ export function App({
     const text = printerInstructions(state.session);
     if (text === sentInstructions.current) return;
     sentInstructions.current = text;
-    client.send('printer_instructions', { text });
+    client.send('printer_instructions', { text, withoutWebSearch: withoutLookItUp(text) });
   }, [printerPanel, state.session, state.connection, client]);
 
   // The project assistant's whole prompt; the app holds it in the project
@@ -205,7 +205,7 @@ export function App({
     const text = projectInstructions();
     if (text === sentProjectInstructions.current) return;
     sentProjectInstructions.current = text;
-    client.send('project_instructions', { text });
+    client.send('project_instructions', { text, withoutWebSearch: withoutLookItUp(text) });
   }, [printerPanel, state.connection, client]);
 
   // The skills: situational text the app adds when a trigger fires
@@ -231,7 +231,7 @@ export function App({
     const text = filamentInstructions(state.filamentSession);
     if (text === sentFilamentInstructions.current) return;
     sentFilamentInstructions.current = text;
-    client.send('filament_instructions', { text });
+    client.send('filament_instructions', { text, withoutWebSearch: withoutLookItUp(text) });
   }, [state.filamentSession, state.connection, client]);
 
   // The printer panel's Back asks first once leaving would lose something:

@@ -1,8 +1,10 @@
 #include "AgentHost.hpp"
 #include "AgentProtocol.hpp"
 #include "ToolRegistry.hpp"
+#include "LocalModelSetup.hpp"
 #include "ProviderAgent.hpp"
 #include "ProviderCodec.hpp"
+#include "ProviderProfile.hpp"
 #include "ToolResults.hpp"
 #include "ToolExecution.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp"
@@ -1088,6 +1090,14 @@ void AgentHost::dispatch_page_message(const std::string& envelope_json, std::str
         handle_setup_cancel();
     else if (type == Protocol::kSetupRemoveKey)
         handle_setup_remove_key(envelope_id, payload);
+    else if (type == Protocol::kLocalFind)
+        handle_local_find(envelope_id, payload);
+    else if (type == Protocol::kLocalCheck)
+        handle_local_check(envelope_id, payload);
+    else if (type == Protocol::kLocalCancel)
+        handle_local_cancel();
+    else if (type == Protocol::kLocalRemove)
+        handle_local_remove(envelope_id);
     else if (type == Protocol::kAccountSignIn)
         handle_account_sign_in(envelope_id, false);
     else if (type == Protocol::kAccountCheck)
@@ -1148,7 +1158,8 @@ void AgentHost::dispatch_page_message(const std::string& envelope_json, std::str
             throw RuntimeError("jusprin-agent-bridge: project_instructions carries " +
                                (text.empty() ? std::string("no text") : std::to_string(text.size()) + " bytes, over the limit"));
         if (m_session_profile.tool_names.empty()) {
-            m_session_profile.instructions = text;
+            m_session_profile.instructions                    = text;
+            m_session_profile.instructions_without_web_search = parsed.value("withoutWebSearch", std::string());
             // A turn the app started before the page had sent them waited
             // in the queue; see begin_reply.
             start_next_queued_reply();
@@ -2609,15 +2620,122 @@ void AgentHost::remove_saved_key(const std::string& provider)
     m_rejected_keys.erase(provider);
 
     // The agent in use may hold the removed key. It is rebuilt from the keys
-    // still stored, as a launch would build it; with none left, the dock is
-    // back to being unconfigured.
-    if (m_model_source) {
-        AgentServicePtr agent = m_model_source->configured_providers().empty() ? nullptr :
-                                m_model_source->make_agent(default_chat_model());
-        const AgentAvailability availability = agent ? AgentAvailability::Ready : AgentAvailability::Unavailable;
-        set_agent(std::move(agent), availability);
-    } else if (m_setup->saved_keys().empty()) {
+    // still stored, as a launch would build it.
+    if (m_model_source)
+        install_default_agent();
+    else if (m_setup->saved_keys().empty())
         set_agent(nullptr, AgentAvailability::Unavailable);
+}
+
+void AgentHost::install_default_agent()
+{
+    AgentServicePtr agent = m_model_source->configured_providers().empty() ? nullptr :
+                            m_model_source->make_agent(default_chat_model());
+    const AgentAvailability availability = agent ? AgentAvailability::Ready : AgentAvailability::Unavailable;
+    set_agent(std::move(agent), availability);
+}
+
+LocalModelSetup& AgentHost::local_setup() const
+{
+    LocalModelSetup* local = m_setup ? m_setup->local_model() : nullptr;
+    if (local == nullptr)
+        throw std::logic_error("jusprin-agent-bridge: a local model asked of a host with no local setup");
+    return *local;
+}
+
+void AgentHost::send_local_status(const std::string& phase, const std::string& correlation_id, json details)
+{
+    json payload = details.is_object() ? std::move(details) : json::object();
+    payload["phase"] = phase;
+    send_envelope(Protocol::kLocalStatus, payload.dump(), correlation_id);
+}
+
+void AgentHost::handle_local_find(const std::string& envelope_id, const std::string& payload_json)
+{
+    LocalModelSetup& local = local_setup();
+    // Find models is greyed out while setup runs.
+    if (local.busy())
+        throw RuntimeError("jusprin-agent-bridge: local_find while a local setup runs");
+    const std::string address = json::parse(payload_json).at("address").get<std::string>();
+    local.find(address);
+    send_local_status("finding", envelope_id, json{{"address", normalized_local_address(address)}});
+}
+
+void AgentHost::handle_local_check(const std::string& envelope_id, const std::string& payload_json)
+{
+    cancel_conversation_title();
+    // Only Preferences sends this, and its host runs no reply.
+    if (agent_busy())
+        throw RuntimeError("jusprin-agent-bridge: checking a local model asked while a reply runs");
+    LocalModelSetup& local = local_setup();
+    if (local.busy())
+        throw RuntimeError("jusprin-agent-bridge: local_check while a local setup runs");
+    const std::string model = json::parse(payload_json).at("model").get<std::string>();
+    local.check(model);
+    send_local_status("checking", envelope_id, json{{"model", model}});
+}
+
+void AgentHost::handle_local_cancel()
+{
+    LocalModelSetup& local = local_setup();
+    if (!local.busy())
+        return; // Cancelling a finished find or check is a benign race.
+    local.cancel();
+    send_local_status("idle");
+}
+
+void AgentHost::handle_local_remove(const std::string& envelope_id)
+{
+    cancel_conversation_title();
+    if (agent_busy())
+        throw RuntimeError("jusprin-agent-bridge: removing the local model asked while a reply runs");
+    LocalModelSetup& local = local_setup();
+    // Remove is greyed out while setup runs.
+    if (local.busy())
+        throw RuntimeError("jusprin-agent-bridge: local_remove while a local setup runs");
+    local.remove();
+    if (m_model_source)
+        install_default_agent();
+    send_setup_keys(envelope_id);
+}
+
+void AgentHost::pump_local_setup()
+{
+    LocalModelSetup* local = m_setup->local_model();
+    if (local == nullptr)
+        return;
+    std::optional<LocalSetupOutcome> outcome = local->poll();
+    if (!outcome)
+        return;
+    switch (outcome->kind) {
+    case LocalSetupOutcome::Kind::Models: {
+        json models = json::array();
+        for (const LocalModelInfo& info : outcome->models.models) {
+            json model{{"id", info.id}};
+            if (info.tools)
+                model["tools"] = *info.tools;
+            if (info.images)
+                model["images"] = *info.images;
+            models.push_back(std::move(model));
+        }
+        send_local_status("models", {},
+                          json{{"address", outcome->models.address}, {"runtime", outcome->models.runtime},
+                               {"models", std::move(models)}, {"elapsedMs", outcome->elapsed_ms}});
+        return;
+    }
+    case LocalSetupOutcome::Kind::Failed:
+        send_local_status("error", {}, json{{"error", told(Protocol::kLocalStatus, outcome->error)}, {"elapsedMs", outcome->elapsed_ms}});
+        return;
+    case LocalSetupOutcome::Kind::Checked:
+        send_local_status("verified", {}, json{{"model", outcome->record.model}, {"elapsedMs", outcome->elapsed_ms}});
+        send_setup_keys();
+        // What new chats start with did not change unless nothing else was
+        // set up; the agent follows it, as a launch would.
+        if (m_model_source)
+            install_default_agent();
+        else
+            set_agent(std::move(outcome->service), AgentAvailability::Ready);
+        return;
     }
 }
 
@@ -2664,7 +2782,12 @@ void AgentHost::send_setup_keys(const std::string& correlation_id)
             key["account"] = saved.account;
         keys.push_back(std::move(key));
     }
-    send_envelope(Protocol::kSetupKeys, json{{"keys", std::move(keys)}}.dump(), correlation_id);
+    json payload{{"keys", std::move(keys)}};
+    if (LocalModelSetup* local = m_setup->local_model())
+        if (const std::optional<LocalModelRecord> saved = local->saved())
+            payload["local"] = json{{"address", local_address_shown(saved->address)}, {"model", saved->model},
+                                    {"runtime", saved->runtime}, {"images", saved->images}};
+    send_envelope(Protocol::kSetupKeys, payload.dump(), correlation_id);
 }
 
 void AgentHost::note_key_rejected()
@@ -2870,6 +2993,15 @@ void AgentHost::pump_setup()
         m_setup->cancel();
         send_setup_status("error", {}, std::nullopt, unexpected_error());
         m_setup_pending.reset();
+    }
+    try {
+        pump_local_setup();
+    } catch (...) {
+        if (!m_unexpected_error_handler)
+            throw;
+        m_unexpected_error_handler("setting up a model on this computer", std::current_exception());
+        m_setup->local_model()->cancel();
+        send_local_status("error", {}, json{{"error", told(Protocol::kLocalStatus, unexpected_error())}});
     }
 }
 
@@ -3693,8 +3825,7 @@ ChatModelChoice AgentHost::default_chat_model() const
 {
     ChatModelChoice fallback;
     fallback.provider = m_model_source->default_provider();
-    if (const ProviderProfile* profile = profile_for(fallback.provider))
-        fallback.model = profile->model;
+    fallback.model    = m_model_source->default_model(fallback.provider);
     fallback.format = m_model_source->model_format(fallback.provider, fallback.model);
     return fallback;
 }
@@ -3820,8 +3951,13 @@ void AgentHost::send_model_catalog()
                     model["images"] = false;
                 models.push_back(std::move(model));
             }
-        json entry{{"id", provider}, {"label", profile->display_name}, {"defaultModel", profile->model},
+        json entry{{"id", provider},
+                   // TRN The heading of the chat's model menu over a model that runs on this computer.
+                   {"label", profile->on_this_computer ? translated(L("On this computer")) : profile->display_name},
+                   {"defaultModel", m_model_source->default_model(provider)},
                    {"state", state}, {"models", std::move(models)}};
+        if (const std::string runtime = m_model_source->runtime(provider); !runtime.empty())
+            entry["runtime"] = runtime;
         if (held != m_models.end() && !held->second.update_message.empty())
             entry["updateMessage"] = held->second.update_message;
         providers.push_back(std::move(entry));
@@ -4046,6 +4182,8 @@ bool AgentHost::use_chat_model(const std::string& conversation_id, const Convers
             const ProviderProfile* profile = profile_for(kept->provider);
             const std::string      name    = profile ? profile->display_name : kept->provider;
             fail_stream(AgentError{"chat_provider_removed",
+                                   profile && profile->on_this_computer ?
+                                       translated(L("This chat ran on a model on this computer that is no longer set up. Set it up again in the AI settings to continue it, or start a new chat.")) :
                                    profile && profile->account_sign_in ?
                                        // TRN %1% is an AI provider's account, such as JusPrin.
                                        Slic3r::format(translated(L("This chat ran on your %1% account. Sign in again to continue it, or start a new chat.")), name) :

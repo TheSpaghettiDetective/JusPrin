@@ -1,8 +1,13 @@
 #include "AgentSetup.hpp"
+#include "AgentService.hpp"
+#include "CloudAccount.hpp"
+#include "LocalModelSetup.hpp"
+#include "ProjectStateDocument.hpp"
 #include "ProviderFactory.hpp"
 #include "libslic3r/Exception.hpp"
 
 #include <stdexcept>
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -12,20 +17,6 @@
 namespace Slic3r::GUI::JusPrin::Agent {
 
 namespace {
-
-// The probe deliberately carries no project. A provider the user has not
-// chosen yet must not receive their workspace merely to prove that a key
-// works, so the request is a fixed sentence with an empty snapshot.
-AgentRequest probe_request()
-{
-    AgentRequest request;
-    request.request_id = "setup-key-check";
-    request.user_text  = "Reply with the single word: ready.";
-    // The check is no chat's: it keeps nothing of what it sends.
-    request.on_recorded = [](const std::string&, std::vector<RecordItem>) {};
-    request.keep_blob   = [](const std::string&) { return std::string(); };
-    return request;
-}
 
 // The fixed starts each provider gives its keys, longer ones first. They say
 // what kind of key it is, not which one.
@@ -52,6 +43,20 @@ constexpr const char* kEllipsis         = "\xE2\x80\xA6"; // U+2026
 
 } // namespace
 
+// The probe deliberately carries no project. A provider the user has not
+// chosen yet must not receive their workspace merely to prove that a key
+// works, so the request is a fixed sentence with an empty snapshot.
+AgentRequest setup_probe_request()
+{
+    AgentRequest request;
+    request.request_id = "setup-key-check";
+    request.user_text  = "Reply with the single word: ready.";
+    // The check is no chat's: it keeps nothing of what it sends.
+    request.on_recorded = [](const std::string&, std::vector<RecordItem>) {};
+    request.keep_blob   = [](const std::string&) { return std::string(); };
+    return request;
+}
+
 std::string api_key_hint(const std::string& provider, const std::string& key)
 {
     std::string prefix;
@@ -73,9 +78,11 @@ ProviderKeySetup::ProviderKeySetup(TransportFactory transport,
                                    KeyStore         keys,
                                    std::string      endpoint_override,
                                    Clock            clock,
-                                   CloudSignInPtr   cloud)
+                                   CloudSignInPtr   cloud,
+                                   std::shared_ptr<LocalModelSetup> local)
     : m_transport_factory(std::move(transport)), m_commit(std::move(commit)), m_keys(std::move(keys)),
-      m_endpoint_override(std::move(endpoint_override)), m_clock(std::move(clock)), m_cloud(std::move(cloud))
+      m_endpoint_override(std::move(endpoint_override)), m_clock(std::move(clock)), m_cloud(std::move(cloud)),
+      m_local(std::move(local))
 {
     if (!m_clock)
         m_clock = []() { return std::chrono::steady_clock::now(); };
@@ -97,7 +104,7 @@ bool ProviderKeySetup::start_check(const SetupCredentials& credentials)
         return false;
 
     m_started = m_clock();
-    if (!candidate->start(probe_request()))
+    if (!candidate->start(setup_probe_request()))
         return false;
     m_candidate = std::move(candidate);
     return true;

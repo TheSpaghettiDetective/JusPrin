@@ -12,6 +12,11 @@ import { BridgeErrorPane, ConnectingPane } from './components/Panels';
 import { Preferences, PreferencesActions } from './components/Preferences';
 import { accountSignInActions } from './components/AgentConnection';
 
+// The guide's section on a local model's tools and context, as the guide is
+// published on GitHub.
+const LOCAL_MODEL_HELP =
+  'https://github.com/TheSpaghettiDetective/JusPrin/blob/main/docs/guide/ai-chats-and-account.md#use-a-model-on-this-computer';
+
 export function PreferencesApp({ getTransport }: { getTransport: () => Transport | null }) {
   const [state, dispatch] = useReducer(reducer, initialState);
 
@@ -46,9 +51,10 @@ export function PreferencesApp({ getTransport }: { getTransport: () => Transport
   const closeWhenDone = Boolean(state.preferences?.closeWhenDone);
   const finish = (done: 'key' | 'tool') => client.send('shell_action', { action: 'close', done });
   useEffect(() => {
-    if (closeWhenDone && state.setup.phase === 'verified') finish('key');
+    // A local model that passes its check counts as a key that passes.
+    if (closeWhenDone && (state.setup.phase === 'verified' || state.localSetup.phase === 'verified')) finish('key');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [closeWhenDone, state.setup.phase]);
+  }, [closeWhenDone, state.setup.phase, state.localSetup.phase]);
 
   const actions = useMemo<PreferencesActions>(
     () => ({
@@ -66,6 +72,11 @@ export function PreferencesApp({ getTransport }: { getTransport: () => Transport
       deleteAccount: () => client.send('delete_account', {}),
       refreshAccountBox: () => client.send('refresh_account_box', {}),
       refreshAccount: () => client.send('refresh_account', {}),
+      findLocalModels: (address) => client.send('local_find', { address }),
+      checkLocalModel: (model) => client.send('local_check', { model }),
+      cancelLocal: () => client.send('local_cancel', {}),
+      removeLocalModel: () => client.send('local_remove', {}),
+      openLocalHelp: () => client.send('shell_action', { action: 'open_link', url: LOCAL_MODEL_HELP }),
     }),
     [client],
   );
@@ -86,6 +97,8 @@ export function PreferencesApp({ getTransport }: { getTransport: () => Transport
         preferences={state.preferences}
         setup={state.setup}
         savedKeys={state.savedKeys}
+        localModel={state.localModel}
+        localSetup={state.localSetup}
         account={state.account}
         creditAccount={state.creditAccount}
         accountBox={state.accountBox}

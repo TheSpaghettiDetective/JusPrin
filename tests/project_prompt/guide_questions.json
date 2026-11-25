@@ -166,6 +166,11 @@
       "answer": "yes: in Preferences open BYOAI, click Add key beside OpenAI under Your own API key, paste it and click Check key"
     },
     {
+      "id": "local-model",
+      "question": "Can I use a model I run myself in Ollama instead of paying?",
+      "answer": "yes: start Ollama, then in Preferences open BYOAI, click Set up under A model on this computer, click Find models, pick a model and click Use this model; the model needs tool support and a context length of at least 32k"
+    },
+    {
       "id": "change-model",
       "question": "How do I switch this chat to a different model?",
       "answer": "that a chat keeps the model it started with, so they start a new chat and pick the model beside the message box before sending"

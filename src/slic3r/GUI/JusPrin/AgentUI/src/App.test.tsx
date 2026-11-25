@@ -9,6 +9,7 @@ import { App } from './App';
 import { installDropGuard } from './bridge/dropGuard';
 import { formatMoment } from './components/SetupCard';
 import { projectInstructions } from './projectInstructions';
+import { LOOK_IT_UP } from './printerInstructions';
 import { skills } from './skills';
 import {
   Envelope,
@@ -218,6 +219,7 @@ describe('App', () => {
     expect(sent()).toHaveLength(1);
     expect((sent()[0].payload as { text: string }).text).toContain('Name: Bambu PLA Basic @BBL X1C\n');
     expect((sent()[0].payload as { text: string }).text).toContain('Copy to save as: Bambu PLA Basic @BBL X1C - Copy\n');
+    expect((sent()[0].payload as { withoutWebSearch: string }).withoutWebSearch).not.toContain('web_search');
     // Its title is the filament the header calls it.
     expect(screen.getByRole('heading', { name: 'Bambu PLA Basic settings' })).toBeInTheDocument();
     // Saved as a copy: the chat is about the copy.
@@ -400,6 +402,12 @@ describe('App', () => {
     const sent = host.received.filter((envelope) => envelope.type === 'project_instructions');
     expect(sent).toHaveLength(1);
     expect((sent[0].payload as { text: string }).text).toBe(projectInstructions());
+    // A model with no web search of its own gets the prompt without the
+    // paragraph that offers it, and nothing else changes.
+    const without = (sent[0].payload as { withoutWebSearch: string }).withoutWebSearch;
+    expect(projectInstructions()).toContain('You have web_search.');
+    expect(without).not.toContain('web_search');
+    expect(without).toBe(projectInstructions().replace('\n' + LOOK_IT_UP, ''));
     expect(types.indexOf('project_instructions')).toBeLessThan(types.indexOf('skills'));
   });
 

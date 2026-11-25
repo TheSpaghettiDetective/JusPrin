@@ -217,9 +217,19 @@ msgid "{count, plural, one {+{n} credit} other {+{n} credits}}"
 msgstr "{count, plural, one {+{n} crédit} many {+{n} crédits} other {+{n} crédits}}"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "{count, plural, one {LM Studio at {address} has # model. Pick the one your chats should use.} other {LM Studio at {address} has # models. Pick the one your chats should use.}}"
+msgstr "{count, plural, one {LM Studio à l’adresse {address} propose # modèle. Choisissez celui que vos conversations doivent utiliser.} many {LM Studio à l’adresse {address} propose # modèles. Choisissez celui que vos conversations doivent utiliser.} other {LM Studio à l’adresse {address} propose # modèles. Choisissez celui que vos conversations doivent utiliser.}}"
+
+# AI Translated
 #: src/components/AllSettings.tsx
 msgid "{count, plural, one {Negative part} other {Negative parts}}"
 msgstr "{count, plural, one {Partie négative} many {Parties négatives} other {Parties négatives}}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "{count, plural, one {Ollama at {address} has # model. Pick the one your chats should use.} other {Ollama at {address} has # models. Pick the one your chats should use.}}"
+msgstr "{count, plural, one {Ollama à l’adresse {address} propose # modèle. Choisissez celui que vos conversations doivent utiliser.} many {Ollama à l’adresse {address} propose # modèles. Choisissez celui que vos conversations doivent utiliser.} other {Ollama à l’adresse {address} propose # modèles. Choisissez celui que vos conversations doivent utiliser.}}"
 
 # AI Translated
 #: src/components/AllSettings.tsx
@@ -235,6 +245,11 @@ msgstr "{count, plural, one {Bloqueur de support} many {Bloqueurs de support} ot
 #: src/components/AllSettings.tsx
 msgid "{count, plural, one {Support enforcer} other {Support enforcers}}"
 msgstr "{count, plural, one {Générateur de support} many {Générateurs de support} other {Générateurs de support}}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "{count, plural, one {The app at {address} has # model. Pick the one your chats should use.} other {The app at {address} has # models. Pick the one your chats should use.}}"
+msgstr "{count, plural, one {L’application à l’adresse {address} propose # modèle. Choisissez celui que vos conversations doivent utiliser.} many {L’application à l’adresse {address} propose # modèles. Choisissez celui que vos conversations doivent utiliser.} other {L’application à l’adresse {address} propose # modèles. Choisissez celui que vos conversations doivent utiliser.}}"
 
 # AI Translated
 #: src/components/TurnActivity.tsx
@@ -634,6 +649,11 @@ msgid "{reportCredits, plural, one {Share how it printed and get {reportCredits}
 msgstr "{reportCredits, plural, one {Partagez le résultat de l’impression et recevez {reportCredits} crédit} many {Partagez le résultat de l’impression et recevez {reportCredits} crédits} other {Partagez le résultat de l’impression et recevez {reportCredits} crédits}}"
 
 # AI Translated
+#: src/components/ModelPickers.tsx
+msgid "{runtime} · no credits"
+msgstr "{runtime} · sans crédits"
+
+# AI Translated
 #. A duration in seconds, abbreviated: 45s
 #: ../HomeUI/src/history.ts
 msgid "{secs}s"
@@ -829,6 +849,12 @@ msgid "A chat keeps the model it started with."
 msgstr "Une conversation conserve le modèle avec lequel elle a commencé."
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+#: src/components/LocalModelGroup.tsx
+msgid "A model on this computer"
+msgstr "Un modèle sur cet ordinateur"
+
+# AI Translated
 #: ../HomeUI/src/components/PrinterMenu.tsx
 msgid "A new name has to differ from the old one by more than capitalization."
 msgstr "Un nouveau nom doit différer de l’ancien par autre chose que les majuscules."
@@ -904,6 +930,11 @@ msgstr "Ajoutez votre imprimante"
 #: src/components/PrinterPanel.tsx
 msgid "Added: <0>{name}</0>"
 msgstr "Ajoutée : <0>{name}</0>"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Address of the app that runs the model"
+msgstr "Adresse de l’application qui exécute le modèle"
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -1212,8 +1243,8 @@ msgstr "Votre propre IA"
 
 # AI Translated
 #: src/components/Preferences.tsx
-msgid "Bring Your Own AI: an API key or an AI app you already pay for. No JusPrin account needed. Set up as many as you like; each chat picks a model from them."
-msgstr "Votre propre IA : une clé API ou une application d’IA pour laquelle vous payez déjà. Aucun compte JusPrin requis. Configurez-en autant que vous voulez ; chaque conversation choisit un modèle parmi elles."
+msgid "Bring Your Own AI: an API key, an AI app you already pay for, or a model you run on this computer. No JusPrin account needed. Set up as many as you like; each chat picks a model from them."
+msgstr "Votre propre IA : une clé API, une application d’IA pour laquelle vous payez déjà, ou un modèle que vous exécutez sur cet ordinateur. Aucun compte JusPrin n’est nécessaire. Configurez-en autant que vous le souhaitez ; chaque conversation y choisit un modèle."
 
 # AI Translated
 #: ../HomeUI/src/components/Onboarding.tsx
@@ -1246,6 +1277,11 @@ msgid "Camera view of {name}"
 msgstr "Vue caméra de {name}"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Can see pictures"
+msgstr "Voit les images"
+
+# AI Translated
 #: src/components/SetupLocalTool.tsx
 msgid "Can’t be stopped once started; it takes a moment."
 msgstr "Ne peut pas être arrêté une fois lancé ; cela prend un instant."
@@ -1259,6 +1295,11 @@ msgstr "Vous ne trouvez pas votre imprimante ? <0>Demandez à l’IA</0>"
 #: src/components/OrcaImport.tsx
 msgid "Can’t import"
 msgstr "Impossible d’importer"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Can’t see pictures. The AI works without seeing your model."
+msgstr "Ne voit pas les images. L’IA travaille sans voir votre modèle 3D."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -1283,6 +1324,8 @@ msgstr "Impossible d’écrire le fichier de réglages."
 #: src/components/ChangeRows.tsx
 #: src/components/ChatNavigation.tsx
 #: src/components/ChatNavigation.tsx
+#: src/components/LocalModelGroup.tsx
+#: src/components/LocalModelGroup.tsx
 #: src/components/OrcaImport.tsx
 #: src/components/OrcaImport.tsx
 #: src/components/Preferences.tsx
@@ -1304,6 +1347,11 @@ msgstr "Annulé"
 #: src/components/ToolActivityCard.tsx
 msgid "Cancelled — nothing was changed"
 msgstr "Annulé — rien n’a été modifié"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Change"
+msgstr "Modifier"
 
 # AI Translated
 #: src/components/SignInDoor.tsx
@@ -1353,6 +1401,11 @@ msgid "Chats"
 msgstr "Conversations"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Chats can use"
+msgstr "Les conversations peuvent utiliser"
+
+# AI Translated
 #: src/components/Panels.tsx
 msgid "Chatting here needs AI."
 msgstr "Pour discuter ici, il faut l’IA."
@@ -1386,6 +1439,11 @@ msgstr "Vérifiez l’orthographe ou essayez d’autres mots. Vous pouvez aussi 
 #: src/components/SignInDoor.tsx
 msgid "Check your email."
 msgstr "Consultez vos e-mails."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Checking {pickedModel}. A local model can take a minute to answer the first time."
+msgstr "Vérification de {pickedModel}. Un modèle local peut mettre une minute à répondre la première fois."
 
 # AI Translated
 #: src/components/Preferences.tsx
@@ -1925,6 +1983,11 @@ msgid "Find a language"
 msgstr "Rechercher une langue"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Find models"
+msgstr "Rechercher les modèles"
+
+# AI Translated
 #: src/components/SignInDoor.tsx
 msgid "Finish in your browser."
 msgstr "Terminez dans votre navigateur."
@@ -2136,6 +2199,11 @@ msgstr "Quel est le résultat ?"
 #: src/printerWords.ts
 msgid "How do I check?"
 msgstr "Comment vérifier ?"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "How to check and change this"
+msgstr "Comment vérifier et modifier ce réglage"
 
 # AI Translated
 #: src/components/OrcaImport.tsx
@@ -2514,6 +2582,16 @@ msgid "Live URL (developer only — this can change after restart)"
 msgstr "URL en direct (développeurs uniquement — elle peut changer après un redémarrage)"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "LM Studio at {address}"
+msgstr "LM Studio à l’adresse {address}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "LM Studio at {address} has no models. Download one in LM Studio, then find models again."
+msgstr "LM Studio à l’adresse {address} ne propose aucun modèle. Téléchargez-en un dans LM Studio, puis relancez la recherche de modèles."
+
+# AI Translated
 #: ../HomeUI/src/components/PrinterPickerHost.tsx
 msgid "Loading JusPrin’s settings for this printer…"
 msgstr "Chargement des réglages JusPrin pour cette imprimante…"
@@ -2527,6 +2605,11 @@ msgstr "Chargement des modèles…"
 #: ../HomeUI/src/components/PrintHistory.tsx
 msgid "Loading print history…"
 msgstr "Chargement de l’historique d’impression…"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Local model"
+msgstr "Modèle local"
 
 # AI Translated
 #: src/components/Preferences.tsx
@@ -2552,6 +2635,11 @@ msgstr "Recherché dans {path}"
 #: src/components/Preferences.tsx
 msgid "Looking for a newer version on GitHub…"
 msgstr "Recherche d’une version plus récente sur GitHub…"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Looking for models at {typedAddress}…"
+msgstr "Recherche de modèles à l’adresse {typedAddress}…"
 
 # AI Translated
 #. A thinking level of the AI model
@@ -2626,6 +2714,7 @@ msgid "Minimal"
 msgstr "Minimal"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
 #: src/components/ModelPickers.tsx
 #: src/components/Preferences.tsx
 #: src/components/Preferences.tsx
@@ -2784,6 +2873,11 @@ msgid "No chats yet. Start a new chat about this project."
 msgstr "Aucune conversation pour l’instant. Démarrez une nouvelle conversation sur ce projet."
 
 # AI Translated
+#: src/components/ModelPickers.tsx
+msgid "No credits"
+msgstr "Sans crédits"
+
+# AI Translated
 #: src/components/AddPrinterForm.tsx
 msgid "No filament for the {modelName} matches “{search}”."
 msgstr "Aucun filament pour la {modelName} ne correspond à « {search} »."
@@ -2920,6 +3014,11 @@ msgid "Not saved"
 msgstr "Non enregistré"
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Not set up"
+msgstr "Non configuré"
+
+# AI Translated
 #: src/components/Panels.tsx
 msgid "NOT SET UP"
 msgstr "NON CONFIGURÉ"
@@ -2988,6 +3087,16 @@ msgstr "Désactivé"
 #: src/components/PrinterPanel.tsx
 msgid "Offline"
 msgstr "Hors ligne"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Ollama at {address}"
+msgstr "Ollama à l’adresse {address}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Ollama at {address} has no models. Download one in Ollama, then find models again."
+msgstr "Ollama à l’adresse {address} ne propose aucun modèle. Téléchargez-en un dans Ollama, puis relancez la recherche de modèles."
 
 # AI Translated
 #: src/components/AllSettings.tsx
@@ -3447,6 +3556,7 @@ msgstr "Me le rappeler demain"
 #: src/components/AgentConnection.tsx
 #: src/components/AllSettings.tsx
 #: src/components/AttachmentChip.tsx
+#: src/components/LocalModelGroup.tsx
 msgid "Remove"
 msgstr "Retirer"
 
@@ -3844,6 +3954,11 @@ msgstr "Numéro de série"
 #: src/components/AllSettings.tsx
 msgid "Set on this plate"
 msgstr "Défini sur cette plaque"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Set up"
+msgstr "Configurer"
 
 # AI Translated
 #: ../HomeUI/src/components/AgentGroup.tsx
@@ -4259,6 +4374,16 @@ msgid "The AI slicer that helps you get better prints."
 msgstr "Le slicer IA qui vous aide à réussir vos impressions."
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The app at {address}"
+msgstr "L’application à l’adresse {address}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The app at {address} has no models. Download one in that app, then find models again."
+msgstr "L’application à l’adresse {address} ne propose aucun modèle. Téléchargez-en un dans cette application, puis relancez la recherche de modèles."
+
+# AI Translated
 #: src/components/SignInDoor.tsx
 msgid "The app continues on its own once the browser is done."
 msgstr "L’application reprend d’elle-même une fois le navigateur terminé."
@@ -4307,6 +4432,21 @@ msgstr "La fenêtre complète des préférences d’OrcaSlicer, sur lequel JusPr
 #: src/components/AgentConnection.tsx
 msgid "The key could not be checked. Nothing was saved."
 msgstr "La clé n’a pas pu être vérifiée. Rien n’a été enregistré."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The model must support tools, and its context length in LM Studio must be at least 32k."
+msgstr "Le modèle doit prendre en charge les outils, et sa longueur de contexte dans LM Studio doit être d’au moins 32k."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The model must support tools, and its context length in Ollama must be at least 32k."
+msgstr "Le modèle doit prendre en charge les outils, et sa longueur de contexte dans Ollama doit être d’au moins 32k."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "The model must support tools, and its context length in the app that runs it must be at least 32k."
+msgstr "Le modèle doit prendre en charge les outils, et sa longueur de contexte dans l’application qui l’exécute doit être d’au moins 32k."
 
 # AI Translated
 #: src/components/OrcaImport.tsx
@@ -4397,6 +4537,11 @@ msgid "This is an internal connection inside JusPrin, not a network service. The
 msgstr "Il s’agit d’une connexion interne à JusPrin, pas d’un service réseau. Le canevas 3D et toutes les autres commandes continuent de fonctionner."
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "This is Ollama’s address. For LM Studio, use <0>http://127.0.0.1:1234</0>."
+msgstr "C’est l’adresse d’Ollama. Pour LM Studio, utilisez <0>http://127.0.0.1:1234</0>."
+
+# AI Translated
 #: src/printerWords.ts
 msgid "This is the {name}. Tell me what changed on it, or ask anything about it."
 msgstr "Voici {name}. Dites-moi ce qui a changé sur cette imprimante, ou posez-moi n’importe quelle question à son sujet."
@@ -4410,6 +4555,11 @@ msgstr "Voici votre imprimante. Dites-moi ce qui a changé dessus, ou posez-moi 
 #: src/components/AllSettings.tsx
 msgid "This JusPrin build cannot list the settings."
 msgstr "Cette version de JusPrin ne peut pas lister les réglages."
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "This model can’t see pictures, so the AI works without seeing your model."
+msgstr "Ce modèle ne voit pas les images : l’IA travaille donc sans voir votre modèle 3D."
 
 # AI Translated
 #: src/components/SetupLocalTool.tsx
@@ -4587,6 +4737,11 @@ msgid "Updates come from the Microsoft Store."
 msgstr "Les mises à jour proviennent du Microsoft Store."
 
 # AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Use a model you run yourself with Ollama, LM Studio or a similar app. Your messages go to that app, not to an online AI service, and there is nothing to pay. Local models are slower and make more mistakes than the cloud models above."
+msgstr "Utilisez un modèle que vous exécutez vous-même avec Ollama, LM Studio ou une application similaire. Vos messages sont envoyés à cette application, pas à un service d’IA en ligne, et il n’y a rien à payer. Les modèles locaux sont plus lents et font plus d’erreurs que les modèles cloud ci-dessus."
+
+# AI Translated
 #: src/components/SignInDoor.tsx
 msgid "Use a password instead"
 msgstr "Utiliser plutôt un mot de passe"
@@ -4605,6 +4760,11 @@ msgstr "Utiliser la valeur du projet"
 #: src/components/AllSettings.tsx
 msgid "Use project value for {label}"
 msgstr "Utiliser la valeur du projet pour {label}"
+
+# AI Translated
+#: src/components/LocalModelGroup.tsx
+msgid "Use this model"
+msgstr "Utiliser ce modèle"
 
 # AI Translated
 #: ../HomeUI/src/components/Onboarding.tsx

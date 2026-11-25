@@ -1,4 +1,5 @@
 #include "ProviderFactory.hpp"
+#include "AgentProtocol.hpp"
 #include "AnthropicCodec.hpp"
 #include "ResponsesCodec.hpp"
 
@@ -144,6 +145,17 @@ AgentRuntime resolve_agent_runtime(const AgentSettings&                         
     const ProviderProfile* profile = profile_for(runtime.provider);
     if (profile == nullptr) {
         runtime.unavailable_reason = "The configured Agent provider is not supported.";
+        return runtime;
+    }
+    // A model on this computer needs no key and no consent: nothing leaves
+    // the computer.
+    if (profile->on_this_computer) {
+        if (settings.endpoint.empty() || settings.model.empty()) {
+            runtime.unavailable_reason = "No model on this computer is set up.";
+            return runtime;
+        }
+        runtime.service = make_provider_agent(*profile, {}, settings.model, settings.endpoint, transport(), std::move(listeners));
+        runtime.availability = runtime.service->ready() ? AgentAvailability::Ready : AgentAvailability::Unavailable;
         return runtime;
     }
     if (!settings.cloud_consent) {

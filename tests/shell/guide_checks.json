@@ -224,7 +224,8 @@
       "checks": ["email_sign_in_wrong_code_stays_on_the_step", "email_sign_in_shows_the_account"]
     },
     {
-      "covers": ["Sign in to a JusPrin account", "Use your own API key", "Connect an AI tool you already use"],
+      "covers": ["Sign in to a JusPrin account", "Use your own API key", "Use a model on this computer",
+                 "Connect an AI tool you already use"],
       "args": ["--preferences-capture", "{dir}"],
       "checks": ["preferences_account_shows_its_settings", "preferences_agent_shows_its_settings", "captured_preferences-account",
                  "captured_preferences-agent"],

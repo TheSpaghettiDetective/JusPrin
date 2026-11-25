@@ -52,7 +52,8 @@ struct AgentSettings
     std::string model;    // empty keeps the provider's default
     // For an account provider: the wire format its model is served in (as
     // the account's model list last said) and the gateway endpoint. Empty
-    // format means the account has not been checked yet.
+    // format means the account has not been checked yet. For a model on this
+    // computer: the endpoint at the address the person set up.
     std::string format;
     std::string endpoint;
 };

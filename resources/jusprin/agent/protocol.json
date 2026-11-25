@@ -31,7 +31,8 @@
     "saved_keys",
     "preferences",
     "cloud_account",
-    "account_email"
+    "account_email",
+    "local_model"
   ],
   "pageMessageTypes": [
     "hello",
@@ -82,7 +83,11 @@
     "account_code",
     "account_password",
     "account_reopen",
-    "account_open_link"
+    "account_open_link",
+    "local_find",
+    "local_check",
+    "local_cancel",
+    "local_remove"
   ],
   "hostMessageTypes": [
     "hello_ack",
@@ -118,6 +123,7 @@
     "preferences",
     "account_status",
     "account",
-    "account_box"
+    "account_box",
+    "local_status"
   ]
 }

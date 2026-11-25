@@ -199,7 +199,9 @@ json snapshot(const AppConfig& config, const Facts& facts)
     json choices = json::array();
     for (const std::string& provider : facts.configured_providers)
         if (const Agent::ProviderProfile* profile = Agent::profile_for(provider))
-            choices.push_back({{"provider", provider}, {"model", profile->model}, {"label", profile->display_name}});
+            choices.push_back({{"provider", provider},
+                               {"model", profile->on_this_computer ? facts.local_model : profile->model},
+                               {"label", profile->on_this_computer ? facts.local_label : profile->display_name}});
 
     return {
         {"kind", "preferences"},

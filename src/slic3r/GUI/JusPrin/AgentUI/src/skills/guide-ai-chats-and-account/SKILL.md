@@ -1,6 +1,6 @@
 ---
 name: guide-ai-chats-and-account
-description: Read before explaining the AI panel or how AI is set up: chats, earlier chats, the model pickers, attachments, credits, a JusPrin account, your own API key, connecting an AI tool.
+description: Read before explaining the AI panel or how AI is set up: chats, earlier chats, the model pickers, attachments, credits, a JusPrin account, your own API key, a model on this computer, connecting an AI tool.
 ---
 
 # AI chats, account and credits
@@ -80,6 +80,24 @@ Your own API key and an outside AI tool use no credits.
 3. Click **Check key**. JusPrin checks it with the provider and keeps it on this computer only. **Replace** and **Remove** change it later.
 
 The provider bills you for what you use.
+
+## Use a model on this computer
+
+A model you run yourself with Ollama, LM Studio or a similar app costs nothing, and your messages go to that app instead of an online AI service. Local models are slower and make more mistakes than the cloud ones, and they can't search the web.
+
+1. Start Ollama or LM Studio, with a model downloaded. In LM Studio, turn on its local server.
+2. In Preferences, open **BYOAI**. Under **A model on this computer**, click **Set up**.
+3. The address is Ollama's. For LM Studio, change it to `http://127.0.0.1:1234`. Click **Find models**.
+4. Pick a model and click **Use this model**. JusPrin sends it one real request with all the app's tools, which can take a minute the first time. **Change** and **Remove** change it later.
+
+The model must support tools, and the app must run it with a context length of at least 32k:
+
+- In Ollama, `ollama show <model>` lists `tools` under Capabilities when the model has them. Set the context length with the slider in the Ollama app's settings, or start Ollama with `OLLAMA_CONTEXT_LENGTH=32768 ollama serve`.
+- In LM Studio, set the context length in the model's load settings before it loads, or load it with `lms load <model> --context-length 32768`. A model loaded already has to be loaded again.
+
+A model that can't see pictures works too, but AI then works without seeing your model. New chats keep starting with the model they started with before; choose the local model beside a new chat's message box, or under **New chats start with** in **BYOAI**.
+
+When a local model is the chat's model, nothing of the chat leaves the computer.
 
 ## Connect an AI tool you already use
 

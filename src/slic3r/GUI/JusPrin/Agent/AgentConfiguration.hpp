@@ -2,10 +2,13 @@
 
 #include "AgentService.hpp"
 #include "AgentSetup.hpp"
+#include "LocalModelSetup.hpp"
 
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
+#include <vector>
 
 namespace Slic3r { class AppConfig; }
 
@@ -34,6 +37,20 @@ AgentRuntime load_agent_runtime(AppConfig* config);
 // for the login password whenever a differently signed build reads a Keychain
 // entry, which every unsigned rebuild is.
 std::string load_provider_api_key(const AppConfig* config, const std::string& provider);
+
+// The model on this computer the person set up (LocalModelRecord), kept as
+// AppConfig items beside the keys.
+std::optional<LocalModelRecord> load_local_model(const AppConfig* config);
+// Stores it and saves at once. It becomes what new chats start with only when
+// no other provider is set up (Kenneth, 2026-11-24: "No, stay separate").
+void store_local_model(AppConfig* config, const LocalModelRecord& record);
+// Forgets it and saves at once; new chats then start with the first provider
+// still set up.
+void remove_local_model(AppConfig* config);
+
+// The providers a chat can use, in setup's order: those with a stored key or
+// sign-in, and the model on this computer once it is set up.
+std::vector<std::string> configured_chat_providers(const AppConfig* config);
 
 // The setup service the Agent dock drives: it verifies a candidate key
 // against the live provider and, on success, stores it and records the

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-24 13:37-0800\n"
+"POT-Creation-Date: 2026-11-24 16:23-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -229,6 +229,15 @@ msgstr "AI nie mogła odebrać wyniku natywnego narzędzia."
 # AI Translated
 msgid "The AI request failed."
 msgstr "Żądanie do AI nie powiodło się."
+
+# AI Translated
+#. TRN The heading of the chat's model menu over a model that runs on this computer.
+msgid "On this computer"
+msgstr "Na tym komputerze"
+
+# AI Translated
+msgid "This chat ran on a model on this computer that is no longer set up. Set it up again in the AI settings to continue it, or start a new chat."
+msgstr "Ten czat działał na modelu na tym komputerze, który nie jest już skonfigurowany. Skonfiguruj go ponownie w ustawieniach AI, aby kontynuować czat, lub rozpocznij nowy czat."
 
 # AI Translated
 #. TRN %1% is an AI provider's account, such as JusPrin.
@@ -516,6 +525,15 @@ msgstr "Usługa %1% ogranicza liczbę żądań. Spróbuj ponownie za chwilę."
 #, boost-format
 msgid "The request was too large for the %1% service."
 msgstr "Żądanie było za duże dla usługi %1%."
+
+# AI Translated
+#, boost-format
+msgid "Nothing is answering at %1%. Start Ollama or LM Studio, then try again."
+msgstr "Pod adresem %1% nic nie odpowiada. Uruchom Ollama lub LM Studio, a następnie spróbuj ponownie."
+
+# AI Translated
+msgid "This model can't run the app's tools. Pick a model with tool support and a context of at least 32k."
+msgstr "Ten model nie może uruchamiać narzędzi aplikacji. Wybierz model, który obsługuje narzędzia i ma kontekst co najmniej 32k."
 
 # AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.
@@ -1625,6 +1643,15 @@ msgid "local sessions"
 msgstr "sesje lokalne"
 
 # AI Translated
+#. TRN Names where a model runs when the app could not tell which app runs it: "qwen3.5:9b · this computer".
+msgid "this computer"
+msgstr "ten komputer"
+
+# AI Translated
+msgid "The app couldn't open your browser."
+msgstr "Aplikacja nie mogła otworzyć przeglądarki."
+
+# AI Translated
 msgid "JusPrin couldn't close the project, so it didn't restart. Your project stays open, and JusPrin will use the new language the next time it starts."
 msgstr "JusPrin nie mógł zamknąć projektu, więc nie uruchomił się ponownie. Projekt pozostaje otwarty, a JusPrin użyje nowego języka przy następnym uruchomieniu."
 
@@ -1836,10 +1863,6 @@ msgstr "Nowa nazwa musi różnić się od starej czymś więcej niż wielkości�
 #, c-format, boost-format
 msgid "Other printer profiles are based on \"%s\". Remove those first in Printer settings."
 msgstr "Inne profile drukarek są oparte na „%s”. Najpierw usuń je w Ustawieniach drukarki."
-
-# AI Translated
-msgid "The app couldn't open your browser."
-msgstr "Aplikacja nie mogła otworzyć przeglądarki."
 
 # AI Translated
 msgid "About JusPrin"

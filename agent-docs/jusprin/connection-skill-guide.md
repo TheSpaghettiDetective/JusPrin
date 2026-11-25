@@ -70,7 +70,7 @@ What not to write, each from an incident:
 
 ### Search: say what to look up and how to read it
 
-Every chat has the provider's web search. Three things are known about it. Offered with no instruction, the model did not search once in four chats (2026-11-02). Told to search before guessing, it searched in two of seven chats and cited its source (2026-11-03). Told to search for the key, it found Moonraker's docs, which give the key page without a port, and handed the person a wrong URL (2026-11-04).
+Every chat has the provider's web search, except a chat on a model on this computer, which has none and is not told of one. Three things are known about it. Offered with no instruction, the model did not search once in four chats (2026-11-02). Told to search before guessing, it searched in two of seven chats and cited its source (2026-11-03). Told to search for the key, it found Moonraker's docs, which give the key page without a port, and handed the person a wrong URL (2026-11-04).
 
 So the skill names the search for each stuck moment and says how to apply the result to this setup: what the docs assume (Moonraker's default port), what varies by version, and what the model should ask the person to confirm. "Search before you say" alone was not enough.
 

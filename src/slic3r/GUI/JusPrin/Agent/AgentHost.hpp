@@ -17,7 +17,9 @@
 #include "AgentProtocol.hpp"
 #include "AgentService.hpp"
 #include "AgentSetup.hpp"
+#include "LocalModelSetup.hpp"
 #include "ModelCatalog.hpp"
+#include "ProviderProfile.hpp"
 #include "ProjectPersistence.hpp"
 #include "ToolExecutionCoordinator.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpConfigFile.hpp"
@@ -52,6 +54,21 @@ public:
     virtual std::vector<std::string> configured_providers() const = 0;
     // The provider a chat without a choice of its own talks to.
     virtual std::string default_provider() const = 0;
+    // The model a chat on this provider starts with: the row's, or for the
+    // model on this computer, the one setup checked.
+    virtual std::string default_model(const std::string& provider) const
+    {
+        const ProviderProfile* profile = profile_for(provider);
+        return profile ? profile->model : std::string();
+    }
+    // For the model on this computer, the app that runs it as setup found it
+    // ("Ollama", "LM Studio"); empty for every other provider, and when the
+    // app could not tell.
+    virtual std::string runtime(const std::string& provider) const
+    {
+        (void) provider;
+        return {};
+    }
     // A ready agent for this choice, or nullptr when its provider has no key.
     virtual AgentServicePtr make_agent(const ChatModelChoice& choice) = 0;
     // Asks the provider for its models; `done` is called later, once, on the
@@ -538,6 +555,18 @@ private:
     // throws when setup could not remove it.
     void remove_saved_key(const std::string& provider);
     void handle_setup_remove_key(const std::string& envelope_id, const std::string& payload_json);
+    // Setting up a model on this computer (local_model capability).
+    LocalModelSetup& local_setup() const;
+    void handle_local_find(const std::string& envelope_id, const std::string& payload_json);
+    void handle_local_check(const std::string& envelope_id, const std::string& payload_json);
+    void handle_local_cancel();
+    void handle_local_remove(const std::string& envelope_id);
+    void send_local_status(const std::string& phase, const std::string& correlation_id = {}, nlohmann::json details = {});
+    // pump_setup's local model setup, below its top handler.
+    void pump_local_setup();
+    // Puts the agent on what chats without a choice start with, as a launch
+    // would; with nothing set up, the dock is back to being unconfigured.
+    void install_default_agent();
     void handle_account_sign_in(const std::string& envelope_id, bool stored);
     void handle_account_cancel();
     // The email sign-in's steps and the sign-in's links (account_email capability).

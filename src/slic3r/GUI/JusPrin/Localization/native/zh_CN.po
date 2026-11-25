@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-24 13:37-0800\n"
+"POT-Creation-Date: 2026-11-24 16:23-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -228,6 +228,15 @@ msgstr "AI 无法接收原生工具结果。"
 # AI Translated
 msgid "The AI request failed."
 msgstr "AI 请求失败。"
+
+# AI Translated
+#. TRN The heading of the chat's model menu over a model that runs on this computer.
+msgid "On this computer"
+msgstr "此计算机上"
+
+# AI Translated
+msgid "This chat ran on a model on this computer that is no longer set up. Set it up again in the AI settings to continue it, or start a new chat."
+msgstr "此对话使用的是此计算机上的模型，但该模型已不再设置。请在 AI 设置中重新设置以继续，或新建对话。"
 
 # AI Translated
 #. TRN %1% is an AI provider's account, such as JusPrin.
@@ -515,6 +524,15 @@ msgstr "%1% 服务已达到速率限制。请稍后重试。"
 #, boost-format
 msgid "The request was too large for the %1% service."
 msgstr "请求太大，%1% 服务无法处理。"
+
+# AI Translated
+#, boost-format
+msgid "Nothing is answering at %1%. Start Ollama or LM Studio, then try again."
+msgstr "%1% 没有响应。请启动 Ollama 或 LM Studio，然后重试。"
+
+# AI Translated
+msgid "This model can't run the app's tools. Pick a model with tool support and a context of at least 32k."
+msgstr "此模型无法运行应用的工具。请选择支持工具且上下文至少为 32k 的模型。"
 
 # AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.
@@ -1608,6 +1626,15 @@ msgid "local sessions"
 msgstr "本地会话"
 
 # AI Translated
+#. TRN Names where a model runs when the app could not tell which app runs it: "qwen3.5:9b · this computer".
+msgid "this computer"
+msgstr "此计算机"
+
+# AI Translated
+msgid "The app couldn't open your browser."
+msgstr "本应用无法打开您的浏览器。"
+
+# AI Translated
 msgid "JusPrin couldn't close the project, so it didn't restart. Your project stays open, and JusPrin will use the new language the next time it starts."
 msgstr "JusPrin 无法关闭项目，因此没有重启。您的项目保持打开，JusPrin 将在下次启动时使用新语言。"
 
@@ -1813,10 +1840,6 @@ msgstr "新名称与旧名称的区别不能仅在于大小写。"
 #, c-format, boost-format
 msgid "Other printer profiles are based on \"%s\". Remove those first in Printer settings."
 msgstr "其他打印机配置文件基于“%s”。请先在打印机设置中移除它们。"
-
-# AI Translated
-msgid "The app couldn't open your browser."
-msgstr "本应用无法打开您的浏览器。"
 
 # AI Translated
 msgid "About JusPrin"

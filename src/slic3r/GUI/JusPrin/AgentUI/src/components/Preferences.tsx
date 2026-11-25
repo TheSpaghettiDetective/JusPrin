@@ -14,6 +14,8 @@ import {
   AccountStatusPayload,
   CreditAccount,
   DragAction,
+  LocalModelInfo,
+  LocalStatusPayload,
   McpCatalogPayload,
   McpPreviewPayload,
   McpStatusPayload,
@@ -26,6 +28,7 @@ import {
 } from '../bridge/protocol';
 import { AccountBox } from './AccountBox';
 import { AccountRow, ProviderKeys, ToolGroup } from './AgentConnection';
+import { LocalModelGroup } from './LocalModelGroup';
 import type { SignInActions } from './SignInDoor';
 import { balanceRows, EXPIRING_FIRST, showsExpiringFirst } from './BalancePanel';
 import { creditCount, creditNumber, MESSAGE_PRICES } from '../credits';
@@ -76,12 +79,23 @@ export interface PreferencesActions {
   refreshAccountBox: () => void;
   // Reads the account again, and any model list that failed.
   refreshAccount: () => void;
+  // Setting up a model on this computer: list the models at an address,
+  // check and store one of them, stop either, forget the stored one, and
+  // open the guide's words on a model's tools and context.
+  findLocalModels: (address: string) => void;
+  checkLocalModel: (model: string) => void;
+  cancelLocal: () => void;
+  removeLocalModel: () => void;
+  openLocalHelp: () => void;
 }
 
 export interface PreferencesProps {
   preferences: PreferencesPayload;
   setup: SetupStatusPayload;
   savedKeys: SavedKeyInfo[];
+  // The model on this computer that is set up, and how setting one up is going.
+  localModel: LocalModelInfo | null;
+  localSetup: LocalStatusPayload;
   account: AccountStatusPayload;
   // The signed-in account's plan and credits; null with no account or
   // before it answers.
@@ -362,8 +376,9 @@ function AccountSection({ savedKeys, account, creditAccount, accountBox, account
   );
 }
 
-function AgentSection({ agent, setup, savedKeys, mcpCatalog, actions, onConnectTool, onAccount }: {
+function AgentSection({ agent, setup, savedKeys, localModel, localSetup, mcpCatalog, actions, onConnectTool, onAccount }: {
   agent: PreferencesPayload['agent']; setup: SetupStatusPayload; savedKeys: SavedKeyInfo[];
+  localModel: LocalModelInfo | null; localSetup: LocalStatusPayload;
   mcpCatalog: McpCatalogPayload | null; actions: PreferencesActions; onConnectTool: (tool: McpToolInfo) => void;
   onAccount: () => void;
 }) {
@@ -378,13 +393,15 @@ function AgentSection({ agent, setup, savedKeys, mcpCatalog, actions, onConnectT
         <h2 className="prefs-title">BYOAI</h2>
         <p className="prefs-intro">
           <Trans>
-            Bring Your Own AI: an API key or an AI app you already pay for. No JusPrin account needed. Set up as many as
-            you like; each chat picks a model from them.
+            Bring Your Own AI: an API key, an AI app you already pay for, or a model you run on this computer. No JusPrin
+            account needed. Set up as many as you like; each chat picks a model from them.
           </Trans>
         </p>
       </div>
       <ProviderKeys heading setup={setup} savedKeys={savedKeys} onCheck={actions.checkKey} onCancel={actions.cancelCheck}
         onRemove={actions.removeKey} />
+      <LocalModelGroup saved={localModel} status={localSetup} onFind={actions.findLocalModels} onCheck={actions.checkLocalModel}
+        onCancel={actions.cancelLocal} onRemove={actions.removeLocalModel} onHelp={actions.openLocalHelp} />
       <ToolGroup heading tools={mcpCatalog?.tools ?? []} onConnect={onConnectTool} onLookAgain={actions.refreshTools} />
       <Group title={t`New chats start with`}>
         {agent.newChatChoices.length > 0 ? (
@@ -676,7 +693,7 @@ function rememberedSection(): PreferencesSection | null {
 }
 
 export function Preferences({
-  preferences, setup, savedKeys, account, creditAccount, accountBox, accountDeleted, modelCatalog, mcpCatalog, mcpPreview, mcpStatus,
+  preferences, setup, savedKeys, localModel, localSetup, account, creditAccount, accountBox, accountDeleted, modelCatalog, mcpCatalog, mcpPreview, mcpStatus,
   actions, onToolDone,
 }: PreferencesProps) {
   // Opened where the app was asked to open it; the list moves on from there.
@@ -747,7 +764,8 @@ export function Preferences({
             }}
           />
         ) : (
-          <AgentSection agent={preferences.agent} setup={setup} savedKeys={savedKeys} mcpCatalog={mcpCatalog}
+          <AgentSection agent={preferences.agent} setup={setup} savedKeys={savedKeys} localModel={localModel}
+            localSetup={localSetup} mcpCatalog={mcpCatalog}
             actions={actions}
             onConnectTool={(chosen) => setTool(chosen.id)} onAccount={() => go('account')} />
         ))}

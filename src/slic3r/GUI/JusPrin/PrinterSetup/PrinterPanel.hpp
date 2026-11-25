@@ -126,6 +126,7 @@ private:
     std::string            m_filament_preset;
     // The filament chat's instructions, as its page wrote them.
     std::string            m_filament_instructions;
+    std::string            m_filament_instructions_without_web_search;
     wxString               m_return_label;
     std::function<void()>  m_after_close;
     Workspace::IWorkspace& m_workspace;

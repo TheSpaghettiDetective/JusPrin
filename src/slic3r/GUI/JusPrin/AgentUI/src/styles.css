@@ -2871,6 +2871,60 @@ h2.credit-offer-title {
   color: var(--text-secondary);
 }
 
+/* The models at a local address, one radio row each, inside one ring. */
+.agent-local-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-small);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+}
+
+.agent-local-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.agent-local-option + .agent-local-option {
+  box-shadow: inset 0 1px 0 0 var(--border-subtle);
+}
+
+.agent-local-option--picked {
+  background: var(--surface-selected);
+}
+
+.agent-local-option input {
+  margin: 4px 0 0 0;
+  accent-color: var(--action-primary);
+}
+
+.agent-local-option-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.agent-local-option-name {
+  font: var(--font-code);
+  color: var(--text-primary);
+}
+
+.agent-local-option-detail,
+.agent-local-where {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+/* Under "Chats can use", in line with its words rather than its check mark. */
+.agent-local-where {
+  padding-left: calc(var(--setup-card-icon-size) + 8px);
+}
+
 .agent-key-keeps {
   font: var(--font-label);
   color: var(--text-secondary);
