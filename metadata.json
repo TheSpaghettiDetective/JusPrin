@@ -3,7 +3,7 @@
   "checkpoint_id": "01M883X623HW47XTVEHQ9ARN26",
   "strategy": "manual-commit",
   "branch": "claude/local-models",
-  "checkpoints_count": 2,
+  "checkpoints_count": 7,
   "files_touched": [
     "agent-docs/jusprin/connection-skill-guide.md",
     "docs/guide/ai-chats-and-account.md",
@@ -109,20 +109,27 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": "/0/prompt.txt"
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 936,
-    "cache_creation_tokens": 1291267,
-    "cache_read_tokens": 117035608,
-    "output_tokens": 281963,
-    "api_call_count": 469,
+    "input_tokens": 1278,
+    "cache_creation_tokens": 3319700,
+    "cache_read_tokens": 177519529,
+    "output_tokens": 511454,
+    "api_call_count": 640,
     "subagent_tokens": {
-      "input_tokens": 108,
-      "cache_creation_tokens": 513676,
-      "cache_read_tokens": 4920468,
-      "output_tokens": 87648,
-      "api_call_count": 54
+      "input_tokens": 468,
+      "cache_creation_tokens": 2617215,
+      "cache_read_tokens": 35356421,
+      "output_tokens": 246649,
+      "api_call_count": 233
     }
   }
 }
