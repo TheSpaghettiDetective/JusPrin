@@ -3,8 +3,9 @@
   "checkpoint_id": "01M8A6QJ4DM5J0E06VKNBEHEFR",
   "strategy": "manual-commit",
   "branch": "claude/misrouted-failures",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
+    "src/slic3r/GUI/JusPrin/Agent/CloudSignInMachine.cpp",
     "src/slic3r/GUI/JusPrin/Agent/ModelCatalogFetch.cpp",
     "src/slic3r/GUI/JusPrin/Agent/ProviderAgent.cpp",
     "src/slic3r/GUI/JusPrin/Home/OrcaHomeBackend.cpp",
@@ -31,7 +32,12 @@
     "src/slic3r/GUI/JusPrin/Localization/native/vi.po",
     "src/slic3r/GUI/JusPrin/Localization/native/zh_CN.po",
     "src/slic3r/GUI/JusPrin/Localization/native/zh_TW.po",
-    "tests/agent/test_openai_responses_agent.cpp"
+    "src/slic3r/GUI/JusPrin/PrinterSetup/SetupOptionsLoader.cpp",
+    "tests/agent/test_agent_setup.cpp",
+    "tests/agent/test_anthropic_codec.cpp",
+    "tests/agent/test_openai_responses_agent.cpp",
+    "tests/agent/test_provider_agent.cpp",
+    "tests/jusprin/test_setup_options.cpp"
   ],
   "sessions": [
     {
@@ -40,13 +46,27 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 234,
+    "cache_creation_tokens": 378626,
+    "cache_read_tokens": 31569260,
+    "output_tokens": 71158,
+    "api_call_count": 117,
+    "subagent_tokens": {
+      "input_tokens": 6,
+      "cache_creation_tokens": 51984,
+      "cache_read_tokens": 29645,
+      "output_tokens": 10844,
+      "api_call_count": 3
+    }
   }
 }
