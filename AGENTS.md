@@ -31,53 +31,44 @@ This checkout holds two codebases: upstream OrcaSlicer (the `upstream` remote, S
 
 ## Error handling
 
-Less is more. An error is **expected** only when the person can do something about it, such as sign in again, get more credits, update a key or check the network, and Kenneth decided what the product tells them. Every other error is **unexpected**: the person sees one generic sentence and a way to report the problem, and the report carries everything known, so that we can find the cause.
+Someone pastes a key from their own AI service, and the service refuses it because of a setting in their account. Only they can change that setting. Later the app loses a chat because of a mistake in our code. Only we can fix that. Every failure is like one of these: there is someone who can do something about it, and error handling is the work of getting the failure to them, in a form they can use.
 
-Kenneth, 2026-11-16: "if the error is something that user can do nothing about, just show the user a generic error message and give user a way to report a problem. On the back end though, we need to make sure we send as much info as possible to the Sentry server so that we can do root cause analysis. And that's it, nothing else." And: "When it comes to error handling, less is more."
+A failure that is the person's has to reach them in words they can understand, saying truthfully where the problem lies and what to do next. When the other side, meaning the service, printer or system that refused, has already said this in words written for a person, show those words and say who said them, because it knows the situation better than a sentence we prepared. Two causes that leave the person doing the same thing share one sentence, since a second sentence tells them nothing more. Nothing is wrong with the app itself, so it carries on.
 
-The reporting function is `report_unexpected_error` (`src/slic3r/GUI/JusPrin/Support/ErrorReport.hpp`). This repository has no expected-errors table yet.
+A failure that is ours has to reach us with everything the code knew, because we will have to find the cause. The person can do nothing with that detail. They need to know only that the fault is not theirs, and to have a way to send it to us. We write no code to deal with such a failure. Its cause is something we did not understand when we wrote the code, so any handling would be a guess, and a guess carries on in a state nobody can vouch for and hides the failure. The work stops.
 
-### Two kinds of failure
+Sending a failure to the wrong one is the mistake this section exists to prevent, and it can be made in both directions. Tell the person the service could not be reached when our server failed, and they check their network while we never hear of it. Tell them something went wrong on our side when their own account is out of credits, and they wait for us while our reports fill with things we cannot fix, until the ones we can fix are hard to see.
 
-A condition we can name in advance, and that the person can act on, is an expected error. It is designed for when the feature is built, like any other part of the feature, once we have verified how it shows up: from the other side's documentation or a real answer, not from memory.
+So look at the failure itself, with what the other side actually said, and work out whose it is. Usually it says. What we have prepared does not change the answer: a failure that is the person's stays theirs when nobody wrote a sentence for it. When it truly cannot be told, it comes to us, because a report we cannot use costs us one look, while a failure of ours that only the person saw is lost.
 
-Everything else is a surprise, an unexpected error. No handling is written for it, it stops the work, and it is reported with everything known. The reporting must be complete, because a surprise that is not reported is lost. A failure that ends in a log line alone, a default value, or a sentence for "anything else" is a hole. Reading the code can check this: from each place work starts, follow a failure up to the handler that reports it.
+Sometimes that someone is neither the person nor us. A service the person chose, such as the AI service their own key is for, is down, overloaded or failing on its own side: whoever runs it can fix it, and nobody here can. The person still needs the truth, that the trouble is at that service and not with them or with JusPrin, so they stop looking for something to fix. It is not reported, because a report is for someone who can act on it. Behind a JusPrin account the AI service is ours, because we chose it and can change it, so its failures come to us.
 
-Reports then show which surprises to fix, and which are really conditions that need a design.
+A failure we know people will meet is part of the feature, and the feature is not finished until the person who meets it is told what to do. Every failure is also written to the log, whoever it goes to. The log is where we look when a report or a question sends us looking. It tells nobody anything by itself.
 
-Every failure is written to the log, expected or unexpected. The log is kept as well as the report, never in its place.
+### In practice
 
-### Expected errors
-
-- Each has an entry in the expected-errors table: the cause, what the person sees, and what they can do next. A new entry needs Kenneth's yes; quote his words in the commit message.
-- The test is what the person can do next. If the answer is "nothing" or only "try again later", the error is unexpected. An AI provider or our own server being slow, overloaded, down or limiting us is unexpected: the person can do nothing about any of them.
-- Two causes that leave the person doing the same thing do not get separate sentences, codes or branches.
-- A cause is "out of credits" or "no network". A status code, an exception type, or "the request was not valid" is not a cause.
-- Each entry has a test, and each occurrence is counted.
-- Handle them with normal control flow, not exceptions.
-
-### Unexpected errors
-
-- Write no code for them. Do not catch one, give it a default value, retry it, or give it a sentence of its own. Each of those is a guess about a failure nobody understands. It hides the failure and loses where it came from.
-- Let the failure stop the work and travel up unchanged.
-- A failure that arrives as a value, such as a status code, stops nothing by itself. Turn it into a thrown error on the spot and stop. Keep the other side's status, request id and error text. Do not interpret it.
-- One handler at the top of each entry point reports the failure through the one reporting function and tells the person "Something went wrong on our side", with nothing more specific. No other code reports.
-- A tool call that fails is shown as failed in the turn's activity line, its error goes to the AI model, and the turn goes on; no dialog opens. When the failure is the app's own and not the model's mistake, it is also reported, and only if the person has turned automatic reports on.
-- When our own code is on both ends, a message that is refused or cannot be read is unexpected.
-- The report carries as much as is known: the other side's status, request id and error text, and the request's own facts, such as the user, the chat, the turn and the model. The person is told none of it.
+- Whose a failure is depends on its cause, such as "out of credits" or "no network", both of them the person's. A status code, an exception type, or the way the failure arrives (an HTTP status, an event inside a reply) is not a cause.
+- A branch for "anything else" decides for every failure nobody listed. A failure the other side says is the person's goes to the person, and one that cannot be told comes to us. One sentence there for failures with different owners is a guess.
+- A sentence we write for the person needs Kenneth's yes; quote his words in the commit message. Each has a test, and each time it is shown is counted. Showing the other side's own words needs no sentence of ours.
+- A failure that is the person's, or that nobody here can fix, is handled with normal control flow, not exceptions, and is not reported.
+- A failure that is ours gets one sentence, "Something went wrong on our side", and a way to report it. Do not sort such failures into kinds for the person, and do not bring Kenneth a question about the wording of one. On 2026-11-16 the code that kept five "try again" sentences apart was deleted for this reason.
+- A failure that is ours stops the work and travels up unchanged. Do not catch it, give it a default value, retry it, or give it a sentence of its own.
+- A failure that arrives as a value, such as a status code, stops nothing by itself. Once it is clear that it is ours, or that it cannot be told whose it is, turn it into a thrown error on the spot and keep the other side's status, request id and error text.
+- One handler at the top of each entry point reports through `report_unexpected_error` (`src/slic3r/GUI/JusPrin/Support/ErrorReport.hpp`) and tells the person. No other code reports. In the code, a failure that comes to us is called unexpected, and any other is called expected.
+- The report carries the other side's status, request id and error text, and the request's own facts, such as the user, the chat, the turn and the model.
+- When our own code is on both ends, a message that is refused or cannot be read is ours.
+- One exception to "the work stops" and "no other code reports": a tool call that fails is shown as failed in the turn's activity line, its error goes to the AI model, and the turn goes on. When the failure is the app's own and not the model's mistake, it is also reported, with no dialog, and for this kind of failure only if the person has turned automatic reports on.
 - Never record a failure as a success.
-- A log line is not a report: it reaches nobody.
 
 ### Catching
 
-- Catch an error only when it is an expected one and the code can recover from it, or at a boundary to translate it or add context, and then rethrow.
+- Catch a failure only when the code knows what it is and can recover from it, or at a boundary to translate it or add context, and then rethrow.
 - Keep lower-level operations strict; the caller that owns the workflow enforces their preconditions.
 - If concurrency makes an invalid state reachable, fix the ordering.
 
 ### Checks
 
-- An agent reads the changed code against these rules and asks one question wherever the code decides what happened: can the person do something about it, and did Kenneth decide what they are told?
-- Do not sort unexpected failures into kinds for the person, and do not bring Kenneth a question about the wording of a failure the person can do nothing about. On 2026-11-16 the code that kept five "try again" sentences apart was deleted for this reason.
+- An agent reads the changed code against this section. Of each failure the code decides on, with what the other side really says, it asks: whose is it, and does it reach them in a form they can use?
 - To audit a commit range, use the `error-handling` skill (`.claude/skills/error-handling/`). To check production for a period, use the `jusprin-production-check` skill in the tsd-enterprise repository.
 
 ## Build Commands
