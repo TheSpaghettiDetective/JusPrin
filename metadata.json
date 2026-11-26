@@ -5,7 +5,12 @@
   "branch": "claude/local-model-errors",
   "checkpoints_count": 2,
   "files_touched": [
+    "src/slic3r/GUI/JusPrin/Agent/AgentConfiguration.cpp",
     "src/slic3r/GUI/JusPrin/Agent/ProviderAgent.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ProviderAgent.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/ProviderFactory.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ProviderFactory.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp",
     "src/slic3r/GUI/JusPrin/AgentUI/src/PreferencesApp.test.tsx",
     "src/slic3r/GUI/JusPrin/Localization/native/JusPrin.pot",
     "src/slic3r/GUI/JusPrin/Localization/native/ca.po",
