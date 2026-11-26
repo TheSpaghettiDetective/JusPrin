@@ -610,6 +610,7 @@ msgstr "{processChanges, plural, other {เปลี่ยนจากพรี�
 
 # AI Translated
 #: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
 msgid "{reason} Nothing was saved."
 msgstr "{reason} ไม่มีการบันทึกใดๆ"
 

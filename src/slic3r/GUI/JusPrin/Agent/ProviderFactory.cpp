@@ -1,6 +1,7 @@
 #include "ProviderFactory.hpp"
 #include "AgentProtocol.hpp"
 #include "AnthropicCodec.hpp"
+#include "ProviderProfile.hpp"
 #include "ResponsesCodec.hpp"
 
 #include <boost/log/trivial.hpp>
@@ -154,7 +155,8 @@ AgentRuntime resolve_agent_runtime(const AgentSettings&                         
             runtime.unavailable_reason = "No model on this computer is set up.";
             return runtime;
         }
-        runtime.service = make_provider_agent(*profile, {}, settings.model, settings.endpoint, transport(), std::move(listeners));
+        runtime.service = make_provider_agent(local_profile(settings.runtime, settings.endpoint), {}, settings.model, settings.endpoint,
+                                              transport(), std::move(listeners));
         runtime.availability = runtime.service->ready() ? AgentAvailability::Ready : AgentAvailability::Unavailable;
         return runtime;
     }

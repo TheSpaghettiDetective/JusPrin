@@ -56,6 +56,9 @@ struct AgentSettings
     // computer: the endpoint at the address the person set up.
     std::string format;
     std::string endpoint;
+    // For a model on this computer: the app that runs it, as setup found it
+    // ("Ollama"); empty when setup could not tell.
+    std::string runtime;
 };
 
 // The runtime those choices give: a ready service, or the reason there is

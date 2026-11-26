@@ -1,5 +1,6 @@
 #include "LocalModelSetup.hpp"
 
+#include "AgentProtocol.hpp"
 #include "AgentSetup.hpp"
 #include "ProviderAgent.hpp"
 #include "ProviderFactory.hpp"
@@ -8,6 +9,7 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -31,6 +33,16 @@ std::string said(const LocalModelSetup::Answer& answer)
 {
     return "answered " + std::to_string(answer.status) + (answer.error.empty() ? "" : " (" + answer.error + ")") + ": " +
            answer.body.substr(0, 2048);
+}
+
+// The app's own refusal in its words, after its name, such as Ollama's for a
+// model deleted since the list; none when it gave no words.
+std::optional<AgentError> refusal(const LocalModelList& list, const LocalModelSetup::Answer& answer)
+{
+    const std::string words = service_message(answer.body);
+    if (words.empty())
+        return std::nullopt;
+    return local_refused(local_profile(list.runtime, list.address).display_name, words);
 }
 
 } // namespace
@@ -131,8 +143,14 @@ std::optional<LocalSetupOutcome> LocalModelSetup::advance(const Answer& answer)
         // the address is wrong. Either way the person starts it or fixes it.
         if (answer.status == 0)
             return failed(local_unreachable(m_list.address));
-        if (answer.status != 200 || !body.is_object() || !body.contains("data") || !body["data"].is_array())
-            unexpected("listing its models", answer);
+        if (answer.status != 200 || !body.is_object() || !body.contains("data") || !body["data"].is_array()) {
+            if (std::optional<AgentError> refused = refusal(m_list, answer))
+                return failed(std::move(*refused));
+            // Any other answer is not Ollama or LM Studio talking, such as
+            // the system's AirPlay receiver at port 5000 on a Mac: the same
+            // for the person as nothing answering.
+            return failed(local_unreachable(m_list.address));
+        }
         for (const json& entry : body["data"])
             if (entry.is_object() && entry.contains("id") && entry["id"].is_string())
                 m_list.models.push_back({entry["id"].get<std::string>(), std::nullopt, std::nullopt});
@@ -151,8 +169,11 @@ std::optional<LocalSetupOutcome> LocalModelSetup::advance(const Answer& answer)
         request("GET", "/api/v1/models");
         return std::nullopt;
     case Step::Show: {
-        if (answer.status != 200 || !body.is_object())
+        if (answer.status != 200 || !body.is_object()) {
+            if (std::optional<AgentError> refused = answer.status != 200 ? refusal(m_list, answer) : std::nullopt)
+                return failed(std::move(*refused));
             unexpected("describing " + m_list.models[m_showing].id, answer);
+        }
         const json capabilities = body.value("capabilities", json::array());
         LocalModelInfo& info = m_list.models[m_showing];
         // An embedding model writes no replies; it is no chat's model.
@@ -204,8 +225,11 @@ std::optional<LocalSetupOutcome> LocalModelSetup::advance(const Answer& answer)
         return outcome;
     }
     case Step::LoadedContext: {
-        if (answer.status != 200 || !body.is_object())
+        if (answer.status != 200 || !body.is_object()) {
+            if (std::optional<AgentError> refused = answer.status != 200 ? refusal(m_list, answer) : std::nullopt)
+                return failed(std::move(*refused));
             unexpected("saying how much context " + m_checking + " was loaded with", answer);
+        }
         std::optional<long> context;
         if (m_list.runtime == kRuntimeOllama) {
             for (const json& loaded : body.value("models", json::array()))
@@ -256,7 +280,8 @@ std::optional<LocalSetupOutcome> LocalModelSetup::start_probe()
     // The app says the model takes no tools: the check would only fail.
     if (listed->tools == false)
         return failed(local_cant_run());
-    m_candidate = make_provider_agent(*profile_for(kLocalProvider), {}, m_checking, local_endpoint(m_list.address), m_transport());
+    m_candidate = make_provider_agent(local_profile(m_list.runtime, m_list.address), {}, m_checking, local_endpoint(m_list.address),
+                                      m_transport());
     if (!m_candidate->start(setup_probe_request()))
         throw std::logic_error("jusprin-local-setup: the check's agent would not start");
     return std::nullopt;

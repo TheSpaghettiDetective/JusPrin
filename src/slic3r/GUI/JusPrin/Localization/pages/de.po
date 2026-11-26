@@ -609,6 +609,7 @@ msgstr "{processChanges, plural, one {# Änderung gegenüber dem Profil} other {
 
 # AI Translated
 #: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
 msgid "{reason} Nothing was saved."
 msgstr "{reason} Es wurde nichts gespeichert."
 

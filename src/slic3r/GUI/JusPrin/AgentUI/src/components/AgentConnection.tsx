@@ -340,8 +340,9 @@ export function ProviderKeyRow({
   );
 }
 
-// A check that never reached the provider says nothing about the key.
-const UNREACHED = new Set(['network_error', 'timeout', 'setup_failed']);
+// A check that never reached the provider, or that the provider could not
+// answer because its service is down, says nothing about the key.
+const UNREACHED = new Set(['network_error', 'timeout', 'setup_failed', 'provider_unavailable']);
 
 export interface ProviderKeysProps {
   // Preferences lists the ways one under another and names each one.
@@ -404,12 +405,17 @@ export function ProviderKeys({ heading = false, setup, savedKeys, onCheck, onCan
 
   const errorFor = (provider: ProviderOption, form: KeyForm): string | undefined => {
     const name = provider.label;
-    if (form === 'unreachable') return t`Couldn’t reach ${name} to check this key. Nothing was saved. Try again.`;
+    const reason = setup.error?.message;
+    if (form === 'unreachable') {
+      // The service answered that it is down: the host's sentence says so,
+      // and does not send the person to check their own network.
+      if (setup.error?.code === 'provider_unavailable' && reason) return t`${reason} Nothing was saved.`;
+      return t`Couldn’t reach ${name} to check this key. Nothing was saved. Try again.`;
+    }
     if (form !== 'refused') return undefined;
     if (setup.error?.code === 'invalid_credentials') return t`${name} rejected this key. Nothing was saved.`;
     // Something nobody decided an outcome for: the app's one sentence for it.
     if (setup.error?.code === 'unexpected_error') return setup.error.message;
-    const reason = setup.error?.message;
     return reason ? t`${reason} Nothing was saved.` : t`The key could not be checked. Nothing was saved.`;
   };
 

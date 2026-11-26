@@ -612,6 +612,7 @@ msgstr "{processChanges, plural, other {與預設相比有 # 項變更}}"
 
 # AI Translated
 #: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
 msgid "{reason} Nothing was saved."
 msgstr "{reason} 未儲存任何內容。"
 

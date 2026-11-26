@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-25 12:11-0800\n"
+"POT-Creation-Date: 2026-11-25 17:08-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -520,6 +520,12 @@ msgstr "Zure %1% kontuak ez du krediturik. Gehitu kredituak %1% zerbitzuan, eta 
 #, boost-format
 msgid "The %1% service is rate limited. Try again shortly."
 msgstr "%1% zerbitzuak eskaerak mugatu ditu. Saiatu berriro laster."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI. Its service is down or overloaded on its own side.
+#, boost-format
+msgid "The %1% service is having trouble right now. Try again later."
+msgstr "%1% zerbitzuak arazoak ditu une honetan. Saiatu berriro geroago."
 
 # AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.

@@ -4,6 +4,10 @@
 // ones follow LM Studio's REST API documentation (/api/v1/models).
 
 #include <catch2/catch_all.hpp>
+#include <catch2/catch_message.hpp>
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
+#include <catch2/matchers/catch_matchers.hpp>
 
 #include "slic3r/GUI/JusPrin/Agent/LocalModelSetup.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp"
@@ -15,6 +19,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 using namespace Slic3r::GUI::JusPrin::Agent;
@@ -297,12 +302,92 @@ TEST_CASE("the app stopping during the check is the unreachable error", "[LocalM
     CHECK_THAT(outcome->error.message, Catch::Matchers::ContainsSubstring("127.0.0.1:11434"));
 }
 
-TEST_CASE("an answer that names nothing the person can act on stops the setup and goes up", "[LocalModelSetup]")
+TEST_CASE("the app's own refusal while listing is shown in its words, after the address", "[LocalModelSetup]")
 {
     Fixture fixture;
     fixture.setup->find("http://127.0.0.1:11434");
-    fixture.asked.back().done({500, R"({"error":"llama runner process has terminated"})", {}});
-    CHECK_THROWS_WITH(fixture.setup->poll(), Catch::Matchers::ContainsSubstring("llama runner process has terminated"));
+    const std::optional<LocalSetupOutcome> outcome = fixture.answer(500, R"({"error":"llama runner process has terminated"})");
+    REQUIRE(outcome);
+    REQUIRE(outcome->kind == LocalSetupOutcome::Kind::Failed);
+    CHECK(outcome->error.code == "local_refused");
+    CHECK(outcome->error.message == "127.0.0.1:11434 says: “llama runner process has terminated”");
+    CHECK_FALSE(fixture.setup->busy());
+}
+
+// Port 5000 on a Mac is the system's AirPlay receiver, which answers 403 with
+// nothing in it. The other two are a web page and another program's JSON.
+TEST_CASE("an answer at the address that is no model list is the unreachable error", "[LocalModelSetup]")
+{
+    const auto [status, body] = GENERATE(std::pair<unsigned, std::string>{403, ""},
+                                         std::pair<unsigned, std::string>{200, "<html><body>Welcome</body></html>"},
+                                         std::pair<unsigned, std::string>{404, R"({"detail":"Not Found"})"});
+    CAPTURE(status, body);
+    Fixture fixture;
+    fixture.setup->find("http://127.0.0.1:5000");
+    const std::optional<LocalSetupOutcome> outcome = fixture.answer(status, body);
+    REQUIRE(outcome);
+    REQUIRE(outcome->kind == LocalSetupOutcome::Kind::Failed);
+    CHECK(outcome->error.code == "local_unreachable");
+    CHECK_THAT(outcome->error.message, Catch::Matchers::ContainsSubstring("127.0.0.1:5000"));
+    CHECK_FALSE(fixture.setup->busy());
+}
+
+// Ollama 0.40.18's answer to /api/show for a model it does not have.
+TEST_CASE("a model deleted after the list is shown in Ollama's words", "[LocalModelSetup]")
+{
+    Fixture fixture;
+    fixture.setup->find("http://127.0.0.1:11434");
+    CHECK_FALSE(fixture.answer(200, kOllamaModels));
+    CHECK_FALSE(fixture.answer(200, R"({"version":"0.40.18"})"));
+    const std::optional<LocalSetupOutcome> outcome = fixture.answer(404, R"({"error":"model 'qwen3.5:9b' not found"})");
+    REQUIRE(outcome);
+    REQUIRE(outcome->kind == LocalSetupOutcome::Kind::Failed);
+    CHECK(outcome->error.code == "local_refused");
+    CHECK(outcome->error.message == "Ollama says: “model 'qwen3.5:9b' not found”");
+}
+
+// Ollama 0.40.18's answer to /v1/responses for a model it does not have.
+TEST_CASE("the check of a model deleted since is shown in Ollama's words", "[LocalModelSetup]")
+{
+    Fixture fixture;
+    fixture.found_at_ollama();
+    fixture.setup->check("qwen3.5:9b");
+    CHECK_FALSE(fixture.setup->poll());
+    fixture.posts.callbacks.back()({AgentHttpEvent::Kind::Error,
+                                    R"({"error":{"message":"model 'qwen3.5:9b' not found","type":"not_found_error","param":null,"code":null}})",
+                                    "HTTP error", 404});
+    const std::optional<LocalSetupOutcome> outcome = fixture.setup->poll();
+    REQUIRE(outcome);
+    REQUIRE(outcome->kind == LocalSetupOutcome::Kind::Failed);
+    CHECK(outcome->error.code == "local_refused");
+    CHECK(outcome->error.message == "Ollama says: “model 'qwen3.5:9b' not found”");
+    CHECK(fixture.stored.empty());
+}
+
+// An Ollama older than its Responses endpoint answers the check with Go's
+// plain-text 404.
+TEST_CASE("a check answered by something other than the app's own words is the unreachable error", "[LocalModelSetup]")
+{
+    Fixture fixture;
+    fixture.found_at_ollama();
+    fixture.setup->check("qwen3.5:9b");
+    CHECK_FALSE(fixture.setup->poll());
+    fixture.posts.callbacks.back()({AgentHttpEvent::Kind::Error, "404 page not found", "HTTP error", 404});
+    const std::optional<LocalSetupOutcome> outcome = fixture.setup->poll();
+    REQUIRE(outcome);
+    REQUIRE(outcome->kind == LocalSetupOutcome::Kind::Failed);
+    CHECK(outcome->error.code == "local_unreachable");
+    CHECK_THAT(outcome->error.message, Catch::Matchers::ContainsSubstring("127.0.0.1:11434"));
+}
+
+TEST_CASE("an answer with no words, from an app that already answered, stops the setup and goes up", "[LocalModelSetup]")
+{
+    Fixture fixture;
+    fixture.setup->find("http://127.0.0.1:11434");
+    CHECK_FALSE(fixture.answer(200, kOllamaModels));
+    CHECK_FALSE(fixture.answer(200, R"({"version":"0.40.18"})"));
+    fixture.asked.back().done({500, R"({"status":"unknown"})", {}});
+    CHECK_THROWS_WITH(fixture.setup->poll(), Catch::Matchers::ContainsSubstring(R"({"status":"unknown"})"));
     CHECK_FALSE(fixture.setup->busy());
 }
 

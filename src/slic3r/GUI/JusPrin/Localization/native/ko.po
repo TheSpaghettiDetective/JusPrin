@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-25 12:11-0800\n"
+"POT-Creation-Date: 2026-11-25 17:08-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -518,6 +518,12 @@ msgstr "%1% 계정의 크레딧이 모두 소진되었습니다. %1%에서 크�
 #, boost-format
 msgid "The %1% service is rate limited. Try again shortly."
 msgstr "%1% 서비스의 요청 한도에 도달했습니다. 잠시 후 다시 시도하세요."
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI. Its service is down or overloaded on its own side.
+#, boost-format
+msgid "The %1% service is having trouble right now. Try again later."
+msgstr "지금 %1% 서비스에 문제가 있습니다. 나중에 다시 시도하세요."
 
 # AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.

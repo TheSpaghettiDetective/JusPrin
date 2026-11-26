@@ -612,6 +612,7 @@ msgstr "{processChanges, plural, one {# ändring från förinställningen} other
 
 # AI Translated
 #: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
 msgid "{reason} Nothing was saved."
 msgstr "{reason} Inget sparades."
 

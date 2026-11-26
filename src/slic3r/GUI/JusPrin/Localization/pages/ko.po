@@ -609,6 +609,7 @@ msgstr "{processChanges, plural, other {사전 설정에서 변경 #개}}"
 
 # AI Translated
 #: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
 msgid "{reason} Nothing was saved."
 msgstr "{reason} 아무것도 저장되지 않았습니다."
 

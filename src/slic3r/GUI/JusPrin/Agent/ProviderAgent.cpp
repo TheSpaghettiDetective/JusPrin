@@ -716,13 +716,18 @@ std::optional<AgentEvent> ProviderAgent::poll()
 //   than the model takes, too many requests, and a refusal of what the key,
 //   its account or its settings allow, shown in the service's own words.
 //   No answer at all: the network.
+//   An own key's service failing on its side, by status or inside a reply:
+//   that service, which nobody here can fix.
+//   A model on this computer, by the words of the app that runs it, or, when
+//   the answer is not that app talking at all, the address.
 namespace {
 
 // What a service's error says, wherever it says it: an HTTP body or an error
 // event ({"error": {...}}, OpenAI's documented flat error event, Anthropic's
 // {"type": "error", "error": {...}}) or a failed response
 // ({"response": {"error": {...}}}). OpenRouter puts its kind of error in
-// error_type, beside the error or in its metadata.
+// error_type, beside the error or in its metadata. Ollama's own API puts its
+// words in the error itself ({"error": "model 'x' not found"}).
 struct ServiceSays
 {
     std::string type, code, message, error_type;
@@ -745,6 +750,8 @@ ServiceSays service_says(const json& answer)
                                                                                                  answer;
     ServiceSays says{string_at(error, "type"), string_at(error, "code"), string_at(error, "message"),
                      string_at(answer, "error_type")};
+    if (says.message.empty())
+        says.message = string_at(answer, "error");
     if (says.error_type.empty())
         says.error_type = string_at(response, "error_type");
     if (says.error_type.empty())
@@ -785,6 +792,13 @@ AgentError rate_limited(const std::string& name)
     return {"rate_limited", Slic3r::format(translated(L("The %1% service is rate limited. Try again shortly.")), name), true};
 }
 
+AgentError provider_unavailable(const std::string& name)
+{
+    return {"provider_unavailable",
+            // TRN %1% is an AI provider, such as OpenAI. Its service is down or overloaded on its own side.
+            Slic3r::format(translated(L("The %1% service is having trouble right now. Try again later.")), name), true};
+}
+
 AgentError too_large(const std::string& name)
 {
     // TRN %1% is an AI provider, such as OpenAI.
@@ -802,6 +816,13 @@ std::string error_code(const std::string& body)
 }
 
 } // namespace
+
+std::string service_message(const std::string& body) { return service_says(json::parse(body, nullptr, false)).message; }
+
+AgentError local_refused(const std::string& name, const std::string& words)
+{
+    return {"local_refused", said_by(name, words), false};
+}
 
 AgentError local_unreachable(const std::string& address_or_endpoint)
 {
@@ -843,12 +864,22 @@ AgentError ProviderAgent::http_error(const AgentHttpEvent& event)
     const std::string& words   = event.data.empty() ? event.error : event.data;
     if (expected)
         return this->expected(std::move(*expected), answered, words);
+    // The app that runs the model on this computer refusing in its own words,
+    // such as a model deleted since setup or one too big for the memory. An
+    // answer that is not that app talking at all, such as another program at
+    // a wrong port or an Ollama too old for this endpoint, leaves the person
+    // to start the app or fix the address.
+    if (m_config.profile.on_this_computer) {
+        const json answer = json::parse(event.data, nullptr, false);
+        if (const std::string message = service_says(answer).message; !message.empty())
+            return this->expected(local_refused(m_config.profile.display_name, message), answered, words);
+        if (answer.is_discarded())
+            return this->expected(local_unreachable(m_config.profile.endpoint), answered, words);
+    }
     // The service of the person's own key failing on its side: whoever runs
     // it can fix it, and nobody here can.
     if (!m_config.profile.account_sign_in && !m_config.profile.on_this_computer && event.status >= 500)
-        // TRN %1% is an AI provider, such as OpenAI.
-        return this->expected({"network_error", Slic3r::format(translated(L("The AI request could not reach the %1% service.")), m_config.profile.display_name), true},
-                              answered, words);
+        return this->expected(provider_unavailable(m_config.profile.display_name), answered, words);
     // The key check (setup_probe_request) sends the same request for every
     // person; only the key and its account differ. A refusal of it in the
     // service's words is about the key's account, such as an OpenRouter
@@ -919,9 +950,14 @@ std::optional<AgentError> ProviderAgent::in_reply_answer(const json& answer) con
         if (!m_config.profile.on_this_computer &&
             (says.type == "overloaded_error" || says.type == "api_error" || says.code == "server_error" ||
              says.error_type == "provider_overloaded" || says.error_type == "provider_unavailable" || says.error_type == "server"))
-            // TRN %1% is an AI provider, such as OpenAI.
-            return AgentError{"network_error", Slic3r::format(translated(L("The AI request could not reach the %1% service.")), m_config.profile.display_name), true};
-        return provider_answer(0, answer);
+            return provider_unavailable(m_config.profile.display_name);
+        if (std::optional<AgentError> expected = provider_answer(0, answer))
+            return expected;
+        // The app that runs the model on this computer stopping a reply in
+        // its own words, such as its runner ending mid-reply.
+        if (m_config.profile.on_this_computer && !says.message.empty())
+            return local_refused(m_config.profile.display_name, says.message);
+        return std::nullopt;
     }
     // Inside a reply the gateway names one cause a person can act on: a chat
     // more than the model takes.

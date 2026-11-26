@@ -609,6 +609,7 @@ msgstr "{processChanges, plural, one {# aldaketa aurrezarpenarekiko} other {# al
 
 # AI Translated
 #: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
 msgid "{reason} Nothing was saved."
 msgstr "{reason} Ez da ezer gorde."
 

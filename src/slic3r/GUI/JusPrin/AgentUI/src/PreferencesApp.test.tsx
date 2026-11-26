@@ -933,6 +933,25 @@ describe('Preferences › Agent', () => {
     expect(host.lastOfType('setup_check_key')!.payload).toEqual({ provider: 'anthropic', apiKey: 'sk-ant-offline' });
   });
 
+  it('says the service is having trouble, and keeps the key for another try, when the check meets an outage', async () => {
+    openApiKeyScreen();
+    fireEvent.click(screen.getByRole('button', { name: 'Add Anthropic key' }));
+    await userEvent.type(screen.getByLabelText('Anthropic API key'), 'sk-ant-outage');
+    fireEvent.click(screen.getByRole('button', { name: 'Check key' }));
+    host.deliver('setup_status', {
+      phase: 'error',
+      provider: 'anthropic',
+      error: { code: 'provider_unavailable', message: 'The Anthropic service is having trouble right now. Try again later.', retryable: true },
+    });
+
+    expect(screen.getByTestId('setup-error')).toHaveTextContent(
+      'The Anthropic service is having trouble right now. Try again later. Nothing was saved.');
+    expect(screen.getByTestId('setup-error')).not.toHaveTextContent('reach');
+    expect(screen.getByLabelText('Anthropic API key')).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Check key' }));
+    expect(host.lastOfType('setup_check_key')!.payload).toEqual({ provider: 'anthropic', apiKey: 'sk-ant-outage' });
+  });
+
   it('says only that something went wrong when a check ends in an unexpected error', async () => {
     openApiKeyScreen();
     fireEvent.click(screen.getByRole('button', { name: 'Add OpenAI key' }));

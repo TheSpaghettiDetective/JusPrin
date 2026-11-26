@@ -612,6 +612,7 @@ msgstr "{processChanges, plural, one {# eltérés a beállítástól} other {# e
 
 # AI Translated
 #: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
 msgid "{reason} Nothing was saved."
 msgstr "{reason} Semmi sem lett mentve."
 

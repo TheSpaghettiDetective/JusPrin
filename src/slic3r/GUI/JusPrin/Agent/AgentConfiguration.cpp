@@ -261,6 +261,7 @@ AgentRuntime load_agent_runtime(AppConfig* config)
         if (const std::optional<LocalModelRecord> local = load_local_model(config)) {
             settings.model    = local->model;
             settings.endpoint = local_endpoint(local->address);
+            settings.runtime  = local->runtime;
         }
     }
     AgentRuntime runtime = resolve_agent_runtime(settings, agent_endpoint_override(), &make_openai_http_transport, logging_listeners());
@@ -417,8 +418,8 @@ public:
             const std::optional<LocalModelRecord> local = load_local_model(m_config);
             if (!local)
                 return nullptr;
-            return make_provider_agent(*row, {}, choice.model, local_endpoint(local->address), make_openai_http_transport(),
-                                       logging_listeners());
+            return make_provider_agent(local_profile(local->runtime, local->address), {}, choice.model, local_endpoint(local->address),
+                                       make_openai_http_transport(), logging_listeners());
         }
         const std::string key = load_provider_api_key(m_config, choice.provider);
         if (row == nullptr || key.empty())

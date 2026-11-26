@@ -52,6 +52,12 @@ std::string gateway_chat_id(const std::string& chat_key);
 // take the app's tools, or its context is under 32k, so they pick another.
 AgentError local_unreachable(const std::string& address_or_endpoint);
 AgentError local_cant_run();
+// The app that runs a model on this computer refusing in its own words, after
+// its name (local_profile()). Not reported: the person can act on it.
+AgentError local_refused(const std::string& name, const std::string& words);
+// The words an AI service's error answer gives, wherever it puts them; empty
+// when it gives none or the answer is not JSON.
+std::string service_message(const std::string& body);
 
 // An AI service's answer that names nothing a person can act on, in the
 // service's own words: its status or event, its request id, and the turn the

@@ -157,6 +157,16 @@ inline std::string local_address_shown(const std::string& address_or_endpoint)
     return shown;
 }
 
+// The row of a model on this computer, named by the app that runs it as
+// setup found it ("Ollama"), or by its address when setup could not tell:
+// that app's own words are shown after this name.
+inline ProviderProfile local_profile(const std::string& runtime, const std::string& address_or_endpoint)
+{
+    ProviderProfile profile = *profile_for(kLocalProvider);
+    profile.display_name    = runtime.empty() ? local_address_shown(address_or_endpoint) : runtime;
+    return profile;
+}
+
 // The provider a JusPrin account signs in to.
 inline const ProviderProfile& account_provider()
 {

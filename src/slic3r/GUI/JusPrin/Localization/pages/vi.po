@@ -609,6 +609,7 @@ msgstr "{processChanges, plural, other {# thay đổi so với cài đặt sẵn
 
 # AI Translated
 #: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
 msgid "{reason} Nothing was saved."
 msgstr "{reason} Chưa có gì được lưu."
 

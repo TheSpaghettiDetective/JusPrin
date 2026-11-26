@@ -11,6 +11,7 @@
 #include "kept_turn.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderAgent.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderFactory.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolRegistry.hpp"
 #include "project_chat_tools.hpp"
 
@@ -22,12 +23,15 @@
 #include <memory>
 #include <sstream>
 #include <stdexcept>
+#include <string>
+#include <utility>
 #include <vector>
 
 using namespace Slic3r::GUI::JusPrin::Agent;
 namespace Workspace = Slic3r::GUI::JusPrin::Workspace;
 using nlohmann::json;
 using Catch::Matchers::ContainsSubstring;
+using Catch::Matchers::StartsWith;
 
 namespace {
 
@@ -137,6 +141,10 @@ public:
         } else if (script.contains("incomplete")) {
             event.kind = StreamEvent::Kind::ServiceError;
             event.text = "ended its response early";
+        } else if (script.contains("service_error")) {
+            event.kind   = StreamEvent::Kind::ServiceError;
+            event.text   = "sent an error event";
+            event.answer = script["service_error"];
         } else {
             event.kind  = StreamEvent::Kind::Failed;
             event.error = {script["failed"].value("code", "scripted_failure"), "The script said so.",
@@ -597,9 +605,9 @@ TEST_CASE("HTTP failures are mapped to safe errors that name the provider", "[ag
                           {0, "could not resolve host", "network_error", true, "could not reach the Test Provider service"},
                           {413, "body omitted", "request_too_large", false, "too large for the Test Provider service"},
                           // The service of the person's own key failing on its side.
-                          {500, "sensitive upstream body", "network_error", true, "could not reach the Test Provider service"},
-                          {503, "sensitive upstream body", "network_error", true, "could not reach the Test Provider service"},
-                          {529, "sensitive upstream body", "network_error", true, "could not reach the Test Provider service"},
+                          {500, "sensitive upstream body", "provider_unavailable", true, "The Test Provider service is having trouble right now. Try again later."},
+                          {503, "sensitive upstream body", "provider_unavailable", true, "The Test Provider service is having trouble right now. Try again later."},
+                          {529, "sensitive upstream body", "provider_unavailable", true, "The Test Provider service is having trouble right now. Try again later."},
                           // A refusal of what the key, its account or its settings allow, in the service's words.
                           {429, R"({"error":{"message":"Rate limit exceeded: limit_rpm"}})", "rate_limited", true,
                            "Test Provider says: \u201cRate limit exceeded: limit_rpm\u201d"},
@@ -640,6 +648,88 @@ TEST_CASE("an answer that names nothing a person can act on stops the turn with 
         CHECK(h.fake->cancelled);
         CHECK_FALSE(h.agent->poll());
     }
+}
+
+// Ollama 0.40.18's answer to /v1/responses for a model deleted since setup;
+// the same shape carries "llama runner process has terminated" when the model
+// does not fit in memory.
+TEST_CASE("a chat on a model on this computer shows that app's own refusal and is not reported", "[agent][loop][errors]")
+{
+    const auto [status, body] =
+        GENERATE(std::pair<unsigned, std::string>{404, R"({"error":{"message":"model 'qwen3.5:9b' not found","type":"not_found_error","param":null,"code":null}})"},
+                 std::pair<unsigned, std::string>{500, R"({"error":{"message":"llama runner process has terminated: signal: killed","type":"api_error","param":null,"code":null}})"});
+    CAPTURE(status);
+    ProviderAgentConfig config;
+    config.profile          = local_profile("Ollama", "http://127.0.0.1:11434");
+    config.profile.endpoint = local_endpoint("http://127.0.0.1:11434");
+    config.profile.model    = "qwen3.5:9b";
+    Harness h(std::move(config));
+    REQUIRE(h.agent->start(request_fixture()));
+    h.fake->refuse(status, body);
+    const auto event = h.poll_until(AgentEventKind::Failed);
+    REQUIRE(event);
+    REQUIRE(event->error);
+    CHECK(event->error->code == "local_refused");
+    CHECK_FALSE(event->error->retryable);
+    CHECK_THAT(event->error->message, StartsWith("Ollama says: “"));
+    CHECK_THAT(event->error->message, ContainsSubstring(status == 404 ? "not found" : "llama runner process has terminated"));
+    CHECK_FALSE(h.agent->busy());
+}
+
+// An Ollama older than its Responses endpoint answers with Go's plain-text
+// 404; another program at the address can answer anything.
+TEST_CASE("a model on this computer stopping a reply in its app's own words is shown and not reported", "[agent][loop][errors]")
+{
+    ProviderAgentConfig config;
+    config.profile          = local_profile("Ollama", "http://127.0.0.1:11434");
+    config.profile.endpoint = local_endpoint("http://127.0.0.1:11434");
+    config.profile.model    = "qwen3.5:9b";
+    Harness h(std::move(config));
+    REQUIRE(h.agent->start(request_fixture()));
+    h.fake->data(frame(json{{"service_error", {{"error", {{"message", "llama runner process has terminated"}}}}}}));
+    const auto event = h.poll_until(AgentEventKind::Failed);
+    REQUIRE(event);
+    REQUIRE(event->error);
+    CHECK(event->error->code == "local_refused");
+    CHECK(event->error->message == "Ollama says: \u201cllama runner process has terminated\u201d");
+}
+
+TEST_CASE("a chat on a model on this computer answered by something else is the unreachable error", "[agent][loop][errors]")
+{
+    const auto [status, body] = GENERATE(std::pair<unsigned, std::string>{404, "404 page not found"},
+                                         std::pair<unsigned, std::string>{403, ""});
+    CAPTURE(status, body);
+    ProviderAgentConfig config;
+    config.profile          = local_profile("Ollama", "http://127.0.0.1:11434");
+    config.profile.endpoint = local_endpoint("http://127.0.0.1:11434");
+    config.profile.model    = "qwen3.5:9b";
+    Harness h(std::move(config));
+    REQUIRE(h.agent->start(request_fixture()));
+    h.fake->refuse(status, body);
+    const auto event = h.poll_until(AgentEventKind::Failed);
+    REQUIRE(event);
+    REQUIRE(event->error);
+    CHECK(event->error->code == "local_unreachable");
+    CHECK_THAT(event->error->message, ContainsSubstring("127.0.0.1:11434"));
+}
+
+TEST_CASE("a chat on a model on this computer answered in JSON with no words goes up", "[agent][loop][errors]")
+{
+    ProviderAgentConfig config;
+    config.profile          = local_profile("Ollama", "http://127.0.0.1:11434");
+    config.profile.endpoint = local_endpoint("http://127.0.0.1:11434");
+    config.profile.model    = "qwen3.5:9b";
+    Harness h(std::move(config));
+    REQUIRE(h.agent->start(request_fixture()));
+    h.fake->refuse(500, R"({"status":"unknown"})");
+    CHECK_THROWS_WITH(h.poll_until(AgentEventKind::Failed), ContainsSubstring(R"({"status":"unknown"})"));
+}
+
+TEST_CASE("a model on this computer is named by the app that runs it, or by its address", "[agent][loop][errors]")
+{
+    CHECK(local_profile("Ollama", "http://127.0.0.1:11434").display_name == "Ollama");
+    CHECK(local_profile("", "http://localhost:8080").display_name == "localhost:8080");
+    CHECK(local_profile("", local_endpoint("http://localhost:8080")).display_name == "localhost:8080");
 }
 
 TEST_CASE("what the codec reports ends the turn as it says", "[agent][loop][errors]")

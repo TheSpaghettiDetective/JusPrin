@@ -494,6 +494,7 @@ msgid "{processChanges, plural, one {# change from the preset} other {# changes 
 msgstr "{processChanges, plural, one {# change from the preset} other {# changes from the preset}}"
 
 #: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
 msgid "{reason} Nothing was saved."
 msgstr "{reason} Nothing was saved."
 

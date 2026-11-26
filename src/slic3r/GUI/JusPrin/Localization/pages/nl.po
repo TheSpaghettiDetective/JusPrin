@@ -613,6 +613,7 @@ msgstr "{processChanges, plural, one {# wijziging ten opzichte van de voorinstel
 
 # AI Translated
 #: src/components/AgentConnection.tsx
+#: src/components/AgentConnection.tsx
 msgid "{reason} Nothing was saved."
 msgstr "{reason} Er is niets opgeslagen."
 

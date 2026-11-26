@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-25 12:11-0800\n"
+"POT-Creation-Date: 2026-11-25 17:08-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -520,6 +520,12 @@ msgstr "บัญชี %1% ของคุณไม่มีเครดิต�
 #, boost-format
 msgid "The %1% service is rate limited. Try again shortly."
 msgstr "บริการ %1% จำกัดอัตราการใช้งานอยู่ โปรดลองอีกครั้งในอีกสักครู่"
+
+# AI Translated
+#. TRN %1% is an AI provider, such as OpenAI. Its service is down or overloaded on its own side.
+#, boost-format
+msgid "The %1% service is having trouble right now. Try again later."
+msgstr "บริการ %1% กำลังมีปัญหาอยู่ในขณะนี้ โปรดลองอีกครั้งภายหลัง"
 
 # AI Translated
 #. TRN %1% is an AI provider, such as OpenAI.
