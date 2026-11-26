@@ -1,0 +1,65 @@
+<task-notification>
+<task-id>a4efc17aff279cda6</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/532faa9a-9f5d-42f7-80b9-936b7e5d5012/tasks/a4efc17aff279cda6.output</output-file>
+<status>completed</status>
+<summary>Agent "Windows VM test suite for 2.0.2" is waiting on its own background work</summary>
+<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>
+<result>The build is running on the VM; I'll wait for the monitor's events.</result>
+<usage><subagent_tokens>119733</subagent_tokens><tool_uses>21</tool_uses><duration_ms>373289</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a195dc6c12e02b72e</task-id>
+<tool-use-id>toolu_018dw2dB18Btw4cv6CYdDNwE</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/532faa9a-9f5d-42f7-80b9-936b7e5d5012/tasks/a195dc6c12e02b72e.output</output-file>
+<status>completed</status>
+<summary>Agent "Error-handling audit of 2.0.2 range" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I found no failure in this range that blocks the release. I found eleven to fix, ranked below. All were found by reading the code; I built and ran nothing. A sub-reviewer checked the first two Ollama cases against the real Ollama 0.40.18 on this Mac; nothing was tried against LM Studio. I re-checked findings 3, 4 and 5 against the code myself. Four sub-reviewers covered the rest.
+
+**Introduced by this range: should fix**
+
+1. **A local model's own error is reported as ours.** `ProviderAgent.cpp:848` and `:856-859` (fd7127e424 with e8aee03faf). Someone picks a model too big for their memory, and Ollama answers 500 ("llama runner process has terminated"). Or they delete a model mid-chat, and Ollama answers 404 ("model 'x' not found"). Both end in "Something went wrong on our side" and a report. The failure is the person's: Ollama's words should be shown and nothing reported. The test at `test_local_model_setup.cpp:300` asserts today's behaviour.
+
+2. **A wrong port, or an older Ollama, is reported as ours.** `LocalModelSetup.cpp:134-135` and `ProviderAgent.cpp:856` (fd7127e424). Port 5000 on a Mac answers 403 with an empty body, and any answer that isn't JSON goes the same way, to us. This is the person's mistake, and "Nothing is answering at…" fits.
+
+3. **An outage at the person's own AI service is called a network problem.** `ProviderAgent.cpp:848-851` and `:919-923` (e8aee03faf). When the service answers 500 or above, or says it is overloaded, the person sees "The AI request could not reach the OpenAI service." That sentence also covers having no network, so they check their connection. The trouble is at the service, and the rules say to tell them that truthfully. The service's own words are dropped, and the commit quotes no yes from Kenneth for using the sentence this way.
+
+4. **A save failure mid-work opens our report dialog.** `ShellController.cpp:1816-1823` (ed25d6d94a). This report call is not in a top handler. Someone with the cut tool open switches printer, the save fails with "Finish the current tool edit…", and they get "Something went wrong on our side". That failure is theirs. During an AI tool call the dialog opens, though the rules allow only a report with no dialog there. When opening a file, two windows show for one failure.
+
+5. **A setup command's timeout is detected by English words.** `AgentHost.cpp:4518` searches for "timed out", and 3c27e9b3a0 translated that message in `McpSetupCommand.cpp:77,148`. In German, a timeout now reads "Copy the command and run it yourself." The warning that the client's config may already have changed is lost.
+
+6. **A chat too long gets no next step.** `ProviderAgent.cpp:771-773, 787` (e109da5c29). The person sees "The request was too large for the OpenAI service." and is not told to start a new chat.
+
+7. **Slice failures that are ours are never reported.** `OrcaWorkspaceAdapter.cpp:1025-1027` (ed25d6d94a). Every slice failure, including "Unknown C++ exception", becomes only a print issue. The missing report is older; the one branch for all owners is new. Disk-full export errors and custom G-code errors are the person's, so a "critical" flag alone can't split them.
+
+8. **A late printer refusal can be dropped.** `ConnectionEvents.cpp:40` (ed25d6d94a). The "chat is waiting" mark is never cleared after the chat's 30-second timeout or a cancel. A later "Incorrect password" from the Bambu plug-in is then treated as already shown, and only logged.
+
+9. **A failed kept-G-code export can name the wrong folder.** `OrcaHomeBackend.cpp:1338-1351` (e8aee03faf). `copy_file` names the target folder in its error on every platform, so every failure is shown as the person's, never ours. A failure reading our own copy shows the chosen folder's path. This is rare.
+
+10. **Home's sign-in failures leave no log line.** `OrcaHomeBackend.cpp:706-708`, missed by dbd73c7802. The server's answer (`error.said`) is dropped.
+
+11. **The report for unreadable shipped profiles is thin.** `SetupOptionsLoader.cpp:78-80` (e8aee03faf). It names only the vendor and drops the failed files and the loader's error text.
+
+**Introduced by this range: minor**
+
+- `MessageRoutes.cpp:42` (ed25d6d94a) files every message OrcaSlicer shows as a failed chat entry, including "…switched successfully."
+- `ToolRegistry.cpp:1916-1921` (a142e0b4f3): the new message counts characters, but the checks that refuse count UTF-8 bytes. A 90-character Chinese title is refused with no limit named.
+- `ProviderProfile.hpp:103`: errors read "the model on this computer says…", though Ollama said it, not the model. The line also starts lowercase.
+- `AgentHost.cpp:4185`: the sentence for a chat whose local model is gone has no test.
+- `PreferencesWindow.cpp:283` (f52f37375d): a refused change stays on screen until the next state update.
+- `LocalModelSetup.cpp:226`: "pick another model" often means "raise the context setting" (Kenneth approved that wording).
+- `CloudSignInMachine.cpp:191` (e8aee03faf): "no answer" at sign-out may be our server timing out (inferred).
+
+What checks out: the top handlers in `AgentHost::pump_setup` and `pump_stream` report and tell the person correctly. `report_unexpected_error` is otherwise called only from top handlers. The out-of-credits and "Name, then its words" sentences have tests and Kenneth's quoted yes.
+
+**Older than this range, worth knowing**
+
+- `CloudAccount.cpp:314`: no network and an unlisted refusal from our server share "JusPrin couldn't sign you in".
+- `CloudHttpResult` drops response headers, so no request id from our server reaches a report.
+- `ServerSheet.cpp:86-96`: our server failing to give the billing link is never reported.</result>
+<usage><subagent_tokens>150884</subagent_tokens><tool_uses>22</tool_uses><duration_ms>614488</duration_ms></usage>
+</task-notification>
