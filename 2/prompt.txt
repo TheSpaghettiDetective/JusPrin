@@ -1,0 +1,179 @@
+<task-notification>
+<task-id>a4efc17aff279cda6</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/532faa9a-9f5d-42f7-80b9-936b7e5d5012/tasks/a4efc17aff279cda6.output</output-file>
+<status>completed</status>
+<summary>Agent "Windows VM test suite for 2.0.2" is waiting on its own background work</summary>
+<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>
+<result>The build is running on the VM; I'll wait for the monitor's events.</result>
+<usage><subagent_tokens>119733</subagent_tokens><tool_uses>21</tool_uses><duration_ms>373289</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a195dc6c12e02b72e</task-id>
+<tool-use-id>toolu_018dw2dB18Btw4cv6CYdDNwE</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/532faa9a-9f5d-42f7-80b9-936b7e5d5012/tasks/a195dc6c12e02b72e.output</output-file>
+<status>completed</status>
+<summary>Agent "Error-handling audit of 2.0.2 range" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I found no failure in this range that blocks the release. I found eleven to fix, ranked below. All were found by reading the code; I built and ran nothing. A sub-reviewer checked the first two Ollama cases against the real Ollama 0.40.18 on this Mac; nothing was tried against LM Studio. I re-checked findings 3, 4 and 5 against the code myself. Four sub-reviewers covered the rest.
+
+**Introduced by this range: should fix**
+
+1. **A local model's own error is reported as ours.** `ProviderAgent.cpp:848` and `:856-859` (fd7127e424 with e8aee03faf). Someone picks a model too big for their memory, and Ollama answers 500 ("llama runner process has terminated"). Or they delete a model mid-chat, and Ollama answers 404 ("model 'x' not found"). Both end in "Something went wrong on our side" and a report. The failure is the person's: Ollama's words should be shown and nothing reported. The test at `test_local_model_setup.cpp:300` asserts today's behaviour.
+
+2. **A wrong port, or an older Ollama, is reported as ours.** `LocalModelSetup.cpp:134-135` and `ProviderAgent.cpp:856` (fd7127e424). Port 5000 on a Mac answers 403 with an empty body, and any answer that isn't JSON goes the same way, to us. This is the person's mistake, and "Nothing is answering at…" fits.
+
+3. **An outage at the person's own AI service is called a network problem.** `ProviderAgent.cpp:848-851` and `:919-923` (e8aee03faf). When the service answers 500 or above, or says it is overloaded, the person sees "The AI request could not reach the OpenAI service." That sentence also covers having no network, so they check their connection. The trouble is at the service, and the rules say to tell them that truthfully. The service's own words are dropped, and the commit quotes no yes from Kenneth for using the sentence this way.
+
+4. **A save failure mid-work opens our report dialog.** `ShellController.cpp:1816-1823` (ed25d6d94a). This report call is not in a top handler. Someone with the cut tool open switches printer, the save fails with "Finish the current tool edit…", and they get "Something went wrong on our side". That failure is theirs. During an AI tool call the dialog opens, though the rules allow only a report with no dialog there. When opening a file, two windows show for one failure.
+
+5. **A setup command's timeout is detected by English words.** `AgentHost.cpp:4518` searches for "timed out", and 3c27e9b3a0 translated that message in `McpSetupCommand.cpp:77,148`. In German, a timeout now reads "Copy the command and run it yourself." The warning that the client's config may already have changed is lost.
+
+6. **A chat too long gets no next step.** `ProviderAgent.cpp:771-773, 787` (e109da5c29). The person sees "The request was too large for the OpenAI service." and is not told to start a new chat.
+
+7. **Slice failures that are ours are never reported.** `OrcaWorkspaceAdapter.cpp:1025-1027` (ed25d6d94a). Every slice failure, including "Unknown C++ exception", becomes only a print issue. The missing report is older; the one branch for all owners is new. Disk-full export errors and custom G-code errors are the person's, so a "critical" flag alone can't split them.
+
+8. **A late printer refusal can be dropped.** `ConnectionEvents.cpp:40` (ed25d6d94a). The "chat is waiting" mark is never cleared after the chat's 30-second timeout or a cancel. A later "Incorrect password" from the Bambu plug-in is then treated as already shown, and only logged.
+
+9. **A failed kept-G-code export can name the wrong folder.** `OrcaHomeBackend.cpp:1338-1351` (e8aee03faf). `copy_file` names the target folder in its error on every platform, so every failure is shown as the person's, never ours. A failure reading our own copy shows the chosen folder's path. This is rare.
+
+10. **Home's sign-in failures leave no log line.** `OrcaHomeBackend.cpp:706-708`, missed by dbd73c7802. The server's answer (`error.said`) is dropped.
+
+11. **The report for unreadable shipped profiles is thin.** `SetupOptionsLoader.cpp:78-80` (e8aee03faf). It names only the vendor and drops the failed files and the loader's error text.
+
+**Introduced by this range: minor**
+
+- `MessageRoutes.cpp:42` (ed25d6d94a) files every message OrcaSlicer shows as a failed chat entry, including "…switched successfully."
+- `ToolRegistry.cpp:1916-1921` (a142e0b4f3): the new message counts characters, but the checks that refuse count UTF-8 bytes. A 90-character Chinese title is refused with no limit named.
+- `ProviderProfile.hpp:103`: errors read "the model on this computer says…", though Ollama said it, not the model. The line also starts lowercase.
+- `AgentHost.cpp:4185`: the sentence for a chat whose local model is gone has no test.
+- `PreferencesWindow.cpp:283` (f52f37375d): a refused change stays on screen until the next state update.
+- `LocalModelSetup.cpp:226`: "pick another model" often means "raise the context setting" (Kenneth approved that wording).
+- `CloudSignInMachine.cpp:191` (e8aee03faf): "no answer" at sign-out may be our server timing out (inferred).
+
+What checks out: the top handlers in `AgentHost::pump_setup` and `pump_stream` report and tell the person correctly. `report_unexpected_error` is otherwise called only from top handlers. The out-of-credits and "Name, then its words" sentences have tests and Kenneth's quoted yes.
+
+**Older than this range, worth knowing**
+
+- `CloudAccount.cpp:314`: no network and an unlisted refusal from our server share "JusPrin couldn't sign you in".
+- `CloudHttpResult` drops response headers, so no request id from our server reaches a report.
+- `ServerSheet.cpp:86-96`: our server failing to give the billing link is never reported.</result>
+<usage><subagent_tokens>150884</subagent_tokens><tool_uses>22</tool_uses><duration_ms>614488</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ae81e040878b9afbe</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/532faa9a-9f5d-42f7-80b9-936b7e5d5012/tasks/ae81e040878b9afbe.output</output-file>
+<status>completed</status>
+<summary>Agent "Linux VM test suite for 2.0.2" is waiting on its own background work</summary>
+<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>
+<result>Waiting on the build.</result>
+<usage><subagent_tokens>99113</subagent_tokens><tool_uses>18</tool_uses><duration_ms>442342</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a3392bb4988e12063</task-id>
+<tool-use-id>toolu_019oPcQfRPwM9WpAJJMevYwM</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/532faa9a-9f5d-42f7-80b9-936b7e5d5012/tasks/a3392bb4988e12063.output</output-file>
+<status>completed</status>
+<summary>Agent "Server error-handling audit since 2.0.1" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I found nothing in these server commits that blocks the 2.0.2 app build. There are six things that should be fixed and four minor ones. The commit range also includes f729e8524f, which only changes a test. Commits 4156bf3d49 (log every failed request), dd34ba2b2c (only the JusPrin 2 app's token is accepted) and c257bbca05 (Latin-1 chat titles) came out clean. All seven commits are on `origin/release`. I did not check whether production is running them.
+
+**Should fix**
+
+1. **The Standard model's too-long chat still shows "Something went wrong on our side"** (`web_ent/jusprin/v2/gateway.py:496-512`, ea0b788fac). Standard chats go through OpenRouter to DeepSeek. OpenRouter's documentation says a 400 for a too-long chat carries the error code `invalid_prompt`, with no `response` wrapper. If it has an `error_type` at all, it sits at the top of the body, and the matcher never reads it there. So `names_chat_too_long` misses it, and the chat lands in the "anything else" branch: the person sees our generic sentence, and we get a Sentry report. The failure is the person's, and the rule says they should get `request_too_large`. Expert chats (Anthropic's "prompt is too long") and OpenRouter's mid-reply `response.failed` are matched correctly. I checked this by reading the code against OpenRouter's documentation. Sentry has no such report in the last 14 days. The fix is server-only, so the app can ship without waiting for it.
+2. **Reports of a refused app request don't say which check refused it** (`errors.py:84` `super().__init__(code)`, raised again at `gateway.py:198-201`, 29445fd705). The failure is ours, and it now reaches us. But I ran `GatewayError` and its text is only the code, so both the Sentry title and the log line read `GatewayError: invalid_request`. The specific reason, such as "The X-JusPrin-Chat header must be 32 lowercase hex digits.", is lost. The rule says the report must keep the error text.
+3. **Payment success page when the browser is signed out** (`web.py:412`, 29445fd705). The person sees "This link has expired. Go back to JusPrin and open the page again." with status 410, and is not told whether the payment went through. Someone buying a credit pack might pay twice. The code treats this as the person's, but it could also be the app's web view losing its cookie, which would be ours. Unverified.
+4. **A real code whose coupon set is missing from `JUSPRIN_V2_LOYALTY_OFFERS`** (`ledger/billing.py:97-98`, 65dd4972f0). The person is told the code isn't recognized, exactly as for a mistyped code. That case is our configuration, so it should come to us. Nothing is logged. Checked by reading.
+5. **Subscriber checkout refused** (`web.py:397`, 65dd4972f0). If the code was used in the meantime, or the account already has a plan, the person lands back on an empty code box with nothing said. Nothing is logged, so neither they nor we learn anything.
+6. **Print-report refusals, now 500** (`views.py:266`, 29445fd705). These are now reported, but Sentry drops request bodies over 10 KB, and a report with photos always is. So when the report's facts JSON can't be read, Sentry won't show the text that failed. Unverified.
+
+**Minor**
+
+- None of 65dd4972f0's new outcomes are written to the log: unknown code, used-up code, account already on a plan, signed out on the code page.
+- The new code-page sentences have tests in `test_loyalty.py`. But the commit quotes Kenneth's yes for the approach and the wording rule, not for each sentence, and nothing counts how often each is shown.
+- `web.py:438` says "first month free" after any checkout whose first invoice was $0, not only one bought with a code. Unverified whether that can happen.
+- An OpenAI mid-reply `error` event carries its code at the top level, which the matcher doesn't read. Unverified whether OpenAI ever sends a too-long chat that way.
+
+**How it was checked:** I read every changed function whole. The Chargebee error codes were checked against Chargebee's documentation; a sub-agent ran `test_loyalty`, `test_billing` and `test_print_reports` (60 of 64 passed; four test classes couldn't start because another run had dropped the shared test database).
+
+**Outside this range:** a turn is charged at admission, so a too-long chat still costs the person credits. Separately, for whoever audits the app: Sentry OBICO-SERVER-B2N, from JusPrin 2.0.1 on 2026-11-22, shows the app sending a `web_search` tool call without its result block. Anthropic refuses it with a 400, and the server correctly reports it as ours. The bug is on the app side.</result>
+<usage><subagent_tokens>137251</subagent_tokens><tool_uses>30</tool_uses><duration_ms>612380</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ae81e040878b9afbe</task-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/532faa9a-9f5d-42f7-80b9-936b7e5d5012/tasks/ae81e040878b9afbe.output</output-file>
+<status>completed</status>
+<summary>Agent "Linux VM test suite for 2.0.2" is waiting on its own background work</summary>
+<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>
+<result>The second build pass is running. I'll pick up when it reports.</result>
+<usage><subagent_tokens>108794</subagent_tokens><tool_uses>29</tool_uses><duration_ms>653091</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ae81e040878b9afbe</task-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/532faa9a-9f5d-42f7-80b9-936b7e5d5012/tasks/ae81e040878b9afbe.output</output-file>
+<status>completed</status>
+<summary>Agent "Linux VM test suite for 2.0.2" is waiting on its own background work</summary>
+<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>
+<result>That was only the launcher returning. Still waiting on the build-finished watcher.</result>
+<usage><subagent_tokens>109201</subagent_tokens><tool_uses>29</tool_uses><duration_ms>718735</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ae81e040878b9afbe</task-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/532faa9a-9f5d-42f7-80b9-936b7e5d5012/tasks/ae81e040878b9afbe.output</output-file>
+<status>completed</status>
+<summary>Agent "Linux VM test suite for 2.0.2" is waiting on its own background work</summary>
+<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>
+<result>ctest is running; I'll continue when it finishes.</result>
+<usage><subagent_tokens>111408</subagent_tokens><tool_uses>32</tool_uses><duration_ms>796902</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ae81e040878b9afbe</task-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/532faa9a-9f5d-42f7-80b9-936b7e5d5012/tasks/ae81e040878b9afbe.output</output-file>
+<status>completed</status>
+<summary>Agent "Linux VM test suite for 2.0.2" is waiting on its own background work</summary>
+<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>
+<result>The harness is meant to build on Linux (its only condition is a GUI build), so on Linux `tests/all` is broken at this commit. Waiting for the rerun.</result>
+<usage><subagent_tokens>121434</subagent_tokens><tool_uses>41</tool_uses><duration_ms>1301393</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bbf2a98om</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/532faa9a-9f5d-42f7-80b9-936b7e5d5012/tasks/bbf2a98om.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the Mac test build to finish or fail" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b7bi2ran9</task-id>
+<tool-use-id>toolu_01EsAGwx5iGMwwrmnbUJYcJY</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/532faa9a-9f5d-42f7-80b9-936b7e5d5012/tasks/b7bi2ran9.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the Mac test suites, skipping tests that need the app" completed (exit code 0)</summary>
+</task-notification>

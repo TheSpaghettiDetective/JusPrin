@@ -3,7 +3,7 @@
   "checkpoint_id": "01M8AM7Z46SRN21MC44Z8HW35J",
   "strategy": "manual-commit",
   "branch": "claude/linux-harness-snapshot",
-  "checkpoints_count": 3,
+  "checkpoints_count": 11,
   "files_touched": [
     "tests/shell/shell_harness.cpp"
   ],
@@ -21,13 +21,27 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 158,
-    "cache_creation_tokens": 290153,
-    "cache_read_tokens": 13389599,
-    "output_tokens": 47980,
-    "api_call_count": 79
+    "input_tokens": 204,
+    "cache_creation_tokens": 314978,
+    "cache_read_tokens": 18362395,
+    "output_tokens": 55501,
+    "api_call_count": 102,
+    "subagent_tokens": {
+      "input_tokens": 82,
+      "cache_creation_tokens": 265770,
+      "cache_read_tokens": 3790745,
+      "output_tokens": 16107,
+      "api_call_count": 36
+    }
   }
 }
