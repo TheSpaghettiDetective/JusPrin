@@ -665,6 +665,12 @@ bool snapshot_web_view(void* native_web_view, const char* path)
 
 #endif
 
+#if !defined(__APPLE__) && !defined(_WIN32)
+// Linux has no web view picture here. A picture asked for with
+// PRINTER_LIVE_CAPTURE_DIR fails its check; the scenario's own checks still run.
+bool snapshot_web_view(void*, const char*) { return false; }
+#endif
+
 namespace Slic3r::GUI::JusPrin {
 
 namespace {
