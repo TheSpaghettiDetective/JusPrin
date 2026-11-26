@@ -1,0 +1,58 @@
+> Review: a separate agent read every change against the error-handling rule. It found nine problems:
+> 
+> - Six are fixed and tested, among them a possible crash and a "Couldn't save" popup that never appeared.
+> - One can't happen. The check for an unfinished editing tool, such as support painting, always returns false in OrcaSlicer's own code.
+> - Two are listed below.
+
+Those fixes should be straightforward, right? How can a separate agent still find nine points out of the 12 year fixed? Were you so dumb that you can't even do the simplest and most basic job? Tell me what those nine problems were.
+
+---
+
+Not bugs in the code (two):
+8. The renewal change grants unpaid terms. The reviewer didn't know you chose that ("do whatever that is the simplest"). The side effect I flagged comes from it: after a declined plan switch, the old plan's paid credits end at once.
+9. The system's reason in an AI tool result may not be in English on Linux or Windows. This is the reviewer's guess and I haven't checked it.
+
+You didn't do anything about these two, right?
+
+---
+
+<pasted_content id="b5b9">
+Bugs in our own new code (four):
+
+1. A possible crash. My fix for AI actions whose save the system refuses read the autosave object without checking it exists. The line just above it does check. If an AI action started while autosave wasn't running, the app would crash.
+2. Restore sent the person's failures to us. The first batch made a failed restore count as ours unless the system had refused. But inside a restore, a later disk refusal went through a path that wiped the record of that refusal. So a full disk mid-restore opened the report window instead of showing the system's words.
+3. The "Couldn't save" popup could fail to appear. It only showed when the refusal first happened during an autosave tick. If it first happened on Ctrl+S, during an AI action or at a chat checkpoint, the person never saw why. A refusal that came back after saving recovered was never shown again either.
+4. A report lost the original reason. When opening a project failed and putting back the previous project also failed, the report kept only the second error.
+
+Made worse by our change (one):
+5. The save before dropping setting changes. This code was already there, but the first batch changed what "save failed" means there: a failure of ours now throws on its own, so what's left is mostly the person's case. The existing code still reported it to us, so a full disk at that moment reached us instead of the person.
+</pasted_content id="b5b9">
+
+It looks like all of your bugs are concentrated on autosave. Is that right? If so, does it mean that your fix is so complicated ?
+
+---
+
+how does the system refuses? via return value or exceptions?
+
+---
+
+* `std::filesystem` calls throw. Creating a folder, renaming or removing a file throws `filesystem_error`, which carries the system's error code and the path. Most of the version store's work goes through these, and that's where the system's words come from.
+* File streams say only that they failed. A stream (`std::ofstream`) shows failure as a state, with no reason attached. Two places write that way: the 3MF writer and the version store's `checked_write`. That's why export first creates a test folder at the destination: the stream gives no reason, and the folder call throws one. It's also why `checked_write` still turns a full disk into "cannot write …", and the app then reports it as o
+
+ How can a system call throw an error and return a value at the same time?
+
+---
+
+So, our call can use either of these two libraries?
+
+---
+
+so stopping the catch of the filesystem_error still won't solve all the problem because you still need to convert the other calls return value into an exception right?
+
+---
+
+None of these two changes are in the upstream, right? Both of them are or our fork, right?
+
+---
+
+tell the main session to implement this design
