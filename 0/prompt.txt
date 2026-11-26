@@ -1,0 +1,37 @@
+move on to the next issue
+
+---
+
+also mark it as resolved in the next release
+
+---
+
+Yes, start APP-B
+
+---
+
+Yes, start APP-A
+
+---
+
+Yes, remove it
+
+---
+
+<!-- reply 2 -->
+> Your answer on upstream's Windows OpenGL dialog from the APP-D fix is still outstanding.
+
+What is this?
+
+<!-- reply -->
+> OBICO-SERVER-B2P can be resolved around 2026-11-26 if it stays quiet.
+
+What about this server error?
+
+---
+
+Keep and translate
+
+---
+
+check gmail again. I think we have got more issues coming in
