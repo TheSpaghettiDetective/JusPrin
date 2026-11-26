@@ -1175,7 +1175,7 @@ private:
                 status = 400;
                 reply  = R"({"status":400,"errors":[{"message":"Incorrect code.","code":"incorrect_code","param":"code"}]})";
             } else if (path == "/jusprin/api/me/") {
-                reply = R"({"user":{"email":"alex@example.com"},"ai_credits":{"total":500}})";
+                reply = R"({"user":{"id":77,"email":"alex@example.com"},"ai_credits":{"total":500}})";
             } else if (path == "/ent/jusprin/v2/account" &&
                        text.find("Authorization: Bearer harness-email-token\r\n") == std::string::npos) {
                 status = 401;
@@ -2972,13 +2972,13 @@ private:
         } else
             check(false, "left_pane_failed_action_fixture_object");
 
-        // Check print is not touched: the pane is not there, and it returns with Prepare.
+        // The JusPrin view never shows OrcaSlicer's Preview page (Check print is
+        // a window of its own): a switch to it is refused, and the pane stays.
         m_frame->select_tab(TAB_ID_PREVIEW);
         wxYield();
         auto* left_divider = wxWindow::FindWindowByName("Resize Plates and Project panel", m_frame);
-        check(m_notebook->GetSelectedPageName() == TAB_ID_PREVIEW && !pane->IsShown(), "left_pane_is_absent_on_check_print");
-        check(left_divider != nullptr && !left_divider->IsShown(), "left_resize_handle_is_absent_on_check_print");
-        window_shot("check-print");
+        check(m_notebook->GetSelectedPageName() == TAB_ID_PREPARE && pane->IsShown(), "left_pane_stays_when_preview_is_refused");
+        check(left_divider != nullptr && left_divider->IsShown(), "left_resize_handle_stays_when_preview_is_refused");
         m_frame->select_tab(TAB_ID_PREPARE);
         wxYield();
         check(pane->IsShown() && left_divider->IsShown(), "left_pane_and_resize_handle_return_with_prepare");
