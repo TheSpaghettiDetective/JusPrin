@@ -23,7 +23,6 @@ Ask, and wait for his yes before each one. A yes covers that action only.
 - Every push, and moving `main`.
 - Starting the release workflow.
 - Downloading the draft's files.
-- The Sentry values and read-only token for checking the draft.
 - Posting anything on GitHub.
 
 Never publish the draft: Kenneth does, by hand. Never force-push `main`.
@@ -252,10 +251,12 @@ the VMs or here: it holds saved API keys and sign-ins, and whatever a command
 prints stays in the session's log. Read or change the one setting you need,
 such as the language, with a command that prints only that setting.
 
-Sentry must be able to read this release's stacks. Kenneth gives you
-`SENTRY_URL`, `SENTRY_ORG`, `SENTRY_PROJECT` and a read-only
-`SENTRY_AUTH_TOKEN`; set them in the shell only, never in a file. From the
-release worktree, on the Mac for the disk image and the unpacked Windows
+Sentry must be able to read this release's stacks. Take the auth token from
+"Sentry Access" in Kenneth's global instructions (`~/.claude/CLAUDE.md`) as
+`SENTRY_AUTH_TOKEN`, with `SENTRY_URL=https://sentry.obico.io`,
+`SENTRY_ORG=sentry` and `SENTRY_PROJECT=jusprin-app`. Set them in the shell
+only, never in a file, and use the token only to read. From the release
+worktree, on the Mac for the disk image and the unpacked Windows
 portable zip (its `JusPrin/` folder), and on the Linux VM for the AppImage
 (`--appimage-extract` only works on Linux; that VM needs a checkout of the
 release commit and node):
