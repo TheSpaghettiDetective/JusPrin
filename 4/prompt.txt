@@ -1,0 +1,9 @@
+pull the main checkout. read @/Users/kenneth/Projects/JusPrin/handoff-error-handling-remaining-work.md to see if you understand the issue
+
+---
+
+Check the recent commit to see if it's consistent with what the doc claimed
+
+---
+
+Yes, check it
