@@ -63,3 +63,16 @@ What checks out: the top handlers in `AgentHost::pump_setup` and `pump_stream` r
 - `ServerSheet.cpp:86-96`: our server failing to give the billing link is never reported.</result>
 <usage><subagent_tokens>150884</subagent_tokens><tool_uses>22</tool_uses><duration_ms>614488</duration_ms></usage>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>ae81e040878b9afbe</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/532faa9a-9f5d-42f7-80b9-936b7e5d5012/tasks/ae81e040878b9afbe.output</output-file>
+<status>completed</status>
+<summary>Agent "Linux VM test suite for 2.0.2" is waiting on its own background work</summary>
+<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>
+<result>Waiting on the build.</result>
+<usage><subagent_tokens>99113</subagent_tokens><tool_uses>18</tool_uses><duration_ms>442342</duration_ms></usage>
+</task-notification>
