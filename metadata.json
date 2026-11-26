@@ -3,7 +3,7 @@
   "checkpoint_id": "01M8C6CZ7SY16CFF2JN2C93T3E",
   "strategy": "manual-commit",
   "branch": "jusprin-dev",
-  "checkpoints_count": 27,
+  "checkpoints_count": 13,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/Agent/AgentConfiguration.cpp",
     "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
@@ -41,6 +41,7 @@
     "src/slic3r/GUI/JusPrin/Localization/native/zh_CN.po",
     "src/slic3r/GUI/JusPrin/Localization/native/zh_TW.po",
     "src/slic3r/GUI/JusPrin/Preferences/PreferencesWindow.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaOutputs.cpp",
     "tests/agent/test_agent_bridge.cpp",
     "tests/agent/test_cloud_account.cpp",
     "tests/agent/test_openai_responses_agent.cpp"
@@ -76,17 +77,17 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 1492,
-    "cache_creation_tokens": 2577595,
-    "cache_read_tokens": 160933944,
-    "output_tokens": 490908,
-    "api_call_count": 749,
+    "input_tokens": 2096,
+    "cache_creation_tokens": 3504479,
+    "cache_read_tokens": 226908660,
+    "output_tokens": 652282,
+    "api_call_count": 1052,
     "subagent_tokens": {
-      "input_tokens": 3504,
-      "cache_creation_tokens": 3884469,
-      "cache_read_tokens": 417760077,
-      "output_tokens": 1147557,
-      "api_call_count": 1737
+      "input_tokens": 2336,
+      "cache_creation_tokens": 2589646,
+      "cache_read_tokens": 278506718,
+      "output_tokens": 765038,
+      "api_call_count": 1158
     }
   },
   "combined_attribution": {
