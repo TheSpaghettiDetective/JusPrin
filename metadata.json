@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M8CVYR3KEE0V19DNYH72QH6H",
+  "strategy": "manual-commit",
+  "branch": "claude/drop-operation-records",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "agent-docs/jusprin/autosave-version-history.md",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/ProjectAutosave.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp",
+    "src/slic3r/GUI/JusPrin/Workspace/ProjectVersionStore.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/ProjectVersionStore.hpp",
+    "tests/shell/shell_harness.cpp",
+    "tests/workspace/real_adapter_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1002,
+    "cache_creation_tokens": 1391137,
+    "cache_read_tokens": 110367548,
+    "output_tokens": 303719,
+    "api_call_count": 502
+  }
+}

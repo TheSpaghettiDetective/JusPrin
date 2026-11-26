@@ -1,0 +1,54 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M8CVYR3KEE0V19DNYH72QH6H",
+  "session_id": "a9bad984-99c3-4ebf-aa5e-7e89f6470652",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-26T21:25:04.695693Z",
+  "branch": "claude/drop-operation-records",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "agent-docs/jusprin/autosave-version-history.md",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/ProjectAutosave.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp",
+    "src/slic3r/GUI/JusPrin/Workspace/ProjectVersionStore.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/ProjectVersionStore.hpp",
+    "tests/shell/shell_harness.cpp",
+    "tests/workspace/real_adapter_harness.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "d993e9b924cb",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 1002,
+    "cache_creation_tokens": 1391137,
+    "cache_read_tokens": 110367548,
+    "output_tokens": 303719,
+    "api_call_count": 502
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-26T21:25:04.217643Z",
+    "agent_lines": 21,
+    "agent_removed": 71,
+    "human_added": 0,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 22,
+    "total_lines_changed": 93,
+    "agent_percentage": 98.9247311827957,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
