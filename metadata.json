@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M8CAN7PT1C47D1J0D2CPJ0NS",
+  "strategy": "manual-commit",
+  "branch": "claude/release-2.1.0",
+  "checkpoints_count": 13,
+  "files_touched": [
+    "docs/guide/checked-version.txt",
+    "docs/guide/pictures/ai-chats-and-account/byoai.png",
+    "docs/guide/pictures/ai-chats-and-account/earlier-chat.png",
+    "docs/guide/pictures/print-settings/revert-to-here.png",
+    "docs/guide/pictures/printers-and-filament/calibrate-question.png",
+    "docs/guide/pictures/slicing-and-printing/print-history.png",
+    "docs/guide/pictures/the-app/updates.png",
+    "docs/guide/printers-and-filament.md",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/skills/guide-printers-and-filament/SKILL.md",
+    "src/slic3r/GUI/JusPrin/Packaging/release-notes/2.1.0.md",
+    "src/slic3r/GUI/JusPrin/Updates/Version.hpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 548,
+    "cache_creation_tokens": 725858,
+    "cache_read_tokens": 63811806,
+    "output_tokens": 124826,
+    "api_call_count": 274,
+    "subagent_tokens": {
+      "input_tokens": 404,
+      "cache_creation_tokens": 1763320,
+      "cache_read_tokens": 18801172,
+      "output_tokens": 85791,
+      "api_call_count": 185
+    }
+  }
+}
