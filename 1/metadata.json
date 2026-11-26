@@ -1,0 +1,44 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M8B65PMPK8SP3RZ6K7QNXE6V",
+  "session_id": "a9bad984-99c3-4ebf-aa5e-7e89f6470652",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-26T05:45:10.799437Z",
+  "branch": "claude/harness-guide-runs",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/shell/shell_harness.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "e278bfff16ea",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 300,
+    "cache_creation_tokens": 700069,
+    "cache_read_tokens": 33992868,
+    "output_tokens": 91737,
+    "api_call_count": 151
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-26T05:45:10.652777Z",
+    "agent_lines": 0,
+    "agent_removed": 5,
+    "human_added": 0,
+    "human_modified": 28,
+    "human_removed": 738,
+    "total_committed": 23,
+    "total_lines_changed": 771,
+    "agent_percentage": 0.648508430609598,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
