@@ -1,0 +1,63 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M8AJPRNZS8YDF71ED0X8QJSD",
+  "session_id": "115df8fe-9204-4263-a5c0-c86069dd36d0",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-26T00:04:55.751458Z",
+  "checkpoints_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "79f2fa9a5a8f",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 68,
+    "cache_creation_tokens": 104482,
+    "cache_read_tokens": 4486300,
+    "output_tokens": 19367,
+    "api_call_count": 34
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_014skZBURKFHdMZbvcE59Pxs",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "obico-account-ops"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "79f2fa9a5a8f",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 192,
+        "end": 193,
+        "entry_ids": [
+          "fe9b768f-97d0-4e4e-bd09-29b999f063ee"
+        ],
+        "tool_use_id": "toolu_014skZBURKFHdMZbvcE59Pxs"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_014skZBURKFHdMZbvcE59Pxs"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: obico-account-ops",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
