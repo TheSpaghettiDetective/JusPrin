@@ -3,7 +3,7 @@
   "checkpoint_id": "01M8CVYR3KEE0V19DNYH72QH6H",
   "strategy": "manual-commit",
   "branch": "claude/drop-operation-records",
-  "checkpoints_count": 1,
+  "checkpoints_count": 15,
   "files_touched": [
     "agent-docs/jusprin/autosave-version-history.md",
     "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
@@ -21,13 +21,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 1002,
-    "cache_creation_tokens": 1391137,
-    "cache_read_tokens": 110367548,
-    "output_tokens": 303719,
-    "api_call_count": 502
+    "input_tokens": 1724,
+    "cache_creation_tokens": 2077251,
+    "cache_read_tokens": 200574532,
+    "output_tokens": 512992,
+    "api_call_count": 863
   }
 }
