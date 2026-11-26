@@ -3,14 +3,17 @@
   "checkpoint_id": "01M8APJSNK9N5943M8RSQSN8W7",
   "strategy": "manual-commit",
   "branch": "claude/local-model-errors",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/Agent/AgentConfiguration.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/LocalModelSetup.cpp",
     "src/slic3r/GUI/JusPrin/Agent/ProviderAgent.cpp",
     "src/slic3r/GUI/JusPrin/Agent/ProviderAgent.hpp",
     "src/slic3r/GUI/JusPrin/Agent/ProviderFactory.cpp",
     "src/slic3r/GUI/JusPrin/Agent/ProviderFactory.hpp",
-    "src/slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp"
+    "src/slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp",
+    "tests/agent/test_local_model_setup.cpp",
+    "tests/agent/test_provider_agent.cpp"
   ],
   "sessions": [
     {
@@ -19,13 +22,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 186,
+    "cache_creation_tokens": 220307,
+    "cache_read_tokens": 17985497,
+    "output_tokens": 62340,
+    "api_call_count": 93
   }
 }
