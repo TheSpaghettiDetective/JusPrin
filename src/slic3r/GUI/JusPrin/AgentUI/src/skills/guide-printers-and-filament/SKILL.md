@@ -23,6 +23,8 @@ The printer's menu has:
 - **OTHER PRINTERS**: click one to slice the project for that printer instead.
 - **Printer settings…**, **Ask AI about printer settings…**, **Calibrate…** and **Add a printer…**.
 
+Picking another printer or filament while the project has setting changes of its own drops those changes: the settings then follow the new printer's or filament's presets. JusPrin first saves a version of the project, so **Version history** in the **File** menu still has them, and the chat says which presets the settings now follow.
+
 When a project file brought its own printer, the printer is marked **From the file · not one of your printers**.
 
 ## Choose the filament and its colour
@@ -55,7 +57,7 @@ If you skipped choosing a printer the first time JusPrin started, it uses a stan
 Connecting a printer lets JusPrin send prints to it and show how it is doing. JusPrin connects Bambu Lab printers, and printers it reaches at an address on your network, such as Klipper printers through Moonraker, OctoPrint, PrusaLink and Elegoo Link.
 
 1. On Home, click **Connect…** on the printer's card, or open the card's menu (**Printer actions**) and choose **Connect…**.
-2. The printer's chat asks for what it needs, such as its address. A Bambu Lab printer also needs its **Access code**, and a print host may need its **API key**. These stay on this computer.
+2. The printer's chat asks for what it needs, such as its address. A Bambu Lab printer also needs its **Access code**, and a print host may need its **API key**. A Flashforge printer in LAN Only mode needs its **Serial number** and **Access code**, PrusaLink set up with a login needs its **User name** and **Password**, and Repetier needs the **Printer name on Repetier Server**. The chat asks for these in a form, and the printer is tested when you click **Connect**. What you type goes only to the printer, and stays on this computer.
 3. **Help me find the code** explains where to find it on the printer.
 
 A Bambu Lab printer needs Bambu's network plug-in. The chat says so when it is missing.
