@@ -49,7 +49,6 @@ void require(bool condition, const std::string& what)
 const StoredFormat kHeadFormat{"schema", 1, {}};
 const StoredFormat kManifestFormat{"schema", 1, {}};
 const StoredFormat kCurrentStateFormat{"schema", 2, {}};
-const StoredFormat kOperationFormat{"schema", 1, {}};
 const StoredFormat kPinsFormat{"schema", 1, {}};
 
 // Brings a file read from the store to this build's format.
@@ -518,14 +517,12 @@ void ProjectVersionStore::recover_uncommitted()
     fs::remove(m_root / "current-state.pending");
     fs::remove(m_root / "pins.pending");
     fs::remove(m_root / "chat-restore.writing.json");
-    for (const auto& entry : fs::directory_iterator(m_root / "operations"))
-        if (entry.path().extension() == ".pending")
-            fs::remove(entry.path());
+    // Builds up to 2.1.0 kept a record per AI edit here; nothing reads them.
+    fs::remove_all(m_root / "operations");
     sync_directory(m_root / "materialized");
     sync_directory(m_root / "pending");
     sync_directory(m_root / "versions");
     sync_directory(m_root / "resources");
-    sync_directory(m_root / "operations");
     sync_directory(m_root);
 }
 
@@ -537,7 +534,6 @@ void ProjectVersionStore::create_and_lock()
     fs::create_directories(m_root / "resources");
     fs::create_directories(m_root / "pending");
     fs::create_directories(m_root / "materialized");
-    fs::create_directories(m_root / "operations");
     lock();
 }
 
@@ -948,39 +944,12 @@ void ProjectVersionStore::pin(const std::string& version_id)
     atomic_replace(m_root / "pins.pending", m_root / "pins.json");
 }
 
-void ProjectVersionStore::record_operation(const std::string& action_id, const std::string& tool,
-                                           const std::string& outcome, const std::string& before,
-                                           const std::string& after)
-{
-    require(safe_component(action_id) && safe_component(before) && (after.empty() || safe_component(after)),
-            "invalid operation version reference");
-    read_version(before);
-    if (!after.empty())
-        read_version(after);
-    const fs::path directory = m_root / "operations";
-    const fs::path file = directory / (action_id + ".json");
-    require(!fs::exists(file), "operation version record already exists");
-    const fs::path staged = directory / (action_id + ".pending");
-    checked_write(staged, json{{"schema", kOperationFormat.current()}, {"actionId", action_id}, {"tool", tool},
-                               {"outcome", outcome}, {"before", before}, {"after", after}}.dump(2));
-    atomic_replace(staged, file);
-}
-
 void ProjectVersionStore::prune(std::size_t max_versions, std::uintmax_t max_bytes,
                                 const std::set<std::string>& live_attachments)
 {
     require(max_versions >= 1 && max_bytes > 0, "invalid retention budget");
     auto protected_ids = read_pins(m_root / "pins.json").at("versions").get<std::set<std::string>>();
     protected_ids.insert(m_head_id);
-    for (const auto& entry : fs::directory_iterator(m_root / "operations")) {
-        if (!entry.is_regular_file() || entry.path().extension() != ".json")
-            continue;
-        const json operation = json::parse(read_file(entry.path()));
-        for (const char* field : {"before", "after"}) {
-            const std::string id = operation.value(field, "");
-            if (!id.empty()) protected_ids.insert(id);
-        }
-    }
     auto versions = history();
     const auto reachable_files = [this, &live_attachments](const std::vector<Version>& retained) {
         std::set<std::string> resources;

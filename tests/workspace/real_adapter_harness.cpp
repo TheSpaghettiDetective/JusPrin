@@ -1944,9 +1944,14 @@ private:
         const auto empty = capture("empty");
         check(empty.second == 0, "versions_empty_writes_no_resources");
         store.publish_document(live_state);
-        store.record_operation("a-harness", "object_edit", "succeeded", renamed.first, empty.first);
+        // Only the current version and pinned ones survive a prune.
         store.prune(1, 1024 * 1024);
-        check(store.history().size() == 3, "versions_operation_references_survive_prune");
+        const auto kept = store.history();
+        const auto kept_id = [&kept](const std::string& id) {
+            return std::any_of(kept.begin(), kept.end(), [&id](const auto& version) { return version.id == id; });
+        };
+        check(kept.size() == 2 && kept_id(initial.first) && kept_id(empty.first) && !kept_id(renamed.first),
+              "versions_prune_keeps_only_current_and_pinned");
         const auto empty_restore = store.materialize(empty.first);
         struct Dialogs : UnansweredDialogObserver {
             int count{0};
@@ -1970,6 +1975,9 @@ private:
         std::filesystem::create_directories(root / "materialized" / "stale-restore");
         std::ofstream(root / "current-state.pending") << "interrupted state write";
         std::ofstream(root / "chat-restore.pending.json") << "{}";
+        // A per-edit record that builds up to 2.0.1 wrote.
+        std::filesystem::create_directories(root / "operations");
+        std::ofstream(root / "operations" / "t-1.json") << "{}";
         bool interrupted_restore_refused = false;
         try {
             ProjectVersionStore blocked(root.parent_path(), "p-harness");
@@ -1986,7 +1994,8 @@ private:
               !std::filesystem::exists(root / "materialized" / "stale-restore") &&
               !std::filesystem::exists(root / "current-state.pending"),
               "versions_restart_removes_uncommitted_work");
-        check(versions.size() == 3 && reopened.head_id() == versions.back().id,
+        check(!std::filesystem::exists(root / "operations"), "versions_restart_removes_old_edit_records");
+        check(versions.size() == 2 && reopened.head_id() == versions.back().id,
               "versions_restart_reads_committed_history");
         const auto current_document = reopened.materialize(reopened.head_id());
         check(current_document.semantic_state.find("partial reply") != std::string::npos,

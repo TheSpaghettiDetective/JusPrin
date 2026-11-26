@@ -80,11 +80,6 @@ public:
     std::optional<std::string> pin_current();
     // For a project being left that nothing was saved for.
     void discard_if_never_saved();
-    // Links an Agent action to the version pinned before it and, when `save`,
-    // to a version saved now. An action on the blank project has none to link. During a model turn the shell links only the
-    // before-version: the turn's end saves once for all its actions.
-    void record_agent_operation(const std::string& action_id, const std::string& tool,
-                                const std::string& outcome, const std::string& before, bool save = true);
     // While `hold` answers true the periodic probe saves the document but not
     // the model, so a model turn's edits make one version at its end rather
     // than one every quiet second. save_now and pin_current are unaffected.

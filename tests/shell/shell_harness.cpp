@@ -15416,7 +15416,8 @@ private:
 
         const auto pinned = autosave->pin_current();
         check(pinned && pinned->empty(), "blank_has_no_version_to_pin");
-        autosave->record_agent_operation(document.allocate_action_id(), "printer_setup", "succeeded", std::string());
+        // What the shell does after an AI edit outside a model turn.
+        check(autosave->save_now(), "blank_agent_action_save_succeeds");
         check_blank_stays_unsaved("agent_action");
 
         // Autosave's own timer, which waits for its probe and the quiet period.

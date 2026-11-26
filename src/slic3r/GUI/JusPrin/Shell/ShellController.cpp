@@ -738,11 +738,9 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 m_turn_before_version = *before;
             return *before;
         };
-        const auto version_after = [this, in_model_turn](const Agent::ToolActivity& activity, const std::string& before) {
-            const char* outcome = activity.state == Agent::ToolState::Succeeded ? "succeeded" :
-                                  activity.state == Agent::ToolState::Cancelled ? "cancelled" : "failed";
-            if (m_autosave)
-                m_autosave->record_agent_operation(activity.action_id, activity.tool, outcome, before, !in_model_turn());
+        const auto version_after = [this, in_model_turn](const Agent::ToolActivity&, const std::string&) {
+            if (m_autosave && !in_model_turn() && !m_autosave->save_now())
+                throw std::runtime_error(m_autosave->error().empty() ? "no reason was reported" : m_autosave->error());
         };
         m_agent_pane->web_view().host().tools().set_version_callbacks(version_before, version_after);
         m_agent_pane->web_view().host().tools().set_earlier_projects(

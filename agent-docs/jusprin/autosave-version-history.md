@@ -25,7 +25,8 @@ version records the list it was saved with, and restoring it brings that list
 back. Restoring a model does not undo physical prints or change
 global printer facts. Agent
 mutations save and pin their actual
-before-state, then link an after-version and outcome in an operation record.
+before-state. Outside a model turn they save again after the edit; inside a
+turn the turn's end saves once for all its edits.
 
 ## Storage and recovery contract
 
@@ -56,8 +57,7 @@ All project records advance one `current-state.json` document without creating
 a model version. The document is atomically replaced after 1.5 seconds without
 a change, or within 15 seconds during a continuous stream. Agent and project
 boundaries wait for the write. Attachments are written once before their
-document references become durable; operation records linking before/after
-versions are committed once at the operation boundary. A model checkpoint
+document references become durable. A model checkpoint
 ensures the current document is durable before it publishes a new `HEAD`.
 
 ## Save classification

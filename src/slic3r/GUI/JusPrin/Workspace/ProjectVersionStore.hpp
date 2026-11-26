@@ -115,8 +115,6 @@ public:
     void begin_chat_restore(const std::string& from_version, const std::string& to_version,
                             const std::string& conversation_id);
     void finish_chat_restore();
-    void record_operation(const std::string& action_id, const std::string& tool, const std::string& outcome,
-                          const std::string& before, const std::string& after);
     void prune(std::size_t max_versions, std::uintmax_t max_bytes,
                const std::set<std::string>& live_attachments = {});
 

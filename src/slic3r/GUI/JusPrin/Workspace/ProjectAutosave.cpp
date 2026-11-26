@@ -1174,25 +1174,6 @@ std::optional<std::string> ProjectAutosave::pin_current()
     return id;
 }
 
-void ProjectAutosave::record_agent_operation(const std::string& action_id, const std::string& tool,
-                                             const std::string& outcome, const std::string& before, bool save)
-{
-    // The action is recorded whether or not the system let the save after it happen.
-    bool                       saved = false;
-    std::optional<SaveRefused> refusal;
-    try {
-        saved = save && save_now();
-    } catch (const SaveRefused& refused) {
-        refusal = refused;
-    }
-    if (!before.empty())
-        m_store->record_operation(action_id, tool, outcome, before, saved ? m_committed_head : std::string());
-    if (refusal)
-        throw *refusal;
-    if (save && !saved)
-        throw std::runtime_error(m_error);
-}
-
 bool ProjectAutosave::restore(const std::string& version_id)
 {
     return restore_impl(version_id, {});
