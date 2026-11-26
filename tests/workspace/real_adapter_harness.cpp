@@ -1673,7 +1673,7 @@ private:
         const auto world_box = [&object](const ModelVolume& volume) {
             return volume.mesh().transformed_bounding_box(object.instances[0]->get_matrix() * volume.get_matrix());
         };
-        const auto near = [](const Vec3d& a, const Vec3d& b, double tolerance) { return (a - b).cwiseAbs().maxCoeff() <= tolerance; };
+        const auto close_to = [](const Vec3d& a, const Vec3d& b, double tolerance) { return (a - b).cwiseAbs().maxCoeff() <= tolerance; };
         const ModelVolume* negative = nullptr;
         const ModelVolume* solid    = nullptr;
         for (const ModelVolume* volume : object.volumes) {
@@ -1687,12 +1687,12 @@ private:
         check(added.front().id == solid->id().id && added.front().type == "part", "shapes_result_names_the_new_part");
         const BoundingBoxf3 hole_box = world_box(*negative);
         std::cout << "shapes: hole " << hole_box.min.transpose() << " to " << hole_box.max.transpose() << std::endl;
-        check(near(hole_box.center(), center, 0.01) && std::abs(hole_box.size().z() - hole.shape.length) < 0.01 &&
+        check(close_to(hole_box.center(), center, 0.01) && std::abs(hole_box.size().z() - hole.shape.length) < 0.01 &&
                   std::abs(hole_box.size().x() - 5) < 0.05,
               "shapes_hole_is_where_it_was_asked");
         const BoundingBoxf3 box = world_box(*solid);
         std::cout << "shapes: box " << box.min.transpose() << " to " << box.max.transpose() << std::endl;
-        check(near(box.size(), Vec3d(10, 6, 4), 0.001) && near(box.center(), Vec3d(block.shape.center[0], block.shape.center[1], 2), 0.001),
+        check(close_to(box.size(), Vec3d(10, 6, 4), 0.001) && close_to(box.center(), Vec3d(block.shape.center[0], block.shape.center[1], 2), 0.001),
               "shapes_box_is_the_box_asked_for_on_a_turned_object");
         check(negative->config.opt_int("extruder") == 0 && negative->source.is_from_builtin_objects &&
                   solid->source.is_from_builtin_objects,
