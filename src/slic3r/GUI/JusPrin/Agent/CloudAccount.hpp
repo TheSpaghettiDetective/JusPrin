@@ -294,4 +294,13 @@ std::optional<AgentError> update_required(unsigned status, const std::string& bo
 // JusPrin sign-in (unauthorized): sign in again in Preferences.
 std::string sign_in_ended();
 
+// Whose it is when the JusPrin server gives a request no good answer, for a
+// request that only succeeds or not (an account page's link, deleting the
+// account). No answer (`status` 0) is the person's network: network_error,
+// with no message, for the caller's own sentence. 401 is a sign-in that has
+// ended, and 426 a release the server no longer serves, each in the app's
+// sentence. Any other answer is ours: thrown, with the server's status and
+// text.
+AgentError account_request_failure(unsigned status, const std::string& body);
+
 } // namespace Slic3r::GUI::JusPrin::Agent

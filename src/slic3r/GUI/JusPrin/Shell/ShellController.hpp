@@ -9,6 +9,7 @@
 #include "slic3r/GUI/JusPrin/PrintIssues/WorkFeed.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/StoredFormat.hpp"
 
 #include <boost/filesystem/path.hpp>
 #include <wx/bookctrl.h>
@@ -230,6 +231,10 @@ public:
     // Print again for a recorded G-code: OrcaSlicer's send dialog for its kept
     // file, on the frame's next turn (the Print history page asks for it).
     void print_again(const std::string& project_id, const std::string& hash);
+    // A save the system refused, in the system's words, titled "Couldn't
+    // save". One the person `asked` for is always shown; autosave's own
+    // retries show a refusal once, until a save works again.
+    void tell_save_refused(const Workspace::SaveRefused& refusal, bool asked);
 
 private:
     void open_import(const Home::ImportApp& app);
@@ -360,6 +365,8 @@ private:
     // of the turn links to it, and the turn's end clears it.
     std::string m_turn_before_version;
     std::string m_autosave_status_key;
+    // The refusal tell_save_refused last showed while saving keeps failing.
+    std::string m_save_refusal_told;
     std::string m_timeline_version_head;
     std::uint64_t m_timeline_document_revision{0};
     wxString m_saved_frame_title;
@@ -402,7 +409,7 @@ void get_new_version();
 
 // The "Couldn't open project" dialog after open_managed_project failed. For a
 // project a newer JusPrin saved, it also offers the new version.
-void show_open_failure(wxWindow* parent, const Workspace::ProjectAutosave& autosave);
+void show_open_failure(wxWindow* parent, Workspace::ProjectAutosave& autosave);
 
 // The controller installed by attach_shell, if any (used by tests and later
 // phases; returns nullptr in stock mode).

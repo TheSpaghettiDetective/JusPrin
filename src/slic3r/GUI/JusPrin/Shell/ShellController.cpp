@@ -1,5 +1,6 @@
 #include "ShellController.hpp"
 #include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
+#include "slic3r/GUI/JusPrin/Support/SaidBy.hpp"
 
 #include "AgentPane.hpp"
 #include "AppMenus.hpp"
@@ -319,23 +320,27 @@ ShellController::ShellController()
 {
     Bind(wxEVT_TIMER, reported("saving the project and running the app's timers", [this](wxTimerEvent&) {
         if (m_autosave) {
-            m_autosave->tick();
+            try {
+                m_autosave->tick();
+            } catch (const Workspace::SaveRefused& refusal) {
+                tell_save_refused(refusal, false);
+            }
+            if (m_autosave->state() == Workspace::ProjectAutosave::State::Saved)
+                m_save_refusal_told.clear();
             const std::string head = m_autosave->current_version();
             const auto document_revision = m_agent_pane ?
                 m_agent_pane->web_view().host().persistence().document().doc_revision() : 0;
             if (!head.empty() && m_autosave->state() == Workspace::ProjectAutosave::State::Saved &&
                 (head != m_timeline_version_head || document_revision != m_timeline_document_revision)) {
-                // A pin that cannot be written is a failed save: the autosave
-                // keeps its error, the title says "Couldn't save" and the next
-                // tick saves again. So this checkpoint, which no one asked
-                // for, has nothing to report then. One a person asks for, by
-                // a new chat or another chat, still stops with that error.
+                // A pin the system refuses is a failed save: the title says
+                // "Couldn't save", the system says why, and the next tick
+                // saves again. One a person asks for, by a new chat or
+                // another chat, still stops with that error.
                 bool checkpointed = false;
                 try {
                     checkpointed = m_agent_pane && m_agent_pane->web_view().host().checkpoint_active_chat();
-                } catch (const std::runtime_error& error) {
-                    if (m_autosave->state() != Workspace::ProjectAutosave::State::Failed || m_autosave->error() != error.what())
-                        throw;
+                } catch (const Workspace::SaveRefused& refusal) {
+                    tell_save_refused(refusal, false);
                 }
                 if (checkpointed) {
                     m_timeline_version_head = m_autosave->current_version();
@@ -1815,11 +1820,31 @@ void ShellController::apply_current_appearance()
 // OrcaSlicer's own Ctrl+Tab already steps over a page that refuses.
 bool ShellController::save_before_dropping_changes()
 {
-    if (m_autosave && m_autosave->save_now())
-        return true;
+    try {
+        if (m_autosave && m_autosave->save_now())
+            return true;
+    } catch (const Workspace::SaveRefused& refusal) {
+        // The system says why, and nothing is dropped.
+        tell_save_refused(refusal, true);
+        return false;
+    }
     report_unexpected_error("saving a version of the project before dropping setting changes",
                             m_autosave ? m_autosave->error() : "the project has no version history");
     return false;
+}
+
+void ShellController::tell_save_refused(const Workspace::SaveRefused& refusal, bool asked)
+{
+    if (!asked && m_save_refusal_told == refusal.what())
+        return;
+    m_save_refusal_told = refusal.what();
+    const wxString text = wxString::FromUTF8(said_by(kSystemName, refusal.what()));
+    if (asked) {
+        OrcaMessages::show_own_message(m_frame, text, _L("Couldn't save"));
+        return;
+    }
+    CallAfter(reported("showing why the project couldn't be saved",
+                       [this, text] { OrcaMessages::show_own_message(m_frame, text, _L("Couldn't save")); }));
 }
 
 void ShellController::on_notebook_page_changing(wxBookCtrlEvent& event)
@@ -2186,7 +2211,7 @@ void get_new_version()
     check_for_updates();
 }
 
-void show_open_failure(wxWindow* parent, const Workspace::ProjectAutosave& autosave)
+void show_open_failure(wxWindow* parent, Workspace::ProjectAutosave& autosave)
 {
     const bool newer = autosave.open_refused_newer();
     MessageDialog dialog(parent, autosave.open_failure(), _L("Couldn't open project"),

@@ -280,7 +280,8 @@ HostStatus HostReadings::status(const std::string& key, Clock::time_point now) c
         status.last_job = entry.last_job;
         status.camera   = entry.camera;
     } else if (is_fresh(entry.failed) && (!entry.answered || *entry.failed > *entry.answered)) {
-        status.link = HostLink::Unreachable;
+        status.link        = HostLink::Unreachable;
+        status.key_refused = entry.key_refused;
     }
     return status;
 }
@@ -330,7 +331,8 @@ void HostReadings::finish(const std::string& key, HostReading reading, Clock::ti
         // poll.
         if (!entry.failed || (entry.answered && *entry.answered > *entry.failed))
             BOOST_LOG_TRIVIAL(warning) << "JusPrin print host " << printer_named_by(key) << " stopped answering: " << reading.failure;
-        entry.failed = now;
+        entry.failed      = now;
+        entry.key_refused = reading.key_refused;
     }
 }
 

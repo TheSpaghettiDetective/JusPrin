@@ -13,6 +13,7 @@
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.hpp"
 #include "slic3r/GUI/JusPrin/Updates/Version.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/StoredFormat.hpp"
 
 #include "libslic3r/PresetBundle.hpp"
 #include "libslic3r/libslic3r.h"
@@ -386,7 +387,11 @@ void AppMenus::build_file(wxMenu* menu)
     // Saves now and pins that version, so it is kept, and Version history
     // lists it.
     wxMenuItem* save = command(menu, _L("Save") + "\tCtrl+S", {[this] {
-        m_shell.autosave()->pin_current();
+        try {
+            m_shell.autosave()->pin_current();
+        } catch (const Workspace::SaveRefused& refusal) {
+            m_shell.tell_save_refused(refusal, true);
+        }
         m_shell.status_row()->refresh();
     }, [this] { return !home() && m_shell.autosave() != nullptr; }});
     m_save = save->GetId();
@@ -627,9 +632,10 @@ bool AppMenus::run(int id)
     const auto it = m_commands.find(id);
     if (it == m_commands.end() || !it->second.run || (it->second.enabled && !it->second.enabled()))
         return false;
-    // A copy: the command may take these menus apart.
+    // A copy: the command may take these menus apart. The top of the menu
+    // and shortcut entry points: a command that fails is reported.
     const std::function<void()> command = it->second.run;
-    command();
+    reported("running a menu command", command)();
     return true;
 }
 

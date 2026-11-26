@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-25 17:08-0800\n"
+"POT-Creation-Date: 2026-11-26 08:11-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -359,6 +359,11 @@ msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try ag
 msgstr "Jūsų JusPrin prisijungimas baigėsi. Prisijunkite iš naujo skiltyje „Parinktys“, tada bandykite dar kartą."
 
 # AI Translated
+#. TRN The address is JusPrin's support email; keep it unchanged.
+msgid "This account has been deactivated. If you think this is a mistake, email jusprin-support@obico.io."
+msgstr "Ši paskyra išjungta. Jei manote, kad tai klaida, parašykite adresu jusprin-support@obico.io."
+
+# AI Translated
 msgid "Signing in didn't finish. Nothing was saved. Try again."
 msgstr "Prisijungimas nebaigtas. Niekas neišsaugota. Bandykite dar kartą."
 
@@ -526,12 +531,6 @@ msgstr "Viršytas %1% paslaugos užklausų limitas. Netrukus bandykite dar kart�
 #, boost-format
 msgid "The %1% service is having trouble right now. Try again later."
 msgstr "%1% paslaugoje šiuo metu kilo problemų. Bandykite dar kartą vėliau."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The request was too large for the %1% service."
-msgstr "Užklausa per didelė %1% paslaugai."
 
 # AI Translated
 #, boost-format
@@ -1384,6 +1383,13 @@ msgstr "Debesis"
 # AI Translated
 msgid "The printer stopped sending updates."
 msgstr "Spausdintuvas nustojo siųsti atnaujinimus."
+
+# AI Translated
+#. TRN %1% is the printer's address, such as 192.168.1.20. Moonraker is the printer's
+#. software. "Reconnect" is the card's button, which asks for the key.
+#, boost-format
+msgid "Moonraker at %1% refused the app's key. Press Reconnect to enter it."
+msgstr "Moonraker adresu %1% atmetė programos raktą. Paspauskite „Prisijungti iš naujo“ ir įveskite jį."
 
 # AI Translated
 #, c-format, boost-format
@@ -2596,14 +2602,6 @@ msgid "last finished yesterday"
 msgstr "paskutinį kartą baigta vakar"
 
 # AI Translated
-msgid "Version history unavailable"
-msgstr "Versijų istorija nepasiekiama"
-
-# AI Translated
-msgid "Version history couldn't be loaded. Try again."
-msgstr "Nepavyko įkelti versijų istorijos. Bandykite dar kartą."
-
-# AI Translated
 msgid "Export project 3MF"
 msgstr "Eksportuoti projekto 3MF"
 
@@ -2626,10 +2624,6 @@ msgstr "Atkurti projekto versiją"
 # AI Translated
 msgid "Restore failed"
 msgstr "Atkurti nepavyko"
-
-# AI Translated
-msgid "This version couldn't be restored. Try again."
-msgstr "Nepavyko atkurti šios versijos. Bandykite dar kartą."
 
 # AI Translated
 msgid "Back to Project"
@@ -3216,6 +3210,10 @@ msgid "This project was saved by a newer version of JusPrin. Get the new version
 msgstr "Šis projektas išsaugotas naujesne JusPrin versija. Kad jį atvertumėte, gaukite naują versiją."
 
 # AI Translated
+msgid "This project is open in another JusPrin window. Close it there, then try again."
+msgstr "Šis projektas atidarytas kitame JusPrin lange. Uždarykite jį ten ir bandykite dar kartą."
+
+# AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "Nepavyko atverti projekto. Bandykite dar kartą."
 
@@ -3282,6 +3280,23 @@ msgstr "Jei kompiuteryje yra daugiau nei viena vaizdo plokštė, gali padėti mo
 # AI Translated
 msgid "If the problem remains, close any overlay or screen capture software and try again."
 msgstr "Jei problema išlieka, uždarykite visas perdangos ar ekrano įrašymo programas ir bandykite dar kartą."
+
+# AI Translated
+#, boost-format
+#~ msgid "The request was too large for the %1% service."
+#~ msgstr "Užklausa per didelė %1% paslaugai."
+
+# AI Translated
+#~ msgid "Version history unavailable"
+#~ msgstr "Versijų istorija nepasiekiama"
+
+# AI Translated
+#~ msgid "Version history couldn't be loaded. Try again."
+#~ msgstr "Nepavyko įkelti versijų istorijos. Bandykite dar kartą."
+
+# AI Translated
+#~ msgid "This version couldn't be restored. Try again."
+#~ msgstr "Nepavyko atkurti šios versijos. Bandykite dar kartą."
 
 # AI Translated
 #, boost-format

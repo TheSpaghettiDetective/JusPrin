@@ -99,8 +99,10 @@ public:
     virtual void fetch_account_box(AccountBoxDone done) { done(std::nullopt); }
     // Deletes the signed-in account on its server, later, on the host's
     // thread: whether the server says it is gone.
-    using DeleteAccountDone = std::function<void(bool deleted)>;
-    virtual void delete_account(DeleteAccountDone done) { done(false); }
+    // Whether the account is gone; when not, why, if the server said
+    // (account_request_failure), or "unexpected" for a failure of ours.
+    using DeleteAccountDone = std::function<void(bool deleted, std::optional<AgentError> failure)>;
+    virtual void delete_account(DeleteAccountDone done) { done(false, std::nullopt); }
 };
 
 // A tool call that failed in the app's own work, not by the model's

@@ -428,9 +428,10 @@ document.getElementById('ok').onclick = function () { window.opener.postMessage(
                    });
     }
 
-// --delete-account-waits: Delete account in Preferences waits while a reply
-// runs in a printer chat, as it does while one runs in the project chat: the
-// reply would be left holding the deleted account's sign-in. A stand-in
+// --delete-account-waits: Delete account in Preferences is refused while a
+// reply runs in a printer chat, as it is while one runs in the project chat:
+// the reply would be left holding the deleted account's sign-in. The refusal
+// is reported as ours. A stand-in
 // server on a loopback port counts the deletions it is asked for; the account
 // and its token exist nowhere else. Once the reply ends, Delete account goes
 // through, so the wait is the reply's and not the setup's.
@@ -520,13 +521,18 @@ document.getElementById('ok').onclick = function () { window.opener.postMessage(
             if (!window->page_connected())
                 return false;
             if (!*sent) {
-                window->web_view().host().on_page_message(nlohmann::json{{"protocol", Agent::Protocol::kName},
-                                                                          {"version", Agent::Protocol::kVersion},
-                                                                          {"id", name},
-                                                                          {"type", Agent::Protocol::kDeleteAccount},
-                                                                          {"payload", nlohmann::json::object()}}
-                                                               .dump());
+                // Through the web view's own handler, which reports what fails.
+                wxWebView*     view = window->web_view().webview();
+                wxWebViewEvent event(wxEVT_WEBVIEW_SCRIPT_MESSAGE_RECEIVED, view->GetId(), wxString(), wxString());
+                event.SetEventObject(view);
+                event.SetString(wxString::FromUTF8(nlohmann::json{{"protocol", Agent::Protocol::kName},
+                                                                  {"version", Agent::Protocol::kVersion},
+                                                                  {"id", name},
+                                                                  {"type", Agent::Protocol::kDeleteAccount},
+                                                                  {"payload", nlohmann::json::object()}}
+                                                       .dump()));
                 *sent = std::chrono::steady_clock::now();
+                view->GetEventHandler()->ProcessEvent(event);
             }
             return std::chrono::steady_clock::now() > **sent + 3s;
         };
@@ -581,11 +587,235 @@ document.getElementById('ok').onclick = function () { window.opener.postMessage(
         delete_account_from_preferences("delete_account_during_printer_reply");
         std::cout << "HARNESS DELETE ACCOUNT during printer reply: deletions=" << server->deletions() << std::endl;
         check(server->deletions() == 0, "delete_account_waits_for_the_printer_chat_reply");
+        check(unexpected_errors_logged("handling the app page's delete_account message") == 1,
+              "delete_account_during_a_reply_is_reported");
 
         *finish_reply = true;
         check(wait_for([host] { return !host->busy(); }, 20s), "delete_account_waits_printer_reply_ended");
         delete_account_from_preferences("delete_account_after_printer_reply");
         std::cout << "HARNESS DELETE ACCOUNT after printer reply: deletions=" << server->deletions() << std::endl;
         check(server->deletions() == 1, "delete_account_goes_through_once_the_reply_ends");
+        finish();
+    }
+
+// --account-page-failures: whose failure it is when Credits and plans, or
+// Delete account, gets no good answer from the JusPrin server. No answer at
+// all (a port nothing listens on) is the person's network: the sheet says to
+// check the internet connection. 401 is a sign-in that has ended: the sheet
+// says to sign in again. Any other error answer is ours: it is reported, and
+// the sheet closes. A stand-in server on a loopback port gives the 401 and
+// the 500; with JUSPRIN_SERVER_URL set, the 401 comes from that server, asked
+// with a token it never gave.
+
+    class StandInStatusServer
+    {
+    public:
+        explicit StandInStatusServer(int status)
+            : m_status(status), m_acceptor(m_io, boost::asio::ip::tcp::endpoint(boost::asio::ip::address_v4::loopback(), 0))
+        {
+            m_thread = std::thread([this] { serve(); });
+        }
+        ~StandInStatusServer()
+        {
+            m_stopping = true;
+            boost::system::error_code    ignored;
+            boost::asio::ip::tcp::socket wake(m_io);
+            wake.connect(m_acceptor.local_endpoint(), ignored);
+            m_thread.join();
+        }
+        std::string address() const { return "http://127.0.0.1:" + std::to_string(m_acceptor.local_endpoint().port()); }
+
+    private:
+        void serve()
+        {
+            for (;;) {
+                boost::system::error_code    error;
+                boost::asio::ip::tcp::socket socket(m_io);
+                m_acceptor.accept(socket, error);
+                if (m_stopping || error)
+                    return;
+                boost::asio::streambuf request;
+                boost::asio::read_until(socket, request, "\r\n\r\n", error);
+                const std::string body  = R"({"error":"stand-in"})";
+                const std::string reply = "HTTP/1.1 " + std::to_string(m_status) + " Stand-in\r\nContent-Type: application/json\r\nContent-Length: " +
+                                          std::to_string(body.size()) + "\r\nConnection: close\r\n\r\n" + body;
+                boost::asio::write(socket, boost::asio::buffer(reply), error);
+                socket.close(error);
+            }
+        }
+
+        int                            m_status;
+        boost::asio::io_context        m_io;
+        boost::asio::ip::tcp::acceptor m_acceptor;
+        std::atomic<bool>              m_stopping{false};
+        std::thread                    m_thread;
+    };
+
+    // An address on a loopback port nothing listens on.
+    static std::string unanswered_address()
+    {
+        boost::asio::io_context        io;
+        boost::asio::ip::tcp::acceptor acceptor(io, boost::asio::ip::tcp::endpoint(boost::asio::ip::address_v4::loopback(), 0));
+        const unsigned short           port = acceptor.local_endpoint().port();
+        acceptor.close();
+        return "http://127.0.0.1:" + std::to_string(port);
+    }
+
+    // Opens Credits and plans against `server` and says what the sheet showed:
+    // the sentence under "Couldn't load", or "closed" when it closed by itself.
+    std::string open_sheet_against(const std::string& server)
+    {
+        using namespace std::chrono_literals;
+        wxSetEnv("JUSPRIN_SERVER_URL", wxString::FromUTF8(server));
+        struct Seen
+        {
+            std::string detail;
+            bool        closed{false};
+        };
+        auto seen = std::make_shared<Seen>();
+        m_modal_gate = [seen](wxDialog& dialog) {
+            auto* sheet = dynamic_cast<ServerSheet*>(&dialog);
+            if (sheet == nullptr)
+                return true;
+            if (sheet->state() != ServerSheet::State::Failed)
+                return false;
+            seen->detail = sheet->status_detail().ToUTF8().data();
+            return true;
+        };
+        m_modals_before = m_modals_answered;
+        answer_modals(wxID_CANCEL);
+        wxGetApp().mainframe->CallAfter([seen] {
+            ServerSheet::open(wxGetApp().mainframe, "prices", "harness", [seen] { seen->closed = true; });
+        });
+        wait_for([seen] { return seen->closed; }, 60s);
+        stop_answering_modals();
+        return seen->closed && seen->detail.empty() ? "closed" : seen->detail;
+    }
+
+    void verify_account_page_failures()
+    {
+        const char* live = std::getenv("JUSPRIN_SERVER_URL");
+        const std::string live_server = live != nullptr ? live : "";
+        AppConfig* config = wxGetApp().app_config;
+        config->set("jusprin_agent", "jusprin_api_key", std::string("account-page-failures-token"));
+        config->set("jusprin_agent", "jusprin_account", std::string("account-page-failures@example.test"));
+        config->set("jusprin_agent", "provider", std::string("jusprin"));
+        config->set("jusprin_agent", "enabled", std::string("true"));
+        config->set("jusprin_agent", "cloud_consent", std::string("true"));
+        const std::string internet  = wxGetTranslation("Check your internet connection, then try again.").ToUTF8().data();
+        const std::string signed_in = Agent::sign_in_ended();
+
+        auto refusing = std::make_shared<StandInStatusServer>(401);
+        auto failing  = std::make_shared<StandInStatusServer>(500);
+        const std::string ended_at = live_server.empty() ? refusing->address() : live_server;
+        const std::string none     = unanswered_address();
+
+        const int reported = unexpected_errors_logged();
+        const std::string no_answer = open_sheet_against(none);
+        std::cout << "HARNESS ACCOUNT PAGE no answer: " << no_answer << std::endl;
+        check(no_answer == internet, "sheet_without_an_answer_says_to_check_the_internet");
+        check(unexpected_errors_logged() == reported, "sheet_without_an_answer_reports_nothing");
+
+        const std::string ended = open_sheet_against(ended_at);
+        std::cout << "HARNESS ACCOUNT PAGE 401 from " << (live_server.empty() ? "stand-in" : "JUSPRIN_SERVER_URL") << ": " << ended
+                  << std::endl;
+        check(ended == signed_in, "sheet_with_an_ended_sign_in_says_to_sign_in_again");
+        check(unexpected_errors_logged() == reported, "sheet_with_an_ended_sign_in_reports_nothing");
+
+        const std::string ours = open_sheet_against(failing->address());
+        std::cout << "HARNESS ACCOUNT PAGE 500: " << ours << std::endl;
+        check(ours == "closed", "sheet_with_a_server_error_closes");
+        check(unexpected_errors_logged("opening an account page") == 1, "sheet_with_a_server_error_is_reported");
+
+        // Delete account: only ours is reported, and nothing is signed out.
+        // Preferences asks the same server for the account as it opens, so
+        // only the reports made while deleting are counted.
+        wxSetEnv("JUSPRIN_SERVER_URL", wxString::FromUTF8(none));
+        delete_account_from_preferences("delete_account_without_an_answer");
+        wxSetEnv("JUSPRIN_SERVER_URL", wxString::FromUTF8(ended_at));
+        delete_account_from_preferences("delete_account_with_an_ended_sign_in");
+        check(unexpected_errors_logged("deleting the account") == 0, "delete_account_person_failures_report_nothing");
+        wxSetEnv("JUSPRIN_SERVER_URL", wxString::FromUTF8(failing->address()));
+        delete_account_from_preferences("delete_account_with_a_server_error");
+        std::cout << "HARNESS ACCOUNT PAGE delete reports: " << unexpected_errors_logged("deleting the account") << " of "
+                  << unexpected_errors_logged() << std::endl;
+        check(unexpected_errors_logged("deleting the account") == 1, "delete_account_server_error_is_reported");
+        check(!config->get("jusprin_agent", "jusprin_api_key").empty(), "delete_account_failures_keep_the_sign_in");
+        finish();
+    }
+
+// --deactivated-sign-in: signing in with the password of an account an admin
+// deactivated, in Preferences › Account against the server JUSPRIN_SERVER_URL
+// names, as JUSPRIN_DEACTIVATED_EMAIL with JUSPRIN_DEACTIVATED_PASSWORD (a
+// local test account; signing in by password sends no email). The page says
+// the account is deactivated and where to write, and nothing is reported.
+
+    void verify_deactivated_sign_in()
+    {
+        using namespace std::chrono_literals;
+        const char* email    = std::getenv("JUSPRIN_DEACTIVATED_EMAIL");
+        const char* password = std::getenv("JUSPRIN_DEACTIVATED_PASSWORD");
+        if (std::getenv("JUSPRIN_SERVER_URL") == nullptr || email == nullptr || password == nullptr) {
+            check(false, "deactivated_sign_in_has_a_server_and_an_account");
+            return finish();
+        }
+        const std::string sentence = "This account has been deactivated. If you think this is a mistake, email jusprin-support@obico.io.";
+        struct Run
+        {
+            int                                   step{0};
+            std::chrono::steady_clock::time_point at;
+            bool                                  shown{false};
+        };
+        auto run = std::make_shared<Run>();
+        const int reported = unexpected_errors_logged();
+        m_modal_gate = [run, sentence, email = std::string(email), password = std::string(password)](wxDialog& dialog) {
+            auto* window = dynamic_cast<Preferences::PreferencesWindow*>(&dialog);
+            if (window == nullptr)
+                return true;
+            if (!window->page_connected())
+                return false;
+            const auto send = [window](const char* type, const nlohmann::json& payload) {
+                window->web_view().host().on_page_message(nlohmann::json{{"protocol", Agent::Protocol::kName},
+                                                                         {"version", Agent::Protocol::kVersion},
+                                                                         {"id", std::string("deactivated-") + type},
+                                                                         {"type", type},
+                                                                         {"payload", payload}}
+                                                              .dump());
+            };
+            const auto now = std::chrono::steady_clock::now();
+            if (run->step == 0) {
+                send(Agent::Protocol::kAccountEmail, {{"email", email}});
+                run->step = 1;
+                run->at   = now;
+                return false;
+            }
+            if (run->step == 1) {
+                if (now < run->at + 500ms)
+                    return false;
+                send(Agent::Protocol::kAccountPassword, {{"password", password}});
+                run->step = 2;
+                run->at   = now;
+                return false;
+            }
+            wxString text;
+            window->web_view().webview()->RunScript("document.body.textContent", &text);
+            run->shown = text.ToUTF8().data() != nullptr && std::string(text.ToUTF8().data()).find(sentence) != std::string::npos;
+            return run->shown || now > run->at + 20s;
+        };
+        m_modals_before = m_modals_answered;
+        answer_modals(wxID_CANCEL);
+        installed_shell()->request_preferences("account");
+        wait_for([run] { return run->step == 2 && (run->shown || std::chrono::steady_clock::now() > run->at + 25s); }, 90s);
+        wait_for([] {
+            for (wxWindow* window : wxTopLevelWindows)
+                if (dynamic_cast<Preferences::PreferencesWindow*>(window) != nullptr)
+                    return false;
+            return true;
+        }, 30s);
+        stop_answering_modals();
+        std::cout << "HARNESS DEACTIVATED SIGN IN shown=" << run->shown << std::endl;
+        check(run->shown, "deactivated_sign_in_says_so_and_where_to_write");
+        check(unexpected_errors_logged() == reported, "deactivated_sign_in_reports_nothing");
+        check(wxGetApp().app_config->get("jusprin_agent", "jusprin_api_key").empty(), "deactivated_sign_in_stores_nothing");
         finish();
     }

@@ -197,9 +197,12 @@ inline constexpr const char* kAccount            = "account";
 // or null for no box (it sent none, or could not be asked). One answer to the
 // latest refresh_account_box; an earlier one still on its way is dropped.
 inline constexpr const char* kAccountBox         = "account_box";
-// The answer to delete_account: {deleted}. When true the account is gone and
-// the app has signed out of it (setup_keys follows); when false nothing
-// changed: the server could not be reached or refused, or a reply is running.
+// The answer to delete_account: {deleted, error?}. When true the account is
+// gone and the app has signed out of it (setup_keys follows); when false
+// nothing changed. `error` says why when the server was asked: network_error
+// (no answer), a refusal in the app's sentence (invalid_credentials,
+// update_required), or unexpected, ours, which the app reports. Without it a
+// reply is running.
 inline constexpr const char* kAccountDeleted     = "account_deleted";
 // The active chat's choice after a set_chat_model: {conversationId, chatModel}.
 inline constexpr const char* kChatModel          = "chat_model";

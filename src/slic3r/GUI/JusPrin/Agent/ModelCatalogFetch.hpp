@@ -4,6 +4,7 @@
 // ModelCatalog.cpp, which only reads the answer, because this needs Orca's
 // Http client and the GUI-free host tests do not link it.
 
+#include "AgentProtocol.hpp"
 #include "LocalModelSetup.hpp"
 #include "ModelCatalog.hpp"
 
@@ -43,9 +44,12 @@ void fetch_account_box(const ProviderProfile& profile, const std::string& token,
                        std::shared_ptr<std::atomic<bool>> cancelled, std::function<void(std::optional<std::string>)> done);
 
 // Deletes the account `token` signs in as, with DELETE at `url`; `done` says
-// whether the server answered that it did (204), on the request's thread.
+// whether the server answered that it did (204), and otherwise why not
+// (account_request_failure), on the request's thread. A failure of ours is
+// passed as "unexpected", so the page stops waiting, and then goes on up.
 void delete_account(const ProviderProfile& profile, const std::string& token, const std::string& url,
-                    std::shared_ptr<std::atomic<bool>> cancelled, std::function<void(bool)> done);
+                    std::shared_ptr<std::atomic<bool>> cancelled,
+                    std::function<void(bool deleted, std::optional<AgentError> failure)> done);
 
 // One request to the app that runs a model on this computer, as
 // LocalModelSetup::Fetch asks it: `done` runs once, on the request's thread.

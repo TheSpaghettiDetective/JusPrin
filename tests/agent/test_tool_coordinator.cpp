@@ -219,6 +219,27 @@ TEST_CASE("a change whose save fails is announced once, as failed, and never cha
         CHECK(h.object_count() == 2);
 }
 
+TEST_CASE("a save the system refuses around a change fails like any other, with the system's reason", "[tools][versions]")
+{
+    Harness h;
+    const bool before = GENERATE(true, false);
+    CAPTURE(before);
+    h.coordinator.set_version_callbacks(
+        [before](const ToolActivity&) {
+            if (before)
+                throw Workspace::SaveRefused("/projects: Permission denied");
+            return std::string("v-before");
+        },
+        [](const ToolActivity&, const std::string&) { throw Workspace::SaveRefused("/projects: Permission denied"); });
+    const std::string id = h.coordinator.submit(h.duplicate_cube_request(), "m-1").action_id;
+    h.pump_to_completion(id);
+    const ToolActivity* refused = h.coordinator.find(id);
+    REQUIRE(refused->error.has_value());
+    CHECK(refused->error->code == "local_save_failed");
+    CHECK(refused->error->message.find("Permission denied") != std::string::npos);
+    CHECK(h.object_count() == (before ? 1 : 2));
+}
+
 TEST_CASE("Settings tools share terminal activities across adapters and return atomic results", "[tools][settings][mcp]")
 {
     Harness h;

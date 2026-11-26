@@ -960,15 +960,16 @@ TEST_CASE("the gateway's answers a person can act on are read by their code, and
         return *event->error;
     };
     CHECK(answer(429, gateway("rate_limited")).code == "rate_limited");
-    CHECK(answer(413, gateway("request_too_large")).code == "request_too_large");
     // Anything else names nothing the person can act on, the gateway's own
-    // failure included, and a 402 without the numbers the gateway always sends.
+    // failure included, a chat more than the model takes (the app sizes what
+    // it sends), and a 402 without the numbers the gateway always sends.
+    CHECK_THROWS_WITH(answer(413, gateway("request_too_large")), ContainsSubstring("HTTP 413") && ContainsSubstring("request_too_large"));
     for (const char* code : {"server_error", "busy", "unavailable", "timeout", "invalid_request"})
         CHECK_THROWS_WITH(answer(503, gateway(code)), ContainsSubstring("HTTP 503") && ContainsSubstring(code) && ContainsSubstring("turn-9"));
     CHECK_THROWS_WITH(answer(402, gateway("credits_exhausted")), ContainsSubstring("HTTP 402"));
     CHECK_THROWS_WITH(answer(502, "<html>Bad gateway</html>"), ContainsSubstring("HTTP 502") && ContainsSubstring("Bad gateway"));
 
-    // Partway through a reply, in either format: thrown, but for a chat too long.
+    // Partway through a reply, in either format: thrown.
     for (const char* format : {kFormatAnthropic, kFormatResponses}) {
         DYNAMIC_SECTION("format " << format)
         {
@@ -991,7 +992,7 @@ TEST_CASE("the gateway's answers a person can act on are read by their code, and
                 return *last->error;
             };
             CHECK_THROWS_WITH(event("rate_limited"), ContainsSubstring("rate_limited") && ContainsSubstring("turn-9"));
-            CHECK(event("request_too_large").code == "request_too_large");
+            CHECK_THROWS_WITH(event("request_too_large"), ContainsSubstring("request_too_large") && ContainsSubstring("turn-9"));
         }
     }
 }
@@ -1268,16 +1269,60 @@ TEST_CASE("an email sign-in from a release the server no longer serves ends with
     CHECK_FALSE(f.stored.has_value());
 }
 
-TEST_CASE("a deactivated account's code request ends with the generic error", "[agent][account][email]")
+TEST_CASE("a deactivated account's code request says so and where to write", "[agent][account][email]")
 {
     Fixture f;
     email_typed(f);
     REQUIRE(f.sign_in->send_code());
-    f.machine.answer_post(kAuth + "code/request", 400, refusal("account_inactive"));
+    // What the server answers a code request for a deactivated account.
+    f.machine.answer_post(kAuth + "code/request", 400,
+                          json{{"status", 400},
+                               {"errors", {{{"message", "This account is currently inactive."}, {"code", "account_inactive"}, {"param", "email"}}}}}
+                              .dump());
     const std::optional<CloudSignInOutcome> outcome = f.sign_in->poll();
     REQUIRE(outcome.has_value());
-    CHECK(outcome->error.code == "sign_in_failed");
+    CHECK(outcome->kind == CloudSignInOutcome::Kind::Failed);
+    CHECK(outcome->error.code == "account_deactivated");
+    CHECK(outcome->error.message ==
+          "This account has been deactivated. If you think this is a mistake, email jusprin-support@obico.io.");
+    // Trying again would be refused the same way.
+    CHECK_FALSE(outcome->error.retryable);
+    CHECK(f.sign_in->phase() == CloudSignInPhase::Idle);
     CHECK_FALSE(f.sign_in->email_step().has_value());
+    CHECK_FALSE(f.stored.has_value());
+}
+
+TEST_CASE("a deactivated account's password says so and where to write", "[agent][account][email]")
+{
+    Fixture f;
+    email_typed(f);
+    REQUIRE(f.sign_in->submit_password("correct horse"));
+    // What the server answers the right password of a deactivated account.
+    f.machine.answer_post(kAuth + "login", 400,
+                          json{{"status", 400}, {"errors", {{{"message", "This account is currently inactive."}, {"code", "account_inactive"}}}}}
+                              .dump());
+    const std::optional<CloudSignInOutcome> outcome = f.sign_in->poll();
+    REQUIRE(outcome.has_value());
+    CHECK(outcome->kind == CloudSignInOutcome::Kind::Failed);
+    CHECK(outcome->error.code == "account_deactivated");
+    CHECK(outcome->error.message ==
+          "This account has been deactivated. If you think this is a mistake, email jusprin-support@obico.io.");
+    CHECK_FALSE(outcome->error.retryable);
+    CHECK(f.sign_in->phase() == CloudSignInPhase::Idle);
+    CHECK_FALSE(f.stored.has_value());
+}
+
+TEST_CASE("a request that only succeeds or not is the person's without an answer or its sign-in, and ours otherwise", "[agent][account]")
+{
+    const AgentError no_answer = account_request_failure(0, "");
+    CHECK(no_answer.code == "network_error");
+    CHECK(no_answer.message.empty());
+    const AgentError ended = account_request_failure(401, R"({"error":"unauthorized"})");
+    CHECK(ended.code == "invalid_credentials");
+    CHECK(ended.message == sign_in_ended());
+    CHECK(account_request_failure(426, R"({"error":"update_required"})").code == "update_required");
+    CHECK_THROWS_WITH(account_request_failure(500, "boom"), ContainsSubstring("HTTP 500: boom"));
+    CHECK_THROWS(account_request_failure(403, ""));
 }
 
 TEST_CASE("cancelling an email sign-in drops the server's late answer", "[agent][account][email]")

@@ -108,6 +108,17 @@ std::string sign_in_ended()
     return translated(L("Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."));
 }
 
+AgentError account_request_failure(unsigned status, const std::string& body)
+{
+    if (status == 0)
+        return AgentError{"network_error", {}, true};
+    if (status == 401)
+        return AgentError{"invalid_credentials", sign_in_ended(), false};
+    if (std::optional<AgentError> outdated = update_required(status, body))
+        return *outdated;
+    throw std::runtime_error("The JusPrin server answered HTTP " + std::to_string(status) + ": " + body);
+}
+
 CloudSignIn::CloudSignIn(std::string server, std::string gateway, std::string default_model, CloudAccountDeps deps,
                          CloudAccountStore store, AgentFactory agents)
     : m_server(std::move(server)), m_gateway(std::move(gateway)), m_default_model(std::move(default_model)),
@@ -309,6 +320,13 @@ std::optional<CloudSignInOutcome> CloudSignIn::answered(CloudHttpResult http)
         m_email.refusal = "wrong_code";
     else if (http.status == 409 && m_asked == "code/confirm")
         m_email.refusal = "expired_code";
+    else if (http.status == 400 && (m_asked == "code/request" || m_asked == "login") && errors("account_inactive")) {
+        // Only an admin deactivates an account; the person can ask us why.
+        BOOST_LOG_TRIVIAL(warning) << "JusPrin email sign-in refused a deactivated account: " << said;
+        // TRN The address is JusPrin's support email; keep it unchanged.
+        const std::string message = translated(L("This account has been deactivated. If you think this is a mistake, email jusprin-support@obico.io."));
+        return failed("account_deactivated", message, false, said);
+    }
     else if (http.status == 400 && m_asked == "login")
         m_email.refusal = errors("too_many_login_attempts") ? "too_many_tries" : "wrong_password";
     else if (http.status == 0 || (http.status >= 400 && http.status < 500))

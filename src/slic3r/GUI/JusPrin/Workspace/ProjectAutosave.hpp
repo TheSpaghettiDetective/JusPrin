@@ -25,8 +25,22 @@ class ProjectPersistence;
 
 namespace Slic3r::GUI::JusPrin::Workspace {
 
+// The system will not let a write into `folder` happen: no permission, a
+// read-only volume or a full disk, about a path inside that folder. The
+// person can change that. Any other file system error is ours.
+bool system_refused(const std::filesystem::filesystem_error& error, const std::filesystem::path& folder);
+
+// Makes a folder named `probe` and removes it again. A writer that gives no
+// reason when its folder refuses it, such as OrcaSlicer's 3MF writer or a
+// file stream, can be preceded by this: std::filesystem throws the system's
+// own code and the path.
+void probe_writable(const std::filesystem::path& probe);
+
 // Owns the one writer and schedules snapshots of the current Orca model.
 // All methods except the private publish worker run on the GUI thread.
+// A save the system refuses throws SaveRefused, from whichever call met it,
+// with the projects folder and the system's reason: the person's to fix.
+// Any other failure of a save is ours and travels up as it was thrown.
 class ProjectAutosave
 {
 public:
@@ -54,6 +68,8 @@ public:
     void ensure_current_preview();
     State state() const { return m_state; }
     std::string project_name() const;
+    // Why the last save failed, until a save succeeds. For a refusal it is
+    // the SaveRefused text.
     const std::string& error() const { return m_error; }
     const std::string& warning() const { return m_warning; }
     std::uint64_t capture_attempts() const { return m_capture_attempts; }
@@ -115,8 +131,17 @@ private:
     bool capture(bool wait_for_commit);
     bool persist_document(bool wait_for_commit);
     bool settle(bool wait);
+    // Before reading the store: an earlier background write the system
+    // refused is not this call's to tell; the next save meets the refusal
+    // again and says why.
+    void settle_before_reading();
     void observe_document_change();
     void fail(const std::string& message);
+    // A refusal of the projects folder fails the save and throws SaveRefused;
+    // any other file system error fails like any other failure and is
+    // rethrown. Call inside the catch block.
+    [[noreturn]] void refused(const std::filesystem::filesystem_error& error);
+    [[noreturn]] void throw_refused(const std::string& reason, const std::string& refusal);
     void trim_history();
     std::string observed_input() const;
 
@@ -150,8 +175,14 @@ private:
     std::string m_opened_digest;
     State m_state{State::Saving};
     std::string m_error;
+    // m_error is a refusal, which tick() leaves out of its run of our failures.
+    bool m_error_refused{false};
     // The last failed open refused a project a newer JusPrin saved.
     bool m_open_refused_newer{false};
+    // The last failed open found the project open in another JusPrin window,
+    // or the system refused it (the folder and the system's reason).
+    bool        m_open_refused_elsewhere{false};
+    std::string m_open_refusal;
     std::string m_warning;
     std::function<bool()> m_capture_hold;
 };

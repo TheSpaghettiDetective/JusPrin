@@ -29,6 +29,7 @@
 #include "slic3r/GUI/JusPrin/Support/SentryClient.hpp"
 #include "slic3r/GUI/JusPrin/Updates/UpdateCheck.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/StoredFormat.hpp"
 
 #include <boost/filesystem.hpp>
 #include <boost/log/trivial.hpp>
@@ -446,9 +447,16 @@ void restart_application()
     if (app.mainframe == nullptr)
         return;
     // The open project first: autosave keeps it, so the next start offers it
-    // back as it is now.
-    if (ShellController* shell = installed_shell(); shell != nullptr && shell->autosave() != nullptr)
-        shell->autosave()->save_now();
+    // back as it is now. When the system refuses that save, it says why and
+    // the app stays open with the changes.
+    if (ShellController* shell = installed_shell(); shell != nullptr && shell->autosave() != nullptr) {
+        try {
+            shell->autosave()->save_now();
+        } catch (const Workspace::SaveRefused& refusal) {
+            shell->tell_save_refused(refusal, true);
+            return;
+        }
+    }
     static const bool registered = std::atexit(start_again_at_exit) == 0;
     if (!registered)
         return;

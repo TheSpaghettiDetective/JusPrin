@@ -2741,20 +2741,31 @@ void AgentHost::pump_local_setup()
 
 void AgentHost::handle_delete_account(const std::string& envelope_id)
 {
-    const auto answer = [this, envelope_id](bool deleted) {
+    const auto answer = [this, envelope_id](bool deleted, const std::optional<AgentError>& failure = std::nullopt) {
+        json payload{{"deleted", deleted}};
+        if (failure)
+            payload["error"] = error_json(*failure);
         if (m_handshake)
-            send_envelope(Protocol::kAccountDeleted, json{{"deleted", deleted}}.dump(), envelope_id);
+            send_envelope(Protocol::kAccountDeleted, payload.dump(), envelope_id);
     };
     // Its key goes once the server has deleted the account, and a reply that
     // is still running would be left holding it, so one waits for the other.
     // The Preferences window asks this of a host with no chat of its own; the
     // reply runs in another host's.
     const bool reply_running = agent_busy() || (m_reply_running_elsewhere && m_reply_running_elsewhere());
+    // Not deleted, and reported: the page leaves it to the report window.
     if (!m_model_source || !m_setup || reply_running || m_setup->busy()) {
-        answer(false);
-        return;
+        answer(false, AgentError{"unexpected", {}, false});
+        throw RuntimeError(std::string("Delete account was asked while ") +
+                           (reply_running ? "a reply was running" : !m_model_source || !m_setup ? "the host had no account" : "a key setup was running"));
     }
-    m_model_source->delete_account([this, answer](bool deleted) {
+    m_model_source->delete_account([this, answer](bool deleted, std::optional<AgentError> failure) {
+        if (failure) {
+            BOOST_LOG_TRIVIAL(warning) << "JusPrin account was not deleted: " << failure->code << " " << failure->said;
+            // Account shows the ended sign-in, with the form to sign in again.
+            if (failure->code == "invalid_credentials")
+                reject_saved_key(account_provider().id);
+        }
         if (deleted) {
             // Signed out the way Sign out does, whatever happens next: the
             // account no longer exists to sign in as.
@@ -2765,7 +2776,7 @@ void AgentHost::handle_delete_account(const std::string& envelope_id)
             request_account();
             request_account_box();
         }
-        answer(deleted);
+        answer(deleted, failure);
     });
 }
 

@@ -129,6 +129,8 @@ struct HostReading
     std::optional<HostCamera>   camera;
     // What came back instead, for the log, when it did not answer.
     std::string failure;
+    // Moonraker answered, refusing the app's key (401 or 403).
+    bool key_refused{false};
 };
 
 enum class HostLink { Checking, Reachable, Unreachable };
@@ -136,6 +138,8 @@ enum class HostLink { Checking, Reachable, Unreachable };
 struct HostStatus
 {
     HostLink                             link{HostLink::Checking};
+    // While Unreachable: the last attempt was Moonraker refusing the key.
+    bool                                 key_refused{false};
     // Only while Reachable, and only when the host said.
     std::optional<std::vector<HostLane>> loaded;
     std::optional<KlipperState>          klipper;
@@ -184,6 +188,7 @@ private:
         std::optional<Clock::time_point>     answered;  // last time the host answered
         std::optional<Wall::time_point>      connected_wall;
         std::optional<Clock::time_point>     failed;    // last attempt that got no answer
+        bool                                 key_refused{false}; // in that attempt
         // From the last answer.
         std::optional<std::vector<HostLane>> loaded;
         std::optional<KlipperState>          klipper;

@@ -209,6 +209,35 @@ TEST_CASE("each host's settings are read separately", "[host-lanes]")
     CHECK(readings.begin("printer\nhttp://b", t0));
 }
 
+TEST_CASE("a refused key is told apart from a host that does not answer", "[host-lanes]")
+{
+    HostReadings readings;
+    const auto   t0 = HostReadings::Clock::time_point{} + 1h;
+    HostReading  refused;
+    refused.key_refused = true;
+    readings.begin("printer", t0);
+    readings.finish("printer", refused, t0);
+    HostStatus status = readings.status("printer", t0 + 1s);
+    CHECK(status.link == HostLink::Unreachable);
+    CHECK(status.key_refused);
+
+    // The next attempt gets no answer at all: only silence now.
+    readings.begin("printer", t0 + kHostPollInterval);
+    readings.finish("printer", HostReading{}, t0 + kHostPollInterval);
+    status = readings.status("printer", t0 + kHostPollInterval + 1s);
+    CHECK(status.link == HostLink::Unreachable);
+    CHECK_FALSE(status.key_refused);
+
+    // Refused again, then answered: reachable, and the refusal is over.
+    readings.begin("printer", t0 + 2 * kHostPollInterval);
+    readings.finish("printer", refused, t0 + 2 * kHostPollInterval);
+    readings.begin("printer", t0 + 3 * kHostPollInterval);
+    readings.finish("printer", HostReading{true, std::nullopt}, t0 + 3 * kHostPollInterval);
+    status = readings.status("printer", t0 + 3 * kHostPollInterval + 1s);
+    CHECK(status.link == HostLink::Reachable);
+    CHECK_FALSE(status.key_refused);
+}
+
 // The bodies below are what the Docker Moonraker in tests/printer_hosts
 // answered on 2026-11-05, trimmed to the fields read.
 TEST_CASE("Klipper's state reads as what the printer is doing", "[host-lanes]")

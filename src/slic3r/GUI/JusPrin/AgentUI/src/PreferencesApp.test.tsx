@@ -462,6 +462,21 @@ describe('Preferences', () => {
       expect(host.ofType('delete_account')).toHaveLength(2);
       expect(within(screen.getByRole('dialog')).queryByRole('alert')).toBeNull();
 
+      // No answer is the network's; an ended sign-in is said in the app's
+      // sentence; ours is said by the app's report window, not here.
+      const press = () => fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete account' }));
+      host.deliver('account_deleted', { deleted: false, error: { code: 'network_error', message: '', retryable: true } });
+      expect(within(screen.getByRole('dialog')).getByRole('alert')).toHaveTextContent('Check your internet connection');
+      press();
+      const ended = 'Your JusPrin sign-in has ended. Sign in again in Preferences, then try again.';
+      host.deliver('account_deleted', { deleted: false, error: { code: 'invalid_credentials', message: ended, retryable: false } });
+      expect(within(screen.getByRole('dialog')).getByRole('alert')).toHaveTextContent(ended);
+      press();
+      host.deliver('account_deleted', { deleted: false, error: { code: 'unexpected', message: '', retryable: false } });
+      expect(within(screen.getByRole('dialog')).queryByRole('alert')).toBeNull();
+      expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete account' })).toBeEnabled();
+      press();
+
       // Deleted: the host signs out, and Account shows the signed-out form.
       host.deliver('account_deleted', { deleted: true });
       host.deliver('setup_keys', { keys: [] });

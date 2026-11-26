@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-25 17:08-0800\n"
+"POT-Creation-Date: 2026-11-26 08:11-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -357,6 +357,11 @@ msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try ag
 msgstr "Ihre JusPrin-Anmeldung ist abgelaufen. Melden Sie sich unter Einstellungen erneut an und versuchen Sie es dann noch einmal."
 
 # AI Translated
+#. TRN The address is JusPrin's support email; keep it unchanged.
+msgid "This account has been deactivated. If you think this is a mistake, email jusprin-support@obico.io."
+msgstr "Dieses Konto wurde deaktiviert. Wenn Sie glauben, dass es sich um einen Fehler handelt, schreiben Sie an jusprin-support@obico.io."
+
+# AI Translated
 msgid "Signing in didn't finish. Nothing was saved. Try again."
 msgstr "Die Anmeldung wurde nicht abgeschlossen. Es wurde nichts gespeichert. Versuchen Sie es erneut."
 
@@ -524,12 +529,6 @@ msgstr "Der %1%-Dienst begrenzt gerade die Anfragen. Versuchen Sie es in Kürze 
 #, boost-format
 msgid "The %1% service is having trouble right now. Try again later."
 msgstr "Der %1%-Dienst hat gerade Probleme. Versuchen Sie es später erneut."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The request was too large for the %1% service."
-msgstr "Die Anfrage war für den %1%-Dienst zu groß."
 
 # AI Translated
 #, boost-format
@@ -1370,6 +1369,13 @@ msgstr "Cloud"
 # AI Translated
 msgid "The printer stopped sending updates."
 msgstr "Der Drucker sendet keine Aktualisierungen mehr."
+
+# AI Translated
+#. TRN %1% is the printer's address, such as 192.168.1.20. Moonraker is the printer's
+#. software. "Reconnect" is the card's button, which asks for the key.
+#, boost-format
+msgid "Moonraker at %1% refused the app's key. Press Reconnect to enter it."
+msgstr "Moonraker unter %1% hat den Schlüssel der App abgelehnt. Drücken Sie „Erneut verbinden“, um ihn einzugeben."
 
 # AI Translated
 #, c-format, boost-format
@@ -2559,14 +2565,6 @@ msgid "last finished yesterday"
 msgstr "zuletzt fertig: gestern"
 
 # AI Translated
-msgid "Version history unavailable"
-msgstr "Versionsverlauf nicht verfügbar"
-
-# AI Translated
-msgid "Version history couldn't be loaded. Try again."
-msgstr "Der Versionsverlauf konnte nicht geladen werden. Versuchen Sie es erneut."
-
-# AI Translated
 msgid "Export project 3MF"
 msgstr "Projekt-3MF exportieren"
 
@@ -2589,10 +2587,6 @@ msgstr "Projektversion wiederherstellen"
 # AI Translated
 msgid "Restore failed"
 msgstr "Wiederherstellung fehlgeschlagen"
-
-# AI Translated
-msgid "This version couldn't be restored. Try again."
-msgstr "Diese Version konnte nicht wiederhergestellt werden. Versuchen Sie es erneut."
 
 # AI Translated
 msgid "Back to Project"
@@ -3171,6 +3165,10 @@ msgid "This project was saved by a newer version of JusPrin. Get the new version
 msgstr "Dieses Projekt wurde mit einer neueren Version von JusPrin gespeichert. Laden Sie die neue Version herunter, um es zu öffnen."
 
 # AI Translated
+msgid "This project is open in another JusPrin window. Close it there, then try again."
+msgstr "Dieses Projekt ist in einem anderen JusPrin-Fenster geöffnet. Schließen Sie es dort und versuchen Sie es dann erneut."
+
+# AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "Das Projekt konnte nicht geöffnet werden. Versuchen Sie es erneut."
 
@@ -3233,6 +3231,23 @@ msgstr "Wenn der Computer mehr als eine Grafikkarte hat, kann es helfen, den Mon
 # AI Translated
 msgid "If the problem remains, close any overlay or screen capture software and try again."
 msgstr "Wenn das Problem weiterhin besteht, schließen Sie alle Overlay- oder Bildschirmaufnahmeprogramme und versuchen Sie es erneut."
+
+# AI Translated
+#, boost-format
+#~ msgid "The request was too large for the %1% service."
+#~ msgstr "Die Anfrage war für den %1%-Dienst zu groß."
+
+# AI Translated
+#~ msgid "Version history unavailable"
+#~ msgstr "Versionsverlauf nicht verfügbar"
+
+# AI Translated
+#~ msgid "Version history couldn't be loaded. Try again."
+#~ msgstr "Der Versionsverlauf konnte nicht geladen werden. Versuchen Sie es erneut."
+
+# AI Translated
+#~ msgid "This version couldn't be restored. Try again."
+#~ msgstr "Diese Version konnte nicht wiederhergestellt werden. Versuchen Sie es erneut."
 
 # AI Translated
 #, boost-format

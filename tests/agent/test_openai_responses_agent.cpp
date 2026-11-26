@@ -942,15 +942,14 @@ TEST_CASE("a failed AI request the person is told about carries what the service
     CHECK_THAT(error->said, !Catch::Matchers::ContainsSubstring("sk-secret"));
 }
 
-TEST_CASE("a chat more than the model takes is too large, before the reply or inside it", "[agent][openai][errors]")
+// The app sizes what it sends, so a chat more than the model takes is ours.
+TEST_CASE("a chat more than the model takes is unexpected, before the reply or inside it", "[agent][openai][errors]")
 {
     SECTION("OpenAI's 400")
     {
         Responses r("openai");
         r.fake->refuse(400, R"({"error":{"message":"Your input exceeds the context window of this model.","type":"invalid_request_error","param":"input","code":"context_length_exceeded"}})");
-        const auto error = r.failure();
-        REQUIRE(error);
-        CHECK(error->code == "request_too_large");
+        CHECK_THROWS_WITH(r.failure(), Catch::Matchers::ContainsSubstring("context_length_exceeded"));
     }
     // OpenRouter ends the stream with response.failed and the cause in error_type.
     SECTION("OpenRouter inside the reply")
@@ -959,18 +958,14 @@ TEST_CASE("a chat more than the model takes is too large, before the reply or in
         r.fake->data(sse(kCreated) + sse(json{{"type", "response.failed"}, {"response", json{
             {"id", "resp_1"}, {"status", "failed"}, {"error", json{{"code", "invalid_prompt"}, {"message", "Context length exceeded"}}},
             {"error_type", "context_length_exceeded"}}}}));
-        const auto error = r.failure();
-        REQUIRE(error);
-        CHECK(error->code == "request_too_large");
+        CHECK_THROWS_WITH(r.failure(), Catch::Matchers::ContainsSubstring("Context length exceeded"));
     }
     // The gateway's own event when the provider says so after the 200.
     SECTION("a JusPrin account inside the reply")
     {
         Responses r("jusprin");
         r.fake->data(sse(kCreated) + sse(json{{"type", "error"}, {"code", "request_too_large"}, {"message", "The request is too large."}}));
-        const auto error = r.failure();
-        REQUIRE(error);
-        CHECK(error->code == "request_too_large");
+        CHECK_THROWS_WITH(r.failure(), Catch::Matchers::ContainsSubstring("request_too_large"));
     }
 }
 

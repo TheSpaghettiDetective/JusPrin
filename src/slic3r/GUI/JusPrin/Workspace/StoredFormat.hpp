@@ -29,9 +29,24 @@ public:
     using std::runtime_error::runtime_error;
 };
 
+// The project is open in another JusPrin window, which holds its lock.
+class ProjectOpenElsewhere : public std::runtime_error
+{
+public:
+    using std::runtime_error::runtime_error;
+};
+
 // The local projects folder could not be read; what() names it and the file
 // system's reason.
 class ProjectsUnreadable : public std::runtime_error
+{
+public:
+    using std::runtime_error::runtime_error;
+};
+
+// The system refused a write in the projects folder; what() names the
+// folder and the system's reason. The person can fix it, so it is not ours.
+class SaveRefused : public std::runtime_error
 {
 public:
     using std::runtime_error::runtime_error;

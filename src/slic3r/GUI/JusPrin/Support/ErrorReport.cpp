@@ -46,9 +46,10 @@ bool reports_automatically()
 
 // The reports waiting for the person, one dialog at a time. A failure that
 // repeats while its dialog is open or waiting adds nothing: the person has one
-// thing to answer. Nor does one they already answered in this run: a failure
-// that comes back each time a window is in front again would otherwise reopen
-// the dialog as soon as it closes, since closing it puts the window in front.
+// thing to answer. Nor does one they already answered or sent in this run: a
+// failure that comes back each time a window is in front again would otherwise
+// reopen the dialog as soon as it closes, since closing it puts the window in
+// front, and with reports sent automatically would be sent each time.
 std::deque<ErrorReport>  g_waiting;
 std::vector<ErrorReport> g_answered;
 bool                     g_showing = false;
@@ -76,6 +77,7 @@ void show_next()
     if (answer.automatically) {
         for (const ErrorReport& waiting : g_waiting)
             sentry_send(waiting, true);
+        g_answered.insert(g_answered.end(), g_waiting.begin(), g_waiting.end());
         g_waiting.clear();
     }
     if (!g_waiting.empty())
@@ -105,13 +107,14 @@ void report_unexpected(std::string doing, std::string error, std::string where, 
     ErrorReport report = make_error_report(std::move(doing), std::move(error), std::move(where), std::move(page_event));
     report.stack = std::move(stack);
     BOOST_LOG_TRIVIAL(error) << "Unexpected error while " << report.doing << ": " << report.error;
-    if (reports_automatically()) {
-        sentry_send(report, true);
-        return;
-    }
     const auto same = [&report](const ErrorReport& asked) { return same_failure(asked, report); };
     if (std::any_of(g_waiting.begin(), g_waiting.end(), same) || std::any_of(g_answered.begin(), g_answered.end(), same))
         return;
+    if (reports_automatically()) {
+        sentry_send(report, true);
+        g_answered.push_back(std::move(report));
+        return;
+    }
     g_waiting.push_back(std::move(report));
     // After the event that failed: the dialog's own loop never runs inside a
     // page's message handler or the main loop's exception hook.

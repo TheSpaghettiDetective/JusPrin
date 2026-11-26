@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-25 17:08-0800\n"
+"POT-Creation-Date: 2026-11-26 08:11-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -358,6 +358,11 @@ msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try ag
 msgstr "A JusPrin-bejelentkezésed lejárt. Jelentkezz be újra a Beállításokban, majd próbáld újra."
 
 # AI Translated
+#. TRN The address is JusPrin's support email; keep it unchanged.
+msgid "This account has been deactivated. If you think this is a mistake, email jusprin-support@obico.io."
+msgstr "Ezt a fiókot letiltották. Ha szerinted ez tévedés, írj a jusprin-support@obico.io címre."
+
+# AI Translated
 msgid "Signing in didn't finish. Nothing was saved. Try again."
 msgstr "A bejelentkezés nem fejeződött be. Semmi sem lett mentve. Próbáld újra."
 
@@ -526,12 +531,6 @@ msgstr "A(z) %1% szolgáltatás korlátozza a kérések számát. Próbáld újr
 #, boost-format
 msgid "The %1% service is having trouble right now. Try again later."
 msgstr "A(z) %1% szolgáltatásnál most problémák vannak. Próbáld újra később."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The request was too large for the %1% service."
-msgstr "A kérés túl nagy volt a(z) %1% szolgáltatás számára."
 
 # AI Translated
 #, boost-format
@@ -1373,6 +1372,13 @@ msgstr "Felhő"
 # AI Translated
 msgid "The printer stopped sending updates."
 msgstr "A nyomtató már nem küld frissítéseket."
+
+# AI Translated
+#. TRN %1% is the printer's address, such as 192.168.1.20. Moonraker is the printer's
+#. software. "Reconnect" is the card's button, which asks for the key.
+#, boost-format
+msgid "Moonraker at %1% refused the app's key. Press Reconnect to enter it."
+msgstr "A(z) %1% címen futó Moonraker elutasította az alkalmazás kulcsát. A megadásához nyomd meg az „Újracsatlakozás” gombot."
 
 # AI Translated
 #, c-format, boost-format
@@ -2566,14 +2572,6 @@ msgid "last finished yesterday"
 msgstr "utolsó nyomtatás: tegnap"
 
 # AI Translated
-msgid "Version history unavailable"
-msgstr "A verzióelőzmények nem érhetők el"
-
-# AI Translated
-msgid "Version history couldn't be loaded. Try again."
-msgstr "A verzióelőzményeket nem sikerült betölteni. Próbáld újra."
-
-# AI Translated
 msgid "Export project 3MF"
 msgstr "Projekt 3MF exportálása"
 
@@ -2596,10 +2594,6 @@ msgstr "Projektverzió visszaállítása"
 # AI Translated
 msgid "Restore failed"
 msgstr "Sikertelen visszaállítás"
-
-# AI Translated
-msgid "This version couldn't be restored. Try again."
-msgstr "Ezt a verziót nem sikerült visszaállítani. Próbáld újra."
 
 # AI Translated
 msgid "Back to Project"
@@ -3178,6 +3172,10 @@ msgid "This project was saved by a newer version of JusPrin. Get the new version
 msgstr "Ezt a projektet a JusPrin egy újabb verziója mentette. A megnyitásához töltsd le az új verziót."
 
 # AI Translated
+msgid "This project is open in another JusPrin window. Close it there, then try again."
+msgstr "Ez a projekt meg van nyitva egy másik JusPrin-ablakban. Zárja be ott, majd próbálja újra."
+
+# AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "A projektet nem sikerült megnyitni. Próbáld újra."
 
@@ -3240,6 +3238,23 @@ msgstr "Ha a számítógépben több grafikus kártya van, segíthet, ha a monit
 # AI Translated
 msgid "If the problem remains, close any overlay or screen capture software and try again."
 msgstr "Ha a probléma továbbra is fennáll, zárj be minden átfedő (overlay) vagy képernyőrögzítő szoftvert, és próbáld újra."
+
+# AI Translated
+#, boost-format
+#~ msgid "The request was too large for the %1% service."
+#~ msgstr "A kérés túl nagy volt a(z) %1% szolgáltatás számára."
+
+# AI Translated
+#~ msgid "Version history unavailable"
+#~ msgstr "A verzióelőzmények nem érhetők el"
+
+# AI Translated
+#~ msgid "Version history couldn't be loaded. Try again."
+#~ msgstr "A verzióelőzményeket nem sikerült betölteni. Próbáld újra."
+
+# AI Translated
+#~ msgid "This version couldn't be restored. Try again."
+#~ msgstr "Ezt a verziót nem sikerült visszaállítani. Próbáld újra."
 
 # AI Translated
 #, boost-format

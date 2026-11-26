@@ -709,17 +709,17 @@ std::optional<AgentEvent> ProviderAgent::poll()
 // stops and the answer is thrown, to be reported with the service's words.
 //
 //   JusPrin account, by the gateway's code: update_required, unauthorized,
-//   credits_exhausted, request_too_large, rate_limited; inside a reply,
-//   request_too_large only.
+//   credits_exhausted, rate_limited; inside a reply, none.
 //   An own key, by what the service names in its answer or in the event that
-//   fails a reply: its account out of credits, the key refused, the chat more
-//   than the model takes, too many requests, and a refusal of what the key,
-//   its account or its settings allow, shown in the service's own words.
+//   fails a reply: its account out of credits, the key refused, too many
+//   requests, and a refusal of what the key, its account or its settings
+//   allow, shown in the service's own words.
 //   No answer at all: the network.
 //   An own key's service failing on its side, by status or inside a reply:
 //   that service, which nobody here can fix.
 //   A model on this computer, by the words of the app that runs it, or, when
 //   the answer is not that app talking at all, the address.
+//   A chat more than the model takes is ours: the app sizes what it sends.
 namespace {
 
 // What a service's error says, wherever it says it: an HTTP body or an error
@@ -770,15 +770,6 @@ bool out_of_credits(unsigned status, const ServiceSays& says)
            says.error_type == "payment_required" || starts_with(says.message, "Your credit balance is too low");
 }
 
-// The chat is more than the model takes: OpenAI's code, OpenRouter's
-// error_type, Anthropic's words for the context window and for too many
-// pictures in one chat.
-bool too_long(unsigned status, const ServiceSays& says)
-{
-    return status == 413 || says.code == "context_length_exceeded" || says.error_type == "context_length_exceeded" ||
-           starts_with(says.message, "prompt is too long") || says.message.find("many-image requests") != std::string::npos;
-}
-
 AgentError provider_out_of_credits(const std::string& name)
 {
     return {"provider_credits_exhausted",
@@ -797,12 +788,6 @@ AgentError provider_unavailable(const std::string& name)
     return {"provider_unavailable",
             // TRN %1% is an AI provider, such as OpenAI. Its service is down or overloaded on its own side.
             Slic3r::format(translated(L("The %1% service is having trouble right now. Try again later.")), name), true};
-}
-
-AgentError too_large(const std::string& name)
-{
-    // TRN %1% is an AI provider, such as OpenAI.
-    return {"request_too_large", Slic3r::format(translated(L("The request was too large for the %1% service.")), name), false};
 }
 
 // The code the gateway's error body names its cause by.
@@ -912,8 +897,6 @@ std::optional<AgentError> ProviderAgent::gateway_answer(const std::string& code,
     // The person sent too many turns in a minute.
     if (code == "rate_limited")
         return rate_limited(name);
-    if (code == "request_too_large")
-        return too_large(name);
     return std::nullopt;
 }
 
@@ -929,8 +912,6 @@ std::optional<AgentError> ProviderAgent::provider_answer(unsigned status, const 
     if (status == 401 || (status == 403 && says.type == "permission_error"))
         // TRN %1% is an AI provider, such as OpenAI.
         return AgentError{"invalid_credentials", Slic3r::format(translated(L("The %1% API key was rejected. Update the AI configuration and try again.")), name), false};
-    if (too_long(status, says))
-        return too_large(name);
     if (status == 429)
         return says.message.empty() ? rate_limited(name) : AgentError{"rate_limited", said_by(name, says.message), true};
     // The service refusing what the person's key, account or settings allow,
@@ -959,10 +940,8 @@ std::optional<AgentError> ProviderAgent::in_reply_answer(const json& answer) con
             return local_refused(m_config.profile.display_name, says.message);
         return std::nullopt;
     }
-    // Inside a reply the gateway names one cause a person can act on: a chat
-    // more than the model takes.
-    const std::string code = service_says(answer).code;
-    return code == "request_too_large" ? gateway_answer(code, answer.dump()) : std::nullopt;
+    // Inside a reply the gateway names no cause a person can act on.
+    return std::nullopt;
 }
 
 std::string ProviderAgent::answer_said(const std::string& answered, const std::string& words) const

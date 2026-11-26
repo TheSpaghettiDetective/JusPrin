@@ -4,6 +4,9 @@
 // run the tool system started.
 
 #include "OrcaWorkspaceAdapter.hpp"
+#include "ProjectAutosave.hpp"
+#include "ProjectVersionStore.hpp"
+#include "slic3r/GUI/JusPrin/Support/SaidBy.hpp"
 
 #include "libslic3r/ExtrusionEntity.hpp"
 #include "libslic3r/Format/STL.hpp"
@@ -29,8 +32,10 @@
 #include <wx/thread.h>
 
 #include <algorithm>
+#include <filesystem>
 #include <map>
 #include <set>
+#include <string>
 
 namespace Slic3r::GUI::JusPrin::Workspace {
 namespace {
@@ -350,6 +355,20 @@ CommandResult OrcaWorkspaceAdapter::export_file(const ExportRequest& request, Ex
     if (CommandResult checked = check_export(request); !checked.succeeded())
         return checked;
     const fs::path path = fs::path(request.path);
+    // The writers below give no reason when the chosen folder refuses them,
+    // and that refusal is the person's to fix. Any other failure is ours.
+    const std::filesystem::path folder(request.kind == "presets" ? path.native() : path.parent_path().native());
+    try {
+        const std::string id = ProjectVersionStore::new_id();
+        probe_writable(folder / std::filesystem::u8path(".jusprin-probe-" + id));
+    } catch (const std::filesystem::filesystem_error& error) {
+        if (!system_refused(error, folder))
+            throw;
+        // In English, as the model reads every tool result; said_by is the
+        // person's language.
+        return CommandResult::failure(WorkspaceError::Refused, std::string(kSystemName) + " refused writing to " + folder.u8string() + ": " +
+                                                                   error.code().message());
+    }
     PartPlateList& plates = m_plater.get_partplate_list();
     const int      index  = plate_index_of(plates, request.plate, m_session);
     result = {};

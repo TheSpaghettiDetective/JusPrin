@@ -4190,13 +4190,14 @@ struct StoredKeysModelSource final : IChatModelSource
         ++lists_asked;
         done(lists == Lists::Listed, {}, lists == Lists::Refused, {});
     }
-    // Whether the server deletes the account when asked.
-    bool server_deletes{false};
-    int  deletes_asked{0};
+    // Whether the server deletes the account when asked, and why not.
+    bool                      server_deletes{false};
+    std::optional<AgentError> refusal;
+    int                       deletes_asked{0};
     void delete_account(DeleteAccountDone done) override
     {
         ++deletes_asked;
-        done(server_deletes);
+        done(server_deletes, server_deletes ? std::nullopt : refusal);
     }
 };
 
@@ -4404,12 +4405,15 @@ TEST_CASE("deleting the account signs out of it once the server has deleted it",
     REQUIRE(providers() == std::vector<std::string>{"jusprin", "openai"});
 
     // A reply running in another window's chat would be left holding the
-    // sign-in: the server is not asked.
+    // sign-in: the server is not asked, and it goes to the top handler as
+    // ours, the page told only that.
     bool reply_running = true;
     harness.host.set_reply_running_elsewhere([&reply_running] { return reply_running; });
-    harness.deliver("delete_account", json::object());
+    CHECK_THROWS_WITH(harness.deliver("delete_account", json::object()),
+                      Catch::Matchers::ContainsSubstring("Delete account was asked while a reply was running"));
     CHECK(source->deletes_asked == 0);
-    CHECK(harness.last_of_type("account_deleted")->at("payload") == json{{"deleted", false}});
+    CHECK(harness.last_of_type("account_deleted")->at("payload") ==
+          json{{"deleted", false}, {"error", {{"code", "unexpected"}, {"message", ""}, {"retryable", false}}}});
     CHECK(providers() == std::vector<std::string>{"jusprin", "openai"});
     reply_running = false;
 
@@ -4419,6 +4423,18 @@ TEST_CASE("deleting the account signs out of it once the server has deleted it",
     CHECK(harness.last_of_type("account_deleted")->at("payload") == json{{"deleted", false}});
     CHECK(setup->stored.count("jusprin") == 1);
     CHECK(providers() == std::vector<std::string>{"jusprin", "openai"});
+
+    // The server refused the sign-in: the page is told why, the sign-in is
+    // marked as ended, and nothing is deleted.
+    source->refusal = AgentError{"invalid_credentials", "Your JusPrin sign-in has ended.", false};
+    harness.deliver("delete_account", json::object());
+    CHECK(harness.last_of_type("account_deleted")->at("payload") ==
+          json{{"deleted", false}, {"error", {{"code", "invalid_credentials"}, {"message", "Your JusPrin sign-in has ended."}, {"retryable", false}}}});
+    const std::vector<json> keys = saved_keys_of(harness);
+    CHECK(keys.front()["provider"] == "jusprin");
+    CHECK(keys.front()["rejected"] == true);
+    CHECK(setup->stored.count("jusprin") == 1);
+    source->refusal.reset();
 
     // Deleted: the account's sign-in goes and the person's own key stays.
     source->server_deletes = true;

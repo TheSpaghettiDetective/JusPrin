@@ -356,6 +356,14 @@
 //              credits and Billing and usage open the server's pages in the
 //              app's sheet, the done address closes it, Delete account signs
 //              out, and signed out the sheet opens Credits and plans as a guest
+//   --account-page-failures
+//              Credits and plans and Delete account with no answer, a 401 and
+//              a 500: the internet sentence, the sign-in sentence, and a report
+//              that closes the sheet; JUSPRIN_SERVER_URL gives the 401
+//   --deactivated-sign-in
+//              needs JUSPRIN_SERVER_URL, JUSPRIN_DEACTIVATED_EMAIL and
+//              JUSPRIN_DEACTIVATED_PASSWORD, a deactivated test account's:
+//              its password sign-in says it is deactivated, reports nothing
 //   --server-sheet-popup [capture-dir]
 //              a pop-up the sheet's page opens, as the checkout opens PayPal's
 //              window, opens in the app's own window with window.opener: it
@@ -404,7 +412,12 @@
 #include <aclapi.h>
 #include <wrl.h>
 #include <wrl/client.h>
+#else
+#include <fcntl.h>
+#include <sys/file.h>
+#include <unistd.h>
 #endif
+#include <wx/filedlg.h>
 
 #include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/Config.hpp"
@@ -420,6 +433,7 @@
 #include "slic3r/GUI/JusPrin/Workspace/PlaterProjectState.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/DialogListeners.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/StoredFormat.hpp"
 #include "slic3r/GUI/GUI_Init.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
@@ -427,6 +441,8 @@
 #include "slic3r/GUI/JusPrin/Agent/ProjectStateDocument.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolExecution.hpp"
 #include "slic3r/GUI/JusPrin/Preferences/PreferencesWindow.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
+#include "slic3r/GUI/JusPrin/Support/SaidBy.hpp"
 #include "slic3r/GUI/Preferences.hpp"
 #include "slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderFactory.hpp"
@@ -463,6 +479,7 @@
 #include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
 #include "slic3r/GUI/JusPrin/Shell/PrinterFilamentChip.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ServerSheet.hpp"
+#include "slic3r/GUI/JusPrin/Agent/CloudAccount.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/JusPrin/Shell/StatusRow.hpp"
 #include "slic3r/GUI/JusPrin/Shell/CheckPrintDialog.hpp"
@@ -554,6 +571,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <exception>
+#include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <functional>
@@ -565,6 +583,7 @@
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <system_error>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -749,14 +768,15 @@ public:
 };
 
 // Takes away this user's access to a folder and everything in it, as a
-// permission change or a storage fault would, until destroyed. POSIX mode
-// bits are not enforced on Windows, so there it denies read and write through
-// the folder's ACL; the read denial matches icacls' "W", which includes
+// permission change or a storage fault would, until destroyed; or, when
+// `readable`, only the right to write there, as a read-only folder. POSIX mode
+// bits are not enforced on Windows, so there it denies access through the
+// folder's ACL; the full denial matches icacls' "W", which includes
 // SYNCHRONIZE and so blocks opening a file for reading as well.
 class UnavailableFolder
 {
 public:
-    explicit UnavailableFolder(std::filesystem::path folder) : m_folder(std::move(folder))
+    explicit UnavailableFolder(std::filesystem::path folder, bool readable = false) : m_folder(std::move(folder))
     {
 #ifdef _WIN32
         PACL original = nullptr;
@@ -766,8 +786,9 @@ public:
         m_original = original;
         EXPLICIT_ACCESSW deny{};
         BuildExplicitAccessWithNameW(&deny, const_cast<LPWSTR>(L"CURRENT_USER"),
-                                     FILE_GENERIC_READ | FILE_GENERIC_WRITE | DELETE | FILE_DELETE_CHILD, DENY_ACCESS,
-                                     SUB_CONTAINERS_AND_OBJECTS_INHERIT);
+                                     readable ? FILE_WRITE_DATA | FILE_APPEND_DATA | FILE_WRITE_EA | DELETE | FILE_DELETE_CHILD
+                                              : FILE_GENERIC_READ | FILE_GENERIC_WRITE | DELETE | FILE_DELETE_CHILD,
+                                     DENY_ACCESS, SUB_CONTAINERS_AND_OBJECTS_INHERIT);
         PACL denied = nullptr;
         if (SetEntriesInAclW(1, &deny, original, &denied) != ERROR_SUCCESS)
             throw std::runtime_error("cannot build the denying access list");
@@ -778,7 +799,10 @@ public:
             throw std::runtime_error("cannot deny access to " + m_folder.string());
 #else
         m_original = std::filesystem::status(m_folder).permissions();
-        std::filesystem::permissions(m_folder, std::filesystem::perms::none, std::filesystem::perm_options::replace);
+        std::filesystem::permissions(m_folder,
+                                     readable ? std::filesystem::perms::owner_read | std::filesystem::perms::owner_exec
+                                              : std::filesystem::perms::none,
+                                     std::filesystem::perm_options::replace);
 #endif
     }
 
@@ -803,6 +827,67 @@ private:
     void* m_original{nullptr};
 #else
     std::filesystem::perms m_original{};
+#endif
+};
+
+// Puts a plain file where a project keeps one of its own folders, as a fault
+// in the app's own bookkeeping would, until destroyed.
+class FileInPlaceOfFolder
+{
+public:
+    explicit FileInPlaceOfFolder(std::filesystem::path folder) : m_folder(std::move(folder))
+    {
+        std::filesystem::remove_all(m_folder);
+        std::ofstream(m_folder, std::ios::binary) << "not a folder";
+    }
+    ~FileInPlaceOfFolder()
+    {
+        std::error_code ignored;
+        std::filesystem::remove(m_folder, ignored);
+        std::filesystem::create_directories(m_folder, ignored);
+    }
+    FileInPlaceOfFolder(const FileInPlaceOfFolder&)            = delete;
+    FileInPlaceOfFolder& operator=(const FileInPlaceOfFolder&) = delete;
+
+private:
+    std::filesystem::path m_folder;
+};
+
+// Holds a saved project's lock, as another JusPrin window that has the
+// project open does, until destroyed.
+class HeldProjectLock
+{
+public:
+    explicit HeldProjectLock(const std::filesystem::path& lock)
+    {
+#ifdef _WIN32
+        m_handle = CreateFileW(lock.wstring().c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+                               OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+        OVERLAPPED overlap{};
+        if (m_handle == INVALID_HANDLE_VALUE || LockFileEx(m_handle, LOCKFILE_EXCLUSIVE_LOCK | LOCKFILE_FAIL_IMMEDIATELY, 0, 1, 0, &overlap) == 0)
+            throw std::runtime_error("cannot hold the project lock " + lock.string());
+#else
+        m_fd = ::open(lock.c_str(), O_CREAT | O_RDWR, 0600);
+        if (m_fd < 0 || ::flock(m_fd, LOCK_EX | LOCK_NB) != 0)
+            throw std::runtime_error("cannot hold the project lock " + lock.string());
+#endif
+    }
+    ~HeldProjectLock()
+    {
+#ifdef _WIN32
+        CloseHandle(m_handle);
+#else
+        ::close(m_fd);
+#endif
+    }
+    HeldProjectLock(const HeldProjectLock&)            = delete;
+    HeldProjectLock& operator=(const HeldProjectLock&) = delete;
+
+private:
+#ifdef _WIN32
+    HANDLE m_handle{INVALID_HANDLE_VALUE};
+#else
+    int m_fd{-1};
 #endif
 };
 
@@ -922,16 +1007,33 @@ private:
     std::thread                    m_thread;
 };
 
-// How many unexpected errors the app has reported in this run.
+// How many unexpected errors the app has reported in this run, or only those
+// it reported while `doing` that.
 // report_unexpected_error logs each one as it is made, before any dialog, and
 // the log is flushed line by line.
-int unexpected_errors_logged()
+int unexpected_errors_logged(const std::string& doing = {})
+{
+    const std::string line = "Unexpected error while " + doing;
+    int count = 0;
+    for (const auto& entry : fs::directory_iterator(fs::path(data_dir()) / "log")) {
+        std::ifstream     file(entry.path().string(), std::ios::binary);
+        const std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        for (std::size_t at = text.find(line); at != std::string::npos; at = text.find(line, at + 1))
+            ++count;
+    }
+    return count;
+}
+
+// How many error reports the app tried to send in this run. A test build
+// starts no Sentry SDK, so each send stops at one log line instead.
+int error_reports_sent()
 {
     int count = 0;
     for (const auto& entry : fs::directory_iterator(fs::path(data_dir()) / "log")) {
         std::ifstream     file(entry.path().string(), std::ios::binary);
         const std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-        for (std::size_t at = text.find("Unexpected error while"); at != std::string::npos; at = text.find("Unexpected error while", at + 1))
+        for (std::size_t at = text.find("could not send an error report"); at != std::string::npos;
+             at = text.find("could not send an error report", at + 1))
             ++count;
     }
     return count;
@@ -1033,6 +1135,13 @@ public:
         std::lock_guard<std::mutex> lock(m_mutex);
         m_mmu = std::move(status);
     }
+    // Every request is refused with 401, as Moonraker answers a key it does
+    // not accept.
+    void set_refuse_key(bool refuse)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_refuse_key = refuse;
+    }
     int requests(const std::string& path_prefix) const
     {
         std::lock_guard<std::mutex> lock(m_mutex);
@@ -1063,7 +1172,10 @@ private:
             {
                 std::lock_guard<std::mutex> lock(m_mutex);
                 m_paths.push_back(path);
-                if (path.rfind("/server/info", 0) == 0) {
+                if (m_refuse_key) {
+                    status = 401;
+                    body   = R"({"error":{"code":401,"message":"Unauthorized"}})";
+                } else if (path.rfind("/server/info", 0) == 0) {
                     body = R"({"result":{"klippy_state":"ready","moonraker_version":"harness"}})";
                 } else if (path.rfind("/server/database/item?namespace=lane_data", 0) == 0) {
                     if (m_lane_data.empty()) {
@@ -1080,7 +1192,7 @@ private:
                     body   = R"({"error":{"code":404,"message":"Not Found"}})";
                 }
             }
-            const std::string reply = "HTTP/1.1 " + std::to_string(status) + (status == 200 ? " OK" : " Not Found") +
+            const std::string reply = "HTTP/1.1 " + std::to_string(status) + (status == 200 ? " OK" : status == 401 ? " Unauthorized" : " Not Found") +
                                       "\r\nContent-Type: application/json\r\nContent-Length: " + std::to_string(body.size()) +
                                       "\r\nConnection: close\r\n\r\n" + body;
             boost::asio::write(socket, boost::asio::buffer(reply), error);
@@ -1094,6 +1206,7 @@ private:
     mutable std::mutex             m_mutex;
     std::string                    m_lane_data;
     std::string                    m_mmu;
+    bool                           m_refuse_key{false};
     std::vector<std::string>       m_paths;
     std::thread                    m_thread;
 };
@@ -1652,6 +1765,8 @@ struct HarnessState
         ServerSheetPopup,
         PrinterChatSheet,
         DeleteAccountWaits,
+        AccountPageFailures,
+        DeactivatedSignIn,
         OrcaImportCancel,
         PrinterWindow,
         RemoveKeyFails,
@@ -2276,6 +2391,14 @@ public:
             }
             if (m_state->mode == HarnessState::Mode::DeleteAccountWaits) {
                 verify_delete_account_waits();
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::AccountPageFailures) {
+                verify_account_page_failures();
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::DeactivatedSignIn) {
+                verify_deactivated_sign_in();
                 return;
             }
             if (m_state->mode == HarnessState::Mode::OrcaImportCancel) {
@@ -2943,16 +3066,27 @@ private:
         // is reported, and the report's window is the only one they see.
         // Here the object goes away while its menu is open in the pane, as
         // when the AI deletes it, and the person then presses Printable.
-        pane->snapshot();
-        if (const auto row = std::find_if(pane->rows().begin(), pane->rows().end(),
+        struct FailedAction
+        {
+            bool                     menu_open{false};
+            int                      reported{0};
+            int                      sent{0};
+            std::vector<std::string> seen;
+        };
+        const auto fail_printable = [this, pane, workspace, pane_menu]() {
+            FailedAction result;
+            pane->snapshot();
+            const auto row = std::find_if(pane->rows().begin(), pane->rows().end(),
                                           [](const PaneRow& candidate) { return candidate.kind == PaneRow::Kind::Object; });
-            row != pane->rows().end()) {
+            if (row == pane->rows().end())
+                return result;
             const PaneRow object = *row;
             pane->open_row_menu(object);
             HeaderMenu* open_menu = pane_menu();
             wxWindow*   printable = open_menu != nullptr ? wxWindow::FindWindowByName(_L("Printable"), open_menu) : nullptr;
-            check(printable != nullptr, "left_pane_failed_action_menu_is_open");
+            result.menu_open = printable != nullptr;
             const int   reported_before = unexpected_errors_logged();
+            const int   sent_before     = error_reports_sent();
             SeenDialogs seen;
             check(workspace->remove_object(object.object).succeeded(), "left_pane_failed_action_object_goes_away");
             if (printable != nullptr) {
@@ -2962,15 +3096,20 @@ private:
             }
             // The row runs after the menu closes, and the report's window
             // opens after that.
-            wait_for([&] { return !seen.shown.empty(); }, std::chrono::seconds(5));
+            wait_for([&] { return unexpected_errors_logged() > reported_before && !seen.shown.empty(); }, std::chrono::seconds(5));
             wait_for([] { return false; }, std::chrono::milliseconds(500));
-            check(unexpected_errors_logged() == reported_before + 1, "left_pane_failed_action_is_reported");
-            check(seen.shown.size() == 1 && seen.shown.front().find("Something went wrong on our side") != std::string::npos,
-                  "left_pane_failed_action_shows_only_the_report_window");
+            result.reported = unexpected_errors_logged() - reported_before;
+            result.sent     = error_reports_sent() - sent_before;
+            result.seen     = seen.shown;
             check(workspace->undo().succeeded(), "left_pane_failed_action_object_comes_back");
             pane->refresh_from_workspace();
-        } else
-            check(false, "left_pane_failed_action_fixture_object");
+            return result;
+        };
+        const FailedAction asked = fail_printable();
+        check(asked.menu_open, "left_pane_failed_action_menu_is_open");
+        check(asked.reported == 1, "left_pane_failed_action_is_reported");
+        check(asked.seen.size() == 1 && asked.seen.front().find("Something went wrong on our side") != std::string::npos,
+              "left_pane_failed_action_shows_only_the_report_window");
 
         // The JusPrin view never shows OrcaSlicer's Preview page (Check print is
         // a window of its own): a switch to it is refused, and the pane stays.
@@ -2983,6 +3122,19 @@ private:
         wxYield();
         check(pane->IsShown() && left_divider->IsShown(), "left_pane_and_resize_handle_return_with_prepare");
         window_shot("back-on-prepare");
+
+        // The same failure again, with reports sent automatically: it was
+        // already asked about in this run, so nothing more is sent, and
+        // nothing is shown.
+        wxGetApp().app_config->set_bool(kReportErrorsKey, true);
+        const FailedAction second = fail_printable();
+        const FailedAction third  = fail_printable();
+        wxGetApp().app_config->set_bool(kReportErrorsKey, false);
+        std::cerr << "HARNESS REPEATED FAILURE logged " << second.reported << "+" << third.reported << ", sent "
+                  << second.sent << "+" << third.sent << ", dialogs " << second.seen.size() << "+" << third.seen.size() << '\n';
+        check(second.reported == 1 && third.reported == 1, "left_pane_repeated_failure_is_logged_each_time");
+        check(second.sent == 0 && third.sent == 0 && second.seen.empty() && third.seen.empty(),
+              "left_pane_repeated_failure_is_not_sent_again");
 
         capture_figma_plate_states(pane);
         finish();
@@ -3958,6 +4110,9 @@ private:
                 result.push_back(version.id);
             return result;
         };
+        // What the person is shown while saving fails, and what is reported.
+        auto seen          = std::make_shared<SeenDialogs>();
+        const int reported = unexpected_errors_logged();
         auto folder = std::make_shared<UnavailableFolder>(std::filesystem::path(data_dir()) / "jusprin" / "projects" /
                                                           persistence().document().project_id());
         auto& host = installed_shell()->agent_pane()->web_view().host();
@@ -3986,7 +4141,20 @@ private:
         const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(8);
         auto saved_while_unavailable = std::make_shared<bool>(false);
         wait_until([until] { return std::chrono::steady_clock::now() >= until; }, "unavailable_storage_retry_window",
-                   [self = shared_from_this(), autosave, folder, saved, saved_head, saved_while_unavailable, ids]() mutable {
+                   [self = shared_from_this(), autosave, folder, saved, saved_head, saved_while_unavailable, ids, seen,
+                    reported]() mutable {
+            // The system refused the save: it says why, once, in its own
+            // words, and nothing is reported. The retries say nothing more.
+            std::cerr << "HARNESS AUTOSAVE REFUSED error '" << autosave->error() << "', reported "
+                      << unexpected_errors_logged() - reported << ", dialogs:";
+            for (const std::string& shown : seen->shown)
+                std::cerr << " '" << shown << "'";
+            std::cerr << '\n';
+            self->check(seen->shown.size() == 1 &&
+                            seen->shown.front().rfind(std::string(_L("Couldn't save").ToUTF8()) + " | " + std::string(kSystemName) + " says: ", 0) == 0,
+                        "unavailable_storage_says_once_in_the_systems_words");
+            self->check(unexpected_errors_logged() == reported, "unavailable_storage_is_not_reported");
+            seen.reset();
             self->check(!*saved_while_unavailable && autosave->state() == Workspace::ProjectAutosave::State::Failed &&
                             autosave->current_version() == saved_head,
                         "unavailable_storage_edit_stays_unsaved_and_reported");
@@ -4074,8 +4242,417 @@ private:
                         "unavailable_projects_folder_lists_again");
             self->wait_for_home_projects([](const nlohmann::json& page) { return page.value("cards", 0) >= 1; },
                                          "unavailable_projects_folder_home_shows_the_project_again",
-                                         [self] { self->finish(); });
+                                         [self] { self->verify_project_open_failures(); });
         });
+    }
+
+    // Sends Home a message as its page does, through the web view's own
+    // handler, which reports what fails.
+    void send_home_message(const std::string& type, const nlohmann::json& payload)
+    {
+        wxWebView*     view = installed_shell()->home_view()->webview();
+        wxWebViewEvent event(wxEVT_WEBVIEW_SCRIPT_MESSAGE_RECEIVED, view->GetId(), wxString(), wxString());
+        event.SetEventObject(view);
+        event.SetString(wxString::FromUTF8(
+            nlohmann::json{{"protocol", "jusprin-home-bridge"}, {"type", type}, {"id", "harness"}, {"payload", payload}}.dump()));
+        view->GetEventHandler()->ProcessEvent(event);
+    }
+
+    // What one attempt showed the person, and how many unexpected errors it
+    // logged.
+    struct Attempt
+    {
+        std::vector<std::string> seen;
+        int                      reported{0};
+    };
+
+    static Attempt attempt(const std::string& name, const std::function<void()>& act)
+    {
+        Attempt     result;
+        const int   before = unexpected_errors_logged();
+        SeenDialogs seen;
+        act();
+        // A report's window opens after the event that failed.
+        wait_for([&] { return !seen.shown.empty(); }, std::chrono::seconds(5));
+        wait_for([] { return false; }, std::chrono::milliseconds(300));
+        result.seen     = seen.shown;
+        result.reported = unexpected_errors_logged() - before;
+        std::cerr << "HARNESS ATTEMPT " << name << " logged " << result.reported << " unexpected, dialogs:";
+        for (const std::string& shown : result.seen)
+            std::cerr << " '" << shown << "'";
+        std::cerr << '\n';
+        return result;
+    }
+
+    static bool only_dialog(const Attempt& attempt, const wxString& title, const std::string& starts)
+    {
+        return attempt.seen.size() == 1 && attempt.seen.front().rfind(std::string(title.ToUTF8()) + " | " + starts, 0) == 0;
+    }
+
+    static bool only_report_window(const Attempt& attempt)
+    {
+        return attempt.seen.size() == 1 && attempt.seen.front().find("Something went wrong on our side") != std::string::npos;
+    }
+
+    // Opening a saved project from Home that cannot be opened: the person is
+    // told why when it is theirs to fix, and a project the app cannot read
+    // is reported.
+    void verify_project_open_failures()
+    {
+        const std::string saved_id = persistence().document().project_id();
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "open_failures_start_another_project");
+        wait_until([self = shared_from_this(), saved_id] { return self->persistence().document().project_id() != saved_id; },
+                   "open_failures_other_project_settled", [self = shared_from_this(), saved_id] {
+            const std::filesystem::path folder  = std::filesystem::path(data_dir()) / "jusprin" / "projects" / saved_id;
+            const std::string           current = self->persistence().document().project_id();
+            const auto open = [self, saved_id] { self->send_home_message("open_project", {{"id", saved_id}}); };
+            const auto stayed = [self, current] { return self->persistence().document().project_id() == current; };
+            {
+                HeldProjectLock held(folder / "lock");
+                const Attempt elsewhere = attempt("open_elsewhere", open);
+                self->check(stayed() && elsewhere.reported == 0 &&
+                                only_dialog(elsewhere, _L("Couldn't open project"),
+                                            std::string(_L("This project is open in another JusPrin window. Close it there, then try again.").ToUTF8())),
+                            "open_failures_project_open_elsewhere_says_so");
+            }
+            {
+                UnavailableFolder unavailable(folder);
+                const Attempt refused = attempt("open_refused", open);
+                self->check(stayed() && refused.reported == 0 &&
+                                only_dialog(refused, _L("Couldn't open project"), std::string(kSystemName) + " says: "),
+                            "open_failures_system_refusal_in_its_words");
+            }
+            {
+                const std::filesystem::path head = folder / "HEAD";
+                std::string                 kept;
+                {
+                    std::ifstream in(head, std::ios::binary);
+                    kept.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+                }
+                std::ofstream(head, std::ios::binary | std::ios::trunc) << "not a project head";
+                const Attempt damaged = attempt("open_damaged", open);
+                std::ofstream(head, std::ios::binary | std::ios::trunc) << kept;
+                self->check(stayed() && damaged.reported == 1 && only_report_window(damaged), "open_failures_damaged_project_is_reported");
+            }
+            {
+                // The file system answers, but about the project's own
+                // bookkeeping, which the person cannot fix: ours.
+                FileInPlaceOfFolder broken(folder / "materialized");
+                const Attempt own = attempt("open_own_folder_broken", open);
+                self->check(stayed() && own.reported == 1 && only_report_window(own), "open_failures_own_folder_fault_is_reported");
+            }
+            open();
+            self->check(self->persistence().document().project_id() == saved_id, "open_failures_project_opens_afterwards");
+            self->m_frame->select_tab(TAB_ID_PREPARE);
+            self->wait_until_settled("open_failures_prepare_settled", [self] { self->verify_export_failures(); });
+        });
+    }
+
+    // Answers Export project 3MF's save dialog with `destination`.
+    static std::unique_ptr<Workspace::ScopedDialogListener> choose_export(const std::filesystem::path& destination)
+    {
+        return std::make_unique<Workspace::ScopedDialogListener>(
+            [destination](wxWindow& dialog, const Workspace::DialogFacts&) -> std::optional<int> {
+                auto* file = dynamic_cast<wxFileDialog*>(&dialog);
+                if (file == nullptr)
+                    return std::nullopt;
+                file->SetPath(wxString(destination.wstring()));
+                return wxID_OK;
+            });
+    }
+
+    // Runs a row of the header's overflow menu as a click does.
+    void press_overflow_row(const wxString& label)
+    {
+        installed_shell()->status_row()->show_overflow_menu();
+        HeaderMenu* menu = visible_header_menu();
+        wxWindow*   row  = menu != nullptr ? wxWindow::FindWindowByName(label, menu) : nullptr;
+        check(row != nullptr, "overflow_row_present");
+        if (row == nullptr)
+            return;
+        wxCommandEvent press(wxEVT_BUTTON, row->GetId());
+        press.SetEventObject(row);
+        row->GetEventHandler()->ProcessEvent(press);
+    }
+
+    // Export project 3MF: a folder the system will not write into is the
+    // person's to fix, and the system says why.
+    void verify_export_failures()
+    {
+        const std::filesystem::path folder = std::filesystem::path(data_dir()) / "export-target";
+        std::filesystem::create_directories(folder);
+        const wxString export_row = _L("Export project 3MF…");
+        {
+            UnavailableFolder unavailable(folder);
+            const auto        chosen  = choose_export(folder / "refused.3mf");
+            const Attempt     refused = attempt("export_refused", [this, export_row] { press_overflow_row(export_row); });
+            check(refused.reported == 0 && only_dialog(refused, _L("Export failed"), std::string(kSystemName) + " says: ") &&
+                      refused.seen.front().find(folder.u8string()) != std::string::npos,
+                  "export_refused_folder_in_the_systems_words");
+        }
+        {
+            const auto    chosen = choose_export(folder / "named.txt");
+            const Attempt named  = attempt("export_not_3mf", [this, export_row] { press_overflow_row(export_row); });
+            check(named.reported == 0 && only_dialog(named, _L("Export failed"), std::string(_L("The project couldn't be exported. Try again.").ToUTF8())),
+                  "export_without_3mf_name_is_not_reported");
+        }
+        {
+            const auto    chosen = choose_export(folder / "copy.3mf");
+            const Attempt copied = attempt("export_ok", [this, export_row] { press_overflow_row(export_row); });
+            check(copied.seen.empty() && copied.reported == 0 && std::filesystem::exists(folder / "copy.3mf"), "export_writes_the_copy");
+        }
+        {
+            // The name's ending is a 3MF's whatever its case.
+            const auto    chosen = choose_export(folder / "upper.3MF");
+            const Attempt copied = attempt("export_upper_case", [this, export_row] { press_overflow_row(export_row); });
+            check(copied.seen.empty() && copied.reported == 0 && std::filesystem::exists(folder / "upper.3MF"),
+                  "export_upper_case_3mf_writes_the_copy");
+        }
+        verify_refusals_after_recovery();
+    }
+
+    // Saving refused again after it recovered: the person is told again, once,
+    // whichever save met the refusal first; dropping setting changes then
+    // says why instead of reporting; and a restore whose own writes the
+    // system refuses says so in the system's words.
+    void verify_refusals_after_recovery()
+    {
+        auto* autosave = installed_shell()->autosave();
+        const std::filesystem::path project = std::filesystem::path(data_dir()) / "jusprin" / "projects" /
+                                              persistence().document().project_id();
+        auto       folder   = std::make_shared<UnavailableFolder>(project);
+        auto       seen     = std::make_shared<SeenDialogs>();
+        const int  reported = unexpected_errors_logged();
+        check(m_plater->rename_object(0, "Edited before Save"), "refused_again_edit_applied");
+        // The save File > Save makes, refused; nothing here shows it.
+        bool save_refused = false;
+        try {
+            autosave->pin_current();
+        } catch (const Workspace::SaveRefused&) {
+            save_refused = true;
+        }
+        check(save_refused, "refused_again_save_command_refused");
+        const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+        wait_until([until] { return std::chrono::steady_clock::now() >= until; }, "refused_again_window",
+                   [self = shared_from_this(), autosave, folder, seen, reported]() mutable {
+            std::cerr << "HARNESS REFUSED AGAIN logged " << unexpected_errors_logged() - reported << " unexpected, dialogs:";
+            for (const std::string& shown : seen->shown)
+                std::cerr << " '" << shown << "'";
+            std::cerr << '\n';
+            self->check(seen->shown.size() == 1 &&
+                            seen->shown.front().rfind(std::string(_L("Couldn't save").ToUTF8()) + " | " + std::string(kSystemName) + " says: ", 0) == 0 &&
+                            unexpected_errors_logged() == reported,
+                        "refused_again_after_recovery_says_once");
+            seen.reset();
+            // Starting another project drops the setting changes on the
+            // profile only after a version keeps them.
+            const std::string id      = self->persistence().document().project_id();
+            const Attempt     dropped = attempt("drop_changes_refused", [self] { self->m_plater->new_project(true, true); });
+            self->check(self->persistence().document().project_id() == id && dropped.reported == 0 &&
+                            only_dialog(dropped, _L("Couldn't save"), std::string(kSystemName) + " says: "),
+                        "drop_changes_refused_says_why");
+            folder.reset();
+            self->wait_until([autosave] { return autosave->state() == Workspace::ProjectAutosave::State::Saved; },
+                             "refused_again_saving_resumes", [self] { self->verify_restore_refused_after_saving(); });
+        });
+    }
+
+    // The current model saved, a write of the restore itself is refused:
+    // the folder the chosen version is unpacked into.
+    void verify_restore_refused_after_saving()
+    {
+        const std::filesystem::path project = std::filesystem::path(data_dir()) / "jusprin" / "projects" /
+                                              persistence().document().project_id();
+        LeftPane* pane = installed_shell()->left_pane();
+        if (installed_shell()->is_left_pane_collapsed()) {
+            installed_shell()->toggle_left_pane();
+            wxYield();
+        }
+        pane->show_project();
+        pane->snapshot();
+        click_pane(pane, pane->action_rect(_L("Version history")));
+        wxYield();
+        pane->snapshot();
+        std::optional<wxString> restore;
+        for (const wxString& label : pane->action_labels())
+            if (label.StartsWith(_L("Restore") + " ")) {
+                restore = label;
+                break;
+            }
+        check(restore.has_value(), "restore_refused_row_present");
+        if (restore) {
+            auto unpacked = std::make_unique<UnavailableFolder>(project / "materialized");
+            pane->set_restore_confirmation([] { return true; });
+            const Attempt restored = attempt("restore_refused", [this, pane, label = *restore] { click_pane(pane, pane->action_rect(label)); });
+            pane->set_restore_confirmation({});
+            unpacked.reset();
+            check(restored.reported == 0 && only_dialog(restored, _L("Restore failed"), std::string(kSystemName) + " says: "),
+                  "restore_refused_after_saving_in_the_systems_words");
+        }
+        auto* autosave = installed_shell()->autosave();
+        wait_until([autosave] { return autosave->state() == Workspace::ProjectAutosave::State::Saved; },
+                   "restore_refused_saving_resumes", [self = shared_from_this()] { self->verify_read_only_project_folder(); });
+    }
+
+    // A project folder that can be read but not written, with nothing left to
+    // save: File > Save only writes which version is kept, and the system
+    // refuses that write. The person is told why in the system's words, once,
+    // and nothing is reported.
+    void verify_read_only_project_folder()
+    {
+        const std::filesystem::path project = std::filesystem::path(data_dir()) / "jusprin" / "projects" /
+                                              persistence().document().project_id();
+        auto           folder = std::make_shared<UnavailableFolder>(project, true);
+        AppMenus*      menus  = installed_shell()->app_menus();
+        wxMenuItem*    save   = menus != nullptr ? labelled(menus->file_menu(), _L("Save")) : nullptr;
+        check(save != nullptr, "read_only_folder_save_command_present");
+        if (save == nullptr)
+            return finish();
+        const Attempt saved = attempt("read_only_folder_save", [menus, save] { menus->file_menu()->SendEvent(save->GetId()); });
+        // The retries of the next few seconds say nothing more.
+        const Attempt later = attempt("read_only_folder_retries", [] {});
+        check(saved.reported == 0 && later.reported == 0 && later.seen.empty() &&
+                  only_dialog(saved, _L("Couldn't save"), std::string(kSystemName) + " says: "),
+              "read_only_folder_save_in_the_systems_words");
+        folder.reset();
+        auto* autosave = installed_shell()->autosave();
+        check(autosave->pin_current().has_value(), "read_only_folder_save_works_again");
+        wait_until([autosave] { return autosave->state() == Workspace::ProjectAutosave::State::Saved; },
+                   "read_only_folder_saving_resumes", [self = shared_from_this()] { self->verify_own_folder_fault_while_saving(); });
+    }
+
+    // A save the file system fails about the project's own bookkeeping, not
+    // a refusal to write: ours, reported, never shown as the system's words.
+    // Its retries name a new version folder each time; the report window
+    // still opens once while saving keeps failing, and once again for a later
+    // fault after a save succeeded.
+    struct FaultWatch
+    {
+        std::shared_ptr<SeenDialogs> seen = std::make_shared<SeenDialogs>();
+        int                          logged{unexpected_errors_logged()};
+        bool                         said_saved{false};
+        int windows() const
+        {
+            return int(std::count_if(seen->shown.begin(), seen->shown.end(), [](const std::string& shown) {
+                return shown.find("Something went wrong on our side") != std::string::npos;
+            }));
+        }
+        bool said_by_system() const
+        {
+            return std::any_of(seen->shown.begin(), seen->shown.end(),
+                               [](const std::string& shown) { return shown.find(" says: ") != std::string::npos; });
+        }
+    };
+
+    // `windows` is how many report windows the fault opens: a later fault the
+    // report shows the same way was already asked about in this run.
+    void watch_own_folder_fault(const std::string& name, const std::string& edit, std::chrono::seconds length, int windows,
+                                std::function<void()> then)
+    {
+        auto* autosave = installed_shell()->autosave();
+        auto  broken   = std::make_shared<FileInPlaceOfFolder>(std::filesystem::path(data_dir()) / "jusprin" / "projects" /
+                                                            persistence().document().project_id() / "pending");
+        auto watch = std::make_shared<FaultWatch>();
+        check(m_plater->rename_object(0, edit), name + "_edit_applied");
+        const auto until = std::chrono::steady_clock::now() + length;
+        wait_until([until] { return std::chrono::steady_clock::now() >= until; }, name + "_window",
+                   [self = shared_from_this(), autosave, broken, watch, name, windows, then]() mutable {
+            std::cerr << "HARNESS AUTOSAVE OWN FOLDER " << name << " error '" << autosave->error() << "', logged "
+                      << unexpected_errors_logged() - watch->logged << " unexpected, " << watch->windows()
+                      << " report windows, said Saved " << watch->said_saved << ", dialogs " << watch->seen->shown.size() << '\n';
+            self->check(autosave->state() == Workspace::ProjectAutosave::State::Failed && !watch->said_saved &&
+                            installed_shell()->status_row()->project_summary().BeforeFirst('\n').EndsWith(wxGetTranslation("Couldn't save")),
+                        name + "_header_says_couldnt_save");
+            self->check(unexpected_errors_logged() - watch->logged == 1 && watch->windows() == windows && !watch->said_by_system(),
+                        name + "_reported_once");
+            watch->seen.reset();
+            broken.reset();
+            self->wait_until([autosave] { return autosave->state() == Workspace::ProjectAutosave::State::Saved; },
+                             name + "_saving_resumes", then);
+        }, [watch] {
+            watch->said_saved |= installed_shell()->status_row()->project_summary().BeforeFirst('\n').EndsWith(wxGetTranslation("Saved"));
+        });
+    }
+
+    void verify_own_folder_fault_while_saving()
+    {
+        watch_own_folder_fault("own_folder_fault", "Edited while pending is broken", std::chrono::seconds(12), 1,
+                               [self = shared_from_this()] {
+            self->watch_own_folder_fault("own_folder_fault_again", "Edited while pending is broken again", std::chrono::seconds(6), 0,
+                                         [self] { self->verify_saves_that_fail_on_our_side(); });
+        });
+    }
+
+    // A save that fails for a reason the system did not give, here a
+    // version's object the project folder lost: it is ours. The header says
+    // it couldn't save and never "Saved", it is reported once, and an
+    // export or a restore that needs that save is reported too.
+    void verify_saves_that_fail_on_our_side()
+    {
+        auto*             autosave = installed_shell()->autosave();
+        const std::string cube     = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+        check(m_plater->load_files(std::vector<boost::filesystem::path>{cube},
+                                   LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1 &&
+                  autosave->save_now(),
+              "ours_second_object_saved");
+        const std::filesystem::path resources =
+            std::filesystem::path(data_dir()) / "jusprin" / "projects" / persistence().document().project_id() / "resources";
+        for (const auto& entry : std::filesystem::directory_iterator(resources))
+            std::filesystem::remove(entry.path());
+        auto      seen     = std::make_shared<SeenDialogs>();
+        auto      said     = std::make_shared<bool>(false);
+        const int reported = unexpected_errors_logged();
+        check(m_plater->rename_object(1, "Edited after the loss"), "ours_edit_applied");
+        const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(8);
+        wait_until([until] { return std::chrono::steady_clock::now() >= until; }, "ours_retry_window",
+                   [self = shared_from_this(), autosave, seen, said, reported]() mutable {
+            std::cerr << "HARNESS AUTOSAVE OURS error '" << autosave->error() << "', logged "
+                      << unexpected_errors_logged() - reported << " unexpected, said Saved " << *said << ", dialogs:";
+            for (const std::string& shown : seen->shown)
+                std::cerr << " '" << shown << "'";
+            std::cerr << '\n';
+            self->check(autosave->state() == Workspace::ProjectAutosave::State::Failed && !*said &&
+                            installed_shell()->status_row()->project_summary().BeforeFirst('\n').EndsWith(wxGetTranslation("Couldn't save")),
+                        "ours_header_says_couldnt_save_never_saved");
+            self->check(unexpected_errors_logged() > reported && seen->shown.size() == 1 &&
+                            seen->shown.front().find("Something went wrong on our side") != std::string::npos,
+                        "ours_save_failure_reported_once");
+            seen.reset();
+            const auto    chosen   = choose_export(std::filesystem::path(data_dir()) / "export-target" / "ours.3mf");
+            const Attempt exported = attempt("export_ours", [self] { self->press_overflow_row(_L("Export project 3MF…")); });
+            self->check(only_report_window(exported), "ours_export_is_reported");
+            self->verify_restore_fails_on_our_side();
+        }, [said] {
+            *said |= installed_shell()->status_row()->project_summary().BeforeFirst('\n').EndsWith(wxGetTranslation("Saved"));
+        });
+    }
+
+    void verify_restore_fails_on_our_side()
+    {
+        LeftPane* pane = installed_shell()->left_pane();
+        if (installed_shell()->is_left_pane_collapsed()) {
+            installed_shell()->toggle_left_pane();
+            wxYield();
+        }
+        pane->show_project();
+        pane->snapshot();
+        click_pane(pane, pane->action_rect(_L("Version history")));
+        wxYield();
+        pane->snapshot();
+        std::optional<wxString> restore;
+        for (const wxString& label : pane->action_labels())
+            if (label.StartsWith(_L("Restore") + " ")) {
+                restore = label;
+                break;
+            }
+        check(restore.has_value(), "ours_restore_row_present");
+        if (restore) {
+            pane->set_restore_confirmation([] { return true; });
+            const Attempt restored = attempt("restore_ours", [this, pane, label = *restore] { click_pane(pane, pane->action_rect(label)); });
+            pane->set_restore_confirmation({});
+            check(only_report_window(restored), "ours_restore_is_reported");
+        }
+        finish();
     }
 
     nlohmann::json m_home_projects;
@@ -5042,6 +5619,9 @@ private:
                                                persistence().document().project_id() / "pending";
         const Agent::ToolActivity* unsaved = nullptr;
         const int                  reported_before = unexpected_errors_logged();
+        // The system refusing the save is the person's: it says why in a
+        // window of its own, which is answered here.
+        SeenDialogs seen;
         {
             UnavailableFolder folder(pending);
             unsaved = call_in_panel(named, "printer_change", {{"printerName", named}, {"nozzle", 0.4}}, "nozzle_panel_unsaved");
@@ -5050,7 +5630,7 @@ private:
         // tool's own result; the app's timers find nothing else to report.
         check(unexpected_errors_logged() == reported_before, "nozzle_panel_unsaved_reports_no_unexpected_error");
         check(unsaved != nullptr && unsaved->state == Agent::ToolState::Failed && unsaved->error &&
-                  unsaved->error->code == "local_save_failed" && parent() == "Bambu Lab X1 Carbon 0.6 nozzle" &&
+                  unsaved->error->code == "refused" && parent() == "Bambu Lab X1 Carbon 0.6 nozzle" &&
                   printers.get_edited_preset().config.opt_string("printer_notes") == "kept",
               "nozzle_panel_change_runs_nothing_when_the_project_cannot_be_saved");
         printers.discard_current_changes();
@@ -7127,6 +7707,26 @@ private:
             check(saved_now().connected && saved_now().spools.empty(), "host_lanes_conversation_reads_no_unit_as_nothing");
             check(host.requests("/server/database/item") >= 4 && host.requests("/printer/objects/query") >= 2,
                   "host_lanes_both_sources_are_read");
+
+            // Moonraker refuses the app's key, as it does once its key is
+            // changed: the card says so, and Reconnect is where to enter it.
+            host.set_refuse_key(true);
+            const bool locked_out = wait_for([&] {
+                const auto read = card();
+                return read && read->status == Home::PrinterStatus::NotConnected;
+            }, PrinterSetup::kConnectionWait + 20s);
+            const auto locked = card();
+            std::cout << "HARNESS host lanes key refused: " << (locked ? locked->message : "(no card)") << std::endl;
+            check(locked_out &&
+                      locked->message == "Moonraker at " + address.substr(address.find("://") + 3) +
+                                             " refused the app's key. Press Reconnect to enter it." &&
+                      locked->action == Home::PrinterAction::Reconnect,
+                  "host_lanes_refused_key_says_so");
+            host.set_refuse_key(false);
+            check(wait_for([&] {
+                const auto read = card();
+                return read && read->status == Home::PrinterStatus::Connected;
+            }, 25s), "host_lanes_accepted_key_connects_again");
         }
 
         // The host stops answering: Offline once its last answer is stale,
@@ -16229,21 +16829,27 @@ private:
         const auto original_permissions = std::filesystem::status(pending).permissions();
         std::filesystem::permissions(pending, std::filesystem::perms::owner_read | std::filesystem::perms::owner_exec,
                                      std::filesystem::perm_options::replace);
-        const bool refused = !installed_shell()->autosave()->save_now();
+        bool refused = false;
+        try {
+            installed_shell()->autosave()->save_now();
+        } catch (const Workspace::SaveRefused&) {
+            refused = true;
+        }
         check(refused && installed_shell()->autosave()->state() == Workspace::ProjectAutosave::State::Failed,
               "failed_autosave_is_visible");
         check(installed_shell()->status_row()->project_summary().BeforeFirst('\n').EndsWith(wxGetTranslation("Couldn't save")),
               "failed_autosave_has_plain_status_text");
         {
-            // The same rule as a profile switch: no version, no close, and the
-            // failure is reported as unexpected. Its window opens after the
-            // close's event.
+            // The same rule as a profile switch: no version, no close. The
+            // system refused the save, so it says why and nothing is reported.
             const int    reported_before = unexpected_errors_logged();
             ShownDialogs asked;
             check(m_plater->new_project(true, true) == wxID_CANCEL && persistence().document().project_id() == project_id,
                   "failed_autosave_blocks_project_release");
             wait_for([&] { return !asked.titles.empty(); }, std::chrono::seconds(5));
-            check(unexpected_errors_logged() == reported_before + 1, "failed_autosave_project_release_reports_it");
+            check(unexpected_errors_logged() == reported_before && asked.titles.size() == 1 &&
+                      asked.titles.front() == std::string(_L("Couldn't save").ToUTF8()),
+                  "failed_autosave_project_release_says_why");
         }
         std::filesystem::permissions(pending, original_permissions, std::filesystem::perm_options::replace);
         check(installed_shell()->autosave()->save_now() &&
@@ -17441,6 +18047,10 @@ int main(int argc, char** argv)
         else if (argument == "--delete-account-waits") {
             state->mode = HarnessState::Mode::DeleteAccountWaits;
         }
+        else if (argument == "--account-page-failures")
+            state->mode = HarnessState::Mode::AccountPageFailures;
+        else if (argument == "--deactivated-sign-in")
+            state->mode = HarnessState::Mode::DeactivatedSignIn;
         else if (argument == "--orca-import-cancel")
             state->mode = HarnessState::Mode::OrcaImportCancel;
         else if (argument == "--server-sheet-popup") {

@@ -4,6 +4,7 @@
 
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/Support/Base64.hpp"
+#include "slic3r/GUI/JusPrin/Support/SaidBy.hpp"
 #include "StoredFormat.hpp"
 #include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/Model.hpp"
@@ -19,6 +20,7 @@
 #include "libslic3r/PresetBundle.hpp"
 #include "libslic3r/Utils.hpp"
 
+#include <boost/algorithm/string/predicate.hpp>
 #include <boost/filesystem/path.hpp>
 #include <boost/log/trivial.hpp>
 #include <nlohmann/json.hpp>
@@ -352,7 +354,42 @@ void ProjectAutosave::fail(const std::string& message)
 {
     BOOST_LOG_TRIVIAL(error) << "Local project save failed: " << message;
     m_error = message;
+    m_error_refused = false;
     m_state = State::Failed;
+}
+
+bool system_refused(const std::filesystem::filesystem_error& error, const std::filesystem::path& folder)
+{
+    const std::error_code code = error.code();
+    if (code != std::errc::permission_denied && code != std::errc::operation_not_permitted &&
+        code != std::errc::read_only_file_system && code != std::errc::no_space_on_device)
+        return false;
+    const std::filesystem::path& path = error.path1().empty() ? error.path2() : error.path1();
+    const std::filesystem::path  inside = path.lexically_normal().lexically_relative(folder.lexically_normal());
+    return !path.empty() && !inside.empty() && *inside.begin() != "..";
+}
+
+void probe_writable(const std::filesystem::path& probe)
+{
+    std::filesystem::create_directory(probe);
+    std::filesystem::remove(probe);
+}
+
+void ProjectAutosave::refused(const std::filesystem::filesystem_error& error)
+{
+    if (!system_refused(error, m_root)) {
+        fail(error.what());
+        throw;
+    }
+    throw_refused(error.what(), m_root.u8string() + ": " + error.code().message());
+}
+
+void ProjectAutosave::throw_refused(const std::string& reason, const std::string& refusal)
+{
+    fail(reason);
+    m_error = refusal;
+    m_error_refused = true;
+    throw SaveRefused(refusal);
 }
 
 void ProjectAutosave::observe_document_change()
@@ -482,16 +519,29 @@ bool ProjectAutosave::settle(bool wait)
         m_state = State::Saving;
         m_next_probe = Clock::now();
         return true;
+    } catch (const std::filesystem::filesystem_error& error) {
+        m_worker_kind = WorkerKind::None;
+        m_inflight_capture_input.clear();
+        refused(error);
     } catch (const std::exception& error) {
         m_worker_kind = WorkerKind::None;
         m_inflight_capture_input.clear();
         fail(error.what());
+        throw;
     } catch (...) {
         m_worker_kind = WorkerKind::None;
         m_inflight_capture_input.clear();
         fail("project version writer failed");
+        throw;
     }
-    return false;
+}
+
+void ProjectAutosave::settle_before_reading()
+{
+    try {
+        settle(true);
+    } catch (const SaveRefused&) {
+    }
 }
 
 void ProjectAutosave::adopt_project()
@@ -500,7 +550,7 @@ void ProjectAutosave::adopt_project()
     const std::string id = m_persistence.document().project_id();
     if (m_store && m_store->project_id() == id)
         return;
-    settle(true);
+    settle_before_reading();
     discard_if_never_saved();
     m_store.reset();
     if (id.empty())
@@ -607,9 +657,11 @@ bool ProjectAutosave::capture(bool wait_for_commit)
         m_worker_kind = WorkerKind::None;
         if (!metadata.empty())
             std::filesystem::remove_all(metadata.parent_path());
+        if (const auto* refusal = dynamic_cast<const std::filesystem::filesystem_error*>(&error))
+            refused(*refusal);
         fail(error.what());
+        throw;
     }
-    return false;
 }
 
 bool ProjectAutosave::persist_document(bool wait_for_commit)
@@ -635,15 +687,24 @@ bool ProjectAutosave::persist_document(bool wait_for_commit)
             });
         }
         return true;
+    } catch (const std::filesystem::filesystem_error& error) {
+        m_worker_kind = WorkerKind::None;
+        refused(error);
     } catch (const std::exception& error) {
         m_worker_kind = WorkerKind::None;
         fail(error.what());
-        return false;
+        throw;
     }
 }
 
 void ProjectAutosave::tick()
 {
+    // A failure of ours is reported when saving goes from working to failing.
+    // The retries after it are recorded and logged, not reported again, until
+    // a save succeeds. The state cannot tell: a retry sets it to Saving while
+    // it runs; the error stays until a save succeeds. A refusal throws
+    // SaveRefused every time, for the caller to tell once.
+    const bool failing = m_state != State::Saved && !m_error.empty() && !m_error_refused;
     try {
         adopt_project();
         if (!settle(false) && m_worker.valid())
@@ -654,6 +715,7 @@ void ProjectAutosave::tick()
             return;
         m_next_probe = now + kProbeInterval;
         if (blank()) {
+            m_error.clear();
             m_state = State::Saved;
             return;
         }
@@ -688,17 +750,26 @@ void ProjectAutosave::tick()
                 return;
             persist_document(false);
         } else if (!held) {
+            // Nothing is left to save, so an earlier failure no longer holds.
+            m_error.clear();
             m_state = State::Saved;
             m_first_semantic_edit.reset();
         }
+    } catch (const SaveRefused&) {
+        throw;
     } catch (const std::exception& error) {
+        const auto* refusal = dynamic_cast<const std::filesystem::filesystem_error*>(&error);
+        if (refusal != nullptr && system_refused(*refusal, m_root))
+            refused(*refusal);
         fail(error.what());
+        if (!failing)
+            throw;
     }
 }
 
 std::optional<std::vector<ProjectAutosave::ManagedProject>> ProjectAutosave::projects()
 {
-    settle(true);
+    settle_before_reading();
     // Home can be opened before the first project switch. Render the current
     // project once here; the preview is independent of the frequent backups.
     ensure_current_preview();
@@ -859,9 +930,17 @@ void ProjectAutosave::record_opened_from(const std::filesystem::path& source)
 
 bool ProjectAutosave::open_managed_project(const std::string& project_id)
 {
-    m_open_refused_newer = false;
-    if (!save_now())
+    m_open_refused_newer     = false;
+    m_open_refused_elsewhere = false;
+    m_open_refusal.clear();
+    // The open saves the current project first; the system may refuse that.
+    try {
+        if (!save_now())
+            return false;
+    } catch (const SaveRefused& refusal) {
+        m_open_refusal = refusal.what();
         return false;
+    }
     ensure_current_preview();
     if (m_store->project_id() == project_id)
         return true;
@@ -921,7 +1000,11 @@ bool ProjectAutosave::open_managed_project(const std::string& project_id)
         return true;
     } catch (const std::exception& error) {
         const std::string reason = error.what();
-        m_open_refused_newer = dynamic_cast<const NewerFormatError*>(&error) != nullptr;
+        m_open_refused_newer     = dynamic_cast<const NewerFormatError*>(&error) != nullptr;
+        m_open_refused_elsewhere = dynamic_cast<const ProjectOpenElsewhere*>(&error) != nullptr;
+        if (const auto* refusal = dynamic_cast<const std::filesystem::filesystem_error*>(&error);
+            refusal != nullptr && system_refused(*refusal, m_root))
+            m_open_refusal = m_root.u8string() + ": " + refusal->code().message();
         if (replacement_started) {
             try {
                 const auto previous = m_store->materialize(previous_id);
@@ -940,18 +1023,26 @@ bool ProjectAutosave::open_managed_project(const std::string& project_id)
                     target->remove_materialization(*target_materialized);
             } catch (const std::exception& rollback_error) {
                 fail(reason + "; previous project also failed to reload: " + rollback_error.what());
-                return false;
+                throw std::runtime_error(m_error);
             }
         }
         fail(reason);
+        // Anything else, such as a damaged project, is ours.
+        if (!m_open_refused_newer && !m_open_refused_elsewhere && m_open_refusal.empty())
+            throw;
         return false;
     }
 }
 
 wxString ProjectAutosave::open_failure() const
 {
-    return m_open_refused_newer ? _L("This project was saved by a newer version of JusPrin. Get the new version to open it.")
-                                : _L("The project couldn't be opened. Try again.");
+    if (m_open_refused_newer)
+        return _L("This project was saved by a newer version of JusPrin. Get the new version to open it.");
+    if (m_open_refused_elsewhere)
+        return _L("This project is open in another JusPrin window. Close it there, then try again.");
+    if (!m_open_refusal.empty())
+        return wxString::FromUTF8(said_by(kSystemName, m_open_refusal));
+    return _L("The project couldn't be opened. Try again.");
 }
 
 void ProjectAutosave::ensure_current_preview()
@@ -998,7 +1089,7 @@ bool ProjectAutosave::blank() const
 
 void ProjectAutosave::discard_if_never_saved()
 {
-    settle(true);
+    settle_before_reading();
     if (!m_store || !m_store->head_id().empty())
         return;
     // Attachments and a chat's pictures go to the project's folder as they
@@ -1015,7 +1106,7 @@ bool ProjectAutosave::save_now()
 {
     try {
         adopt_project();
-        settle(true); // A failed older write can be retried from the live model.
+        settle_before_reading(); // A failed older write can be retried from the live model.
         m_store->ensure_durable_head();
         observe_document_change();
         if (blank()) {
@@ -1041,9 +1132,13 @@ bool ProjectAutosave::save_now()
             return false;
         }
         return capture(true);
+    } catch (const SaveRefused&) {
+        throw;
+    } catch (const std::filesystem::filesystem_error& error) {
+        refused(error);
     } catch (const std::exception& error) {
         fail(error.what());
-        return false;
+        throw;
     }
 }
 
@@ -1055,7 +1150,7 @@ std::string ProjectAutosave::current_version() const
 std::vector<ProjectVersionStore::Version> ProjectAutosave::history()
 {
     if (m_worker.valid())
-        settle(true);
+        settle_before_reading();
     return m_store ? m_store->history() : std::vector<ProjectVersionStore::Version>{};
 }
 
@@ -1068,11 +1163,13 @@ std::optional<std::string> ProjectAutosave::pin_current()
         return id;
     try {
         m_store->pin(id);
-    } catch (const std::exception& error) {
+    } catch (const std::filesystem::filesystem_error& error) {
         // Pinning writes into the project folder like any save, so a folder
-        // that cannot be written is a failed save, reported and retried.
+        // that cannot be written is a failed save, shown and retried.
+        refused(error);
+    } catch (const std::exception& error) {
         fail(error.what());
-        return std::nullopt;
+        throw;
     }
     return id;
 }
@@ -1080,9 +1177,18 @@ std::optional<std::string> ProjectAutosave::pin_current()
 void ProjectAutosave::record_agent_operation(const std::string& action_id, const std::string& tool,
                                              const std::string& outcome, const std::string& before, bool save)
 {
-    const bool saved = save && save_now();
+    // The action is recorded whether or not the system let the save after it happen.
+    bool                       saved = false;
+    std::optional<SaveRefused> refusal;
+    try {
+        saved = save && save_now();
+    } catch (const SaveRefused& refused) {
+        refusal = refused;
+    }
     if (!before.empty())
         m_store->record_operation(action_id, tool, outcome, before, saved ? m_committed_head : std::string());
+    if (refusal)
+        throw *refusal;
     if (save && !saved)
         throw std::runtime_error(m_error);
 }
@@ -1180,6 +1286,12 @@ bool ProjectAutosave::restore_impl(const std::string& version_id, const std::str
         return true;
     } catch (const std::exception& error) {
         const std::string reason = error.what();
+        // The system refused a write of the restore itself, or a save inside
+        // it: the person's, as any save's.
+        const auto* system  = dynamic_cast<const std::filesystem::filesystem_error*>(&error);
+        const std::string refusal = dynamic_cast<const SaveRefused*>(&error) != nullptr ? reason :
+                                    system != nullptr && system_refused(*system, m_root) ?
+                                        m_root.u8string() + ": " + system->code().message() : std::string();
         if (marker_written && !replacement_started &&
             m_persistence.document().active_conversation_id() != conversation_id) {
             try {
@@ -1220,6 +1332,8 @@ bool ProjectAutosave::restore_impl(const std::string& version_id, const std::str
                 return false;
             }
         }
+        if (!refusal.empty())
+            throw_refused(reason, refusal);
         fail(reason);
         return false;
     }
@@ -1229,11 +1343,13 @@ bool ProjectAutosave::export_copy(const std::filesystem::path& destination)
 {
     if (!save_now())
         return false;
-    if (destination.empty() || destination.extension() != ".3mf")
+    if (destination.empty() || !boost::iequals(destination.extension().u8string(), ".3mf"))
         throw std::runtime_error("choose a .3mf export destination");
     const std::string id = ProjectVersionStore::new_id();
     const auto temporary = destination.parent_path() /
         std::filesystem::path(L".jusprin-pending-" + std::wstring(id.begin(), id.end()) + L".3mf");
+    // The 3MF writer gives no reason when the folder refuses it.
+    probe_writable(temporary);
     try {
         const auto exported = m_workspace.export_project_archive(temporary.u8string());
         if (!exported.succeeded())

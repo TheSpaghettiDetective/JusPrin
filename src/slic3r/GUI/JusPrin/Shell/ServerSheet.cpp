@@ -11,6 +11,8 @@
 
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
+#include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
+#include "slic3r/GUI/JusPrin/Agent/CloudAccount.hpp"
 #include "slic3r/GUI/JusPrin/Brand/BrandPalette.hpp"
 #include "slic3r/GUI/JusPrin/Support/PageLanguage.hpp"
 #include "slic3r/GUI/JusPrin/Updates/Version.hpp"
@@ -34,6 +36,11 @@
 #include <wx/webview.h>
 
 #include <algorithm>
+#include <exception>
+#include <functional>
+#include <memory>
+#include <optional>
+#include <stdexcept>
 #include <string>
 #include <utility>
 
@@ -59,16 +66,17 @@ wxString page_title(const std::string& page)
     return page == "billing" ? _L("Billing and usage") : _L("Credits and plans");
 }
 
-// The server's answer to POST /v2/web_link, on the GUI thread: a URL, or empty
-// when the server could not be reached or refused (its sign-in has ended).
-// Signed out, the app asks without a token, and the link is to Credits and
-// plans as someone without an account sees it.
-void request_web_link(const std::string& page, const std::string& from, std::function<void(std::string)> done)
+// The server's answer to POST /v2/web_link, on the GUI thread: a URL, or why
+// there is none (Agent::account_request_failure). A failure of ours is passed
+// as "unexpected", so the sheet closes, and then goes on up. Signed out, the
+// app asks without a token, and the link is to Credits and plans as someone
+// without an account sees it.
+void request_web_link(const std::string& page, const std::string& from, std::function<void(WebLink)> done)
 {
     AppConfig*        config = wxGetApp().app_config;
     const std::string token  = Agent::cloud_account_token(config);
-    auto finish = [done = std::move(done)](std::string url) {
-        wxGetApp().CallAfter(reported("opening an account page", [done, url = std::move(url)] { done(url); }));
+    auto finish = [done = std::move(done)](WebLink link) {
+        wxGetApp().CallAfter(reported("opening an account page", [done, link = std::move(link)] { done(link); }));
     };
     Http http = Http::post(Agent::cloud_web_link_url(config));
     if (!token.empty())
@@ -86,13 +94,22 @@ void request_web_link(const std::string& page, const std::string& from, std::fun
         .on_complete(reported("opening an account page", [finish](std::string body, unsigned status) {
             const nlohmann::json answer = nlohmann::json::parse(body, nullptr, false);
             std::string          url = status == 200 && answer.is_object() ? answer.value("url", std::string()) : std::string();
-            if (url.empty())
-                BOOST_LOG_TRIVIAL(warning) << "JusPrin page link answered " << status;
-            finish(std::move(url));
+            if (url.empty()) {
+                finish({{}, Agent::AgentError{"unexpected", {}, false}});
+                throw std::runtime_error("The page link answered HTTP " + std::to_string(status) + " with no link: " + body);
+            }
+            finish({std::move(url), std::nullopt});
         }))
-        .on_error(reported("opening an account page", [finish](std::string, std::string error, unsigned status) {
+        .on_error(reported("opening an account page", [finish](std::string body, std::string error, unsigned status) {
             BOOST_LOG_TRIVIAL(warning) << "JusPrin page link failed: " << status << " " << error;
-            finish({});
+            std::optional<Agent::AgentError> failure;
+            try {
+                failure = Agent::account_request_failure(status, body);
+            } catch (const std::exception&) {
+                finish({{}, Agent::AgentError{"unexpected", {}, false}});
+                throw;
+            }
+            finish({{}, failure});
         }))
         .perform();
 }
@@ -159,9 +176,9 @@ void ServerSheet::open(wxWindow* parent, const std::string& page, const std::str
     // the person's browser, signed in the same way.
     const ShellTheme* theme = brand_theme();
     if (theme == nullptr) {
-        request_web_link(page, from, [closed](const std::string& url) {
-            if (!url.empty())
-                wxLaunchDefaultBrowser(wxString::FromUTF8(url));
+        request_web_link(page, from, [closed](const WebLink& link) {
+            if (!link.url.empty())
+                wxLaunchDefaultBrowser(wxString::FromUTF8(link.url));
             if (closed)
                 closed();
         });
@@ -184,6 +201,8 @@ void ServerSheet::open(wxWindow* parent, const std::string& page, const std::str
     if (!sheet->m_release.request())
         sheet->Hide();
 }
+
+wxString ServerSheet::status_detail() const { return m_status_detail->GetLabel(); }
 
 ServerSheet* ServerSheet::current() { return g_sheet != nullptr && !g_sheet->m_closing ? g_sheet : nullptr; }
 
@@ -330,39 +349,52 @@ void ServerSheet::load()
 {
     set_state(State::Loading);
     m_load_deadline.StartOnce(kLoadDeadlineMs);
-    request_link([this](std::string url) {
-        if (url.empty() || m_view == nullptr) {
+    request_link([this](WebLink link) {
+        if (link.url.empty() || m_view == nullptr) {
             m_load_deadline.Stop();
-            set_state(State::Failed, "the server gave no link to the page");
+            fail_link(link);
             return;
         }
-        m_view->LoadURL(wxString::FromUTF8(url));
+        m_view->LoadURL(wxString::FromUTF8(link.url));
     });
 }
 
-void ServerSheet::request_link(std::function<void(std::string)> use)
+void ServerSheet::request_link(std::function<void(WebLink)> use)
 {
     const unsigned request = ++m_request;
-    request_web_link(m_page, m_from, [this, alive = std::weak_ptr<bool>(m_alive), request, use = std::move(use)](std::string url) {
+    request_web_link(m_page, m_from, [this, alive = std::weak_ptr<bool>(m_alive), request, use = std::move(use)](WebLink link) {
         if (!alive.expired() && !m_closing && request == m_request)
-            use(std::move(url));
+            use(std::move(link));
     });
+}
+
+void ServerSheet::fail_link(const WebLink& link)
+{
+    // Ours is reported, which tells the person; the sheet has nothing to show.
+    if (link.failure && link.failure->code == "unexpected") {
+        close();
+        return;
+    }
+    // The server's refusal in the app's sentence; no answer (no message) is
+    // the network's, which set_state says.
+    set_state(State::Failed, "the server gave no link to the page",
+              link.failure ? wxString::FromUTF8(link.failure->message) : wxString());
 }
 
 void ServerSheet::open_in_browser()
 {
     // A fresh link: the one the sheet opened has been used.
-    request_link([this](std::string url) {
-        if (url.empty()) {
-            set_state(State::Failed, "the server gave no link to the page");
+    request_link([this](WebLink link) {
+        if (link.url.empty()) {
+            fail_link(link);
             return;
         }
-        wxLaunchDefaultBrowser(wxString::FromUTF8(url));
+        wxLaunchDefaultBrowser(wxString::FromUTF8(link.url));
         close();
     });
 }
 
-void ServerSheet::set_state(State state, const std::string& cause)
+void ServerSheet::set_state(State state, const std::string& cause, const wxString& detail)
 {
     if (state == State::Failed)
         BOOST_LOG_TRIVIAL(warning) << "JusPrin account page " << m_page << " shows that it could not load: " << cause;
@@ -373,6 +405,8 @@ void ServerSheet::set_state(State state, const std::string& cause)
         m_status_title->SetLabel(billing ? _L("Loading Billing and usage…") : _L("Loading Credits and plans…"));
     else if (state == State::Failed)
         m_status_title->SetLabel(billing ? _L("Couldn't load Billing and usage") : _L("Couldn't load Credits and plans"));
+    if (state == State::Failed)
+        m_status_detail->SetLabel(detail.empty() ? _L("Check your internet connection, then try again.") : detail);
     m_status_detail->Show(state == State::Failed);
     m_retry->Show(state == State::Failed);
     if (m_view != nullptr)

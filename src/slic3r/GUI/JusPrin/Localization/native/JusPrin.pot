@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-25 17:08-0800\n"
+"POT-Creation-Date: 2026-11-26 08:11-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -285,6 +285,10 @@ msgstr ""
 msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
 msgstr ""
 
+#. TRN The address is JusPrin's support email; keep it unchanged.
+msgid "This account has been deactivated. If you think this is a mistake, email jusprin-support@obico.io."
+msgstr ""
+
 msgid "Signing in didn't finish. Nothing was saved. Try again."
 msgstr ""
 
@@ -419,11 +423,6 @@ msgstr ""
 #. TRN %1% is an AI provider, such as OpenAI. Its service is down or overloaded on its own side.
 #, boost-format
 msgid "The %1% service is having trouble right now. Try again later."
-msgstr ""
-
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The request was too large for the %1% service."
 msgstr ""
 
 #, boost-format
@@ -1104,6 +1103,12 @@ msgid "Cloud"
 msgstr ""
 
 msgid "The printer stopped sending updates."
+msgstr ""
+
+#. TRN %1% is the printer's address, such as 192.168.1.20. Moonraker is the printer's
+#. software. "Reconnect" is the card's button, which asks for the key.
+#, boost-format
+msgid "Moonraker at %1% refused the app's key. Press Reconnect to enter it."
 msgstr ""
 
 #, c-format, boost-format
@@ -2034,12 +2039,6 @@ msgstr ""
 msgid "last finished yesterday"
 msgstr ""
 
-msgid "Version history unavailable"
-msgstr ""
-
-msgid "Version history couldn't be loaded. Try again."
-msgstr ""
-
 msgid "Export project 3MF"
 msgstr ""
 
@@ -2056,9 +2055,6 @@ msgid "Restore project version"
 msgstr ""
 
 msgid "Restore failed"
-msgstr ""
-
-msgid "This version couldn't be restored. Try again."
 msgstr ""
 
 msgid "Back to Project"
@@ -2504,6 +2500,9 @@ msgid "Change object settings"
 msgstr ""
 
 msgid "This project was saved by a newer version of JusPrin. Get the new version to open it."
+msgstr ""
+
+msgid "This project is open in another JusPrin window. Close it there, then try again."
 msgstr ""
 
 msgid "The project couldn't be opened. Try again."

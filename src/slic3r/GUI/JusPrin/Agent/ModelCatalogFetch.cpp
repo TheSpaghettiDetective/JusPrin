@@ -8,6 +8,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <exception>
 #include <memory>
 #include <optional>
 #include <stdexcept>
@@ -145,9 +146,10 @@ void fetch_account_box(const ProviderProfile& profile, const std::string& token,
 }
 
 void delete_account(const ProviderProfile& profile, const std::string& token, const std::string& url,
-                    std::shared_ptr<std::atomic<bool>> cancelled, std::function<void(bool)> done)
+                    std::shared_ptr<std::atomic<bool>> cancelled,
+                    std::function<void(bool deleted, std::optional<AgentError> failure)> done)
 {
-    auto finished = std::make_shared<std::function<void(bool)>>(std::move(done));
+    auto finished = std::make_shared<std::function<void(bool, std::optional<AgentError>)>>(std::move(done));
     auto http     = Slic3r::Http::del(url);
     http.header("Authorization", "Bearer " + token);
     for (const AgentHttpHeader& header : profile.headers)
@@ -156,13 +158,27 @@ void delete_account(const ProviderProfile& profile, const std::string& token, co
         .timeout_connect(10)
         .timeout_max(60)
         .on_progress([cancelled](Slic3r::Http::Progress, bool& cancel) { cancel = *cancelled; })
-        .on_complete(reported("deleting the account", [cancelled, finished](std::string, unsigned status) {
-            if (!*cancelled)
-                (*finished)(status == 204);
+        .on_complete(reported("deleting the account", [cancelled, finished](std::string body, unsigned status) {
+            if (*cancelled)
+                return;
+            if (status != 204) {
+                (*finished)(false, AgentError{"unexpected", {}, false});
+                throw std::runtime_error("Deleting the account answered HTTP " + std::to_string(status) + ": " + body);
+            }
+            (*finished)(true, std::nullopt);
         }))
-        .on_error(reported("deleting the account", [cancelled, finished](std::string, std::string, unsigned) {
-            if (!*cancelled)
-                (*finished)(false);
+        .on_error(reported("deleting the account", [cancelled, finished](std::string body, std::string error, unsigned status) {
+            if (*cancelled)
+                return;
+            std::optional<AgentError> failure;
+            try {
+                failure = account_request_failure(status, body);
+            } catch (const std::exception&) {
+                (*finished)(false, AgentError{"unexpected", {}, false});
+                throw;
+            }
+            failure->said = "Deleting the account answered HTTP " + std::to_string(status) + ": " + error + " " + body;
+            (*finished)(false, failure);
         }))
         .perform();
 }

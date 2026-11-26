@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-25 17:08-0800\n"
+"POT-Creation-Date: 2026-11-26 08:11-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -360,6 +360,11 @@ msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try ag
 msgstr "Срок вашего входа в JusPrin истёк. Войдите снова в настройках, затем повторите попытку."
 
 # AI Translated
+#. TRN The address is JusPrin's support email; keep it unchanged.
+msgid "This account has been deactivated. If you think this is a mistake, email jusprin-support@obico.io."
+msgstr "Эта учётная запись деактивирована. Если вы считаете, что это ошибка, напишите на jusprin-support@obico.io."
+
+# AI Translated
 msgid "Signing in didn't finish. Nothing was saved. Try again."
 msgstr "Вход не завершён. Ничего не сохранено. Попробуйте ещё раз."
 
@@ -527,12 +532,6 @@ msgstr "Сервис %1% ограничил частоту запросов. П�
 #, boost-format
 msgid "The %1% service is having trouble right now. Try again later."
 msgstr "У сервиса %1% сейчас неполадки. Повторите попытку позже."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The request was too large for the %1% service."
-msgstr "Запрос слишком велик для сервиса %1%."
 
 # AI Translated
 #, boost-format
@@ -1383,6 +1382,13 @@ msgstr "Облако"
 # AI Translated
 msgid "The printer stopped sending updates."
 msgstr "Принтер перестал присылать обновления."
+
+# AI Translated
+#. TRN %1% is the printer's address, such as 192.168.1.20. Moonraker is the printer's
+#. software. "Reconnect" is the card's button, which asks for the key.
+#, boost-format
+msgid "Moonraker at %1% refused the app's key. Press Reconnect to enter it."
+msgstr "Moonraker по адресу %1% отклонил ключ приложения. Нажмите «Переподключить», чтобы ввести его."
 
 # AI Translated
 #, c-format, boost-format
@@ -2587,14 +2593,6 @@ msgid "last finished yesterday"
 msgstr "последняя печать: вчера"
 
 # AI Translated
-msgid "Version history unavailable"
-msgstr "История версий недоступна"
-
-# AI Translated
-msgid "Version history couldn't be loaded. Try again."
-msgstr "Не удалось загрузить историю версий. Попробуйте ещё раз."
-
-# AI Translated
 msgid "Export project 3MF"
 msgstr "Экспорт проекта 3MF"
 
@@ -2617,10 +2615,6 @@ msgstr "Восстановить версию проекта"
 # AI Translated
 msgid "Restore failed"
 msgstr "Ошибка восстановления"
-
-# AI Translated
-msgid "This version couldn't be restored. Try again."
-msgstr "Не удалось восстановить эту версию. Попробуйте ещё раз."
 
 # AI Translated
 msgid "Back to Project"
@@ -3206,6 +3200,10 @@ msgid "This project was saved by a newer version of JusPrin. Get the new version
 msgstr "Этот проект сохранён более новой версией JusPrin. Установите новую версию, чтобы открыть его."
 
 # AI Translated
+msgid "This project is open in another JusPrin window. Close it there, then try again."
+msgstr "Этот проект открыт в другом окне JusPrin. Закройте его там и попробуйте снова."
+
+# AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "Не удалось открыть проект. Попробуйте ещё раз."
 
@@ -3272,6 +3270,23 @@ msgstr "Если в компьютере больше одной видеока�
 # AI Translated
 msgid "If the problem remains, close any overlay or screen capture software and try again."
 msgstr "Если проблема не исчезнет, закройте все программы оверлеев и записи экрана и попробуйте снова."
+
+# AI Translated
+#, boost-format
+#~ msgid "The request was too large for the %1% service."
+#~ msgstr "Запрос слишком велик для сервиса %1%."
+
+# AI Translated
+#~ msgid "Version history unavailable"
+#~ msgstr "История версий недоступна"
+
+# AI Translated
+#~ msgid "Version history couldn't be loaded. Try again."
+#~ msgstr "Не удалось загрузить историю версий. Попробуйте ещё раз."
+
+# AI Translated
+#~ msgid "This version couldn't be restored. Try again."
+#~ msgstr "Не удалось восстановить эту версию. Попробуйте ещё раз."
 
 # AI Translated
 #, boost-format

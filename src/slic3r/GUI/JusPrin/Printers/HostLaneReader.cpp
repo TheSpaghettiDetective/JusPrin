@@ -68,7 +68,8 @@ public:
         // Moonraker answers 404 for a namespace nothing has written: a printer
         // without such a unit, which still answered.
         if (status != 200 && status != 404) {
-            reading.failure = "Moonraker's lane data answered HTTP " + std::to_string(status) + ": " + body;
+            reading.failure     = "Moonraker's lane data answered HTTP " + std::to_string(status) + ": " + body;
+            reading.key_refused = status == 401 || status == 403;
             return reading;
         }
         reading.reached = true;

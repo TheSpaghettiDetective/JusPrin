@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-25 17:08-0800\n"
+"POT-Creation-Date: 2026-11-26 08:11-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -357,6 +357,11 @@ msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try ag
 msgstr "Zure JusPrin saioa amaitu da. Hasi saioa berriro Hobespenetan, eta saiatu berriro."
 
 # AI Translated
+#. TRN The address is JusPrin's support email; keep it unchanged.
+msgid "This account has been deactivated. If you think this is a mistake, email jusprin-support@obico.io."
+msgstr "Kontu hau desaktibatu egin da. Akats bat dela uste baduzu, idatzi jusprin-support@obico.io helbidera."
+
+# AI Translated
 msgid "Signing in didn't finish. Nothing was saved. Try again."
 msgstr "Saio-hasiera ez da amaitu. Ez da ezer gorde. Saiatu berriro."
 
@@ -526,12 +531,6 @@ msgstr "%1% zerbitzuak eskaerak mugatu ditu. Saiatu berriro laster."
 #, boost-format
 msgid "The %1% service is having trouble right now. Try again later."
 msgstr "%1% zerbitzuak arazoak ditu une honetan. Saiatu berriro geroago."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The request was too large for the %1% service."
-msgstr "Eskaera handiegia zen %1% zerbitzurako."
 
 # AI Translated
 #, boost-format
@@ -1371,6 +1370,13 @@ msgstr "Hodeia"
 # AI Translated
 msgid "The printer stopped sending updates."
 msgstr "Inprimagailuak eguneraketak bidaltzeari utzi dio."
+
+# AI Translated
+#. TRN %1% is the printer's address, such as 192.168.1.20. Moonraker is the printer's
+#. software. "Reconnect" is the card's button, which asks for the key.
+#, boost-format
+msgid "Moonraker at %1% refused the app's key. Press Reconnect to enter it."
+msgstr "%1% helbideko Moonraker-ek aplikazioaren gakoa baztertu du. Sakatu «Konektatu berriro» gakoa idazteko."
 
 # AI Translated
 #, c-format, boost-format
@@ -2563,14 +2569,6 @@ msgid "last finished yesterday"
 msgstr "azkena atzo amaitua"
 
 # AI Translated
-msgid "Version history unavailable"
-msgstr "Bertsioen historia ez dago erabilgarri"
-
-# AI Translated
-msgid "Version history couldn't be loaded. Try again."
-msgstr "Ezin izan da bertsioen historia kargatu. Saiatu berriro."
-
-# AI Translated
 msgid "Export project 3MF"
 msgstr "Esportatu proiektuaren 3MF fitxategia"
 
@@ -2593,10 +2591,6 @@ msgstr "Leheneratu proiektuaren bertsioa"
 # AI Translated
 msgid "Restore failed"
 msgstr "Leheneratzeak huts egin du"
-
-# AI Translated
-msgid "This version couldn't be restored. Try again."
-msgstr "Ezin izan da bertsio hau leheneratu. Saiatu berriro."
 
 # AI Translated
 msgid "Back to Project"
@@ -3175,6 +3169,10 @@ msgid "This project was saved by a newer version of JusPrin. Get the new version
 msgstr "Proiektu hau JusPrin-en bertsio berriago batek gorde zuen. Lortu bertsio berria irekitzeko."
 
 # AI Translated
+msgid "This project is open in another JusPrin window. Close it there, then try again."
+msgstr "Proiektu hau JusPrin-en beste leiho batean dago irekita. Itxi ezazu han eta saiatu berriro."
+
+# AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "Ezin izan da proiektua ireki. Saiatu berriro."
 
@@ -3237,6 +3235,23 @@ msgstr "Ordenagailuak txartel grafiko bat baino gehiago baditu, monitorea beste 
 # AI Translated
 msgid "If the problem remains, close any overlay or screen capture software and try again."
 msgstr "Arazoak jarraitzen badu, itxi gainjartze- edo pantaila-grabaketa-software guztiak eta saiatu berriro."
+
+# AI Translated
+#, boost-format
+#~ msgid "The request was too large for the %1% service."
+#~ msgstr "Eskaera handiegia zen %1% zerbitzurako."
+
+# AI Translated
+#~ msgid "Version history unavailable"
+#~ msgstr "Bertsioen historia ez dago erabilgarri"
+
+# AI Translated
+#~ msgid "Version history couldn't be loaded. Try again."
+#~ msgstr "Ezin izan da bertsioen historia kargatu. Saiatu berriro."
+
+# AI Translated
+#~ msgid "This version couldn't be restored. Try again."
+#~ msgstr "Ezin izan da bertsio hau leheneratu. Saiatu berriro."
 
 # AI Translated
 #, boost-format

@@ -8,8 +8,11 @@
 #include <expat.h>
 
 #include <algorithm>
+#include <cerrno>
 #include <chrono>
+#include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <limits>
@@ -18,6 +21,7 @@
 #include <set>
 #include <sstream>
 #include <stdexcept>
+#include <system_error>
 #include <tuple>
 
 #ifdef _WIN32
@@ -125,25 +129,39 @@ json read_pins(const fs::path& file)
     return value;
 }
 
+// A write the system refuses keeps the system's own code and the path, as
+// std::filesystem's errors do: a full disk or a read-only folder is then the
+// person's (system_refused), not taken for ours.
+[[noreturn]] void throw_system_error(const std::string& what, const fs::path& path, std::error_code code)
+{
+    throw fs::filesystem_error(what, path, code);
+}
+
 void sync_file(const fs::path& path)
 {
 #ifdef _WIN32
     HANDLE handle = CreateFileW(path.wstring().c_str(), GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
                                 nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-    require(handle != INVALID_HANDLE_VALUE, "cannot open for flush: " + path.string());
-    const BOOL ok = FlushFileBuffers(handle);
+    if (handle == INVALID_HANDLE_VALUE)
+        throw_system_error("cannot open for flush", path, std::error_code(int(GetLastError()), std::system_category()));
+    const BOOL  ok    = FlushFileBuffers(handle);
+    const DWORD error = GetLastError();
     CloseHandle(handle);
-    require(ok != 0, "cannot flush " + path.string());
+    if (ok == 0)
+        throw_system_error("cannot flush", path, std::error_code(int(error), std::system_category()));
 #else
     const int fd = ::open(path.c_str(), O_RDONLY);
-    require(fd >= 0, "cannot open for sync: " + path.string());
+    if (fd < 0)
+        throw_system_error("cannot open for sync", path, std::error_code(errno, std::generic_category()));
 #ifdef __APPLE__
     const bool ok = ::fcntl(fd, F_FULLFSYNC) == 0 || ::fsync(fd) == 0;
 #else
     const bool ok = ::fsync(fd) == 0;
 #endif
+    const int error = errno;
     ::close(fd);
-    require(ok, "cannot sync " + path.string());
+    if (!ok)
+        throw_system_error("cannot sync", path, std::error_code(error, std::generic_category()));
 #endif
 }
 
@@ -163,15 +181,23 @@ void sync_directory(const fs::path& path)
 #endif
 }
 
+// Through the C library rather than a stream, which keeps no reason.
 void checked_write(const fs::path& path, const std::string& content)
 {
-    std::ofstream out(path, std::ios::binary | std::ios::trunc);
-    require(out.is_open(), "cannot create " + path.string());
-    out.write(content.data(), static_cast<std::streamsize>(content.size()));
-    out.flush();
-    require(out.good(), "cannot write " + path.string());
-    out.close();
-    require(!out.fail(), "cannot close " + path.string());
+#ifdef _WIN32
+    std::FILE* out = ::_wfopen(path.c_str(), L"wb");
+#else
+    std::FILE* out = std::fopen(path.c_str(), "wb");
+#endif
+    if (out == nullptr)
+        throw_system_error("cannot create", path, std::error_code(errno, std::generic_category()));
+    const bool written = std::fwrite(content.data(), 1, content.size(), out) == content.size() && std::fflush(out) == 0;
+    const int  error   = errno;
+    const bool closed  = std::fclose(out) == 0;
+    if (!written)
+        throw_system_error("cannot write", path, std::error_code(error, std::generic_category()));
+    if (!closed)
+        throw_system_error("cannot close", path, std::error_code(errno, std::generic_category()));
     sync_file(path);
 }
 
@@ -547,7 +573,7 @@ void ProjectVersionStore::lock()
     OVERLAPPED overlap{};
     if (LockFileEx(handle, LOCKFILE_EXCLUSIVE_LOCK | LOCKFILE_FAIL_IMMEDIATELY, 0, 1, 0, &overlap) == 0) {
         CloseHandle(handle);
-        throw std::runtime_error("project is open in another JusPrin instance");
+        throw ProjectOpenElsewhere("project is open in another JusPrin instance");
     }
     m_lock_handle = handle;
 #else
@@ -556,7 +582,7 @@ void ProjectVersionStore::lock()
     if (::flock(m_lock_fd, LOCK_EX | LOCK_NB) != 0) {
         ::close(m_lock_fd);
         m_lock_fd = -1;
-        throw std::runtime_error("project is open in another JusPrin instance");
+        throw ProjectOpenElsewhere("project is open in another JusPrin instance");
     }
 #endif
 }

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-25 17:08-0800\n"
+"POT-Creation-Date: 2026-11-26 08:11-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -359,6 +359,11 @@ msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try ag
 msgstr "Phiên đăng nhập JusPrin của bạn đã hết hạn. Hãy đăng nhập lại trong Tùy chọn rồi thử lại."
 
 # AI Translated
+#. TRN The address is JusPrin's support email; keep it unchanged.
+msgid "This account has been deactivated. If you think this is a mistake, email jusprin-support@obico.io."
+msgstr "Tài khoản này đã bị vô hiệu hóa. Nếu bạn cho rằng đây là nhầm lẫn, hãy gửi email tới jusprin-support@obico.io."
+
+# AI Translated
 msgid "Signing in didn't finish. Nothing was saved. Try again."
 msgstr "Đăng nhập chưa hoàn tất. Chưa có gì được lưu. Hãy thử lại."
 
@@ -526,12 +531,6 @@ msgstr "Dịch vụ %1% đang giới hạn tần suất. Hãy thử lại sau í
 #, boost-format
 msgid "The %1% service is having trouble right now. Try again later."
 msgstr "Dịch vụ %1% hiện đang gặp sự cố. Hãy thử lại sau."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The request was too large for the %1% service."
-msgstr "Yêu cầu quá lớn đối với dịch vụ %1%."
 
 # AI Translated
 #, boost-format
@@ -1360,6 +1359,13 @@ msgstr "Đám mây"
 # AI Translated
 msgid "The printer stopped sending updates."
 msgstr "Máy in đã ngừng gửi cập nhật."
+
+# AI Translated
+#. TRN %1% is the printer's address, such as 192.168.1.20. Moonraker is the printer's
+#. software. "Reconnect" is the card's button, which asks for the key.
+#, boost-format
+msgid "Moonraker at %1% refused the app's key. Press Reconnect to enter it."
+msgstr "Moonraker tại %1% đã từ chối khóa của ứng dụng. Nhấn \"Kết nối lại\" để nhập khóa."
 
 # AI Translated
 #, c-format, boost-format
@@ -2538,14 +2544,6 @@ msgid "last finished yesterday"
 msgstr "lần hoàn thành gần nhất hôm qua"
 
 # AI Translated
-msgid "Version history unavailable"
-msgstr "Không có lịch sử phiên bản"
-
-# AI Translated
-msgid "Version history couldn't be loaded. Try again."
-msgstr "Không thể tải lịch sử phiên bản. Hãy thử lại."
-
-# AI Translated
 msgid "Export project 3MF"
 msgstr "Xuất 3MF dự án"
 
@@ -2568,10 +2566,6 @@ msgstr "Khôi phục phiên bản dự án"
 # AI Translated
 msgid "Restore failed"
 msgstr "Khôi phục không thành công"
-
-# AI Translated
-msgid "This version couldn't be restored. Try again."
-msgstr "Không thể khôi phục phiên bản này. Hãy thử lại."
 
 # AI Translated
 msgid "Back to Project"
@@ -3145,6 +3139,10 @@ msgid "This project was saved by a newer version of JusPrin. Get the new version
 msgstr "Dự án này được lưu bằng phiên bản JusPrin mới hơn. Hãy tải phiên bản mới để mở."
 
 # AI Translated
+msgid "This project is open in another JusPrin window. Close it there, then try again."
+msgstr "Dự án này đang mở trong một cửa sổ JusPrin khác. Hãy đóng nó ở đó rồi thử lại."
+
+# AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "Không thể mở dự án. Hãy thử lại."
 
@@ -3203,6 +3201,23 @@ msgstr "Nếu máy tính có nhiều hơn một card đồ họa, việc kết n
 # AI Translated
 msgid "If the problem remains, close any overlay or screen capture software and try again."
 msgstr "Nếu sự cố vẫn còn, hãy đóng mọi phần mềm lớp phủ hoặc quay màn hình rồi thử lại."
+
+# AI Translated
+#, boost-format
+#~ msgid "The request was too large for the %1% service."
+#~ msgstr "Yêu cầu quá lớn đối với dịch vụ %1%."
+
+# AI Translated
+#~ msgid "Version history unavailable"
+#~ msgstr "Không có lịch sử phiên bản"
+
+# AI Translated
+#~ msgid "Version history couldn't be loaded. Try again."
+#~ msgstr "Không thể tải lịch sử phiên bản. Hãy thử lại."
+
+# AI Translated
+#~ msgid "This version couldn't be restored. Try again."
+#~ msgstr "Không thể khôi phục phiên bản này. Hãy thử lại."
 
 # AI Translated
 #, boost-format

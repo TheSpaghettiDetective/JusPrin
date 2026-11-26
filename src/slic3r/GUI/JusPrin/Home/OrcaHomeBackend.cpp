@@ -316,7 +316,11 @@ void describe_host(const Printers::HostStatus& status, PrinterEntry& printer)
     }
     if (status.link == Printers::HostLink::Unreachable) {
         printer.status  = PrinterStatus::NotConnected;
-        printer.message = utf8(wxString::Format(_L("%s isn't answering."), wxString::FromUTF8(printer.address)));
+        printer.message = status.key_refused
+                              // TRN %1% is the printer's address, such as 192.168.1.20. Moonraker is the printer's
+                              // software. "Reconnect" is the card's button, which asks for the key.
+                              ? format(_L("Moonraker at %1% refused the app's key. Press Reconnect to enter it."), printer.address)
+                              : utf8(wxString::Format(_L("%s isn't answering."), wxString::FromUTF8(printer.address)));
         printer.action  = PrinterAction::Reconnect;
         if (status.last_connected)
             printer.last_connected_at = iso_utc(*status.last_connected);

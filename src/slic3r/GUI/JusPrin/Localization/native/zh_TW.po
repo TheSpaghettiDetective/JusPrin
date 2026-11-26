@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-25 17:08-0800\n"
+"POT-Creation-Date: 2026-11-26 08:11-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -359,6 +359,11 @@ msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try ag
 msgstr "您的 JusPrin 登入已失效。請在偏好設定中重新登入，然後再試一次。"
 
 # AI Translated
+#. TRN The address is JusPrin's support email; keep it unchanged.
+msgid "This account has been deactivated. If you think this is a mistake, email jusprin-support@obico.io."
+msgstr "此帳戶已被停用。如果您認為這是錯誤，請寄電子郵件至 jusprin-support@obico.io。"
+
+# AI Translated
 msgid "Signing in didn't finish. Nothing was saved. Try again."
 msgstr "登入未完成，未儲存任何內容。請再試一次。"
 
@@ -526,12 +531,6 @@ msgstr "%1% 服務已達速率限制。請稍後再試。"
 #, boost-format
 msgid "The %1% service is having trouble right now. Try again later."
 msgstr "%1% 服務目前發生問題。請稍後再試。"
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The request was too large for the %1% service."
-msgstr "請求內容超出 %1% 服務的上限。"
 
 # AI Translated
 #, boost-format
@@ -1363,6 +1362,13 @@ msgstr "雲端"
 # AI Translated
 msgid "The printer stopped sending updates."
 msgstr "列印裝置已停止傳送更新。"
+
+# AI Translated
+#. TRN %1% is the printer's address, such as 192.168.1.20. Moonraker is the printer's
+#. software. "Reconnect" is the card's button, which asks for the key.
+#, boost-format
+msgid "Moonraker at %1% refused the app's key. Press Reconnect to enter it."
+msgstr "%1% 上的 Moonraker 拒絕了本應用程式的金鑰。按「重新連線」輸入金鑰。"
 
 # AI Translated
 #, c-format, boost-format
@@ -2548,14 +2554,6 @@ msgid "last finished yesterday"
 msgstr "上次完成於昨天"
 
 # AI Translated
-msgid "Version history unavailable"
-msgstr "無法使用版本記錄"
-
-# AI Translated
-msgid "Version history couldn't be loaded. Try again."
-msgstr "無法載入版本記錄。請再試一次。"
-
-# AI Translated
 msgid "Export project 3MF"
 msgstr "匯出專案 3MF"
 
@@ -2578,10 +2576,6 @@ msgstr "還原專案版本"
 # AI Translated
 msgid "Restore failed"
 msgstr "還原失敗"
-
-# AI Translated
-msgid "This version couldn't be restored. Try again."
-msgstr "無法還原此版本。請再試一次。"
 
 # AI Translated
 msgid "Back to Project"
@@ -3156,6 +3150,10 @@ msgid "This project was saved by a newer version of JusPrin. Get the new version
 msgstr "此專案是由較新版本的 JusPrin 儲存的。請取得新版本以開啟它。"
 
 # AI Translated
+msgid "This project is open in another JusPrin window. Close it there, then try again."
+msgstr "此專案已在另一個 JusPrin 視窗中開啟。請先在那裡關閉，然後再試一次。"
+
+# AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "無法開啟專案。請再試一次。"
 
@@ -3214,6 +3212,23 @@ msgstr "如果電腦有多張顯示卡，將顯示器接到另一張顯示卡上
 # AI Translated
 msgid "If the problem remains, close any overlay or screen capture software and try again."
 msgstr "如果問題仍然存在，請關閉所有疊加層或螢幕錄製軟體，然後再試一次。"
+
+# AI Translated
+#, boost-format
+#~ msgid "The request was too large for the %1% service."
+#~ msgstr "請求內容超出 %1% 服務的上限。"
+
+# AI Translated
+#~ msgid "Version history unavailable"
+#~ msgstr "無法使用版本記錄"
+
+# AI Translated
+#~ msgid "Version history couldn't be loaded. Try again."
+#~ msgstr "無法載入版本記錄。請再試一次。"
+
+# AI Translated
+#~ msgid "This version couldn't be restored. Try again."
+#~ msgstr "無法還原此版本。請再試一次。"
 
 # AI Translated
 #, boost-format

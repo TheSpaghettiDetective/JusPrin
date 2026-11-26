@@ -12,6 +12,7 @@ import { t, plural } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import {
   AccountStatusPayload,
+  AgentErrorInfo,
   CreditAccount,
   DragAction,
   LocalModelInfo,
@@ -103,7 +104,7 @@ export interface PreferencesProps {
   // The box the server fills near the top of Account; null for none.
   accountBox: string | null;
   // The host's last answer to deleteAccount.
-  accountDeleted: { deleted: boolean } | null;
+  accountDeleted: { deleted: boolean; error?: AgentErrorInfo } | null;
   // Each configured provider's model list; the JusPrin account's says whether
   // its AI can be reached.
   modelCatalog?: ModelCatalogPayload;
@@ -286,13 +287,14 @@ function AccountCredits({ account, onOpenPage }: {
 // server has deleted the account the host signs out of it, and Account shows
 // the signed-out form; a failure leaves the dialog open and says so.
 function DeleteAccount({ email, warning, accountDeleted, onDelete }: {
-  email?: string; warning?: string; accountDeleted: { deleted: boolean } | null; onDelete: () => void;
+  email?: string; warning?: string; accountDeleted: { deleted: boolean; error?: AgentErrorInfo } | null; onDelete: () => void;
 }) {
   const [confirming, setConfirming] = useState(false);
   // The answer the dialog is waiting past; undefined when it waits for none.
-  const [sentAt, setSentAt] = useState<{ deleted: boolean } | null | undefined>();
+  const [sentAt, setSentAt] = useState<{ deleted: boolean; error?: AgentErrorInfo } | null | undefined>();
   const deleting = sentAt !== undefined && accountDeleted === sentAt;
   const failed = sentAt !== undefined && accountDeleted !== sentAt && accountDeleted?.deleted === false;
+  const error = failed ? accountDeleted?.error : undefined;
   const close = () => { setConfirming(false); setSentAt(undefined); };
   return (
     <Group title={t`Delete account`}>
@@ -307,7 +309,10 @@ function DeleteAccount({ email, warning, accountDeleted, onDelete }: {
               ? t`Any plan ends, and the credits on ${email} are removed with everything JusPrin keeps for this account. This can’t be undone.`
               : t`Any plan ends, and the credits on this account are removed with everything JusPrin keeps for this account. This can’t be undone.`)}
           </p>
-          {failed && <p className="chat-dialog-field-error" role="alert">{t`The account couldn’t be deleted. Check your internet connection, then try again.`}</p>}
+          {/* Ours says nothing here: the app's report window tells the person. */}
+          {failed && error?.code !== 'unexpected' && <p className="chat-dialog-field-error" role="alert">
+            {error && error.code !== 'network_error' ? error.message : t`The account couldn’t be deleted. Check your internet connection, then try again.`}
+          </p>}
           <div className="chat-dialog-buttons">
             <button type="button" disabled={deleting} onClick={close}>{t`Cancel`}</button>
             <button type="button" className="danger decisive" disabled={deleting}
@@ -323,7 +328,7 @@ function DeleteAccount({ email, warning, accountDeleted, onDelete }: {
 
 function AccountSection({ savedKeys, account, creditAccount, accountBox, accountDeleted, modelCatalog, actions, onAgent }: {
   savedKeys: SavedKeyInfo[]; account: AccountStatusPayload; creditAccount: CreditAccount | null;
-  accountBox: string | null; accountDeleted: { deleted: boolean } | null;
+  accountBox: string | null; accountDeleted: { deleted: boolean; error?: AgentErrorInfo } | null;
   modelCatalog?: ModelCatalogPayload; actions: PreferencesActions; onAgent: () => void;
 }) {
   const signedIn = savedKeys.some((key) => key.provider === 'jusprin');

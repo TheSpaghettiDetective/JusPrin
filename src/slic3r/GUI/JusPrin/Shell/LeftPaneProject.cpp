@@ -8,7 +8,9 @@
 
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/OrcaMessages/OwnDialogs.hpp"
+#include "slic3r/GUI/JusPrin/Support/SaidBy.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/StoredFormat.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/I18N.hpp"
 
@@ -22,6 +24,7 @@
 #include <wx/msgdlg.h>
 #include <wx/utils.h>
 
+#include <boost/algorithm/string/predicate.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/log/trivial.hpp>
 
@@ -138,14 +141,9 @@ void LeftPane::set_project_sources(ProjectSources sources)
 
 void LeftPane::open_project_view(ProjectView view)
 {
-    if (view == ProjectView::Versions && m_sources.autosave != nullptr) {
-        try {
-            m_versions = m_sources.autosave->history();
-        } catch (const std::exception& error) {
-            show_project_error(_L("Version history unavailable"), _L("Version history couldn't be loaded. Try again."), error.what());
-            return;
-        }
-    }
+    // The history is read from the app's own folder: a failure is ours.
+    if (view == ProjectView::Versions && m_sources.autosave != nullptr)
+        m_versions = m_sources.autosave->history();
     m_navigation.open(view);
     m_scroll       = 0;
     m_action_focus = -1;
@@ -160,11 +158,28 @@ void LeftPane::export_project()
                         wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
     if (dialog.ShowModal() != wxID_OK)
         return;
+    const std::filesystem::path destination(dialog.GetPath().ToStdWstring());
+    // A name that does not end in .3mf is the person's to change.
+    if (!boost::iequals(destination.extension().u8string(), ".3mf")) {
+        show_project_error(_L("Export failed"), _L("The project couldn't be exported. Try again."), "the name does not end in .3mf");
+        return;
+    }
+    // Anything else that fails is ours, and goes up to the handler that
+    // reports it.
     try {
-        if (!m_sources.autosave->export_copy(std::filesystem::path(dialog.GetPath().ToStdWstring())))
-            throw std::runtime_error(m_sources.autosave->error());
-    } catch (const std::exception& error) {
-        show_project_error(_L("Export failed"), _L("The project couldn't be exported. Try again."), error.what());
+        if (!m_sources.autosave->export_copy(destination))
+            show_project_error(_L("Export failed"), _L("The project couldn't be exported. Try again."),
+                               m_sources.autosave->error());
+    } catch (const Workspace::SaveRefused& refusal) {
+        // The project is saved first; the system refused that save.
+        show_project_error(_L("Export failed"), wxString::FromUTF8(said_by(kSystemName, refusal.what())), refusal.what());
+    } catch (const std::filesystem::filesystem_error& error) {
+        // The chosen folder refused the copy; any other file system error is ours.
+        if (!system_refused(error, destination.parent_path()))
+            throw;
+        show_project_error(_L("Export failed"),
+                           wxString::FromUTF8(said_by(kSystemName, error.path1().parent_path().u8string() + ": " + error.code().message())),
+                           error.what());
     }
 }
 
@@ -182,9 +197,15 @@ void LeftPane::restore_version(const std::string& version_id)
     }();
     if (!confirmed)
         return;
-    if (!m_sources.autosave->restore(version_id))
-        show_project_error(_L("Restore failed"), _L("This version couldn't be restored. Try again."),
-                           m_sources.autosave->error());
+    // The current model is saved first, and the system may refuse that save
+    // or a write of the restore. Any other failure reads or writes the app's
+    // own folder: it is ours.
+    try {
+        if (!m_sources.autosave->restore(version_id))
+            throw std::runtime_error(m_sources.autosave->error());
+    } catch (const Workspace::SaveRefused& refusal) {
+        show_project_error(_L("Restore failed"), wxString::FromUTF8(said_by(kSystemName, refusal.what())), refusal.what());
+    }
     // A restore replaces the project, so whatever was open belongs to the old one.
     refresh_from_workspace();
 }

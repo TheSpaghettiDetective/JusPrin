@@ -15,6 +15,7 @@
 
 #include <memory>
 #include <functional>
+#include <string>
 
 class Button;
 class wxWebView;
@@ -95,6 +96,10 @@ private:
     void on_load_error(wxWebViewEvent& event);
     void on_handshake_deadline(wxTimerEvent& event);
     void show_bridge_error(const wxString& reason);
+    // The panel not starting is ours: the page and its connection ship with
+    // the app. Shows `reason` and reports `what`, in English, as one
+    // unexpected error; a repeat of it is dropped by the report itself.
+    void fail_bridge(const wxString& reason, const std::string& what);
     void hide_bridge_error();
     wxString diagnostics_text(const wxString& reason) const;
 

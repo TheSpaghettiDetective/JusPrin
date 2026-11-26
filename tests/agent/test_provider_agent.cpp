@@ -603,7 +603,6 @@ TEST_CASE("HTTP failures are mapped to safe errors that name the provider", "[ag
                           {429, "sensitive upstream body", "rate_limited", true, "The Test Provider service is rate limited"},
                           {0, "Operation timed out", "network_error", true, "could not reach the Test Provider service"},
                           {0, "could not resolve host", "network_error", true, "could not reach the Test Provider service"},
-                          {413, "body omitted", "request_too_large", false, "too large for the Test Provider service"},
                           // The service of the person's own key failing on its side.
                           {500, "sensitive upstream body", "provider_unavailable", true, "The Test Provider service is having trouble right now. Try again later."},
                           {503, "sensitive upstream body", "provider_unavailable", true, "The Test Provider service is having trouble right now. Try again later."},
@@ -634,8 +633,10 @@ TEST_CASE("HTTP failures are mapped to safe errors that name the provider", "[ag
 
 TEST_CASE("an answer that names nothing a person can act on stops the turn with the service's status and text", "[agent][loop][errors]")
 {
+    // 413 too: the app sizes what it sends, so a chat more than the model
+    // takes is ours.
     const std::string not_found = R"({"error":{"message":"The model `gpt-x` does not exist","type":"invalid_request_error","code":"model_not_found"}})";
-    for (const unsigned status : {400u, 404u, 408u}) {
+    for (const unsigned status : {400u, 404u, 408u, 413u}) {
         CAPTURE(status);
         Harness h;
         REQUIRE(h.agent->start(request_fixture()));
@@ -1116,7 +1117,7 @@ TEST_CASE("the record gets every item sent and every reply as it arrives, never 
     }
     SECTION("a turn whose request the provider refuses keeps nothing")
     {
-        const unsigned status = GENERATE(429u, 413u);
+        const unsigned status = GENERATE(429u, 401u);
         REQUIRE(h.agent->start(request));
         h.fake->error(status);
         REQUIRE(h.poll_until(AgentEventKind::Failed));

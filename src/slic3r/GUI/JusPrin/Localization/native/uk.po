@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-25 17:08-0800\n"
+"POT-Creation-Date: 2026-11-26 08:11-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -360,6 +360,11 @@ msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try ag
 msgstr "Ваш сеанс входу в JusPrin завершився. Увійдіть знову в налаштуваннях і спробуйте ще раз."
 
 # AI Translated
+#. TRN The address is JusPrin's support email; keep it unchanged.
+msgid "This account has been deactivated. If you think this is a mistake, email jusprin-support@obico.io."
+msgstr "Цей обліковий запис деактивовано. Якщо ви вважаєте, що це помилка, напишіть на jusprin-support@obico.io."
+
+# AI Translated
 msgid "Signing in didn't finish. Nothing was saved. Try again."
 msgstr "Вхід не завершено. Нічого не збережено. Спробуйте ще раз."
 
@@ -527,12 +532,6 @@ msgstr "Сервіс %1% обмежує частоту запитів. Спро�
 #, boost-format
 msgid "The %1% service is having trouble right now. Try again later."
 msgstr "У сервісу %1% зараз неполадки. Спробуйте пізніше."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The request was too large for the %1% service."
-msgstr "Запит завеликий для сервісу %1%."
 
 # AI Translated
 #, boost-format
@@ -1395,6 +1394,13 @@ msgstr "Хмара"
 # AI Translated
 msgid "The printer stopped sending updates."
 msgstr "Принтер перестав надсилати оновлення."
+
+# AI Translated
+#. TRN %1% is the printer's address, such as 192.168.1.20. Moonraker is the printer's
+#. software. "Reconnect" is the card's button, which asks for the key.
+#, boost-format
+msgid "Moonraker at %1% refused the app's key. Press Reconnect to enter it."
+msgstr "Moonraker за адресою %1% відхилив ключ застосунку. Натисніть «Підключити знову», щоб ввести його."
 
 # AI Translated
 #, c-format, boost-format
@@ -2610,14 +2616,6 @@ msgid "last finished yesterday"
 msgstr "востаннє завершено вчора"
 
 # AI Translated
-msgid "Version history unavailable"
-msgstr "Історія версій недоступна"
-
-# AI Translated
-msgid "Version history couldn't be loaded. Try again."
-msgstr "Не вдалося завантажити історію версій. Спробуйте ще раз."
-
-# AI Translated
 msgid "Export project 3MF"
 msgstr "Експорт 3MF проєкту"
 
@@ -2640,10 +2638,6 @@ msgstr "Відновити версію проєкту"
 # AI Translated
 msgid "Restore failed"
 msgstr "Помилка відновлення"
-
-# AI Translated
-msgid "This version couldn't be restored. Try again."
-msgstr "Не вдалося відновити цю версію. Спробуйте ще раз."
 
 # AI Translated
 msgid "Back to Project"
@@ -3235,6 +3229,10 @@ msgid "This project was saved by a newer version of JusPrin. Get the new version
 msgstr "Цей проєкт збережено новішою версією JusPrin. Отримайте нову версію, щоб відкрити його."
 
 # AI Translated
+msgid "This project is open in another JusPrin window. Close it there, then try again."
+msgstr "Цей проєкт відкрито в іншому вікні JusPrin. Закрийте його там і спробуйте ще раз."
+
+# AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "Не вдалося відкрити проєкт. Спробуйте ще раз."
 
@@ -3305,6 +3303,23 @@ msgstr "Якщо в комп'ютері більше однієї відеока
 # AI Translated
 msgid "If the problem remains, close any overlay or screen capture software and try again."
 msgstr "Якщо проблема не зникне, закрийте всі програми оверлеїв і запису екрана та спробуйте ще раз."
+
+# AI Translated
+#, boost-format
+#~ msgid "The request was too large for the %1% service."
+#~ msgstr "Запит завеликий для сервісу %1%."
+
+# AI Translated
+#~ msgid "Version history unavailable"
+#~ msgstr "Історія версій недоступна"
+
+# AI Translated
+#~ msgid "Version history couldn't be loaded. Try again."
+#~ msgstr "Не вдалося завантажити історію версій. Спробуйте ще раз."
+
+# AI Translated
+#~ msgid "This version couldn't be restored. Try again."
+#~ msgstr "Не вдалося відновити цю версію. Спробуйте ще раз."
 
 # AI Translated
 #, boost-format

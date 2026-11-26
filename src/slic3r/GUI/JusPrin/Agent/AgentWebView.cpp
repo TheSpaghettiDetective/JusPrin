@@ -234,11 +234,11 @@ AgentWebView::AgentWebView(wxWindow*                                  parent,
 
     m_page_url = agent_page_url(mode);
     if (m_page_url.empty()) {
-        show_bridge_error(_L("The packaged AI page is missing from this build."));
+        fail_bridge(_L("The packaged AI page is missing from this build."), "the packaged AI page is missing");
     } else {
         m_webview  = WebView::CreateWebView(this, m_page_url, page_handlers());
         if (m_webview == nullptr) {
-            show_bridge_error(_L("The system web view could not be created."));
+            fail_bridge(_L("The system web view could not be created."), "the system web view could not be created");
         } else {
             sizer->Add(m_webview, 1, wxEXPAND);
             m_webview->Bind(wxEVT_WEBVIEW_SCRIPT_MESSAGE_RECEIVED, &AgentWebView::on_script_message, this);
@@ -323,13 +323,13 @@ void AgentWebView::on_load_error(wxWebViewEvent& event)
 {
     m_last_load_error = event.GetString();
     BOOST_LOG_TRIVIAL(error) << "JusPrin agent page failed to load: " << m_last_load_error.ToUTF8();
-    show_bridge_error(_L("The AI page failed to load."));
+    fail_bridge(_L("The AI page failed to load."), "the AI page failed to load");
 }
 
 void AgentWebView::on_handshake_deadline(wxTimerEvent&)
 {
     if (!m_host->handshake_complete())
-        show_bridge_error(_L("The AI page did not complete the bridge handshake."));
+        fail_bridge(_L("The AI page did not complete the bridge handshake."), "the AI page did not complete the bridge handshake");
 }
 
 void AgentWebView::reload()
@@ -393,6 +393,15 @@ void AgentWebView::show_bridge_error(const wxString& reason)
         m_webview->Hide();
     m_error_panel->Show();
     Layout();
+}
+
+void AgentWebView::fail_bridge(const wxString& reason, const std::string& what)
+{
+    show_bridge_error(reason);
+    std::string error = what + " at " + (m_page_url.empty() ? agent_page_path().string() : std::string(m_page_url.ToUTF8().data()));
+    if (!m_last_load_error.empty())
+        error += ": " + std::string(m_last_load_error.ToUTF8().data());
+    report_unexpected_error("starting the AI panel", error);
 }
 
 void AgentWebView::enable_chat_model_choice(AppConfig* config)

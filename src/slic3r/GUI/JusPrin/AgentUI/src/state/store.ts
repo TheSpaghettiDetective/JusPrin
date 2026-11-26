@@ -63,8 +63,10 @@ export interface AgentUiState {
   // The HTML of the box the server fills on Preferences › Account; null for
   // no box, and before it answers.
   accountBox: string | null;
-  // The host's last answer to delete_account; a new object each time.
-  accountDeleted: { deleted: boolean } | null;
+  // The host's last answer to delete_account; a new object each time. `error`
+  // says why not, when the server said: network_error, a refusal in the
+  // app's sentence, or unexpected (ours, which the app reports).
+  accountDeleted: { deleted: boolean; error?: AgentErrorInfo } | null;
   // Words the gateway refused, back for the message box. The count tells a new
   // return from one the box has already taken.
   returnedDraft: { text: string; count: number };
@@ -305,7 +307,7 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
     case 'account_box':
       return { ...state, accountBox: (payload.html as string | null) ?? null };
     case 'account_deleted':
-      return { ...state, accountDeleted: { deleted: payload.deleted === true } };
+      return { ...state, accountDeleted: { deleted: payload.deleted === true, error: payload.error as AgentErrorInfo | undefined } };
     case 'model_catalog':
       return { ...state, modelCatalog: envelope.payload as ModelCatalogPayload };
     case 'chat_model': {

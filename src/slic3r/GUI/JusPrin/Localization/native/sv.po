@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-25 17:08-0800\n"
+"POT-Creation-Date: 2026-11-26 08:11-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -357,6 +357,11 @@ msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try ag
 msgstr "Din JusPrin-inloggning har gått ut. Logga in igen i Inställningar och försök sedan igen."
 
 # AI Translated
+#. TRN The address is JusPrin's support email; keep it unchanged.
+msgid "This account has been deactivated. If you think this is a mistake, email jusprin-support@obico.io."
+msgstr "Det här kontot har inaktiverats. Om du tror att det är ett misstag kan du mejla jusprin-support@obico.io."
+
+# AI Translated
 msgid "Signing in didn't finish. Nothing was saved. Try again."
 msgstr "Inloggningen slutfördes inte. Inget sparades. Försök igen."
 
@@ -524,12 +529,6 @@ msgstr "Tjänsten %1% begränsar antalet anrop. Försök igen om en liten stund.
 #, boost-format
 msgid "The %1% service is having trouble right now. Try again later."
 msgstr "Tjänsten %1% har problem just nu. Försök igen senare."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The request was too large for the %1% service."
-msgstr "Begäran var för stor för tjänsten %1%."
 
 # AI Translated
 #, boost-format
@@ -1369,6 +1368,13 @@ msgstr "Moln"
 # AI Translated
 msgid "The printer stopped sending updates."
 msgstr "Skrivaren slutade skicka uppdateringar."
+
+# AI Translated
+#. TRN %1% is the printer's address, such as 192.168.1.20. Moonraker is the printer's
+#. software. "Reconnect" is the card's button, which asks for the key.
+#, boost-format
+msgid "Moonraker at %1% refused the app's key. Press Reconnect to enter it."
+msgstr "Moonraker på %1% avvisade appens nyckel. Tryck på ”Återanslut” för att ange den."
 
 # AI Translated
 #, c-format, boost-format
@@ -2564,14 +2570,6 @@ msgid "last finished yesterday"
 msgstr "senast klar i går"
 
 # AI Translated
-msgid "Version history unavailable"
-msgstr "Versionshistoriken är inte tillgänglig"
-
-# AI Translated
-msgid "Version history couldn't be loaded. Try again."
-msgstr "Versionshistoriken kunde inte läsas in. Försök igen."
-
-# AI Translated
 msgid "Export project 3MF"
 msgstr "Exportera projekt-3MF"
 
@@ -2594,10 +2592,6 @@ msgstr "Återställ projektversion"
 # AI Translated
 msgid "Restore failed"
 msgstr "Återställningen misslyckades"
-
-# AI Translated
-msgid "This version couldn't be restored. Try again."
-msgstr "Den här versionen kunde inte återställas. Försök igen."
 
 # AI Translated
 msgid "Back to Project"
@@ -3179,6 +3173,10 @@ msgid "This project was saved by a newer version of JusPrin. Get the new version
 msgstr "Det här projektet sparades av en nyare version av JusPrin. Hämta den nya versionen för att öppna det."
 
 # AI Translated
+msgid "This project is open in another JusPrin window. Close it there, then try again."
+msgstr "Projektet är öppet i ett annat JusPrin-fönster. Stäng det där och försök sedan igen."
+
+# AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "Projektet kunde inte öppnas. Försök igen."
 
@@ -3241,6 +3239,23 @@ msgstr "Om datorn har mer än ett grafikkort kan det hjälpa att ansluta skärme
 # AI Translated
 msgid "If the problem remains, close any overlay or screen capture software and try again."
 msgstr "Om problemet kvarstår stänger du alla överläggs- eller skärminspelningsprogram och försöker igen."
+
+# AI Translated
+#, boost-format
+#~ msgid "The request was too large for the %1% service."
+#~ msgstr "Begäran var för stor för tjänsten %1%."
+
+# AI Translated
+#~ msgid "Version history unavailable"
+#~ msgstr "Versionshistoriken är inte tillgänglig"
+
+# AI Translated
+#~ msgid "Version history couldn't be loaded. Try again."
+#~ msgstr "Versionshistoriken kunde inte läsas in. Försök igen."
+
+# AI Translated
+#~ msgid "This version couldn't be restored. Try again."
+#~ msgstr "Den här versionen kunde inte återställas. Försök igen."
 
 # AI Translated
 #, boost-format

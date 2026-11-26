@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-25 17:08-0800\n"
+"POT-Creation-Date: 2026-11-26 08:11-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -359,6 +359,11 @@ msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try ag
 msgstr "JusPrin oturumunuz sona erdi. Tercihler'de yeniden oturum açın, sonra yeniden deneyin."
 
 # AI Translated
+#. TRN The address is JusPrin's support email; keep it unchanged.
+msgid "This account has been deactivated. If you think this is a mistake, email jusprin-support@obico.io."
+msgstr "Bu hesap devre dışı bırakıldı. Bunun bir hata olduğunu düşünüyorsanız jusprin-support@obico.io adresine e-posta gönderin."
+
+# AI Translated
 msgid "Signing in didn't finish. Nothing was saved. Try again."
 msgstr "Oturum açma tamamlanmadı. Hiçbir şey kaydedilmedi. Yeniden deneyin."
 
@@ -526,12 +531,6 @@ msgstr "%1% hizmeti istek sınırına ulaştı. Biraz sonra yeniden deneyin."
 #, boost-format
 msgid "The %1% service is having trouble right now. Try again later."
 msgstr "%1% hizmetinde şu anda sorun var. Daha sonra yeniden deneyin."
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The request was too large for the %1% service."
-msgstr "İstek, %1% hizmeti için çok büyüktü."
 
 # AI Translated
 #, boost-format
@@ -1372,6 +1371,13 @@ msgstr "Bulut"
 # AI Translated
 msgid "The printer stopped sending updates."
 msgstr "Yazıcı güncelleme göndermeyi durdurdu."
+
+# AI Translated
+#. TRN %1% is the printer's address, such as 192.168.1.20. Moonraker is the printer's
+#. software. "Reconnect" is the card's button, which asks for the key.
+#, boost-format
+msgid "Moonraker at %1% refused the app's key. Press Reconnect to enter it."
+msgstr "%1% adresindeki Moonraker uygulamanın anahtarını reddetti. Anahtarı girmek için \"Yeniden bağlan\"a basın."
 
 # AI Translated
 #, c-format, boost-format
@@ -2564,14 +2570,6 @@ msgid "last finished yesterday"
 msgstr "son tamamlanma dün"
 
 # AI Translated
-msgid "Version history unavailable"
-msgstr "Sürüm geçmişi kullanılamıyor"
-
-# AI Translated
-msgid "Version history couldn't be loaded. Try again."
-msgstr "Sürüm geçmişi yüklenemedi. Yeniden deneyin."
-
-# AI Translated
 msgid "Export project 3MF"
 msgstr "Proje 3MF dosyasını dışa aktar"
 
@@ -2594,10 +2592,6 @@ msgstr "Proje sürümünü geri yükle"
 # AI Translated
 msgid "Restore failed"
 msgstr "Geri yükleme başarısız oldu"
-
-# AI Translated
-msgid "This version couldn't be restored. Try again."
-msgstr "Bu sürüm geri yüklenemedi. Yeniden deneyin."
 
 # AI Translated
 msgid "Back to Project"
@@ -3176,6 +3170,10 @@ msgid "This project was saved by a newer version of JusPrin. Get the new version
 msgstr "Bu proje JusPrin'in daha yeni bir sürümüyle kaydedildi. Açmak için yeni sürümü edinin."
 
 # AI Translated
+msgid "This project is open in another JusPrin window. Close it there, then try again."
+msgstr "Bu proje başka bir JusPrin penceresinde açık. Orada kapatın, ardından tekrar deneyin."
+
+# AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "Proje açılamadı. Yeniden deneyin."
 
@@ -3238,6 +3236,23 @@ msgstr "Bilgisayarda birden fazla grafik kartı varsa, monitörü başka bir kar
 # AI Translated
 msgid "If the problem remains, close any overlay or screen capture software and try again."
 msgstr "Sorun devam ederse, tüm katman (overlay) veya ekran kaydı yazılımlarını kapatıp yeniden deneyin."
+
+# AI Translated
+#, boost-format
+#~ msgid "The request was too large for the %1% service."
+#~ msgstr "İstek, %1% hizmeti için çok büyüktü."
+
+# AI Translated
+#~ msgid "Version history unavailable"
+#~ msgstr "Sürüm geçmişi kullanılamıyor"
+
+# AI Translated
+#~ msgid "Version history couldn't be loaded. Try again."
+#~ msgstr "Sürüm geçmişi yüklenemedi. Yeniden deneyin."
+
+# AI Translated
+#~ msgid "This version couldn't be restored. Try again."
+#~ msgstr "Bu sürüm geri yüklenemedi. Yeniden deneyin."
 
 # AI Translated
 #, boost-format

@@ -1,6 +1,7 @@
 #include "AgentConfiguration.hpp"
 
 #include "AgentHost.hpp"
+#include "AgentProtocol.hpp"
 #include "CloudSignInMachine.hpp"
 #include "LocalModelSetup.hpp"
 #include "ModelCatalog.hpp"
@@ -491,11 +492,13 @@ public:
     {
         const std::string token = cloud_account_token(m_config);
         if (token.empty()) {
-            done(false);
+            done(false, std::nullopt);
             return;
         }
         Agent::delete_account(account_provider(), token, cloud_account_url(m_config), m_cancelled,
-                              [post = m_post, done = std::move(done)](bool deleted) { post([done, deleted] { done(deleted); }); });
+                              [post = m_post, done = std::move(done)](bool deleted, std::optional<AgentError> failure) {
+                                  post([done, deleted, failure] { done(deleted, failure); });
+                              });
     }
 
     void list_models(const std::string& provider, ModelsDone done) override

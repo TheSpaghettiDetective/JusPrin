@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-25 17:08-0800\n"
+"POT-Creation-Date: 2026-11-26 08:11-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -358,6 +358,11 @@ msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try ag
 msgstr "JusPrinのサインインの有効期限が切れました。設定でもう一度サインインしてから、もう一度お試しください。"
 
 # AI Translated
+#. TRN The address is JusPrin's support email; keep it unchanged.
+msgid "This account has been deactivated. If you think this is a mistake, email jusprin-support@obico.io."
+msgstr "このアカウントは無効化されています。誤りだと思われる場合は、jusprin-support@obico.io までメールでお問い合わせください。"
+
+# AI Translated
 msgid "Signing in didn't finish. Nothing was saved. Try again."
 msgstr "サインインが完了しませんでした。何も保存されていません。もう一度お試しください。"
 
@@ -525,12 +530,6 @@ msgstr "%1%サービスがレート制限中です。少し待ってからもう
 #, boost-format
 msgid "The %1% service is having trouble right now. Try again later."
 msgstr "%1%サービスで現在問題が発生しています。しばらくしてからもう一度お試しください。"
-
-# AI Translated
-#. TRN %1% is an AI provider, such as OpenAI.
-#, boost-format
-msgid "The request was too large for the %1% service."
-msgstr "リクエストが%1%サービスには大きすぎました。"
 
 # AI Translated
 #, boost-format
@@ -1359,6 +1358,13 @@ msgstr "クラウド"
 # AI Translated
 msgid "The printer stopped sending updates."
 msgstr "プリンターからの更新が途絶えました。"
+
+# AI Translated
+#. TRN %1% is the printer's address, such as 192.168.1.20. Moonraker is the printer's
+#. software. "Reconnect" is the card's button, which asks for the key.
+#, boost-format
+msgid "Moonraker at %1% refused the app's key. Press Reconnect to enter it."
+msgstr "%1% の Moonraker がアプリのキーを拒否しました。「再接続」を押してキーを入力してください。"
 
 # AI Translated
 #, c-format, boost-format
@@ -2536,14 +2542,6 @@ msgid "last finished yesterday"
 msgstr "最終完了 昨日"
 
 # AI Translated
-msgid "Version history unavailable"
-msgstr "バージョン履歴を利用できません"
-
-# AI Translated
-msgid "Version history couldn't be loaded. Try again."
-msgstr "バージョン履歴を読み込めませんでした。もう一度お試しください。"
-
-# AI Translated
 msgid "Export project 3MF"
 msgstr "プロジェクト3MFをエクスポート"
 
@@ -2566,10 +2564,6 @@ msgstr "プロジェクトのバージョンを復元"
 # AI Translated
 msgid "Restore failed"
 msgstr "復元に失敗しました"
-
-# AI Translated
-msgid "This version couldn't be restored. Try again."
-msgstr "このバージョンを復元できませんでした。もう一度お試しください。"
 
 # AI Translated
 msgid "Back to Project"
@@ -3143,6 +3137,10 @@ msgid "This project was saved by a newer version of JusPrin. Get the new version
 msgstr "このプロジェクトは新しいバージョンのJusPrinで保存されています。開くには新しいバージョンを入手してください。"
 
 # AI Translated
+msgid "This project is open in another JusPrin window. Close it there, then try again."
+msgstr "このプロジェクトは別の JusPrin ウィンドウで開かれています。そちらで閉じてから、もう一度お試しください。"
+
+# AI Translated
 msgid "The project couldn't be opened. Try again."
 msgstr "プロジェクトを開けませんでした。もう一度お試しください。"
 
@@ -3201,6 +3199,23 @@ msgstr "パソコンにグラフィックカードが複数ある場合は、モ
 # AI Translated
 msgid "If the problem remains, close any overlay or screen capture software and try again."
 msgstr "問題が解決しない場合は、オーバーレイや画面キャプチャのソフトウェアを閉じてから、もう一度お試しください。"
+
+# AI Translated
+#, boost-format
+#~ msgid "The request was too large for the %1% service."
+#~ msgstr "リクエストが%1%サービスには大きすぎました。"
+
+# AI Translated
+#~ msgid "Version history unavailable"
+#~ msgstr "バージョン履歴を利用できません"
+
+# AI Translated
+#~ msgid "Version history couldn't be loaded. Try again."
+#~ msgstr "バージョン履歴を読み込めませんでした。もう一度お試しください。"
+
+# AI Translated
+#~ msgid "This version couldn't be restored. Try again."
+#~ msgstr "このバージョンを復元できませんでした。もう一度お試しください。"
 
 # AI Translated
 #, boost-format

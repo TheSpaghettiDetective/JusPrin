@@ -25,13 +25,16 @@
 // page's user agent names Safari: PayPal opens no window for a page whose
 // user agent names no browser.
 
+#include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
 #include "slic3r/GUI/JusPrin/Agent/WebViewRelease.hpp"
 
 #include <wx/dialog.h>
+#include <wx/string.h>
 #include <wx/timer.h>
 
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 
 class Button;
@@ -44,6 +47,13 @@ namespace Slic3r::GUI::JusPrin {
 
 class HeaderButton;
 class ShellTheme;
+
+// The server's link to a page, or why there is none.
+struct WebLink
+{
+    std::string                      url;
+    std::optional<Agent::AgentError> failure;
+};
 
 class ServerSheet final : public wxDialog
 {
@@ -60,6 +70,8 @@ public:
     enum class State { Page, Loading, Failed };
     State state() const { return m_state; }
     wxWebView* web_view() const { return m_view; }
+    // The sentence under the can't-load title; for the shell harness.
+    wxString status_detail() const;
 
 private:
     ServerSheet(wxWindow* parent, const ShellTheme& theme);
@@ -68,12 +80,15 @@ private:
     void     show_page(const std::string& page, const std::string& from);
     wxWindow* build_header();
     void     load();
-    // Asks the server for a link to the page; `use` gets it, or an empty one.
-    void     request_link(std::function<void(std::string url)> use);
+    // Asks the server for a link to the page; `use` gets it, or why not.
+    void     request_link(std::function<void(WebLink link)> use);
+    // Shows why there is no link, or closes the sheet for a failure of ours.
+    void     fail_link(const WebLink& link);
     void     open_in_browser();
     // `cause` says what went wrong when the state is Failed, for the app's
-    // log: every failure the sheet shows passes here.
-    void     set_state(State state, const std::string& cause = {});
+    // log: every failure the sheet shows passes here. `detail` is the sentence
+    // under the title; empty, the internet connection's.
+    void     set_state(State state, const std::string& cause = {}, const wxString& detail = {});
     void     on_navigating(wxWebViewEvent& event);
     void     on_loaded(wxWebViewEvent& event);
     void     on_error(wxWebViewEvent& event);

@@ -772,10 +772,6 @@ TEST_CASE("Anthropic's refusals that name a cause the person can act on say it",
         {400, R"({"type":"error","error":{"type":"invalid_request_error","message":"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits."}})", "provider_credits_exhausted"},
         // The errors page: 403 permission_error, a key without permission.
         {403, R"({"type":"error","error":{"type":"permission_error","message":"Your API key does not have permission to use the specified resource."}})", "invalid_credentials"},
-        // The context-windows page: 400 "prompt is too long".
-        {400, R"({"type":"error","error":{"type":"invalid_request_error","message":"prompt is too long: 212834 tokens > 200000 maximum"}})", "request_too_large"},
-        // The vision page, with anthropics/claude-code#49537's words: too many pictures.
-        {400, R"({"type":"error","error":{"type":"invalid_request_error","message":"messages.108.content.3.image.source.base64.data: At least one of the image dimensions exceed max allowed size for many-image requests: 2000 pixels"}})", "request_too_large"},
     };
     for (const Case& item : cases) {
         CAPTURE(item.status, item.body);
@@ -795,4 +791,19 @@ TEST_CASE("Anthropic's other 400s are still unexpected", "[agent][anthropic][err
     REQUIRE(agent.service->start(request_fixture()));
     agent.fake->refuse(400, R"({"type":"error","error":{"type":"invalid_request_error","message":"messages.1.content.12.image.source.base64.data: Image does not match the provided media type image/jpeg"}})");
     CHECK_THROWS_WITH(agent.poll_until(AgentEventKind::Failed), Catch::Matchers::ContainsSubstring("does not match the provided media type"));
+}
+
+// The app sizes what it sends, so a chat more than the model takes is ours.
+TEST_CASE("Anthropic's chat too long is unexpected", "[agent][anthropic][errors]")
+{
+    // The context-windows page: 400 "prompt is too long". The vision page,
+    // with anthropics/claude-code#49537's words: too many pictures.
+    for (const char* body : {R"({"type":"error","error":{"type":"invalid_request_error","message":"prompt is too long: 212834 tokens > 200000 maximum"}})",
+                             R"({"type":"error","error":{"type":"invalid_request_error","message":"messages.108.content.3.image.source.base64.data: At least one of the image dimensions exceed max allowed size for many-image requests: 2000 pixels"}})"}) {
+        CAPTURE(body);
+        Agent agent;
+        REQUIRE(agent.service->start(request_fixture()));
+        agent.fake->refuse(400, body);
+        CHECK_THROWS_WITH(agent.poll_until(AgentEventKind::Failed), Catch::Matchers::ContainsSubstring("HTTP 400"));
+    }
 }
