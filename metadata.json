@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M8B8TWW74R744D4VRB04EB4H",
+  "strategy": "manual-commit",
+  "branch": "claude/harness-near-windows",
+  "checkpoints_count": 9,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 56,
+    "cache_creation_tokens": 25436,
+    "cache_read_tokens": 9655636,
+    "output_tokens": 12943,
+    "api_call_count": 28,
+    "subagent_tokens": {
+      "input_tokens": 98,
+      "cache_creation_tokens": 371412,
+      "cache_read_tokens": 3952444,
+      "output_tokens": 17122,
+      "api_call_count": 43
+    }
+  }
+}
