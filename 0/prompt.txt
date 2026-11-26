@@ -1,0 +1,3 @@
+> Yes, an unconfirmed address can sign in. The server sets ACCOUNT_EMAIL_VERIFICATION = 'optional'. A JusPrin 2 account made in the app signs in by an emailed code, and entering the code confirms the address. I took my claim from the note's summary, but its own probe log says the 401 came from a deactivated account with the right password. I've corrected that entry in the handoff note.
+
+Then why did you bring this up to begin with? You think I have too much time to wait with you
