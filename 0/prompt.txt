@@ -1,0 +1,10 @@
+<!-- attach -->
+> Decision needed: someone with an active, renewing JusPrin plan presses Delete account. The confirmation they see first comes from our server, and it still warns "Your plan ends today", as if deleting would end the plan. When they press Delete, the server now refuses with your approved sentence, "Your plan is still active. Cancel it in Credits and plans, then delete your account." So they're told one thing, then the opposite. There are two options. (A) For a renewing plan, the confirmation shows that same approved sentence up front, in place of "Your plan ends today". No new words, a small server change plus a test. (B) Leave the warning as it is. My pick is A. Which do you want?
+
+Are you saying we're making two API calls for one delete action? If so, why?
+
+---
+
+Those details carry a field called delete_warning, and the Delete account confirmation shows that text (warning={creditAccount?.delete_warning} in Preferences.tsx). So the warning is decided when the account is loaded, and the delete request is the only call the button makes.
+
+Why do we need this?
