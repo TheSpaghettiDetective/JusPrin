@@ -6,6 +6,7 @@
 #include "OrcaWorkspaceAdapter.hpp"
 #include "ProjectAutosave.hpp"
 #include "ProjectVersionStore.hpp"
+#include "slic3r/GUI/JusPrin/Support/Files.hpp"
 #include "slic3r/GUI/JusPrin/Support/SaidBy.hpp"
 
 #include "libslic3r/ExtrusionEntity.hpp"

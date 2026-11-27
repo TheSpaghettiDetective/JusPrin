@@ -77,5 +77,32 @@
         check(run->opened.find("(greyed out)") == std::string::npos, "orca_import_opens_with_its_buttons_to_press");
         check(run->asked, "orca_import_asks_about_the_unsaved_change");
         check(run->after == run->opened, "orca_import_cancelled_question_returns_to_the_list");
+
+        // A shipped profile that cannot be installed is a broken install,
+        // which is ours: the import stops with an error, as printer setup's
+        // does, and the import's own handler reports it. The data folder's
+        // profile folder refusing writes makes the install fail.
+        {
+            Home::OrcaImporter                importer(*wxGetApp().mainframe);
+            const Home::OrcaProfileSource     source = importer.detect(Home::kOrcaSlicer, std::filesystem::u8path(orca.string()));
+            std::vector<Home::OrcaImportItem> ticked;
+            for (const Home::OrcaImportItem& item : source.ticked)
+                if (item.outcome != Home::OrcaImportItem::Outcome::AlreadyThere)
+                    ticked.push_back(item);
+            const std::filesystem::path system = std::filesystem::u8path(data_dir()) / "system";
+            std::filesystem::permissions(system, std::filesystem::perms::owner_read | std::filesystem::perms::owner_exec);
+            std::string thrown;
+            bool        returned = false;
+            try {
+                importer.bring(source, ticked, {}, Home::OrcaImporter::Selection::Kept);
+                returned = true;
+            } catch (const std::exception& error) {
+                thrown = error.what();
+            }
+            std::filesystem::permissions(system, std::filesystem::perms::owner_all);
+            std::cout << "HARNESS ORCA IMPORT broken install: " << ticked.size() << " to install, "
+                      << (returned ? std::string("returned") : "threw '" + thrown + "'") << std::endl;
+            check(!ticked.empty() && !returned && !thrown.empty(), "orca_import_with_a_broken_install_stops");
+        }
         finish();
     }

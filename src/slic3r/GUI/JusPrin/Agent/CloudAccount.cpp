@@ -116,6 +116,10 @@ AgentError account_request_failure(unsigned status, const std::string& body)
         return AgentError{"invalid_credentials", sign_in_ended(), false};
     if (std::optional<AgentError> outdated = update_required(status, body))
         return *outdated;
+    // Deleting an account whose plan still renews: the person cancels it first.
+    const json answer = json::parse(body, nullptr, false);
+    if (status == 409 && answer.is_object() && answer.value("/error/code"_json_pointer, std::string()) == "plan_still_active")
+        return AgentError{"plan_still_active", translated(L("Your plan is still active. Cancel it in Credits and plans, then delete your account.")), false};
     throw std::runtime_error("The JusPrin server answered HTTP " + std::to_string(status) + ": " + body);
 }
 

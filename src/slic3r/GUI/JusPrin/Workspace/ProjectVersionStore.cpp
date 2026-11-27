@@ -465,8 +465,9 @@ ProjectVersionStore::ProjectVersionStore(fs::path root, std::string project_id)
         return;
     create_and_lock();
     try {
-        require(!fs::exists(m_root / "chat-restore.pending.json"),
-                "an interrupted chat restoration requires recovery before this project can be edited");
+        if (fs::exists(m_root / "chat-restore.pending.json"))
+            throw ChatRestoreInterrupted("an interrupted chat restoration requires recovery before " + m_root.u8string() +
+                                         " can be edited");
         load_head();
         recover_uncommitted();
     } catch (...) {

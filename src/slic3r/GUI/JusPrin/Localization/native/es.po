@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-26 08:11-0800\n"
+"POT-Creation-Date: 2026-11-27 06:05-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -358,6 +358,10 @@ msgstr "Esta versión de JusPrin ya no puede conectarse a las cuentas de JusPrin
 # AI Translated
 msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
 msgstr "Su sesión de JusPrin ha caducado. Vuelva a iniciar sesión en Preferencias e inténtelo de nuevo."
+
+# AI Translated
+msgid "Your plan is still active. Cancel it in Credits and plans, then delete your account."
+msgstr "Su plan sigue activo. Cancélelo en Créditos y planes y, después, elimine su cuenta."
 
 # AI Translated
 #. TRN The address is JusPrin's support email; keep it unchanged.

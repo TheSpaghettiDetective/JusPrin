@@ -1325,6 +1325,18 @@ TEST_CASE("a request that only succeeds or not is the person's without an answer
     CHECK_THROWS(account_request_failure(403, ""));
 }
 
+TEST_CASE("deleting an account whose plan still renews says to cancel the plan first", "[agent][account]")
+{
+    // What the server answers Delete account while the plan is active and renewing.
+    const AgentError active = account_request_failure(
+        409, R"({"type": "error", "error": {"code": "plan_still_active", "message": "Your plan is still active. Cancel it in Credits and plans, then delete your account."}})");
+    CHECK(active.code == "plan_still_active");
+    CHECK(active.message == "Your plan is still active. Cancel it in Credits and plans, then delete your account.");
+    CHECK_FALSE(active.retryable);
+    // Any other conflict is ours.
+    CHECK_THROWS_WITH(account_request_failure(409, R"({"type": "error", "error": {"code": "conflict"}})"), ContainsSubstring("HTTP 409"));
+}
+
 TEST_CASE("cancelling an email sign-in drops the server's late answer", "[agent][account][email]")
 {
     Fixture f;

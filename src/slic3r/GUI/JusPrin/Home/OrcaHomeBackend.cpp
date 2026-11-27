@@ -1013,15 +1013,20 @@ ProjectList OrcaHomeBackend::recent_projects() const
 {
     if (m_autosave == nullptr)
         return {};
-    const auto managed = m_autosave->projects();
+    std::optional<std::filesystem::filesystem_error> unreadable;
+    const auto managed = m_autosave->projects(&unreadable);
     // The projects folder itself could not be read; a project in it that
-    // cannot be read is left out by projects() on its own. Home says so
-    // instead of showing an empty gallery, and HomeHost keeps reading the
-    // folder while Home is on screen. Nor is there a history: the one read
+    // cannot be read is left out by projects() on its own. When the system
+    // refused, Home says so with the system's reason instead of showing an
+    // empty gallery, and HomeHost keeps reading the folder while Home is on
+    // screen. Any other reason is ours. Nor is there a history: the one read
     // before names files in folders that cannot be read now.
     if (!managed) {
         m_history.clear();
-        return {{}, utf8(_L("Your projects couldn't be loaded. JusPrin will keep trying."))};
+        if (!system_refused(*unreadable, unreadable->path1()))
+            throw *unreadable;
+        return {{}, utf8(_L("Your projects couldn't be loaded. JusPrin will keep trying.")) + " " +
+                        said_by(kSystemName, unreadable->path1().u8string() + ": " + unreadable->code().message())};
     }
     // Match printing jobs by the project's display name, which is what Orca
     // uses for a job. The source file may have been deleted after import.
@@ -1250,8 +1255,10 @@ HistoryFacts OrcaHomeBackend::history_facts() const
         case GcodeHistoryRecorder::PrintAgain::Changed: break;
         }
         // The kept file changed on disk: never sent, and said on the entry.
-        BOOST_LOG_TRIVIAL(error) << "The kept file of G-code " << record.hash << " in project " << project_id
-                                 << " no longer holds what was kept";
+        // Ours: the dialog shows once for the file, however often the entry
+        // is shown.
+        report_unexpected_error("showing Print history",
+                                "The kept file of G-code " + record.hash + " in project " + project_id + " no longer holds what was kept");
         return "changed";
     };
     return facts;

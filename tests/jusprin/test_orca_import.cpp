@@ -1,12 +1,16 @@
 #include <catch2/catch_all.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 #include "slic3r/GUI/JusPrin/Home/OrcaImport.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 
 #include <chrono>
 #include <fstream>
 #include <map>
 #include <set>
 #include <thread>
+#include <utility>
+#include <vector>
 
 #include <nlohmann/json.hpp>
 
@@ -51,7 +55,17 @@ std::string text_of(const std::string& file)
     return {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
 }
 
+// What this binary was asked to send automatically. The app's own
+// report_if_automatic (Support/ErrorReport.cpp) needs the running app, which
+// these tests do not link.
+std::vector<std::pair<std::string, std::string>> g_automatic_reports;
+
 } // namespace
+
+void Slic3r::GUI::JusPrin::report_if_automatic(std::string doing, std::string error)
+{
+    g_automatic_reports.emplace_back(std::move(doing), std::move(error));
+}
 
 TEST_CASE("an orca import keeps each file's reason and renames what JusPrin already has", "[home][onboarding][orca_import]")
 {
@@ -490,4 +504,22 @@ TEST_CASE("planning an orca import without a staging folder writes no copy", "[h
     const std::vector<OrcaImportItem> items = plan_orca_import(kOrcaSlicer, {taken}, catalog, {});
     CHECK(items[0].renamed_to == "Shop X1C (Orca copy)");
     CHECK(items[0].file == taken);
+}
+
+TEST_CASE("an OrcaSlicer settings file that cannot be read is no printers, and is sent when reports are automatic", "[home][orca_import]")
+{
+    TempFolder orca;
+    const fs::path root = orca.path / "OrcaSlicer";
+    write(root / "OrcaSlicer.conf", R"({"models": [{"vendor": "BBL", "model": "Bambu Lab A1 mini")");
+    g_automatic_reports.clear();
+    CHECK(orca_ticked_printers(kOrcaSlicer, root).empty());
+    CHECK(orca_selected_printer(kOrcaSlicer, root).empty());
+    REQUIRE_FALSE(g_automatic_reports.empty());
+    CHECK(g_automatic_reports.front().first == "reading OrcaSlicer's settings file for an import");
+    CHECK_FALSE(g_automatic_reports.front().second.empty());
+    // A settings file that reads is not sent.
+    write(root / "OrcaSlicer.conf", R"({"models": [{"vendor": "BBL", "model": "Bambu Lab A1 mini", "nozzle_diameter": "0.4"}]})");
+    g_automatic_reports.clear();
+    CHECK(orca_ticked_printers(kOrcaSlicer, root).size() == 1);
+    CHECK(g_automatic_reports.empty());
 }

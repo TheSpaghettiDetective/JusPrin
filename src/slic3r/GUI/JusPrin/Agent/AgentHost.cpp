@@ -9,6 +9,7 @@
 #include "ToolExecution.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp"
 #include "slic3r/GUI/JusPrin/Support/Base64.hpp"
+#include "slic3r/GUI/JusPrin/Support/Files.hpp"
 #include "libslic3r/Exception.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpCatalog.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpConfigFile.hpp"
@@ -22,10 +23,12 @@
 #include <array>
 #include <cctype>
 #include <cerrno>
+#include <cstdint>
 #include <cstring>
 #include <exception>
 #include <filesystem>
 #include <fstream>
+#include <ios>
 #include <iterator>
 #include <set>
 #include <sstream>
@@ -35,7 +38,8 @@
 #include <system_error>
 #include <utility>
 
-// Last: it defines the L marker.
+// Last: they define the L marker.
+#include "slic3r/GUI/JusPrin/Support/SaidBy.hpp"
 #include "slic3r/GUI/JusPrin/Support/Translate.hpp"
 
 namespace Slic3r::GUI::JusPrin::Agent {
@@ -1631,21 +1635,29 @@ void AgentHost::attach_file_from_disk(const std::string& path, const std::string
     record.kind        = classification.kind;
     record.mime        = classification.mime;
 
-    // A file the person chose that cannot be read throws, with the system's
-    // reason.
-    const std::uintmax_t size = std::filesystem::file_size(file);
+    // A file the person chose that the system will not let JusPrin read is
+    // theirs, and they are told the system's reason. Any other failure to
+    // read it is ours, and throws.
     std::string bytes;
-    if (size > kMaxAttachmentBytes) {
-        // Refused by its size alone, without reading it.
+    try {
+        const std::uintmax_t size = std::filesystem::file_size(file);
+        if (size > kMaxAttachmentBytes) {
+            // Refused by its size alone, without reading it.
+            record.state = "error";
+            record.error = AgentError{"too_large", translated(L("This file is too large to attach."))};
+        } else {
+            std::ifstream in(file, std::ios::binary);
+            if (!in)
+                throw std::filesystem::filesystem_error("cannot open the attachment", file, std::error_code(errno, std::generic_category()));
+            bytes.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+            if (in.bad())
+                throw std::filesystem::filesystem_error("cannot read the attachment", file, std::error_code(errno, std::generic_category()));
+        }
+    } catch (const std::filesystem::filesystem_error& error) {
+        if (!system_refused(error, file.parent_path()))
+            throw;
         record.state = "error";
-        record.error = AgentError{"too_large", translated(L("This file is too large to attach."))};
-    } else {
-        std::ifstream in(file, std::ios::binary);
-        if (!in)
-            throw std::filesystem::filesystem_error("cannot open the attachment", file, std::error_code(errno, std::generic_category()));
-        bytes.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
-        if (in.bad())
-            throw std::filesystem::filesystem_error("cannot read the attachment", file, std::error_code(errno, std::generic_category()));
+        record.error = AgentError{"refused", said_by(kSystemName, file.u8string() + ": " + error.code().message())};
     }
     if (record.state == "error") {
         m_persistence.document().add_attachment(record, m_persistence.timestamp());

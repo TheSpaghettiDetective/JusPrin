@@ -741,6 +741,31 @@ document.getElementById('ok').onclick = function () { window.opener.postMessage(
                   << unexpected_errors_logged() << std::endl;
         check(unexpected_errors_logged("deleting the account") == 1, "delete_account_server_error_is_reported");
         check(!config->get("jusprin_agent", "jusprin_api_key").empty(), "delete_account_failures_keep_the_sign_in");
+
+        // The AI models list: our server refusing the request, other than an
+        // ended sign-in or the update answer, is ours. The list is marked
+        // failed, and the report says what the server answered.
+        {
+            using namespace std::chrono_literals;
+            auto        not_found = std::make_shared<StandInStatusServer>(404);
+            auto        result    = std::make_shared<std::optional<Agent::ModelListResult>>();
+            auto        mutex     = std::make_shared<std::mutex>();
+            SeenDialogs seen;
+            const int   before = unexpected_errors_logged("reading the AI models list");
+            Agent::fetch_model_list(*Agent::profile_for("jusprin"), "account-page-failures-token",
+                                    not_found->address() + "/ent/jusprin/v2/responses", std::make_shared<std::atomic<bool>>(false),
+                                    [result, mutex](Agent::ModelListResult listed) {
+                                        std::lock_guard<std::mutex> lock(*mutex);
+                                        *result = std::move(listed);
+                                    });
+            wait_for([&] { return unexpected_errors_logged("reading the AI models list") > before && !seen.shown.empty(); }, 20s);
+            std::lock_guard<std::mutex> lock(*mutex);
+            std::cout << "HARNESS ACCOUNT PAGE model list 404: " << (*result ? (*result)->error : std::string("no answer")) << ", reported "
+                      << unexpected_errors_logged("reading the AI models list") - before << ", dialogs " << seen.shown.size() << std::endl;
+            check(*result && !(*result)->ok, "model_list_refused_by_our_server_is_marked_failed");
+            check(unexpected_errors_logged("reading the AI models list") == before + 1 && seen.shown.size() == 1,
+                  "model_list_refused_by_our_server_is_reported");
+        }
         finish();
     }
 

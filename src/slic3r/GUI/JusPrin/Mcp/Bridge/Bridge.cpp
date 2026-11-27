@@ -1,5 +1,6 @@
 #include "Bridge.hpp"
 #include "HttpExchange.hpp"
+#include "../McpProtocol.hpp"
 #include <condition_variable>
 #include <mutex>
 #include <thread>
@@ -109,13 +110,17 @@ struct Server::Impl
         emit(std::move(response), call->batch);
     }
 
-    void offline(const std::shared_ptr<Call>& call)
+    // `silent`: JusPrin's discovery record names a running app whose tool
+    // server did not answer.
+    void offline(const std::shared_ptr<Call>& call, bool silent = false)
     {
         const auto parsed = parse_request(wire_request(call->rpc), "http://127.0.0.1:1");
         if (!parsed.request) { finish(call, parsed.error.body); return; }
         const auto& request = *parsed.request;
         if (request.method == "server/discover") finish(call, discovery(request).body);
         else if (request.method == "tools/list") finish(call, list_tools(request).body);
+        else if (silent) finish(call, rpc_result(request.id, tool_result(tool_error("failed",
+            "JusPrin is open, but it did not answer. Restart JusPrin, then try again."), true)));
         else finish(call, rpc_result(request.id, tool_result(tool_error("workspace_unavailable",
             "Open JusPrin and a project, then try again. The bridge does not launch JusPrin."), true)));
     }
@@ -150,18 +155,19 @@ struct Server::Impl
             if (record->app_version != mcp_build_version())
                 diagnostic("JusPrin and jusprin-mcp versions differ; forwarding the live catalog and calls.");
         }
+        const bool discovered_app = config.url_override.empty();
         const auto port = *loopback_port(url);
         const auto probe = modern_request("server/discover", json::object(), "bridge-liveness");
         call->exchange = std::make_shared<HttpExchange>(io, port, wire_request(probe), config.probe_timeout,
-            [this, call, port](json message, bool terminal) {
+            [this, call, port, discovered_app](json message, bool terminal) {
                 if (!terminal || call->finished) return;
                 const auto result = message.value("result", json::object());
                 const auto failure = message.value("error", json::object());
                 const bool discovered = result.is_object() && result.value("supportedVersions", json()).is_array();
                 const bool unsupported = failure.is_object() && failure.value("code", json()) == -32022;
                 if (discovered || unsupported) forward(call, port);
-                else offline(call);
-            }, [this, call](const std::string&) { if (!call->finished) offline(call); });
+                else offline(call, discovered_app);
+            }, [this, call, discovered_app](const std::string&) { if (!call->finished) offline(call, discovered_app); });
         call->exchange->start();
     }
 

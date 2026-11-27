@@ -8,6 +8,7 @@
 
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/OrcaMessages/OwnDialogs.hpp"
+#include "slic3r/GUI/JusPrin/Support/Files.hpp"
 #include "slic3r/GUI/JusPrin/Support/SaidBy.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/StoredFormat.hpp"
@@ -158,12 +159,10 @@ void LeftPane::export_project()
                         wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
     if (dialog.ShowModal() != wxID_OK)
         return;
-    const std::filesystem::path destination(dialog.GetPath().ToStdWstring());
-    // A name that does not end in .3mf is the person's to change.
-    if (!boost::iequals(destination.extension().u8string(), ".3mf")) {
-        show_project_error(_L("Export failed"), _L("The project couldn't be exported. Try again."), "the name does not end in .3mf");
-        return;
-    }
+    std::filesystem::path destination(dialog.GetPath().ToStdWstring());
+    // A name typed without .3mf gets it.
+    if (!boost::iequals(destination.extension().u8string(), ".3mf"))
+        destination += ".3mf";
     // Anything else that fails is ours, and goes up to the handler that
     // reports it.
     try {

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-26 08:11-0800\n"
+"POT-Creation-Date: 2026-11-27 06:05-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -357,6 +357,10 @@ msgstr "Phiên bản JusPrin này không còn kết nối được với tài kh
 # AI Translated
 msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
 msgstr "Phiên đăng nhập JusPrin của bạn đã hết hạn. Hãy đăng nhập lại trong Tùy chọn rồi thử lại."
+
+# AI Translated
+msgid "Your plan is still active. Cancel it in Credits and plans, then delete your account."
+msgstr "Gói của bạn vẫn đang hoạt động. Hãy hủy gói trong Tín dụng và gói rồi xóa tài khoản."
 
 # AI Translated
 #. TRN The address is JusPrin's support email; keep it unchanged.

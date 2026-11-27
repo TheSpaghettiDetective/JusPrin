@@ -60,6 +60,20 @@ A failure we know people will meet is part of the feature, and the feature is no
 - One exception to "the work stops" and "no other code reports": a tool call that fails is shown as failed in the turn's activity line, its error goes to the AI model, and the turn goes on. When the failure is the app's own and not the model's mistake, it is also reported, with no dialog, and for this kind of failure only if the person has turned automatic reports on.
 - Never record a failure as a success.
 
+### When it is not obvious, ask Kenneth one case at a time
+
+Settle what the rule above settles. When it leaves the answer open, because it is unclear whose a failure is, or the right handling would need a new sentence, new behaviour or more than a small change, stop and ask Kenneth. Ask about each case on its own, wait for his answer, and only then ask the next. Build nothing for a case until he has answered it.
+
+Write each question so that someone who has not read the code can decide from it alone:
+
+- Open with "Decision needed:". Then tell the scenario as the person lives it: what they do, what happens, and what they see today, in their words, with the real on-screen text quoted. Say who can actually act on it and why.
+- Say what is known and what is not. "I read this in the code and haven't run it" and "I expect … but haven't checked" are part of the question.
+- Give two or three options. For each, say what the person would see and what it costs: a few lines, a moderate change, new code, a new sentence that needs his yes. Put the exact words of any new sentence in the question, so his answer approves them.
+- Name your pick and end with a question mark. Leaving it as it is counts as an option.
+- Name no labels of your own, no item numbers, and no other question: each question stands alone.
+
+Take his answer as he gives it. When he picks an option, that is the decision. When he writes his own answer, follow what it says, and ask again only about the part it leaves open. Write each answer down with his words, keep the list until the work is built, and quote his words in the commit message. Once every case is answered, show him the whole list of what will be built and what stays, and build only after his go-ahead.
+
 ### Catching
 
 - Catch a failure only when the code knows what it is and can recover from it, or at a boundary to translate it or add context, and then rethrow.

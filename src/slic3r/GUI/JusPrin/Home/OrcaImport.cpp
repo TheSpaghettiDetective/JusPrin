@@ -1,9 +1,11 @@
 #include "OrcaImport.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
 
 #include <algorithm>
 #include <fstream>
 #include <set>
 #include <stdexcept>
+#include <string>
 
 #include <boost/log/trivial.hpp>
 #include <nlohmann/json.hpp>
@@ -57,8 +59,10 @@ std::optional<nlohmann::json> read_json(const fs::path& file)
 }
 
 // OrcaSlicer.conf (JusPrin.conf for JusPrin 1): JSON, then possibly a
-// "# MD5 checksum" line, which reading one value leaves unread.
-std::optional<nlohmann::json> read_config(const fs::path& file)
+// "# MD5 checksum" line, which reading one value leaves unread. `settings_of`
+// names the app whose settings file this is: one that cannot be read is sent
+// when automatic reports are on.
+std::optional<nlohmann::json> read_config(const fs::path& file, const ImportApp* settings_of = nullptr)
 {
     std::ifstream stream(file);
     nlohmann::json json;
@@ -67,6 +71,8 @@ std::optional<nlohmann::json> read_config(const fs::path& file)
     } catch (const nlohmann::json::parse_error& error) {
         // Read as an app with no printers.
         BOOST_LOG_TRIVIAL(warning) << "JusPrin import could not read " << file.filename().string() << ": " << error.what();
+        if (settings_of != nullptr)
+            report_if_automatic(std::string("reading ") + settings_of->name + "'s settings file for an import", error.what());
         return std::nullopt;
     }
     return json.is_object() ? std::optional<nlohmann::json>(std::move(json)) : std::nullopt;
@@ -315,7 +321,7 @@ std::vector<OrcaTickedPrinter> orca_ticked_printers(const ImportApp& app, const 
     const fs::path config = config_file(app, orca_root);
     if (!fs::is_regular_file(config, error))
         return ticked;
-    const std::optional<nlohmann::json> json = read_config(config);
+    const std::optional<nlohmann::json> json = read_config(config, &app);
     if (!json)
         return ticked;
     const auto models = json->find("models");
@@ -348,7 +354,7 @@ std::string orca_selected_printer(const ImportApp& app, const fs::path& orca_roo
     const fs::path config = config_file(app, orca_root);
     if (!fs::is_regular_file(config, error))
         return {};
-    const std::optional<nlohmann::json> json = read_config(config);
+    const std::optional<nlohmann::json> json = read_config(config, &app);
     if (!json)
         return {};
     const auto presets = json->find("presets");
@@ -396,7 +402,7 @@ std::optional<fs::path> orca_account_folder(const ImportApp& app, const fs::path
     const fs::path config = config_file(app, orca_root);
     std::error_code error;
     if (fs::is_regular_file(config, error)) {
-        std::optional<nlohmann::json> json = read_config(config);
+        std::optional<nlohmann::json> json = read_config(config, &app);
         if (!json)
             return std::nullopt;
         const auto app = json->find("app");

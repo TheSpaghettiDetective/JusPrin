@@ -7,6 +7,7 @@
 #include <ios>
 #include <stdexcept>
 #include <string>
+#include <system_error>
 
 namespace Slic3r::GUI::JusPrin {
 
@@ -27,6 +28,17 @@ void write_file(const std::filesystem::path& path, const std::string& content)
             throw std::runtime_error("could not write " + temp.u8string() + ": " + std::strerror(errno));
     }
     std::filesystem::rename(temp, path);
+}
+
+bool system_refused(const std::filesystem::filesystem_error& error, const std::filesystem::path& folder)
+{
+    const std::error_code code = error.code();
+    if (code != std::errc::permission_denied && code != std::errc::operation_not_permitted &&
+        code != std::errc::read_only_file_system && code != std::errc::no_space_on_device)
+        return false;
+    const std::filesystem::path& path = error.path1().empty() ? error.path2() : error.path1();
+    const std::filesystem::path  inside = path.lexically_normal().lexically_relative(folder.lexically_normal());
+    return !path.empty() && !inside.empty() && *inside.begin() != "..";
 }
 
 } // namespace Slic3r::GUI::JusPrin

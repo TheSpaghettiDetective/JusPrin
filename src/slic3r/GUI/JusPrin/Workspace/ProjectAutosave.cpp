@@ -4,6 +4,8 @@
 
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/Support/Base64.hpp"
+#include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
+#include "slic3r/GUI/JusPrin/Support/Files.hpp"
 #include "slic3r/GUI/JusPrin/Support/SaidBy.hpp"
 #include "StoredFormat.hpp"
 #include "libslic3r/Format/bbs_3mf.hpp"
@@ -166,17 +168,6 @@ std::vector<std::filesystem::path> project_folders(const std::filesystem::path& 
     std::filesystem::directory_iterator it(root, error);
     for (const std::filesystem::directory_iterator end; !error && it != end; it.increment(error))
         folders.push_back(it->path());
-    return folders;
-}
-
-std::optional<std::vector<std::filesystem::path>> project_folders(const std::filesystem::path& root)
-{
-    std::error_code error;
-    std::vector<std::filesystem::path> folders = project_folders(root, error);
-    if (error) {
-        BOOST_LOG_TRIVIAL(error) << "Local projects could not be listed: " << root.string() << ": " << error.message();
-        return std::nullopt;
-    }
     return folders;
 }
 
@@ -356,17 +347,6 @@ void ProjectAutosave::fail(const std::string& message)
     m_error = message;
     m_error_refused = false;
     m_state = State::Failed;
-}
-
-bool system_refused(const std::filesystem::filesystem_error& error, const std::filesystem::path& folder)
-{
-    const std::error_code code = error.code();
-    if (code != std::errc::permission_denied && code != std::errc::operation_not_permitted &&
-        code != std::errc::read_only_file_system && code != std::errc::no_space_on_device)
-        return false;
-    const std::filesystem::path& path = error.path1().empty() ? error.path2() : error.path1();
-    const std::filesystem::path  inside = path.lexically_normal().lexically_relative(folder.lexically_normal());
-    return !path.empty() && !inside.empty() && *inside.begin() != "..";
 }
 
 void probe_writable(const std::filesystem::path& probe)
@@ -767,17 +747,22 @@ void ProjectAutosave::tick()
     }
 }
 
-std::optional<std::vector<ProjectAutosave::ManagedProject>> ProjectAutosave::projects()
+std::optional<std::vector<ProjectAutosave::ManagedProject>> ProjectAutosave::projects(std::optional<std::filesystem::filesystem_error>* unreadable)
 {
     settle_before_reading();
     // Home can be opened before the first project switch. Render the current
     // project once here; the preview is independent of the frequent backups.
     ensure_current_preview();
-    const auto folders = project_folders(m_root);
-    if (!folders)
+    std::error_code listing;
+    const std::vector<std::filesystem::path> folders = project_folders(m_root, listing);
+    if (listing) {
+        BOOST_LOG_TRIVIAL(error) << "Local projects could not be listed: " << m_root.string() << ": " << listing.message();
+        if (unreadable != nullptr)
+            unreadable->emplace("The local projects folder could not be read", m_root, listing);
         return std::nullopt;
+    }
     std::vector<ManagedProject> result;
-    for (const auto& folder : *folders) {
+    for (const auto& folder : folders) {
         try {
             // Inside the try: a project folder that cannot be read is skipped
             // like any other unavailable project, not the whole list.
@@ -825,6 +810,9 @@ std::optional<std::vector<ProjectAutosave::ManagedProject>> ProjectAutosave::pro
                 if (!versions.empty())
                     add(versions.back(), document, readable);
             }
+        } catch (const ChatRestoreInterrupted&) {
+            // Nothing recovers such a project yet, so it stays off Home.
+            report_unexpected_error("listing the saved projects", describe_current_exception());
         } catch (const std::exception& error) {
             BOOST_LOG_TRIVIAL(warning) << "Managed project unavailable: " << folder.string() << ": " << error.what();
         }

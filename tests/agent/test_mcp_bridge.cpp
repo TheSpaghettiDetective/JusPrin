@@ -3,9 +3,15 @@
 #include "mcp_test_client.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/Bridge/Bridge.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/Bridge/HttpExchange.hpp"
+#include "slic3r/GUI/JusPrin/Mcp/McpDiscoveryFile.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpRuntime.hpp"
 #include "../jusprin_support/FakeWorkspace.hpp"
+#include <boost/asio.hpp>
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/ip/address_v4.hpp>
+#include <boost/asio/ip/tcp.hpp>
 #include <mutex>
+#include <string>
 
 using namespace Slic3r::GUI::JusPrin;
 using nlohmann::json;
@@ -92,6 +98,23 @@ TEST_CASE("MCP bridge offline legacy catalog is projected for each negotiated ve
     CHECK(json::parse(result["content"][0]["text"].get<std::string>())["error"]["code"] == "workspace_unavailable");
     CHECK(result.contains("structuredContent") == (version != "2025-03-26"));
     h.send(rpc(3, "ping")); CHECK(h.wait(3)["result"] == json::object());
+}
+
+TEST_CASE("MCP bridge says JusPrin did not answer when it is open but its tool server is silent", "[mcp][bridge]")
+{
+    Harness h;
+    // JusPrin's discovery file names this process, which is running, and a
+    // port that takes the connection and never answers.
+    boost::asio::io_context        io;
+    boost::asio::ip::tcp::acceptor silent(io, boost::asio::ip::tcp::endpoint(boost::asio::ip::address_v4::loopback(), 0));
+    Mcp::write_discovery(h.directory.path(), "http://127.0.0.1:" + std::to_string(silent.local_endpoint().port()) + "/mcp");
+    h.initialize();
+    h.send(rpc(1, "tools/call", {{"name", "workspace_inspect"}}));
+    const auto result = h.wait(1)["result"];
+    CHECK(result["isError"] == true);
+    const auto error = json::parse(result["content"][0]["text"].get<std::string>())["error"];
+    CHECK(error["message"] == "JusPrin is open, but it did not answer. Restart JusPrin, then try again.");
+    CHECK(error["code"] != "workspace_unavailable");
 }
 
 TEST_CASE("MCP bridge serves modern discovery without initialize and later discovers a live app", "[mcp][bridge]")

@@ -974,6 +974,12 @@ OrcaWorkspaceAdapter::SliceState OrcaWorkspaceAdapter::current_slice_state() con
 void OrcaWorkspaceAdapter::on_slice_status_changed(wxCommandEvent& event)
 {
     event.Skip();
+    // OrcaSlicer raises this event, so it is an entry point of JusPrin's own.
+    reported("following a change to the slices", [this] { follow_slice_status(); })();
+}
+
+void OrcaWorkspaceAdapter::follow_slice_status()
+{
     wxASSERT(wxIsMainThread());
     // This event also fires whenever the native toolbar re-evaluates whether
     // Slice and Print are enabled, which happens on ordinary selection and

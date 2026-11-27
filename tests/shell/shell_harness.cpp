@@ -480,6 +480,7 @@
 #include "slic3r/GUI/JusPrin/Shell/PrinterFilamentChip.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ServerSheet.hpp"
 #include "slic3r/GUI/JusPrin/Agent/CloudAccount.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ModelCatalogFetch.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/JusPrin/Shell/StatusRow.hpp"
 #include "slic3r/GUI/JusPrin/Shell/CheckPrintDialog.hpp"
@@ -514,6 +515,7 @@
 #include "slic3r/GUI/JusPrin/Home/HomeWebView.hpp"
 #include "slic3r/GUI/JusPrin/Home/OrcaHomeBackend.hpp"
 #include "slic3r/GUI/JusPrin/Home/OrcaImportWindow.hpp"
+#include "slic3r/GUI/JusPrin/Home/OrcaImporter.hpp"
 #include "slic3r/GUI/JusPrin/Home/PrinterWindow.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/ParamsDialog.hpp"
@@ -3123,9 +3125,9 @@ private:
         check(pane->IsShown() && left_divider->IsShown(), "left_pane_and_resize_handle_return_with_prepare");
         window_shot("back-on-prepare");
 
-        // The same failure again, with reports sent automatically: it was
-        // already asked about in this run, so nothing more is sent, and
-        // nothing is shown.
+        // The same failure again, with reports sent automatically: each time
+        // it is sent, though it was already asked about in this run, and
+        // nothing is shown. Sentry groups the repeats.
         wxGetApp().app_config->set_bool(kReportErrorsKey, true);
         const FailedAction second = fail_printable();
         const FailedAction third  = fail_printable();
@@ -3133,8 +3135,8 @@ private:
         std::cerr << "HARNESS REPEATED FAILURE logged " << second.reported << "+" << third.reported << ", sent "
                   << second.sent << "+" << third.sent << ", dialogs " << second.seen.size() << "+" << third.seen.size() << '\n';
         check(second.reported == 1 && third.reported == 1, "left_pane_repeated_failure_is_logged_each_time");
-        check(second.sent == 0 && third.sent == 0 && second.seen.empty() && third.seen.empty(),
-              "left_pane_repeated_failure_is_not_sent_again");
+        check(second.sent == 1 && third.sent == 1 && second.seen.empty() && third.seen.empty(),
+              "left_pane_repeated_failure_is_sent_each_time");
 
         capture_figma_plate_states(pane);
         finish();
@@ -4199,9 +4201,40 @@ private:
     void verify_unavailable_projects_folder()
     {
         const std::string project_id = persistence().document().project_id();
+        // A saved project whose "Revert to here" was cut short, as by a crash,
+        // keeps the restore's marker, and its store refuses it. It stays off
+        // Home and is reported as ours.
+        {
+            const std::filesystem::path projects    = std::filesystem::path(data_dir()) / "jusprin" / "projects";
+            const std::filesystem::path interrupted = projects / "harness-interrupted-restore";
+            std::filesystem::copy(projects / project_id, interrupted, std::filesystem::copy_options::recursive);
+            const std::string version = installed_shell()->autosave()->current_version();
+            std::ofstream(interrupted / "chat-restore.pending.json")
+                << nlohmann::json{{"fromVersion", version}, {"toVersion", version},
+                                  {"conversationId", persistence().document().active_conversation_id()}}.dump(2);
+            SeenDialogs seen;
+            const int   before = unexpected_errors_logged("listing the saved projects");
+            const auto  listed = installed_shell()->home_view()->backend().recent_projects();
+            wait_for([&] { return !seen.shown.empty(); }, std::chrono::seconds(5));
+            std::cerr << "HARNESS INTERRUPTED RESTORE reported " << unexpected_errors_logged("listing the saved projects") - before
+                      << ", dialogs " << seen.shown.size() << '\n';
+            check(std::none_of(listed.projects.begin(), listed.projects.end(),
+                               [](const auto& project) { return project.id == "harness-interrupted-restore"; }),
+                  "interrupted_restore_project_stays_off_home");
+            check(unexpected_errors_logged("listing the saved projects") == before + 1 && seen.shown.size() == 1 &&
+                      seen.shown.front().find("Something went wrong on our side") != std::string::npos,
+                  "interrupted_restore_project_is_reported");
+            std::filesystem::remove_all(interrupted);
+        }
         auto folder = std::make_shared<UnavailableFolder>(std::filesystem::path(data_dir()) / "jusprin" / "projects");
         const auto listed = installed_shell()->home_view()->backend().recent_projects();
         check(listed.projects.empty() && !listed.problem.empty(), "unavailable_projects_folder_is_reported");
+        // The system refused to list it: Home's line says why, in the
+        // system's words, and nothing is reported.
+        std::cerr << "HARNESS PROJECTS FOLDER REFUSED problem '" << listed.problem << "'\n";
+        check(listed.problem.find(std::string(kSystemName) + " says: ") != std::string::npos &&
+                  listed.problem.find("projects") != std::string::npos,
+              "unavailable_projects_folder_says_why_in_the_systems_words");
 
         // Opening a file asks whether it was opened before, which cannot be
         // told now: nothing opens, it says why, and the current project stays.
@@ -4240,6 +4273,25 @@ private:
             self->check(listed.problem.empty() && std::any_of(listed.projects.begin(), listed.projects.end(),
                             [&project_id](const auto& project) { return project.id == project_id; }),
                         "unavailable_projects_folder_lists_again");
+            // A projects folder that is not a folder at all is not the system
+            // refusing: it is ours, and goes up to be reported.
+            {
+                const std::filesystem::path projects = std::filesystem::path(data_dir()) / "jusprin" / "projects";
+                std::filesystem::path       aside    = projects;
+                aside += ".aside";
+                std::filesystem::rename(projects, aside);
+                std::ofstream(projects) << "not a folder";
+                std::string thrown;
+                try {
+                    installed_shell()->home_view()->backend().recent_projects();
+                } catch (const std::exception& error) {
+                    thrown = error.what();
+                }
+                std::filesystem::remove(projects);
+                std::filesystem::rename(aside, projects);
+                std::cerr << "HARNESS PROJECTS FOLDER NOT A FOLDER thrown '" << thrown << "'\n";
+                self->check(thrown.find("projects") != std::string::npos, "projects_folder_that_is_not_a_folder_is_ours");
+            }
             self->wait_for_home_projects([](const nlohmann::json& page) { return page.value("cards", 0) >= 1; },
                                          "unavailable_projects_folder_home_shows_the_project_again",
                                          [self] { self->verify_project_open_failures(); });
@@ -4391,10 +4443,11 @@ private:
                   "export_refused_folder_in_the_systems_words");
         }
         {
+            // A name typed without .3mf gets it.
             const auto    chosen = choose_export(folder / "named.txt");
             const Attempt named  = attempt("export_not_3mf", [this, export_row] { press_overflow_row(export_row); });
-            check(named.reported == 0 && only_dialog(named, _L("Export failed"), std::string(_L("The project couldn't be exported. Try again.").ToUTF8())),
-                  "export_without_3mf_name_is_not_reported");
+            check(named.seen.empty() && named.reported == 0 && std::filesystem::exists(folder / "named.txt.3mf"),
+                  "export_without_3mf_name_gets_it");
         }
         {
             const auto    chosen = choose_export(folder / "copy.3mf");
@@ -7518,6 +7571,25 @@ private:
     void verify_host_connection_keeps_the_app_responsive(PrinterSetup::OrcaPrinterBackend& backend)
     {
         using namespace std::chrono_literals;
+        {
+            // The app's own code failing as a host test ends is ours: it is
+            // reported through JusPrin's handler, not left to OrcaSlicer's.
+            SeenDialogs       seen;
+            const int         reported = unexpected_errors_logged("testing a print host's connection");
+            const std::string problem  = backend.connect_host(kAddedPrinter, "moonraker", "http://127.0.0.1:1", {},
+                                                              [](const PrinterSetup::HostTestOutcome&) {
+                                                                  throw std::runtime_error("harness: the host test's end failed");
+                                                              });
+            wait_for([&] { return unexpected_errors_logged("testing a print host's connection") > reported && !seen.shown.empty(); }, 20s);
+            std::cerr << "HARNESS HOST TEST THROWS reported " << unexpected_errors_logged("testing a print host's connection") - reported
+                      << ", dialogs:";
+            for (const std::string& shown : seen.shown)
+                std::cerr << " '" << shown << "'";
+            std::cerr << '\n';
+            check(problem.empty() && unexpected_errors_logged("testing a print host's connection") == reported + 1 &&
+                      seen.shown.size() == 1 && seen.shown.front().find("Something went wrong on our side") != std::string::npos,
+                  "host_test_failure_of_ours_is_reported");
+        }
         const auto saved_address = [] { return printer_profile(kAddedPrinter)->config.opt_string("print_host"); };
         const std::string address_before = saved_address();
         {
@@ -9682,12 +9754,22 @@ private:
                   "print_history_reprint_drawn", [self = shared_from_this(), package](const nlohmann::json&) {
             self->capture_history("print-again-recorded");
             // A byte added to the kept package: it is never sent, and the entry says why.
+            // Only the app writes that folder, so it is reported as ours.
+            auto      seen     = std::make_shared<SeenDialogs>();
+            const int reported = unexpected_errors_logged("showing Print history");
             std::ofstream(package.package, std::ios::app | std::ios::binary) << ' ';
             installed_shell()->home_view()->refresh();
             self->read_page(self->home_page(), "changed", "document.body.textContent.indexOf('Kept file changed on disk') >= 0",
                             "!Array.prototype.some.call(document.querySelectorAll('button'), function (b) { return b.textContent === 'Print again'; })",
-                            "print_history_changed_package_drawn", [self](const nlohmann::json& withheld) {
+                            "print_history_changed_package_drawn", [self, seen, reported](const nlohmann::json& withheld) mutable {
                 self->check(withheld == true, "print_history_changed_package_is_not_offered");
+                wait_for([&] { return !seen->shown.empty(); }, std::chrono::seconds(5));
+                std::cerr << "HARNESS KEPT FILE CHANGED reported " << unexpected_errors_logged("showing Print history") - reported
+                          << ", dialogs " << seen->shown.size() << '\n';
+                self->check(unexpected_errors_logged("showing Print history") > reported && seen->shown.size() == 1 &&
+                                seen->shown.front().find("Something went wrong on our side") != std::string::npos,
+                            "print_history_changed_package_is_reported");
+                seen.reset();
                 self->capture_history("print-again-kept-file-changed");
                 // The G-code's copy pruned: slice again.
                 const std::string copy = Agent::kept_gcode_copy(self->persistence().jusprin_data_dir(),
@@ -9730,7 +9812,10 @@ private:
                   [self = shared_from_this(), folder, sentence, reported_before](const nlohmann::json& shown) mutable {
             std::cerr << "HARNESS NOTE print_history_unreadable " << shown.dump() << '\n';
             self->capture_history("print-history-projects-unreadable");
-            self->check(shown.value("entries", -1) == 0 && shown.value("problem", "") == sentence,
+            // Home's sentence, then the system's reason.
+            const std::string problem = shown.value("problem", "");
+            self->check(shown.value("entries", -1) == 0 && problem.rfind(sentence, 0) == 0 &&
+                            problem.find(std::string(kSystemName) + " says: ") != std::string::npos,
                         "print_history_says_the_projects_could_not_be_loaded");
             // Readable again; nothing nudges the page.
             folder.reset();

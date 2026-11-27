@@ -97,3 +97,8 @@ writer already thought of.
    findings you checked by running code and which only by reading. Code older
    than the range is not a finding of this audit; name it separately if it
    matters.
+6. A finding whose fix the rule does not settle (it is unclear whose the
+   failure is, or the fix needs a new sentence, new behaviour or more than a
+   small change) goes to Kenneth as a question, one case at a time, as
+   "When it is not obvious, ask Kenneth one case at a time" in JusPrin's
+   AGENTS.md describes. Build nothing for it until he has answered.

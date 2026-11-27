@@ -50,34 +50,35 @@ PrinterFactsStore::PrinterFactsStore(Config config) : m_config(std::move(config)
     if (!fs::exists(path, ec))
         return;
 
-    std::string text;
+    // A file that cannot be read is ours. It is moved aside, so the next
+    // store starts empty, and kept: facts are cheap to state again, but a
+    // damaged file is evidence and is not overwritten.
+    std::string damage;
     {
         std::ifstream in(path, std::ios::binary);
-        if (!in.is_open()) {
-            m_corrupt        = true;
-            m_corrupt_reason = "printer facts file could not be opened";
-            return;
+        if (in.is_open()) {
+            std::stringstream buffer;
+            buffer << in.rdbuf();
+            try {
+                const json document = json::parse(buffer.str());
+                for (const auto& entry : document.at("facts"))
+                    m_facts.push_back(fact_from(entry));
+            } catch (const json::exception& error) {
+                m_facts.clear();
+                damage = error.what();
+            }
+        } else {
+            damage = "it could not be opened";
         }
-        std::stringstream buffer;
-        buffer << in.rdbuf();
-        text = buffer.str();
     }
-    try {
-        const json document = json::parse(text);
-        for (const auto& entry : document.at("facts"))
-            m_facts.push_back(fact_from(entry));
-    } catch (const json::exception& error) {
-        m_facts.clear();
-        m_corrupt        = true;
-        m_corrupt_reason = error.what();
-    }
-    if (m_corrupt) {
-        fs::path aside = path;
-        aside += ".corrupt";
-        fs::rename(path, aside, ec);
-        if (ec)
-            m_corrupt_reason += "; the damaged file could not be moved aside: " + ec.message();
-    }
+    if (damage.empty())
+        return;
+    fs::path aside = path;
+    aside += ".corrupt";
+    fs::rename(path, aside, ec);
+    if (ec)
+        damage += "; it could not be moved aside: " + ec.message();
+    throw std::runtime_error("The printer facts file " + path.u8string() + " could not be read: " + damage);
 }
 
 std::vector<PrinterFact> PrinterFactsStore::current(const std::string& printer) const

@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <map>
 #include <stdexcept>
+#include <string>
 
 namespace Slic3r::GUI::JusPrin::Home {
 
@@ -216,8 +217,8 @@ std::vector<OrcaImportItem> OrcaImporter::bring(const OrcaProfileSource& source,
     // ticked printers' own, and the bases saved printers name. A saved
     // printer imports only once its base is loaded, and JusPrin loads a
     // vendor's profiles only once one of its printers is installed, which on
-    // a fresh install none is. A base that fails to install stays missing,
-    // and its printer's line says so.
+    // a fresh install none is. The profiles shipped with the app fail to
+    // install only on a broken install, which is ours: the import stops.
     std::vector<SetupCommands::PrinterProfile> profiles;
     for (const OrcaImportItem& item : ticked)
         if (item.outcome != OrcaImportItem::Outcome::AlreadyThere)
@@ -228,7 +229,7 @@ std::vector<OrcaImportItem> OrcaImporter::bring(const OrcaProfileSource& source,
     std::string problem;
     const bool  installed = SetupCommands::install_printer_profiles(plater, profiles, problem);
     if (!installed)
-        BOOST_LOG_TRIVIAL(error) << "Installing the profiles of " << app.name << "'s printers failed: " << problem;
+        throw std::runtime_error(std::string("Installing the profiles of ") + app.name + "'s printers failed: " + problem);
 
     std::vector<OrcaImportItem>        items = import_files(app, files);
     // JusPrin 1's Bambu printers connect through Bambu's network file, not

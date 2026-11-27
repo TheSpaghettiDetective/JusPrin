@@ -25,11 +25,6 @@ class ProjectPersistence;
 
 namespace Slic3r::GUI::JusPrin::Workspace {
 
-// The system will not let a write into `folder` happen: no permission, a
-// read-only volume or a full disk, about a path inside that folder. The
-// person can change that. Any other file system error is ours.
-bool system_refused(const std::filesystem::filesystem_error& error, const std::filesystem::path& folder);
-
 // Makes a folder named `probe` and removes it again. A writer that gives no
 // reason when its folder refuses it, such as OrcaSlicer's 3MF writer or a
 // file stream, can be preceded by this: std::filesystem throws the system's
@@ -88,8 +83,9 @@ public:
     // Restores the version a chat was left on and makes the chat active.
     bool restore_chat(const std::string& version_id, const std::string& conversation_id);
     // The saved projects, newest first, leaving out any that cannot be read;
-    // nothing when the projects folder itself cannot be read.
-    std::optional<std::vector<ManagedProject>> projects();
+    // nothing when the projects folder itself cannot be read, and then
+    // `unreadable`, when given, says why.
+    std::optional<std::vector<ManagedProject>> projects(std::optional<std::filesystem::filesystem_error>* unreadable = nullptr);
     // A saved project made from `source`, matched by the file's path: the open
     // project first when it came from that file, then the most recently
     // updated. `changed` says whether the file now differs from the one the

@@ -85,6 +85,11 @@ void request_page(std::shared_ptr<Fetch> fetch, const std::string& after)
                 return;
             if (const std::optional<std::string> fault = model_list_fault(status, body))
                 throw std::runtime_error(*fault);
+            // Our own server refusing the list for anything but an ended
+            // sign-in or an app too old for it is ours.
+            if (fetch->profile.account_sign_in && status >= 400 && status < 500 && !fetch->result.refused &&
+                fetch->result.update_message.empty())
+                throw std::runtime_error("The model list answered HTTP " + std::to_string(status) + ": " + body);
         }))
         .perform();
 }

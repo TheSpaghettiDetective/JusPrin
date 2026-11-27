@@ -4,6 +4,9 @@
 // expiry is tested without waiting.
 
 #include <catch2/catch_all.hpp>
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers.hpp>
+#include <catch2/matchers/catch_matchers_string.hpp>
 
 #include "slic3r/GUI/JusPrin/Workspace/PrinterFactsStore.hpp"
 
@@ -92,7 +95,6 @@ TEST_CASE("restating a fact replaces it and survives a reload", "[printer-facts]
         CHECK(swapped[0].confirmed_at == "2026-09-16T13:00:00Z");
     }
     PrinterFactsStore reopened({dir.utf8(), [&now] { return now; }});
-    CHECK_FALSE(reopened.corrupt());
     const auto facts = reopened.current("FAKE001");
     REQUIRE(facts.size() == 1);
     CHECK(facts[0].value == "Smooth PEI");
@@ -113,17 +115,22 @@ TEST_CASE("expired facts are not kept on disk", "[printer-facts]")
     CHECK(document["facts"][0]["fact"] == "plate");
 }
 
-TEST_CASE("a damaged facts file is moved aside, not overwritten", "[printer-facts]")
+TEST_CASE("a damaged facts file is ours: moved aside, not overwritten, and thrown once", "[printer-facts]")
 {
     TempDir dir;
     {
         std::ofstream out(dir.file());
         out << "{ not json";
     }
-    PrinterFactsStore store({dir.utf8(), [] { return kNoon; }});
-    CHECK(store.corrupt());
-    CHECK(store.current("FAKE001").empty());
+    // Only the app writes the file, so a damaged one is ours: it goes up to be
+    // reported, and is kept beside for us to look at.
+    CHECK_THROWS_WITH(PrinterFactsStore({dir.utf8(), [] { return kNoon; }}),
+                      Catch::Matchers::ContainsSubstring("printer facts file"));
     CHECK(fs::exists(fs::u8path(dir.utf8() + ".corrupt")));
+    CHECK_FALSE(fs::exists(dir.file()));
+    // The app carries on with no facts.
+    PrinterFactsStore store({dir.utf8(), [] { return kNoon; }});
+    CHECK(store.current("FAKE001").empty());
     store.confirm("FAKE001", {{"plate", "Textured PEI", 24h}});
     CHECK(store.current("FAKE001").size() == 1);
 }

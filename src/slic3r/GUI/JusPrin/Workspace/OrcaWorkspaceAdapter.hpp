@@ -169,6 +169,7 @@ private:
                                           const std::vector<std::pair<std::string, BedShape>>& beds) const;
     void deliver_load_report();
     void on_slice_status_changed(wxCommandEvent& event);
+    void follow_slice_status();
     void on_process_completed(SlicingProcessCompletedEvent& event);
     // OrcaSlicer was asked to slice and started nothing (SliceRequests.hpp).
     void on_slice_declined();

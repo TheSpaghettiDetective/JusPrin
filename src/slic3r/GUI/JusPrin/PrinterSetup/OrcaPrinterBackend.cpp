@@ -49,6 +49,7 @@
 #include <stdexcept>
 #include <string>
 #include <thread>
+#include <wx/event.h>
 #include <wx/string.h>
 #include <wx/utils.h>
 
@@ -876,10 +877,10 @@ std::string OrcaPrinterBackend::connect_host(const std::string& name, const std:
         // idle events too; it is not used because it puts up a busy cursor
         // for every job. The panel's pump keeps idle events coming while a
         // chat is open.
-        m_host_worker_events = EventGuard(&m_plater, wxEVT_IDLE, [this](wxIdleEvent& event) {
+        m_host_worker_events = EventGuard(&m_plater, wxEVT_IDLE, reported("testing a print host's connection", [this](wxIdleEvent& event) {
             event.Skip();
             m_host_worker->process_events();
-        });
+        }));
     }
     m_host_attempt = HostAttempt{name, host_type, address, settings, "connecting", {}};
     auto answer    = std::make_shared<HostAnswer>();

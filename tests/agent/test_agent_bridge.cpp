@@ -25,6 +25,7 @@
 #include "slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolResults.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpConnections.hpp"
+#include "slic3r/GUI/JusPrin/Support/SaidBy.hpp"
 #include "../jusprin_support/FakeWorkspace.hpp"
 #include "../jusprin_support/RequestLog.hpp"
 #include "captured_log.hpp"
@@ -2385,6 +2386,28 @@ TEST_CASE("pick_attachment opens the dialog for one kind and stages the chosen f
     answer = {(directory.root / "gone.png").u8string()};
     CHECK_THROWS_AS(h.deliver("pick_attachment", json{{"kind", "image"}}), std::filesystem::filesystem_error);
     CHECK(h.sent.size() == before_gone);
+
+#ifndef _WIN32
+    // One the system refuses to let the app read is the person's: the
+    // attachment says so in the system's words, and nothing is thrown.
+    const std::filesystem::path locked = directory.root / "locked.png";
+    std::ofstream(locked, std::ios::binary) << "png";
+    std::filesystem::permissions(locked, std::filesystem::perms::none);
+    answer = {locked.u8string()};
+    const auto before_locked = h.sent.size();
+    CHECK_NOTHROW(h.deliver("pick_attachment", json{{"kind", "image"}}));
+    std::filesystem::permissions(locked, std::filesystem::perms::owner_all);
+    std::optional<json> refused;
+    for (std::size_t i = before_locked; i < h.sent.size(); ++i)
+        if (h.sent[i]["type"] == "attachment_updated")
+            refused = h.sent[i]["payload"]["attachment"];
+    REQUIRE(refused.has_value());
+    CHECK((*refused)["state"] == "error");
+    CHECK((*refused)["error"]["code"] == "refused");
+    const std::string said = (*refused)["error"]["message"];
+    CHECK(said.rfind(std::string(kSystemName) + " says: ", 0) == 0);
+    CHECK(said.find("locked.png") != std::string::npos);
+#endif
 
     // The model filter is the classifier's own list, so nothing it offers is
     // a file the Agent cannot read.

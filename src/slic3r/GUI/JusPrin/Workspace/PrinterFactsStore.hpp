@@ -56,17 +56,13 @@ public:
         std::function<std::chrono::system_clock::time_point()> now;
     };
 
-    // A missing file is an empty store. A file that does not parse is moved
-    // aside to "<file_path>.corrupt" and reported through corrupt(): facts
-    // are cheap to state again, but a damaged file is evidence and is not
-    // overwritten.
+    // A missing file is an empty store. A file that cannot be read is moved
+    // aside to "<file_path>.corrupt", kept as evidence, and throws: the next
+    // store starts empty.
     explicit PrinterFactsStore(Config config);
 
     PrinterFactsStore(const PrinterFactsStore&)            = delete;
     PrinterFactsStore& operator=(const PrinterFactsStore&) = delete;
-
-    bool               corrupt() const { return m_corrupt; }
-    const std::string& corrupt_reason() const { return m_corrupt_reason; }
 
     // The unexpired facts for one printer, ordered by fact name.
     std::vector<PrinterFact> current(const std::string& printer) const;
@@ -82,8 +78,6 @@ private:
 
     Config                   m_config;
     std::vector<PrinterFact> m_facts;
-    bool                     m_corrupt{false};
-    std::string              m_corrupt_reason;
 };
 
 } // namespace Slic3r::GUI::JusPrin::Workspace

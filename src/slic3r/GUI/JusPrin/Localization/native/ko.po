@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: JusPrin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-26 08:11-0800\n"
+"POT-Creation-Date: 2026-11-27 06:05-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -355,6 +355,10 @@ msgstr "이 버전의 JusPrin은 더 이상 JusPrin 계정에 연결할 수 없�
 # AI Translated
 msgid "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again."
 msgstr "JusPrin 로그인이 만료되었습니다. 기본 설정에서 다시 로그인한 후 다시 시도하세요."
+
+# AI Translated
+msgid "Your plan is still active. Cancel it in Credits and plans, then delete your account."
+msgstr "요금제가 아직 활성 상태입니다. 크레딧 및 요금제에서 요금제를 해지한 후 계정을 삭제하세요."
 
 # AI Translated
 #. TRN The address is JusPrin's support email; keep it unchanged.
