@@ -7,6 +7,11 @@
 #include "slic3r/GUI/JusPrin/Support/AppFolders.hpp"
 #include "slic3r/GUI/JusPrin/V1Import/V1Import.hpp"
 
+#ifdef _WIN32
+#include "slic3r/GUI/JusPrin/Mcp/McpCatalog.hpp"
+#include <fstream>
+#endif
+
 #include <cstdlib>
 #include <optional>
 #include <string>
@@ -69,6 +74,56 @@ TEST_CASE("apps keep their data where the platform puts per-user app data", "[ap
     CHECK(default_app_folder("OrcaSlicer") == fs::path("/home/alex/settings/OrcaSlicer"));
 #endif
 }
+
+#ifdef _WIN32
+namespace {
+// Sets a variable through the wide API for one test, as Windows itself does
+// for a user folder whose name is not plain ASCII.
+class ScopedWideEnv
+{
+public:
+    ScopedWideEnv(const wchar_t* name, const wchar_t* value) : m_name(name)
+    {
+        if (const wchar_t* before = _wgetenv(name))
+            m_before = before;
+        _wputenv_s(name, value);
+    }
+    ~ScopedWideEnv() { _wputenv_s(m_name, m_before ? m_before->c_str() : L""); }
+
+private:
+    const wchar_t*              m_name;
+    std::optional<std::wstring> m_before;
+};
+} // namespace
+
+// The narrow environment holds these in the active code page, not UTF-8, so
+// they have to be read as UTF-16 (JUSPRIN-APP-M: a user folder with an
+// accented letter lost JusPrin's view at every launch).
+TEST_CASE("user folders whose names are not ASCII are read as they are", "[app_folders]")
+{
+    ScopedWideEnv profile(L"USERPROFILE", L"C:\\Users\\Jos\u00e9");
+    ScopedWideEnv appdata(L"APPDATA", L"C:\\Users\\Jos\u00e9\\AppData\\Roaming");
+    ScopedWideEnv programs(L"ProgramFiles", L"C:\\Programme \u5c0f");
+    const UserFolders folders = user_folders();
+    CHECK(folders.home == fs::path(L"C:\\Users\\Jos\u00e9"));
+    CHECK(folders.app_data == fs::path(L"C:\\Users\\Jos\u00e9\\AppData\\Roaming"));
+    CHECK(folders.programs == fs::path(L"C:\\Programme \u5c0f"));
+
+    ScopedWideEnv chosen(L"JUSPRIN_ORCA_DATADIR", L"C:\\Users\\Jos\u00e9\\Orca");
+    CHECK(installed_app_folder({}, fs::path(), "JUSPRIN_ORCA_DATADIR") == fs::path(L"C:\\Users\\Jos\u00e9\\Orca"));
+}
+
+TEST_CASE("a command is found in a PATH folder whose name is not ASCII", "[app_folders][mcp_setup]")
+{
+    const fs::path folder = fs::temp_directory_path() / L"jusprin-path-test" / L"Jos\u00e9 bin";
+    fs::remove_all(folder.parent_path());
+    fs::create_directories(folder);
+    std::ofstream(folder / L"fakecli.exe").put('x');
+    ScopedWideEnv path(L"PATH", folder.c_str());
+    CHECK(Mcp::command_on_path("fakecli") == (folder / L"fakecli.exe").u8string());
+    fs::remove_all(folder.parent_path());
+}
+#endif
 
 TEST_CASE("another app's folder is the first of its folders that is there, unless a variable names one", "[app_folders]")
 {

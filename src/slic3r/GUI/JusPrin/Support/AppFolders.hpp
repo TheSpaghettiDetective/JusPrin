@@ -24,6 +24,12 @@ struct UserFolders
     std::filesystem::path programs;
 };
 
+// The environment variable `name` as a path, empty when it is not set. On
+// Windows it is read as UTF-16: the narrow environment std::getenv returns is
+// in the active code page, not UTF-8, so a folder name with a character such
+// as an accented letter does not survive it (JUSPRIN-APP-M).
+std::filesystem::path environment_path(const char* name);
+
 // From the environment: HOME (USERPROFILE on Windows), APPDATA, ProgramFiles,
 // XDG_CONFIG_HOME.
 UserFolders user_folders();

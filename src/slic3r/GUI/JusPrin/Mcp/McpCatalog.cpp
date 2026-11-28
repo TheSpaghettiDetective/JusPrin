@@ -9,12 +9,6 @@ namespace Slic3r::GUI::JusPrin::Mcp {
 namespace fs = std::filesystem;
 
 namespace {
-std::string env(const char* key)
-{
-    const char* value = std::getenv(key);
-    return value ? value : "";
-}
-
 bool executable_file(const fs::path& path)
 {
     std::error_code error;
@@ -44,24 +38,24 @@ CatalogPaths default_catalog_paths()
 std::string command_on_path(const std::string& command)
 {
 #ifdef _WIN32
-    const std::string filename = command + ".exe";
-    const std::string path = env("PATH");
-    const char separator = ';';
+    const fs::path filename = fs::u8path(command + ".exe");
+    const fs::path::value_type separator = L';';
 #else
-    const std::string filename = command;
-    const std::string path = env("PATH");
-    const char separator = ':';
+    const fs::path filename = fs::u8path(command);
+    const fs::path::value_type separator = ':';
 #endif
-    std::string directory;
-    std::istringstream stream(path);
+    // Split in the platform's own encoding: on Windows PATH may hold folders
+    // whose names the narrow environment cannot spell.
+    fs::path::string_type directory;
+    std::basic_istringstream<fs::path::value_type> stream(environment_path("PATH").native());
     while (std::getline(stream, directory, separator)) {
         if (directory.empty()) continue;
-        const auto candidate = fs::u8path(directory) / filename;
+        const auto candidate = fs::path(directory) / filename;
         if (executable_file(candidate)) return candidate.u8string();
     }
 #ifndef _WIN32
-    const auto home = env("HOME");
-    for (const auto& extra : {fs::u8path(home) / ".local" / "bin", fs::path("/opt/homebrew/bin"), fs::path("/usr/local/bin")}) {
+    const fs::path home = environment_path("HOME");
+    for (const auto& extra : {home / ".local" / "bin", fs::path("/opt/homebrew/bin"), fs::path("/usr/local/bin")}) {
         const auto candidate = extra / filename;
         if (executable_file(candidate)) return candidate.u8string();
     }
