@@ -1,86 +1,39 @@
+check with the eorro handling session to see if this can be one of the issues it has handled
+
+---
+
+Reproduce on the mac first.
+
+---
+
+remove them. but do a theorough regression testing
+
+---
+
 <task-notification>
-<task-id>bafr54uwr</task-id>
-<tool-use-id>toolu_01SXbES5rfpJDew4w9MFSm4o</tool-use-id>
-<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-claude-cowork-wd/e72a2155-9484-4e5d-89d6-fcf6b8d253be/tasks/bafr54uwr.output</output-file>
+<task-id>b50yali8o</task-id>
+<summary>Monitor event: "remaining shell harness modes"</summary>
+<event>task-chat exit=124 secs=1500</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b50yali8o</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-claude-cowork-wd/e72a2155-9484-4e5d-89d6-fcf6b8d253be/tasks/b50yali8o.output</output-file>
 <status>completed</status>
-<summary>Monitor "workspace harness finish" stream ended</summary>
-<event>HARNESS RESULT FAIL failures=2
-exit=1</event>
+<summary>Monitor "remaining shell harness modes" stream ended</summary>
+<event>fresh-example exit=134 secs=18 HARNESS RESULT PASS failures=0
+ALLDONE</event>
 If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
 </task-notification>
 
 ---
 
-<task-notification>
-<task-id>bmle82nnr</task-id>
-<summary>Monitor event: "shell harness modes: one line per finished mode"</summary>
-<event>default exit=1 secs=139 HARNESS RESULT FAIL failures=1</event>
-If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
-</task-notification>
+you should have resolved sentry issue in next release instead. You have made this mistake many, many times before. How can I make you remember this?
 
 ---
 
-<task-notification>
-<task-id>bmle82nnr</task-id>
-<summary>Monitor event: "shell harness modes: one line per finished mode"</summary>
-<event>autosave-seed exit=0 secs=20 HARNESS RESULT PASS failures=0</event>
-If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
-</task-notification>
-
----
-
-<task-notification>
-<task-id>bmle82nnr</task-id>
-<summary>Monitor event: "shell harness modes: one line per finished mode"</summary>
-<event>autosave-reopen exit=0 secs=12 HARNESS RESULT PASS failures=0</event>
-If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
-</task-notification>
-
----
-
-<task-notification>
-<task-id>bmle82nnr</task-id>
-<summary>Monitor event: "shell harness modes: one line per finished mode"</summary>
-<event>blank-project-saves exit=0 secs=17 HARNESS RESULT PASS failures=0</event>
-If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
-</task-notification>
-
----
-
-<task-notification>
-<task-id>bmle82nnr</task-id>
-<summary>Monitor event: "shell harness modes: one line per finished mode"</summary>
-<event>chat-restoration exit=0 secs=26 HARNESS RESULT PASS failures=0</event>
-If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
-</task-notification>
-
----
-
-<task-notification>
-<task-id>bmle82nnr</task-id>
-<summary>Monitor event: "shell harness modes: one line per finished mode"</summary>
-<event>external-project-history exit=0 secs=19 HARNESS RESULT PASS failures=0</event>
-If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
-</task-notification>
-
----
-
-<task-notification>
-<task-id>bmle82nnr</task-id>
-<summary>Monitor event: "shell harness modes: one line per finished mode"</summary>
-<event>file-opening exit=0 secs=22 HARNESS RESULT PASS failures=0</event>
-If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
-</task-notification>
-
----
-
-<task-notification>
-<task-id>bmle82nnr</task-id>
-<summary>Monitor event: "shell harness modes: one line per finished mode"</summary>
-<event>unavailable-storage exit=0 secs=79 HARNESS RESULT PASS failures=0</event>
-If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
-</task-notification>
-
----
-
-land it as one commint on jusprin-dev.
+start working on the Windows crash using GCP VM jusprin-win-test
