@@ -1,0 +1,114 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M8HPJPSAG6NTE7A2S5ZG5PAH",
+  "session_id": "e72a2155-9484-4e5d-89d6-fcf6b8d253be",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-28T18:27:21.383442Z",
+  "branch": "issue-report-general",
+  "checkpoints_count": 14,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "f2fc980677ff",
+  "checkpoint_transcript_start": 7723,
+  "transcript_lines_at_start": 7723,
+  "compact_transcript_start": 839,
+  "token_usage": {
+    "input_tokens": 338,
+    "cache_creation_tokens": 443701,
+    "cache_read_tokens": 40060063,
+    "output_tokens": 93452,
+    "api_call_count": 169
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01TjrBZzLy8CMNEHsYanprkZ",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "obico-gmail"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "a135facb32d9",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 89,
+        "end": 90,
+        "entry_ids": [
+          "91965506-6c07-4e31-b158-27d78d886a1c"
+        ],
+        "tool_use_id": "toolu_01TjrBZzLy8CMNEHsYanprkZ"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01TjrBZzLy8CMNEHsYanprkZ"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: obico-gmail",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_01QgzUcTGahKnSYU4LNfydYU",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "update-config"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "fcf64829e952",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 5404,
+        "end": 5405,
+        "entry_ids": [
+          "d864380d-8343-4a74-8ed4-d2bbfb153f81"
+        ],
+        "tool_use_id": "toolu_01QgzUcTGahKnSYU4LNfydYU"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01QgzUcTGahKnSYU4LNfydYU"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: update-config",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 32
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-28T18:27:20.372271Z",
+    "agent_lines": 17,
+    "agent_removed": 0,
+    "human_added": 560,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 577,
+    "total_lines_changed": 774,
+    "agent_percentage": 2.1963824289405682,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
