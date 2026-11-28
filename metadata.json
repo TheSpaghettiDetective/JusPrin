@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M8HFJ0MAYKH7AZK60MY99H2F",
+  "strategy": "manual-commit",
+  "branch": "printer-chat-same-tools",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolRegistry.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.hpp",
+    "tests/agent/test_printer_conversation.cpp",
+    "tests/printer_prompt/printer_tools.json",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 254,
+    "cache_creation_tokens": 256637,
+    "cache_read_tokens": 29151933,
+    "output_tokens": 77944,
+    "api_call_count": 127,
+    "subagent_tokens": {
+      "input_tokens": 22,
+      "cache_creation_tokens": 204473,
+      "cache_read_tokens": 506469,
+      "output_tokens": 19522,
+      "api_call_count": 11
+    }
+  }
+}

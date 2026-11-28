@@ -1,0 +1,13 @@
+Not yet
+
+---
+
+<!-- reply 2 -->
+> efore a printer is saved, the tool refuses with the chat's existing message: "No printer is set up in this conversation yet: add one first." Once a printer is saved, it behaves as before.
+
+What does it mean? Does it mean that you broke something that was already working?
+
+<!-- reply -->
+> One question is still open: should the printer's details move out of the printer chat's system prompt and into a note added to the conversation when they change? I'd do it, for about $5 a month now plus a few dollars of printer prompt tests. Should I do that, or leave the details where they are?
+
+What do you mean by node? Developer node?
