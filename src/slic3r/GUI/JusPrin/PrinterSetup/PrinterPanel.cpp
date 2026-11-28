@@ -102,6 +102,7 @@ void PrinterPanel::build_runtime()
         });
         host.set_session_tool_output([this](const Agent::ToolActivity& activity) { return m_conversation->tool_output(activity); });
         host.set_session_skill([this] { return m_conversation->connection_skill(); });
+        host.set_session_facts([this] { return m_conversation->facts(); });
         host.tools().set_version_callbacks(m_callbacks.version_before, m_callbacks.version_after);
         // Ids from this panel's own document would start again at the
         // first one each opening and be refused by the project's history.
@@ -183,6 +184,7 @@ void PrinterPanel::tear_down_runtime()
     host.set_page_message_handler({});
     host.set_session_tool_executor({});
     host.set_session_skill({});
+    host.set_session_facts({});
     m_retired.push_back(std::move(m_web_view));
     m_release.request();
 }

@@ -10,7 +10,7 @@
 #include "slic3r/GUI/JusPrin/Brand/BrandPalette.hpp"
 #include "slic3r/GUI/JusPrin/Home/HomeWebView.hpp"
 #include "slic3r/GUI/JusPrin/Home/OrcaHomeBackend.hpp"
-#include "slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.hpp"
+#include "slic3r/GUI/JusPrin/Support/IssueReport.hpp"
 #include "slic3r/GUI/JusPrin/Updates/Version.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/StoredFormat.hpp"
@@ -489,6 +489,11 @@ void AppMenus::build_view(wxMenu* menu)
     arrange(menu, items);
 }
 
+std::string app_issue_footer()
+{
+    return "\n\n---\nApp version: " + Updates::version_label() + "\nSystem: " + std::string(wxGetOsDescription().ToUTF8());
+}
+
 void AppMenus::build_help(wxMenu* menu)
 {
     // Setup Wizard is OrcaSlicer's first run, which Home replaces; its tips
@@ -514,9 +519,7 @@ void AppMenus::build_help(wxMenu* menu)
             m_shell.toggle_agent_pane();
     }, [this] { return !m_shell.task_open() && m_shell.agent_pane() != nullptr; }}));
     items.push_back(command(menu, _L("Report a problem…"), {[this] {
-        const std::string footer = "\n\n---\nApp version: " + Updates::version_label() + "\nSystem: " +
-                                   std::string(wxGetOsDescription().ToUTF8());
-        const PrinterSetup::IssueLink link = PrinterSetup::issue_link("", "What happened:\n\n\nWhat you expected:\n\n\nSteps to make it happen again:\n", footer);
+        const IssueLink link = issue_link("", "What happened:\n\n\nWhat you expected:\n\n\nSteps to make it happen again:\n", app_issue_footer());
         if (!wxLaunchDefaultBrowser(wxString::FromUTF8(link.url)))
             OrcaMessages::show_own_message(&m_frame, _L("The app couldn't open your browser."), _L("Report a problem"));
     }}));

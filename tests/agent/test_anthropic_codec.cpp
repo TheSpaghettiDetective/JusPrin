@@ -645,6 +645,60 @@ TEST_CASE("a skill that stays is sent once, kept for good, and never cleared", "
     CHECK(body.find("clear_at") == std::string::npos);
 }
 
+TEST_CASE("a session's facts are sent again only when they change, and the earlier copy stays", "[agent][anthropic][skills]")
+{
+    std::vector<RecordItem> recorded;
+    const auto facts = [](const std::string& text) {
+        AgentSkillUse use{"session_facts", kSessionFactsHeading + text, nullptr, {}, {}};
+        use.stays   = true;
+        use.current = true;
+        return use;
+    };
+    const auto turn = [&recorded](const std::string& source, const AgentSkillUse& skill) {
+        AgentRequest request = request_fixture();
+        request.attachments.clear();
+        request.record.items.insert(request.record.items.end(), recorded.begin(), recorded.end());
+        request.source      = source;
+        request.skills      = {skill};
+        request.on_recorded = [&recorded](const std::string&, std::vector<RecordItem> items) {
+            recorded.insert(recorded.end(), items.begin(), items.end());
+        };
+        return request;
+    };
+    const auto count = [](const std::string& body, const std::string& needle) {
+        std::size_t n = 0;
+        for (std::size_t at = body.find(needle); at != std::string::npos; at = body.find(needle, at + 1))
+            ++n;
+        return n;
+    };
+
+    Agent agent;
+    REQUIRE(agent.service->start(turn("m-1", facts("Nozzle: 0.4 mm"))));
+    CHECK(count(agent.fake->requests.back().body, "Nozzle: 0.4 mm") == 1);
+    agent.fake->data(stream(json::array({text("Done.")}), "end_turn"));
+    REQUIRE(agent.poll_until(AgentEventKind::Completed));
+
+    // The same facts: the chat already holds them.
+    REQUIRE(agent.service->start(turn("m-2", facts("Nozzle: 0.4 mm"))));
+    CHECK(count(agent.fake->requests.back().body, "Nozzle: 0.4 mm") == 1);
+    agent.fake->data(stream(json::array({text("Done.")}), "end_turn"));
+    REQUIRE(agent.poll_until(AgentEventKind::Completed));
+
+    // New facts are added after the old ones, which stay as they were sent.
+    REQUIRE(agent.service->start(turn("m-3", facts("Nozzle: 0.6 mm"))));
+    const std::string body = agent.fake->requests.back().body;
+    CHECK(count(body, "Nozzle: 0.4 mm") == 1);
+    CHECK(count(body, "Nozzle: 0.6 mm") == 1);
+    CHECK(body.find("Nozzle: 0.4 mm") < body.find("Nozzle: 0.6 mm"));
+    CHECK(body.find("clear_at") == std::string::npos);
+    agent.fake->data(stream(json::array({text("Done.")}), "end_turn"));
+    REQUIRE(agent.poll_until(AgentEventKind::Completed));
+
+    // Back to the first facts: they differ from the last copy, so they are sent.
+    REQUIRE(agent.service->start(turn("m-4", facts("Nozzle: 0.4 mm"))));
+    CHECK(count(agent.fake->requests.back().body, "Nozzle: 0.4 mm") == 2);
+}
+
 TEST_CASE("the stream becomes typed events: text, calls with split arguments, and usage with the cache", "[agent][anthropic][stream]")
 {
     std::vector<AgentUsage> usage;

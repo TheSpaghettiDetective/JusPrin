@@ -23,6 +23,10 @@ namespace Slic3r::GUI::JusPrin {
 
 class ShellController;
 
+// The facts every issue from the app itself ends with: its version and the
+// operating system. Report a problem and the project chat's AI both use it.
+std::string app_issue_footer();
+
 // The app's menus while the shell is installed: OrcaSlicer's own, rearranged
 // in place, with JusPrin's commands added and a Print and a Printer menu after
 // View. The same menus show on every screen, Home included; a command that

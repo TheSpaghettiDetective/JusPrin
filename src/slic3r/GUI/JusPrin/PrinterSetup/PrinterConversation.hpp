@@ -28,6 +28,7 @@
 #include "slic3r/GUI/JusPrin/Agent/AgentService.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolExecution.hpp"
+#include "slic3r/GUI/JusPrin/Support/IssueReport.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -80,17 +81,6 @@ public:
     virtual void printers_changed(const std::string& added = {}) = 0;
 };
 
-// The GitHub page for a new JusPrin issue, filled in with `title` and `body`
-// and ending in the app's own `footer`. A body that would take the link past
-// kIssueLinkLimit bytes is cut, never the footer, and `shortened` says so.
-inline constexpr std::size_t kIssueLinkLimit = 8000;
-struct IssueLink
-{
-    std::string url;
-    bool        shortened{false};
-};
-IssueLink issue_link(const std::string& title, const std::string& body, const std::string& footer);
-
 class PrinterConversation
 {
 public:
@@ -127,9 +117,12 @@ public:
     std::optional<nlohmann::json> tool_output(const Agent::ToolActivity& activity) const;
     // The skill for this printer's connection type, chosen by its vendor,
     // from the moment the chat has a saved printer: added in it, or the one it
-    // was opened for. Each comes with issue_report_open, for someone stuck
-    // who wants the developers to know.
+    // was opened for.
     std::optional<Agent::SessionSkill> connection_skill() const;
+    // The printer facts the page last wrote (printerFacts in
+    // printerInstructions.ts): what the model reads as current, beside the
+    // instructions that stay the same.
+    const std::string& facts() const { return m_facts; }
 
     // Called on the panel's pump. Picks up the printer form's options once
     // they are read. While a Bambu Lab printer is being connected, looks at
@@ -171,6 +164,12 @@ private:
     // The test with what was typed in the form.
     void   form_tested(const HostTestOutcome& outcome);
     Result open_issue(const nlohmann::json& arguments);
+    // What an issue from this chat carries of the app's own facts.
+    IssueContext issue_context() const;
+    // An issue footer's lines about the chat's saved printer and its
+    // connection; adds the serials and addresses to take out of the issue to
+    // `known`.
+    std::string connection_footer(bool bambu, std::vector<std::string>& known) const;
     // The form's Connect: starts the attempt with what was typed, by box.
     void   connect(const nlohmann::json& arguments, const nlohmann::json& values);
     // The form's other ways out: the person has no credential, or closed it.
@@ -235,6 +234,7 @@ private:
     // The model's instructions, as the page wrote them for this session.
     std::string m_instructions;
     std::string m_instructions_without_web_search;
+    std::string m_facts;
 
     // What this session added, by catalogue id: the saved printer's name.
     std::map<std::string, std::string> m_added;

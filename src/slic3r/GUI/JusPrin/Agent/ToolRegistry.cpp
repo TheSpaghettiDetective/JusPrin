@@ -1767,18 +1767,22 @@ std::vector<ToolDefinition> make_definitions()
          ToolExposure::Printer,
          ToolAvailability::Always,
          ToolHandler::PrinterBambuConnect},
-        // Offered only with the skill for a printer's connection type
-        // (PrinterConversation::connection_skill), never on a session's own
-        // list, so a chat with no saved printer to connect never has it. It posts
-        // nothing: the person submits the page on GitHub themselves.
+        // A report of any problem the person wants the developers to know
+        // about, in the project chat (AgentHost::open_issue) and in every
+        // printer chat from its first message, so its tool list never changes
+        // (PrinterConversation::session_tools). Not an MCP client's: it is the
+        // person's report. It posts nothing: the person submits the page on
+        // GitHub themselves.
         {"issue_report_open",
          L("Open an issue for the developers"),
-         "Opens a new issue for the JusPrin developers on GitHub in the person's browser, filled in with your title and body. "
-         "Call it only after the person has said yes to reporting the problem, when they are stuck and want the developers to "
-         "know. Nothing is filed by this call: the person reads the page, can change it, and submits it with their own GitHub "
-         "account, which they need. Write the body as a short summary for a developer: the printer model, what was tried, what "
-         "the app reported, and what the person said. Leave out any access code or API key. The app adds its version, the "
-         "connection type and the printer, removes printer serials and IP addresses, and cuts a body too long for the link.",
+         "Opens a new issue for the JusPrin developers on GitHub in the person's browser, filled in with your title and body, "
+         "for a problem with the app that the person wants the developers to know about. Call it only after the person has "
+         "said yes to reporting the problem, when they are stuck and want the developers to know. Nothing is filed by this "
+         "call: the person reads the page, can change it, and submits it with their own GitHub account, which they need. "
+         "Write the body as a short summary for a developer: what they were trying to do, the printer model when there is "
+         "one, what was tried, what the app reported, and what the person said. Leave out any access code or API key. The app "
+         "adds its version and what it knows of the setup, such as the printer and its connection type; it removes "
+         "printer serials, IP addresses and the project's name and folder, and cuts a body too long for the link.",
          object_schema(json{{"title", {{"type", "string"}, {"maxLength", kToolLabelLimit},
                                        {"description", "One line naming the problem, such as the printer and what failed."}}},
                             {"body", {{"type", "string"}, {"maxLength", 4 * kToolTextLimit},
@@ -1789,7 +1793,7 @@ std::vector<ToolDefinition> make_definitions()
                             {"message", string_schema()}},
                        json::array({"state", "shortened", "message"})),
          ActionClass::ReadOnly,
-         ToolExposure::Printer,
+         ToolExposure::InApp | ToolExposure::Printer,
          ToolAvailability::Always,
          ToolHandler::IssueReportOpen},
     };

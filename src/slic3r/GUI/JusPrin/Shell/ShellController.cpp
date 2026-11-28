@@ -1,5 +1,6 @@
 #include "ShellController.hpp"
 #include "slic3r/GUI/JusPrin/Support/ErrorReport.hpp"
+#include "slic3r/GUI/JusPrin/Support/IssueReport.hpp"
 #include "slic3r/GUI/JusPrin/Support/SaidBy.hpp"
 
 #include "AgentPane.hpp"
@@ -62,6 +63,7 @@
 #include <wx/msgdlg.h>
 #include <wx/panel.h>
 #include <wx/sizer.h>
+#include <wx/utils.h>
 #include <wx/string.h>
 #include <wx/timer.h>
 #include <wx/weakref.h>
@@ -763,6 +765,21 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 if (m_autosave)
                     m_autosave->record_opened_from(std::filesystem::u8path(path));
             });
+        // The project chat's issue ends with what Report a problem gives, and
+        // leaves out the project's name and the person's folders.
+        m_agent_pane->web_view().host().set_issue_page(
+            {[this] {
+                 IssueContext context{app_issue_footer(), {std::string(wxGetHomeDir().ToUTF8())}};
+                 if (m_plater != nullptr) {
+                     context.known.push_back(std::string(m_plater->get_project_filename().ToUTF8()));
+                     context.known.push_back(std::string(m_plater->get_project_name().ToUTF8()));
+                 }
+                 return context;
+             },
+             [](const std::string& url) {
+                 BOOST_LOG_TRIVIAL(info) << "Project chat: opening an issue page, " << url.size() << " bytes";
+                 return wxLaunchDefaultBrowser(wxString::FromUTF8(url));
+             }});
         m_agent_pane->web_view().host().tools().set_print_dialog_opener(
             [this](const Agent::ToolExecutionCoordinator::PrintDialogRequest& request) {
                 return open_print_dialog(request);

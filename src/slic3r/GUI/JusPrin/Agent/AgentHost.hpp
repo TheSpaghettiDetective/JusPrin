@@ -23,6 +23,7 @@
 #include "ProjectPersistence.hpp"
 #include "ToolExecutionCoordinator.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpConfigFile.hpp"
+#include "slic3r/GUI/JusPrin/Support/IssueReport.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 
 #include <nlohmann/json.hpp>
@@ -239,6 +240,11 @@ public:
     // any, and the tools that come with it. Asked for every request and every
     // tool result; the skill stays once it is sent (AgentSkillUse::stays).
     void set_session_skill(std::function<std::optional<SessionSkill>()> skill) { m_session_skill = std::move(skill); }
+    // What a session's page states as the facts of the moment, such as the
+    // printer a chat is about. Kept out of the system prompt, which a change
+    // would make the whole prompt cache miss: the model reads them as an app
+    // message, sent again with a request or tool result once they change.
+    void set_session_facts(std::function<std::string()> facts) { m_session_facts = std::move(facts); }
     // Appends a message the agent is shown as having said, without asking the
     // model for it: a panel whose opening line is always the same. The model
     // reads it as an app note on the next request. Returns its id so the
@@ -366,6 +372,16 @@ public:
     // a page the sign-in links to. GUI-free like the reveal handler.
     using OpenUrlFn = std::function<void(const std::string& url)>;
     void set_url_opener(OpenUrlFn open);
+    // How issue_report_open opens a GitHub issue from this host's chat: the
+    // app's facts for it, and a browser that says whether it opened. A session
+    // with a subject of its own, such as the printer chat, answers the tool
+    // itself. GUI-free like the reveal handler.
+    struct IssuePage
+    {
+        std::function<IssueContext()>                   context;
+        std::function<bool(const std::string& url)>     open;
+    };
+    void set_issue_page(IssuePage page) { m_issue_page = std::move(page); }
     // Shows the desktop's file dialog for one kind of attachment and calls
     // `done` with the chosen paths (UTF-8), empty when the person cancels.
     // GUI-free like the reveal handler: the wx side supplies the dialog.
@@ -621,6 +637,8 @@ private:
                                             const Workspace::WorkspaceSnapshot& workspace) const;
     // The skill the session's own subject has in force, as a request gets it.
     std::optional<AgentSkillUse> session_skill() const;
+    // The session's facts as a request gets them, when there are any.
+    std::optional<AgentSkillUse> session_facts() const;
     // The slice-failed skill, when `workspace` shows a plate whose slice
     // failed and no request has carried that failure yet. Fired once a failure.
     std::optional<AgentSkillUse> fire_on_new_slice_failure(const std::string& conversation_id,
@@ -643,6 +661,7 @@ private:
     void mark_setup_checked(const Workspace::WorkspaceSnapshot& workspace);
     void handle_skills(const std::string& envelope_id, const std::string& payload_json);
     ToolExecutionCoordinator::ExtensionResult read_skill(const ToolActivity& activity) const;
+    ToolExecutionCoordinator::ExtensionResult open_issue(const ToolActivity& activity) const;
     void complete_stream();
     void fail_stream(AgentError error);
     void handle_agent_tool_call(AgentToolCall call);
@@ -801,6 +820,7 @@ private:
     ToolExecutionCoordinator::ExtensionExecutor m_session_tool_executor;
     ToolOutputFormatter             m_session_tool_output;
     std::function<std::optional<SessionSkill>()> m_session_skill;
+    std::function<std::string()>    m_session_facts;
     std::function<nlohmann::json()> m_session_state_provider;
     std::function<nlohmann::json()> m_navigation_state_provider;
     ImageThumbnailFn                m_image_thumbnail_maker;
@@ -825,6 +845,7 @@ private:
     std::function<bool()>           m_reply_running_elsewhere;
     RevealPathFn                    m_reveal_path;
     OpenUrlFn                       m_open_url;
+    IssuePage                       m_issue_page;
     // Per-chat models: the source, the choice the current m_agent was built
     // for (none for the agent the host was handed), and each configured
     // provider's list as it arrives.

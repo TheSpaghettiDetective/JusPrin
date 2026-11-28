@@ -65,7 +65,14 @@ struct AgentSkillUse
     // and on every request after. Adding one costs that chat one prompt-cache
     // miss, which is why a session offers few tools this way.
     std::vector<std::string>         tools;
+    // With stays: the text replaces any earlier text of this skill, so it is
+    // sent again whenever it differs from the last one sent (session facts).
+    bool                             current{false};
 };
+
+// Opens a session's facts as the model reads them: each new copy replaces
+// the earlier ones, which stay in the chat as they were sent.
+inline constexpr const char* kSessionFactsHeading = "The app's facts as of now, replacing any earlier ones:\n";
 
 // What a session with its own subject puts in force once its event has
 // happened: the trigger of the skill, and the session's own tools that come

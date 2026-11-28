@@ -2,14 +2,13 @@
 
 #include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
 #include "slic3r/GUI/JusPrin/Support/Base64.hpp"
+#include "slic3r/GUI/JusPrin/Support/IssueReport.hpp"
 
 #include <boost/log/trivial.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <filesystem>
 #include <fstream>
-#include <regex>
 #include <sstream>
 #include <stdexcept>
 
@@ -191,53 +190,6 @@ std::string asked_for(const json& ask)
     return text;
 }
 
-// An issue holds neither an access code nor an API key. The form's credential
-// never reaches the chat; this takes out what a model may copy into an issue
-// anyway, and a printer's serial, which an issue has no need of: a key's own
-// shape, and any run of six or more letters and digits with a digit in it. A
-// code of letters alone reads as a word, which is why the person reads the
-// page before submitting it.
-std::string without_secrets(const std::string& text)
-{
-    static const std::regex key("sk-[A-Za-z0-9_-]{6,}");
-    static const std::regex token("[A-Za-z0-9]{6,}");
-    const std::string       no_keys = std::regex_replace(text, key, "[hidden]");
-    std::string             out;
-    std::size_t             from = 0;
-    for (auto it = std::sregex_iterator(no_keys.begin(), no_keys.end(), token); it != std::sregex_iterator(); ++it) {
-        const std::string word = it->str();
-        out += no_keys.substr(from, it->position() - from);
-        out += std::any_of(word.begin(), word.end(), [](unsigned char c) { return std::isdigit(c) != 0; }) ? "[hidden]" : word;
-        from = it->position() + word.size();
-    }
-    return out + no_keys.substr(from);
-}
-
-// What an issue on GitHub, which anyone can read, holds of the person's
-// printer: neither the serial and address the app knows it by, nor anything
-// that reads as an IP address, nor what without_secrets takes out.
-std::string for_public(std::string text, const std::vector<std::string>& known)
-{
-    static const std::regex address("\\b(?:[0-9]{1,3}\\.){3}[0-9]{1,3}\\b");
-    for (const std::string& value : known)
-        for (std::size_t at = value.empty() ? std::string::npos : text.find(value); at != std::string::npos;
-             at = text.find(value, at + 8))
-            text.replace(at, value.size(), "[hidden]");
-    return without_secrets(std::regex_replace(text, address, "[hidden]"));
-}
-
-std::string percent_encoded(const std::string& text)
-{
-    static const char* const digits = "0123456789ABCDEF";
-    std::string              out;
-    for (const unsigned char c : text)
-        if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '.' || c == '_' || c == '~')
-            out += static_cast<char>(c);
-        else
-            out += {'%', digits[c >> 4], digits[c & 15]};
-    return out;
-}
-
 // A printer the app offers to connect: in LAN mode, and not held back for a
 // reason of the backend's.
 bool offered(const ConnectionCandidate& candidate) { return candidate.lan_mode && candidate.reason.empty(); }
@@ -316,7 +268,11 @@ std::vector<std::string> PrinterConversation::settings_tools()
 
 std::vector<std::string> PrinterConversation::session_tools()
 {
-    return {"printer_add", "printer_bambu_connect", "printer_change", "printer_connection_status", "printer_host_connect",
+    // issue_report_open from the first message: a report can be about adding
+    // a printer as much as connecting one, and a tool added partway through a
+    // chat changes the tool list, so Anthropic then reads none of the chat from
+    // its cache.
+    return {"issue_report_open", "printer_add", "printer_bambu_connect", "printer_change", "printer_connection_status", "printer_host_connect",
             "printer_identify"};
 }
 
@@ -333,6 +289,7 @@ void PrinterConversation::start(ConversationMode mode, const std::string& printe
     // A new session's page writes its instructions again.
     m_instructions.clear();
     m_instructions_without_web_search.clear();
+    m_facts.clear();
     m_network.clear();
     m_credential_action.clear();
     m_credential_arguments = json::object();
@@ -505,11 +462,9 @@ std::optional<Agent::SessionSkill> PrinterConversation::connection_skill() const
     const SavedPrinter printer = saved(m_printer_name);
     if (printer.name.empty())
         return std::nullopt;
-    // Either comes with issue_report_open: Kenneth, 2026-11-06, offered it for
-    // all printer connections.
     if (printer.vendor_id == "BBL")
-        return Agent::SessionSkill{Agent::Protocol::SkillTrigger::kConnectBambu, {"issue_report_open"}};
-    return Agent::SessionSkill{Agent::Protocol::SkillTrigger::kConnectPrintHost, {"issue_report_open"}};
+        return Agent::SessionSkill{Agent::Protocol::SkillTrigger::kConnectBambu, {}};
+    return Agent::SessionSkill{Agent::Protocol::SkillTrigger::kConnectPrintHost, {}};
 }
 
 std::optional<ToolError> PrinterConversation::preflight_tool(ToolHandler handler, ToolActivity& activity)
@@ -694,7 +649,7 @@ Result PrinterConversation::execute_tool(ToolHandler handler, const ToolActivity
 std::optional<json> PrinterConversation::tool_output(const ToolActivity& activity) const
 {
     const std::vector<std::string> tools = session_tools();
-    if (std::find(tools.begin(), tools.end(), activity.tool) == tools.end() && activity.tool != "issue_report_open")
+    if (std::find(tools.begin(), tools.end(), activity.tool) == tools.end())
         return std::nullopt;
     if (activity.state == Agent::ToolState::Succeeded)
         return json::parse(activity.result_json);
@@ -1032,49 +987,37 @@ PrinterConversation::Result PrinterConversation::pending()
 
 // -- An issue for the developers --------------------------------------------
 
-IssueLink issue_link(const std::string& title, const std::string& body, const std::string& footer)
-{
-    static const std::string page   = "https://github.com/TheSpaghettiDetective/JusPrin/issues/new";
-    static const std::string marker = percent_encoded("\n\n(Cut short to fit the link.)");
-    const std::string        start  = page + "?title=" + percent_encoded(title) + "&body=";
-    const std::string        end    = percent_encoded(footer);
-    const std::string        whole  = percent_encoded(body);
-    if (start.size() + whole.size() + end.size() <= kIssueLinkLimit)
-        return {start + whole + end, false};
-    if (start.size() + marker.size() + end.size() > kIssueLinkLimit)
-        throw std::logic_error("An issue's title and footer leave no room for its body");
-    // Whole characters, so the cut never splits one.
-    const std::size_t room = kIssueLinkLimit - start.size() - marker.size() - end.size();
-    std::string       kept;
-    for (std::size_t from = 0; from < body.size();) {
-        std::size_t next = from + 1;
-        while (next < body.size() && (static_cast<unsigned char>(body[next]) & 0xC0) == 0x80)
-            ++next;
-        const std::string character = percent_encoded(body.substr(from, next - from));
-        if (kept.size() + character.size() > room)
-            break;
-        kept += character;
-        from = next;
-    }
-    return {start + kept + marker + end, true};
-}
-
 Result PrinterConversation::open_issue(const json& arguments)
 {
-    // The tool is offered only with a connection skill.
-    const std::optional<Agent::SessionSkill> skill = connection_skill();
-    if (!skill)
-        throw std::logic_error("issue_report_open ran in a printer chat without a connection skill in force");
-    const bool bambu = skill->trigger == Agent::Protocol::SkillTrigger::kConnectBambu;
+    const std::optional<json> opened = open_issue_page(arguments, issue_context(), [this](const std::string& url) {
+        return m_host.open_in_browser(url);
+    });
+    if (!opened)
+        return refuse("failed", kIssueNoBrowser);
+    return ok(*opened);
+}
+
+IssueContext PrinterConversation::issue_context() const
+{
+    // The app's version always, and the printer and its connection once the chat
+    // has a saved printer. Before then the report is about finding or adding
+    // one, and the body says which.
+    IssueContext context{"\n\n---\nApp version: " + m_host.app_version(), {}};
+    if (const std::optional<Agent::SessionSkill> skill = connection_skill())
+        context.footer += connection_footer(skill->trigger == Agent::Protocol::SkillTrigger::kConnectBambu, context.known);
+    return context;
+}
+
+std::string PrinterConversation::connection_footer(bool bambu, std::vector<std::string>& known) const
+{
     const SavedPrinter          printer = saved(m_printer_name);
     const PrinterConnectionInfo info    = m_backend.connection(m_printer_name);
-    std::vector<std::string>    known{printer.device_id, info.device_id, info.address};
+    known.insert(known.end(), {printer.device_id, info.device_id, info.address});
     for (const ConnectionCandidate& candidate : info.candidates) {
         known.push_back(candidate.id);
         known.push_back(candidate.address);
     }
-    // The app's own facts, which the model may have wrong or left out. A
-    // print host is named once the chat or its saved connection says which
+    // A print host is named once the chat or its saved connection says which
     // program it is.
     const auto named = [](const std::string& type) -> std::string {
         return type == "moonraker" ? "Moonraker" : type == "octoprint" ? "OctoPrint" : type;
@@ -1084,17 +1027,7 @@ Result PrinterConversation::open_issue(const json& arguments)
     // The type tried, and the one the printer is saved with when it differs.
     if (!m_host_type.empty() && !info.host_type.empty() && m_host_type != info.host_type)
         host += ", saved as " + named(info.host_type);
-    const std::string footer = "\n\n---\nApp version: " + m_host.app_version() +
-                               "\nConnection: " + (bambu ? "Bambu Lab, LAN mode" : host) + "\nPrinter: " + printer.model;
-    const IssueLink link = issue_link(for_public(arguments.at("title").get<std::string>(), known),
-                                    for_public(arguments.at("body").get<std::string>(), known), footer);
-    if (!m_host.open_in_browser(link.url))
-        return refuse("failed", "The app could not open the person's browser, so no issue page is open.");
-    std::string message = "The new issue page is open in the person's browser, filled in. Nothing has been filed: it is filed "
-                          "only when they press Submit on it, signed in to GitHub.";
-    if (link.shortened)
-        message += " The body was too long for the link, so its end was cut; they can add the rest on the page.";
-    return ok(json{{"state", "opened"}, {"shortened", link.shortened}, {"message", message}});
+    return "\nConnection: " + (bambu ? std::string("Bambu Lab, LAN mode") : host) + "\nPrinter: " + printer.model;
 }
 
 void PrinterConversation::close()
@@ -1234,6 +1167,10 @@ bool PrinterConversation::handle_page_message(const std::string& type, const jso
             m_instructions_without_web_search = payload.value("withoutWebSearch", std::string());
             m_host.profile_changed();
         }
+        // Read by the next request or tool result (AgentHost::session_facts).
+        const std::string facts = payload.value("facts", std::string());
+        if (facts.size() <= kInstructionsLimit)
+            m_facts = facts;
         return true;
     }
     if (type == "printer_opening") {

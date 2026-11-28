@@ -10,6 +10,7 @@
 #include "slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp"
 #include "slic3r/GUI/JusPrin/Support/Base64.hpp"
 #include "slic3r/GUI/JusPrin/Support/Files.hpp"
+#include "slic3r/GUI/JusPrin/Support/IssueReport.hpp"
 #include "libslic3r/Exception.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpCatalog.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpConfigFile.hpp"
@@ -692,6 +693,8 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
         }
         if (handler == ToolHandler::SkillRead)
             return read_skill(activity);
+        if (handler == ToolHandler::IssueReportOpen)
+            return open_issue(activity);
         return ToolExecutionCoordinator::ExtensionResult{};
     });
     m_tools.set_agent_project_opened(
@@ -1222,6 +1225,20 @@ void AgentHost::handle_skills(const std::string& envelope_id, const std::string&
     start_next_queued_reply();
 }
 
+ToolExecutionCoordinator::ExtensionResult AgentHost::open_issue(const ToolActivity& activity) const
+{
+    if (!m_issue_page.context || !m_issue_page.open)
+        throw std::logic_error("issue_report_open is offered in a chat with no way to open an issue page");
+    ToolExecutionCoordinator::ExtensionResult result;
+    result.handled = true;
+    const std::optional<json> opened = open_issue_page(json::parse(activity.arguments_json), m_issue_page.context(), m_issue_page.open);
+    if (opened)
+        result.result_json = opened->dump();
+    else
+        result.error = ToolError{"failed", kIssueNoBrowser};
+    return result;
+}
+
 ToolExecutionCoordinator::ExtensionResult AgentHost::read_skill(const ToolActivity& activity) const
 {
     // Only a skill on the model's list: one the page described. A skill the
@@ -1287,6 +1304,17 @@ std::optional<AgentSkillUse> AgentHost::session_skill() const
     AgentSkillUse use{skill->name, skill->text, nullptr, session->trigger, {}};
     use.stays = true;
     use.tools = session->tools;
+    return use;
+}
+
+std::optional<AgentSkillUse> AgentHost::session_facts() const
+{
+    const std::string facts = m_session_facts ? m_session_facts() : std::string();
+    if (facts.empty())
+        return std::nullopt;
+    AgentSkillUse use{"session_facts", kSessionFactsHeading + facts, nullptr, {}, {}};
+    use.stays   = true;
+    use.current = true;
     return use;
 }
 
@@ -3402,6 +3430,8 @@ AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant,
         request.skills.push_back(std::move(*skill));
     if (std::optional<AgentSkillUse> skill = session_skill())
         request.skills.push_back(std::move(*skill));
+    if (std::optional<AgentSkillUse> facts = session_facts())
+        request.skills.push_back(std::move(*facts));
     if (request.source.empty())
         return request;
 
@@ -3607,6 +3637,10 @@ void AgentHost::continue_after_tool(const ToolActivity& activity)
     // the model reads it right after that call's result.
     if (std::optional<AgentSkillUse> skill = session_skill())
         result.skills.push_back(std::move(*skill));
+    // The printer's facts as the call left them, when the page has already
+    // written them; otherwise they reach the model with the next request.
+    if (std::optional<AgentSkillUse> facts = session_facts())
+        result.skills.push_back(std::move(*facts));
     result.call_id     = continuation.call_id;
     result.state       = tool_state_name(activity.state);
     result.output_json = output.dump();

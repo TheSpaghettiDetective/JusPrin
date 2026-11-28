@@ -379,10 +379,19 @@ void ProviderAgent::push_skills(const std::vector<AgentSkillUse>& skills, std::v
     for (const AgentSkillUse& skill : skills) {
         // One that stays is offered on every request and sent once: the chat's
         // own record says whether it has been, a turn that failed included.
-        if (skill.stays && std::any_of(m_transcript.items.begin(), m_transcript.items.end(), [&skill](const RecordItem& item) {
+        if (skill.stays && !skill.current && std::any_of(m_transcript.items.begin(), m_transcript.items.end(), [&skill](const RecordItem& item) {
                 return item.kind == RecordItem::Kind::Operator && item.text == skill.text;
             }))
             continue;
+        // One that is current is sent again only when it differs from the
+        // last copy sent; the earlier copies stay, so the cached prefix does.
+        if (skill.current) {
+            const auto last = std::find_if(m_transcript.items.rbegin(), m_transcript.items.rend(), [](const RecordItem& item) {
+                return item.kind == RecordItem::Kind::Operator && item.text.rfind(kSessionFactsHeading, 0) == 0;
+            });
+            if (last != m_transcript.items.rend() && last->text == skill.text)
+                continue;
+        }
         m_transcript.items.push_back(RecordItem{RecordItem::Kind::Operator, {}, {}, skill.text, {}, {}, !skill.stays});
     }
 }

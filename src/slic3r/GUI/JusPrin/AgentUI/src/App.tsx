@@ -10,7 +10,7 @@ import { MessageList } from './components/MessageList';
 import { Composer, ComposerCredits } from './components/Composer';
 import { PrinterCredentialForm } from './components/PrinterPanel';
 import { AddPrinterForm } from './components/AddPrinterForm';
-import { DONE_CHOICE, printerInstructions, withoutLookItUp } from './printerInstructions';
+import { DONE_CHOICE, printerFacts, printerInstructions, withoutLookItUp } from './printerInstructions';
 import { filamentInstructions } from './filamentInstructions';
 import { skills } from './skills';
 import { projectInstructions } from './projectInstructions';
@@ -180,16 +180,19 @@ export function App({
     client.send('printer_opening', { text: opening(state.session) });
   }, [printerPanel, state.session, state.connection, state.messages.length, client]);
 
-  // The printer panel writes the model's instructions from the facts the app
-  // sends; the app holds them for the session's requests. Sent again only
-  // when the words change, such as after a change to the printer.
+  // The printer panel writes the model's instructions, and the facts that
+  // change during the session, from what the app sends; the app holds them for
+  // the session's requests. Sent again only when the words change, such as
+  // after a change to the printer.
   const sentInstructions = useRef<string | null>(null);
   useEffect(() => {
     if (!printerPanel || !state.session || state.connection !== 'connected') return;
     const text = printerInstructions(state.session);
-    if (text === sentInstructions.current) return;
-    sentInstructions.current = text;
-    client.send('printer_instructions', { text, withoutWebSearch: withoutLookItUp(text) });
+    const facts = printerFacts(state.session);
+    const sent = JSON.stringify([text, facts]);
+    if (sent === sentInstructions.current) return;
+    sentInstructions.current = sent;
+    client.send('printer_instructions', { text, withoutWebSearch: withoutLookItUp(text), facts });
   }, [printerPanel, state.session, state.connection, client]);
 
   // The project assistant's whole prompt; the app holds it in the project

@@ -384,10 +384,8 @@ TEST_CASE("every session offers every printer tool and the settings tools, and n
     RecordingPanel panel;
     backend.saved = {lab_printer()};
     std::vector<std::string> printer_tools;
-    // All but issue_report_open, which comes with the connection skill.
     for (const Agent::ToolDefinition& definition : Agent::ToolRegistry::instance().exposed(Agent::ToolExposure::Printer))
-        if (definition.name != "issue_report_open")
-            printer_tools.push_back(definition.name);
+        printer_tools.push_back(definition.name);
     for (const std::string& name : PrinterConversation::settings_tools())
         printer_tools.push_back(name);
 
@@ -2761,6 +2759,7 @@ struct PrinterHost
             });
             host.set_session_tool_output([this](const Agent::ToolActivity& activity) { return conversation.tool_output(activity); });
             host.set_session_skill([this] { return conversation.connection_skill(); });
+            host.set_session_facts([this] { return conversation.facts(); });
             settled = host.tools().subscribe([this](const Agent::ToolActivity& activity) { conversation.tool_settled(activity); });
             conversation.start(mode, "Lab Printer");
             // What the page does once it has the session's facts.
@@ -3559,7 +3558,7 @@ TEST_CASE("what reaches the model: a print host chat has the print host skill fr
     CHECK(skills.front().trigger == "connect_print_host");
     CHECK(skills.front().stays);
     CHECK(skills.front().text == text);
-    CHECK(skills.front().tools == std::vector<std::string>{"issue_report_open"});
+    CHECK(skills.front().tools.empty());
 }
 
 // -- An issue for the developers ------------------------------------------------
@@ -3613,9 +3612,11 @@ std::string encoded(const std::string& text)
 
 } // namespace
 
-TEST_CASE("what reaches the model: issue_report_open is offered from the connection skill on, and never before",
+TEST_CASE("what reaches the model: a printer chat offers the same tools before and after a printer is added",
           "[printer-conversation][connection-skill][issue-report]")
 {
+    // A tool added partway through a chat changes the tool list, and
+    // Anthropic then reads none of the chat from its cache.
     PrinterHost printer(ConversationMode::Add);
     printer.backend.saved.clear();
     printer.page("skills", connect_bambu_skills());
@@ -3623,52 +3624,132 @@ TEST_CASE("what reaches the model: issue_report_open is offered from the connect
     printer.say("Hi");
     printer.pump();
     REQUIRE(printer.agent->requests.size() == 1);
-    CHECK(offers(printer.agent->requests.back(), "printer_host_connect"));
-    CHECK(offers(printer.agent->requests.back(), "printer_bambu_connect"));
-    CHECK_FALSE(offers(printer.agent->requests.back(), "issue_report_open"));
+    const std::vector<std::string> first = offered(printer.agent->requests.back());
+    CHECK(offers(printer.agent->requests.back(), "issue_report_open"));
 
     printer.agent->call = Agent::ToolRequest{"printer_add", json{{"catalogId", "BBL/Bambu Lab A1 mini"}}.dump()};
     printer.say("I have an A1 mini");
     printer.pump();
-    // The request that made the call was sent before the printer was added.
-    CHECK_FALSE(offers(printer.agent->requests.back(), "issue_report_open"));
-    // The result that brings the skill brings the tool with it, for the
-    // continuation of that response (test_provider_agent.cpp).
+    // The result brings the connection skill, and no tool with it.
     REQUIRE(printer.agent->results.size() == 1);
     const std::vector<Agent::AgentSkillUse>& skills = printer.agent->results.back().skills;
     REQUIRE(carries_skill(skills));
-    CHECK(skills.back().tools == std::vector<std::string>{"issue_report_open"});
+    CHECK(skills.back().tools.empty());
 
     printer.say("Connect it");
     printer.pump();
-    CHECK(offers(printer.agent->requests.back(), "issue_report_open"));
+    CHECK(offered(printer.agent->requests.back()) == first);
 }
 
-TEST_CASE("issue_report_open is never offered outside a printer chat's connection skill", "[printer-conversation][issue-report]")
+TEST_CASE("what reaches the model: a printer's details come as the app's facts, and the system prompt stays the same",
+          "[printer-conversation][session-facts]")
+{
+    // A rewritten system prompt makes Anthropic read none of the chat from its
+    // cache; the details go in a message of their own instead.
+    PrinterHost printer(ConversationMode::Connect);
+    const auto facts_in = [](const Agent::AgentRequest& request) {
+        const auto facts = std::find_if(request.skills.begin(), request.skills.end(),
+                                        [](const Agent::AgentSkillUse& skill) { return skill.current; });
+        return facts == request.skills.end() ? std::string() : facts->text;
+    };
+    printer.conversation.handle_page_message("printer_instructions",
+                                             json{{"text", "You are the printer assistant."}, {"facts", "Name: Lab Printer\nNozzle: 0.4 mm"}});
+    printer.say("Hi");
+    printer.pump();
+    REQUIRE(printer.agent->requests.size() == 1);
+    CHECK(facts_in(printer.agent->requests.back()) == std::string(Agent::kSessionFactsHeading) + "Name: Lab Printer\nNozzle: 0.4 mm");
+
+    printer.conversation.handle_page_message("printer_instructions",
+                                             json{{"text", "You are the printer assistant."}, {"facts", "Name: Lab Printer\nNozzle: 0.6 mm"}});
+    printer.say("I changed the nozzle");
+    printer.pump();
+    REQUIRE(printer.agent->requests.size() == 2);
+    CHECK(facts_in(printer.agent->requests.back()).find("Nozzle: 0.6 mm") != std::string::npos);
+    CHECK(printer.agent->requests.back().session.instructions == printer.agent->requests.front().session.instructions);
+
+    // A new session's page writes its facts again.
+    printer.conversation.start(ConversationMode::Add, "");
+    CHECK(printer.conversation.facts().empty());
+}
+
+TEST_CASE("issue_report_open opens an issue before a printer is added, with only the app's version in its footer",
+          "[printer-conversation][issue-report]")
+{
+    // Someone who cannot find their printer to add it can report that too.
+    FakeBackend    backend;
+    RecordingPanel panel;
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Add, "");
+    const json arguments{{"title", "My printer is not in the list"}, {"body", "They have a Flashforge AD5X."}};
+    CHECK(preflight_refusal(conversation, "issue_report_open", arguments).empty());
+    const json output = ran(conversation, "issue_report_open", arguments);
+    CHECK(output.at("state") == "opened");
+
+    REQUIRE(panel.opened.size() == 1);
+    const std::string& url    = panel.opened.front();
+    const std::string  footer = encoded("\n\n---\nApp version: 02.06.00.51");
+    REQUIRE(url.size() > footer.size());
+    CHECK(url.substr(url.size() - footer.size()) == footer);
+    CHECK(url.find(encoded("Connection:")) == std::string::npos);
+}
+
+TEST_CASE("issue_report_open is offered in the project chat and every printer chat, never to an MCP client",
+          "[printer-conversation][issue-report]")
 {
     const Agent::ToolDefinition* tool = Agent::ToolRegistry::instance().find("issue_report_open");
     REQUIRE(tool != nullptr);
-    // Not the project chat's, and not an MCP client's.
-    CHECK(tool->exposure == Agent::ToolExposure::Printer);
-    // Not on any session's own list.
-    for (const std::vector<std::string>& list : {PrinterConversation::session_tools(), PrinterConversation::settings_tools()})
-        CHECK(std::find(list.begin(), list.end(), "issue_report_open") == list.end());
+    // The person's own report: an MCP client has no person to agree to it.
+    CHECK(tool->exposure == (Agent::ToolExposure::InApp | Agent::ToolExposure::Printer));
 
+    // Kenneth, 2026-11-28, asked whether the project chat should open one too: "Yes, add it".
     SECTION("a project chat") {
         PrinterHost project(ConversationMode::Add, false);
         project.page("skills", connect_bambu_skills());
-        project.say("My printer will not connect, please report it");
+        std::vector<std::string> opened;
+        bool                     opens = true;
+        project.host.set_issue_page({[] {
+                                         return IssueContext{"\n\n---\nApp version: 02.06.00.51\nSystem: macOS 15.1",
+                                                             {"/Users/pat", "Dragon bracket"}};
+                                     },
+                                     [&](const std::string& url) {
+                                         opened.push_back(url);
+                                         return opens;
+                                     }});
+        project.agent->call = Agent::ToolRequest{
+            "issue_report_open",
+            json{{"title", "Slicing Dragon bracket crashes"}, {"body", "It crashed slicing /Users/pat/Prints/Dragon bracket.3mf."}}.dump()};
+        project.say("The app keeps crashing when I slice, please report it");
         project.pump();
         const auto reply = std::find_if(project.agent->requests.begin(), project.agent->requests.end(), [](const Agent::AgentRequest& request) {
             return request.purpose == Agent::AgentRequest::Purpose::Reply;
         });
         REQUIRE(reply != project.agent->requests.end());
-        const std::vector<std::string> names = offered(*reply);
-        CHECK(std::find(names.begin(), names.end(), "workspace_inspect") != names.end());
-        CHECK(std::find(names.begin(), names.end(), "issue_report_open") == names.end());
+        CHECK(offers(*reply, "issue_report_open"));
+
+        REQUIRE(project.agent->results.size() == 1);
+        CHECK(project.agent->results.front().state == "succeeded");
+        REQUIRE(opened.size() == 1);
+        const std::string& url = opened.front();
+        CAPTURE(url);
+        const std::string footer = encoded("\n\n---\nApp version: 02.06.00.51\nSystem: macOS 15.1");
+        REQUIRE(url.size() > footer.size());
+        CHECK(url.substr(url.size() - footer.size()) == footer);
+        // Neither the person's folder nor the project's name.
+        CHECK(url.find(encoded("/Users/pat")) == std::string::npos);
+        CHECK(url.find("Dragon") == std::string::npos);
+        CHECK_THAT(url, ContainsSubstring(encoded("Slicing [hidden] crashes")));
+
+        // No browser opened: the model is told so, and nothing is said to be open.
+        opens = false;
+        project.agent->call = Agent::ToolRequest{"issue_report_open", json{{"title", "Again"}, {"body", "Still crashing."}}.dump()};
+        project.say("Try again");
+        project.pump();
+        REQUIRE(project.agent->results.size() == 2);
+        CHECK(project.agent->results.back().state == "failed");
+        CHECK_THAT(project.agent->results.back().output_json, ContainsSubstring("could not open the person's browser"));
     }
     // Kenneth, 2026-11-06: offered for all printer connections.
-    SECTION("a printer chat about a print host, whose skill brings it too") {
+    SECTION("a printer chat about a print host") {
         PrinterHost host(ConversationMode::Connect);
         json skills = connect_bambu_skills();
         skills["skills"].push_back(json{{"name", "connect-print-host"}, {"trigger", "connect_print_host"}, {"text", skill_text("connect-print-host")}});

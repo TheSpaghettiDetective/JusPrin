@@ -93,6 +93,8 @@ TOOLS = json.loads((HERE / "printer_tools.json").read_text(encoding="utf-8"))
 CONNECTION_SKILLS = {kind: (HERE / f"../../src/slic3r/GUI/JusPrin/AgentUI/src/skills/connect-{kind}/SKILL.md").read_text(
     encoding="utf-8").split("\n---\n", 1)[1].strip() for kind in ("bambu", "print-host")}
 MAX_REQUESTS_PER_TURN = 8
+# Agent::kSessionFactsHeading (AgentService.hpp), which opens the facts.
+FACTS_HEADING = "The app's facts as of now, replacing any earlier ones:\n"
 # Conversations one invocation runs by default, shared by the cases it runs,
 # and the most one case gets from that share.
 RUN_BUDGET = 100
@@ -381,6 +383,7 @@ class Conversation:
         self.history = [{"role": "assistant", "content": prompt["opening"]}]  # the page's opening line
         self.log = ["assistant: " + prompt["opening"]]
         self.skills_sent = set()
+        self.facts = prompt.get("facts", "")
 
     def say(self, words):
         """One turn: the person's words, then the model until it stops."""
@@ -391,7 +394,21 @@ class Conversation:
         printer = session.get("context", {}).get("printer") or {}
         if session.get("mode") in ("change", "connect") and printer and not printer.get("stock"):
             self.add_connection_skill(turn, printer.get("provider") == "bambu" or str(printer.get("model", "")).startswith("Bambu"))
+        self.add_facts(turn)
         self.respond(turn)
+
+    def add_facts(self, turn):
+        """AgentHost::session_facts: the printer's facts the page wrote, after
+        the skills of the first request, once. A case's session does not
+        change during it, so they are not sent again."""
+        if not self.facts:
+            return
+        message = {"role": "developer", "content": FACTS_HEADING + self.facts}
+        self.facts = ""
+        self.log.append("app: (the printer's facts)")
+        if turn is not self.history:
+            turn.append(message)
+        self.history.append(message)
 
     def add_connection_skill(self, turn, bambu):
         """PrinterConversation::connection_skill: once the chat has a saved
@@ -414,6 +431,7 @@ class Conversation:
         (AgentHost::start_turn): the person has said nothing."""
         self.log.append("app: " + text)
         self.history.append({"role": "developer", "content": text})
+        self.add_facts(self.history)
         self.respond(list(self.history))
 
     def respond(self, turn):

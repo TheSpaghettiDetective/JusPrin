@@ -102,11 +102,18 @@ describe('the printer panel page', () => {
       context: { printers: [['BBL/Bambu Lab A1 mini', 'Bambu Lab A1 mini', '180 × 180 × 180 mm']], network: [] } }));
     expect(sent()).toHaveLength(1);
 
-    // A printer to talk about does.
+    // A printer to talk about does: its facts go beside the instructions, which
+    // stay the same while the printer changes.
     host.deliver('printer_session', session({ mode: 'change', printerName: 'Lab Printer',
       context: { printer: { ...labPrinter, nozzle: 0.6, provider: 'bambu' } } }));
     expect(sent()).toHaveLength(2);
-    expect((sent()[1].payload as { text: string }).text).toContain('Nozzle: 0.6 mm');
+    expect((sent()[1].payload as { facts: string }).facts).toContain('Nozzle: 0.6 mm');
+    expect((sent()[1].payload as { text: string }).text).not.toContain('Nozzle: 0.6 mm');
+    host.deliver('printer_session', session({ mode: 'change', printerName: 'Lab Printer',
+      context: { printer: { ...labPrinter, nozzle: 0.4, provider: 'bambu' } } }));
+    expect(sent()).toHaveLength(3);
+    expect((sent()[2].payload as { text: string }).text).toBe((sent()[1].payload as { text: string }).text);
+    expect((sent()[2].payload as { facts: string }).facts).toContain('Nozzle: 0.4 mm');
   });
 
   it('draws nothing but Close, its task, the link, the thread and the composer', () => {

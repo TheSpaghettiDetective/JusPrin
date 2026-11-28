@@ -1,5 +1,31 @@
 [
   {
+    "description": "Opens a new issue for the JusPrin developers on GitHub in the person's browser, filled in with your title and body, for a problem with the app that the person wants the developers to know about. Call it only after the person has said yes to reporting the problem, when they are stuck and want the developers to know. Nothing is filed by this call: the person reads the page, can change it, and submits it with their own GitHub account, which they need. Write the body as a short summary for a developer: what they were trying to do, the printer model when there is one, what was tried, what the app reported, and what the person said. Leave out any access code or API key. The app adds its version and what it knows of the setup, such as the printer and its connection type; it removes printer serials, IP addresses and the project's name and folder, and cuts a body too long for the link.",
+    "name": "issue_report_open",
+    "parameters": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "description": "Plain text or Markdown, a few short paragraphs.",
+          "maxLength": 8192,
+          "type": "string"
+        },
+        "title": {
+          "description": "One line naming the problem, such as the printer and what failed.",
+          "maxLength": 256,
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "body"
+      ],
+      "type": "object"
+    },
+    "strict": true,
+    "type": "function"
+  },
+  {
     "description": "Saves the printer the person confirmed, so they can prepare prints for it. Call it only after the person said yes to this model and nozzle. It does not connect to the machine. Returns the printer as saved; its name is what the other printer tools take.",
     "name": "printer_add",
     "parameters": {

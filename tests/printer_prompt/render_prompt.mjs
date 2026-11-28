@@ -6,7 +6,9 @@
 // chat's ("kind": "project", for tests/project_prompt) gets
 // projectInstructions.ts alone: the project chat has no opening line.
 // Reads a PrinterSessionPayload or FilamentSessionPayload as JSON on stdin; writes
-// {"instructions": ..., "opening": ...} on stdout. With a git revision as the
+// {"instructions": ..., "opening": ...} on stdout, and for a printer chat the
+// printer's facts (printerFacts), which the app sends the model as a message of
+// its own beside the system prompt (AgentHost::session_facts). With a git revision as the
 // argument, the page's source is read as it was at that revision, so a prompt
 // edit can be run against the one before it without touching the checkout.
 
@@ -53,7 +55,9 @@ const bundle = await esbuild.build({
   stdin: {
     contents: project ? "export { projectInstructions } from './src/projectInstructions';" :
               filament ? "export { filamentInstructions } from './src/filamentInstructions';" :
-                         "export { printerInstructions } from './src/printerInstructions'; export { opening } from './src/printerWords';",
+                         // A namespace import, so a revision without printerFacts still builds.
+                         "import * as prompt from './src/printerInstructions'; export const printerInstructions = prompt.printerInstructions; " +
+                         "export const printerFacts = prompt.printerFacts; export { opening } from './src/printerWords';",
     resolveDir: agentUI,
     loader: 'ts',
   },
@@ -68,4 +72,6 @@ process.stdout.write(JSON.stringify(project ? { instructions: page.projectInstru
   { instructions: page.filamentInstructions(session),
     // PrinterPanel::build_runtime's own words, which the app posts.
     opening: `I can help with settings for ${session.shown || 'the filament'} in slot ${session.slot}. What would you like to change?` } :
-  { instructions: page.printerInstructions(session), opening: page.opening(session) }));
+  // A revision from before the facts were split out has them in the prompt.
+  { instructions: page.printerInstructions(session), opening: page.opening(session),
+    facts: page.printerFacts ? page.printerFacts(session) : '' }));

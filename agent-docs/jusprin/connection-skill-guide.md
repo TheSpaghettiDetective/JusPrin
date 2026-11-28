@@ -15,7 +15,7 @@ Three times in three days a skill was written to the wrong half of that test. Th
 - The app chooses the skill from the saved printer's vendor: a Bambu Lab printer gets `connect-bambu`, any other gets `connect-print-host` (`PrinterConversation::connection_skill`). The model never picks it.
 - It is in force as soon as the chat has a saved printer, before the person asks to connect: with `printer_add`'s result, or on the first request of a chat about a saved printer (Kenneth, 2026-11-04). A chat that never connects still carries it, so each skill opens by saying the person may not want to connect, and offers it once after a printer is added.
 - It stays in the chat once sent (`AgentSkillUse::stays`).
-- `issue_report_open` comes with either skill and is offered from the same request on (Kenneth, 2026-11-06). It opens a GitHub issue page in the person's browser with the model's summary filled in; the person reads it and submits it with their own account. A chat without a connection skill is never offered it.
+- The skills point a person who is stuck to `issue_report_open`, which every printer chat is offered from its first message. It opens a GitHub issue page in the person's browser with the model's summary filled in; the person reads it and submits it with their own account. With a connection skill in force, the app adds the printer and its connection type to the issue.
 - The skill opens with "The rules above still apply", so wherever the standing prompt (`AgentUI/src/printerInstructions.ts`) gives an exact sentence or an exact step, the prompt wins over the skill. On 2026-11-04 the prompt's finishing example "It is connected, so you can send prints straight to it" beat the skill's "Moonraker answered, and nothing more", with Klipper shut down. The prompt now keeps only the rules that hold for every printer: the tools act on this printer, connecting is optional, never ask for a credential in chat, and how to finish.
 
 ## Before writing: three audits
@@ -91,7 +91,7 @@ When the person has tried and wants the developers to know, the skill points the
 
 ### Offline
 
-- `tests/agent/test_printer_conversation.cpp` (`[connection-skill]`): which skill a chat gets and when it reaches the model; `issue_report_open` offered with it and never without; every state named in backquotes has a dated real run; banned phrases are absent.
+- `tests/agent/test_printer_conversation.cpp` (`[connection-skill]`): which skill a chat gets and when it reaches the model; every state named in backquotes has a dated real run; banned phrases are absent. `[issue-report]`: the issue footer names the printer and its connection once a skill is in force.
 - `AgentUI/src/skills.test.ts` and `wording.test.ts`: the file parses, the trigger is unique, the text calls the product "the app" and never says a file "arrived".
 - The shell harness (`tests/shell/shell_harness.cpp`): `--print-host-check` for hosts and `--printer-connect-skill` for a Bambu printer run the app's own connection test against a real host or printer with no model, and are the source of every observed line. `--printer-setup` runs the printer chat against the in-process fake Bambu printer.
 

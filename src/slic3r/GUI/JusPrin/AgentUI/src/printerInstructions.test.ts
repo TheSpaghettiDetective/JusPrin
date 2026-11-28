@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PrinterSessionPayload } from './bridge/protocol';
-import { DONE_CHOICE, LOOK_IT_UP, printerInstructions } from './printerInstructions';
+import { DONE_CHOICE, LOOK_IT_UP, printerFacts, printerInstructions } from './printerInstructions';
 import { splitChoices } from './replyChoices';
 
 function session(overrides: Partial<PrinterSessionPayload>): PrinterSessionPayload {
@@ -53,46 +53,55 @@ describe('the instructions', () => {
   });
 
   it('state the printer the conversation is about, as it is now', () => {
-    const text = printerInstructions(change);
+    const text = printerFacts(change);
     expect(text).toContain('Name: Lab Printer\n');
     expect(text).toContain('Brand and model: Bambu Lab A1 mini\n');
     expect(text).toContain('Nozzle: 0.4 mm (this model ships 0.2, 0.4, 0.6 and 0.8 mm)');
     expect(text).toContain('Loaded, as the printer reports it:\n- PLA Matte (PLA, #5f7d4f)\n- PETG (PETG)');
     expect(text).toContain('Connected to this app: yes\n');
     expect(text).toContain('Connects through: Bambu Lab LAN mode');
-    expect(text).not.toContain('Printer list');
     expect(text).not.toContain('network plug-in');
   });
 
   it('state that the printer cannot be reached without the plug-in, when the app says so', () => {
     const printer = { ...change.context.printer!, needsNetworkPlugin: true };
-    const text = printerInstructions({ ...change, context: { ...change.context, printer } });
+    const text = printerFacts({ ...change, context: { ...change.context, printer } });
     expect(text).toContain("Bambu's network plug-in: not loaded, so nothing can reach this printer yet.");
     expect(text).not.toMatch(/button/);
   });
 
   it('claim nothing is loaded on a printer that is not connected', () => {
     const offline = session({ ...change, context: { printer: { ...change.context.printer!, spools: [], connected: false } } });
-    const text = printerInstructions(offline);
+    const text = printerFacts(offline);
     expect(text).toContain('Loaded, as the printer reports it: not known, as it is not connected\n');
     expect(text).toContain('Connected to this app: no\n');
   });
 
   it('say so when a connected printer reports nothing loaded', () => {
     const empty = session({ ...change, context: { printer: { ...change.context.printer!, spools: [] } } });
-    expect(printerInstructions(empty)).toContain('Loaded, as the printer reports it: nothing\n');
+    expect(printerFacts(empty)).toContain('Loaded, as the printer reports it: nothing\n');
   });
 
   it('do not say a connected print host has nothing loaded, as it never reports it', () => {
     const host = session({ ...change, context: { printer: { ...change.context.printer!, spools: [], provider: 'host' } } });
-    const text = printerInstructions(host);
+    const text = printerFacts(host);
     expect(text).toContain('Loaded, as the printer reports it: not known, as a print host connection does not report it\n');
     expect(text).not.toContain('reports it: nothing');
   });
 
   it('name what is on the network', () => {
-    const text = printerInstructions(session({ context: { printers: [], network: [{ name: 'Workshop', serial: '01P00A3B' }] } }));
+    const text = printerFacts(session({ context: { printers: [], network: [{ name: 'Workshop', serial: '01P00A3B' }] } }));
     expect(text).toContain('Printers the app knows of now: Workshop (01P00A3B)\n');
+  });
+
+  it('stay the same as the printer and the network change, which reach the model as the app\'s facts', () => {
+    const offline = session({ ...change, context: { printer: { ...change.context.printer!, spools: [], connected: false } } });
+    expect(printerInstructions(offline)).toBe(printerInstructions(change));
+    expect(printerFacts(offline)).not.toBe(printerFacts(change));
+    const found = session({ context: { ...add.context, network: [{ name: 'Workshop', serial: '01P00A3B' }] } });
+    expect(printerInstructions(found)).toBe(printerInstructions(add));
+    expect(printerInstructions(change)).not.toContain('The printer this is about');
+    expect(printerFacts(add)).toBe('');
   });
 
   it('keep the rules that encode real constraints', () => {
@@ -190,7 +199,7 @@ describe('the instructions', () => {
       expect(text).toContain('read or change its other settings, such as start g-code');
       expect(text).toContain('is in its printer settings on this computer');
       expect(text).toContain('they can change it manually in the app; do not claim to open them');
-      expect(text).toContain('Never give a reason you cannot help that the tools and the facts below do not state');
+      expect(text).toContain('Never give a reason you cannot help that the tools and the app\'s latest facts do not state');
       expect(text).toContain('Their printer is already set up so they can prepare prints for it');
       // Measured: without it, "add my other printer too" got "Yes, I can add
       // it", which the app then refuses.
@@ -202,18 +211,18 @@ describe('the instructions', () => {
     const connect = session({ ...change, mode: 'connect' });
     for (const text of [printerInstructions(change), printerInstructions(connect)]) {
       expect(text).toContain('Rules for changing its settings');
-      expect(text).toContain('scope "printer" and target {"preset": the printer\'s name below}');
-      expect(text).toContain('pass persistAs set to the printer\'s Name below, exactly as written there, not its brand and model');
-      expect(text).toContain('when the facts below give a copy to save as, pass that name instead');
+      expect(text).toContain('scope "printer" and target {"preset": the printer\'s Name in the app\'s latest facts}');
+      expect(text).toContain('pass persistAs set to the printer\'s Name in the app\'s latest facts, exactly as written there, not its brand and model');
+      expect(text).toContain('when those facts give a copy to save as, pass that name instead');
       expect(text).toContain('When a preview says read_only_preset');
       expect(text).not.toContain('Kind: the settings JusPrin comes with');
     }
     expect(printerInstructions(add)).not.toContain('Rules for changing its settings');
     const stock = session({ ...change, context: { printer: { ...change.context.printer!, stock: true, copyName: 'Lab Printer - Copy' } } });
-    expect(printerInstructions(stock)).toContain(
+    expect(printerFacts(stock)).toContain(
       'Kind: the settings JusPrin comes with for this model, selected in the project, not a printer the person added.');
-    expect(printerInstructions(stock)).toContain('Copy to save as: Lab Printer - Copy\n');
-    expect(printerInstructions(change)).not.toContain('Copy to save as');
+    expect(printerFacts(stock)).toContain('Copy to save as: Lab Printer - Copy\n');
+    expect(printerFacts(change)).not.toContain('Copy to save as');
   });
 
   it('send adding a printer the goal it was measured with, and none of the other sessions\' words', () => {

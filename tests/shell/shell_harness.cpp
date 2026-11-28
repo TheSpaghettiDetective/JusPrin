@@ -8209,7 +8209,7 @@ private:
             return finish();
         std::vector<Agent::AgentSkillUse> adding;
         connect_skill_turn({}, nlohmann::json::object(), "skill_add_before", adding);
-        check(adding.empty(), "connect_skill_none_before_a_printer_is_added");
+        check(!named(adding), "connect_skill_none_before_a_printer_is_added");
         connect_skill_turn("printer_add", {{"catalogId", model->id}}, "skill_add", adding);
         const std::string added = panel->session_json().value("printerName", "");
         check(!added.empty(), "connect_skill_printer_added");
@@ -8229,6 +8229,12 @@ private:
         std::vector<Agent::AgentSkillUse> changing;
         connect_skill_turn({}, nlohmann::json::object(), "skill_change", changing);
         check(named(changing), "connect_skill_on_a_change_chats_first_request");
+        // The page's facts about the printer come beside the skill, as an app
+        // message, not in the system prompt (AgentHost::session_facts).
+        check(std::any_of(changing.begin(), changing.end(), [&added](const Agent::AgentSkillUse& skill) {
+                  return skill.current && skill.text.find("Name: " + added) != std::string::npos;
+              }),
+              "printer_facts_on_a_change_chats_first_request");
         std::cerr << "HARNESS SKILL change chat, first request: " << changing.size() << " skills\n";
         const nlohmann::json first = connect_skill_turn("printer_connection_status", nlohmann::json::object(), "skill_change_status", changing);
         check(first.value("provider", "") == "bambu", "connect_skill_type_is_bambu");
@@ -8244,7 +8250,7 @@ private:
         std::cerr << "HARNESS SKILL connect chat, first request: " << connecting.size() << " skills\n";
         if (connecting.empty())
             return finish();
-        check(connecting.front().tools == std::vector<std::string>{"issue_report_open"}, "connect_skill_brings_the_issue_tool");
+        check(connecting.front().tools.empty(), "connect_skill_brings_no_tool");
         const std::string text = connecting.front().text;
 
         const nlohmann::json early = connect_skill_turn("printer_connection_status", nlohmann::json::object(), "skill_first_read", connecting);

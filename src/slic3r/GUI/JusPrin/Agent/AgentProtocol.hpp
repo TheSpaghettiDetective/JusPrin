@@ -277,8 +277,7 @@ inline constexpr const char* kCalibrationStarted = "calibration_started";
 // (with printer_add's result, or the printer form's), or the one a chat about
 // a saved printer is opened for (with its first request). The trigger is
 // chosen by the app from the printer's vendor, and the skill stays in that
-// conversation from then on, with issue_report_open offered beside it
-// (PrinterConversation::connection_skill), as it is with kConnectPrintHost.
+// conversation from then on, as it does with kConnectPrintHost.
 inline constexpr const char* kConnectBambu = "connect_bambu";
 // The same for any other printer, which connects through a print host. Its
 // profile names a connection type, but a printer can run another, so one

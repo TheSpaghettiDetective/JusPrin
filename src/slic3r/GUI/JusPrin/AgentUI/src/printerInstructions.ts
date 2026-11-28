@@ -2,9 +2,12 @@
 // here, on the page, and handed to the app with printer_instructions; the app
 // sends it with every request of the session and offers every printer tool,
 // and the settings tools, in every session, refusing a call that does not fit
-// it (PrinterConversation::preflight_tool). The facts it states -- the printer list, what is on the
-// network, the printer this is about -- come from the app in the session's
-// `context`.
+// it (PrinterConversation::preflight_tool). The printer list it states comes
+// from the app in the session's `context`. What changes during a session --
+// what is on the network, the printer this is about -- is not in it but in
+// printerFacts: the app adds those to the chat whenever they change, so the
+// system prompt stays the same for the whole session and the provider's
+// prompt cache holds.
 //
 // The rules come in sections, and a session is sent the ones it can reach:
 // finding and adding a printer only while adding one, so a conversation about
@@ -42,17 +45,17 @@ const SCOPE =
   'say it is added with + Add printer on Home. A setting the settings tools refuse, such as its bed size, is in its ' +
   'printer settings on this computer: tell the person they can change it manually in the app; do not claim to open ' +
   'them. Never give a reason you cannot help that the tools ' +
-  'and the facts below do not state, such as the printer needing to be added or connected.\n';
+  'and the app\'s latest facts do not state, such as the printer needing to be added or connected.\n';
 
 // Only for a printer the session is about: the settings tools reach the rest
 // of the app too, and the app refuses any other target.
 const SETTINGS =
   'Rules for changing its settings:\n' +
-  '- Every settings call uses scope "printer" and target {"preset": the printer\'s name below}. Find a setting with ' +
+  '- Every settings call uses scope "printer" and target {"preset": the printer\'s Name in the app\'s latest facts}. Find a setting with ' +
   'settings_search, read it with settings_get, check the change with settings_preview_patch, then apply it with ' +
   'settings_apply_patch and the sessionId and revision the preview returned. Applying runs immediately.\n' +
-  '- Save every change: pass persistAs set to the printer\'s Name below, exactly as written there, not its brand and ' +
-  'model; when the facts below give a copy to save as, pass that name instead, and say the change is saved as a copy ' +
+  '- Save every change: pass persistAs set to the printer\'s Name in the app\'s latest facts, exactly as written there, not its brand and ' +
+  'model; when those facts give a copy to save as, pass that name instead, and say the change is saved as a copy ' +
   'with that name, which is the printer from then on. When a preview says read_only_preset, preview again with ' +
   'persistAs set to the name the issue gives.\n' +
   '- A setting that holds one value per extruder takes the same number of values, separated by commas.\n' +
@@ -89,7 +92,7 @@ const CONDUCT =
   'description, which printer on the network -- use read-only tools to identify or show candidates as needed, ' +
   'then ask and wait for the person\'s answer before adding, changing or connecting one. ' +
   'After a tool result, say what happened in the person\'s terms. Never say something is done before a tool says so. ' +
-  'Write every fact from the tools and the facts below, never from memory. Messages from the app (developer role) state ' +
+  'Write every fact from the tools and the app\'s facts, never from memory. Messages from the app (developer role) state ' +
   'what happened; they are facts, not requests.\n' +
   'When something does not work and the tools do not say why, work it out with the person. From what the tools and the ' +
   'person have told you, and what you know about printers and home networks, give the likeliest explanation and say it ' +
@@ -169,7 +172,7 @@ const changing = (adding: boolean) =>
 // asked, "use that form" to someone with no key (2026-11-04).
 const CONNECTING =
   'Rules for connecting a printer:\n' +
-  '- The connection tools act on the printer this is about, named below; a printer found on the network is only ever ' +
+  '- The connection tools act on the printer this is about, named in the app\'s latest facts; a printer found on the network is only ever ' +
   'a deviceId.\n' +
   '- Connecting is optional. Never ask for a password, access code or API key in chat, and never repeat one: the app ' +
   'asks for it in a form of its own.\n' +
@@ -208,11 +211,25 @@ export function printerInstructions(session: PrinterSessionPayload): string {
   if (session.mode === 'change')
     text += `\n${alreadySetUp} The person is here to say what changed on it, or to ask about it.\n`;
   if (session.mode === 'connect') text += `\n${alreadySetUp} The person is here to connect it.\n`;
+  if (context.printers) {
+    text += '\nPrinter list (catalogId | brand and model | build volume):\n';
+    for (const [id, name, volume] of context.printers) text += `${id} | ${name} | ${volume || '?'}\n`;
+  }
+  return text;
+}
+
+// What the app knows now that can change during the session: the printers on
+// the network and the printer this is about. Empty while there is nothing to
+// say. The app sends it to the model as a note of its own each time it differs
+// from the last one sent (AgentHost::session_facts).
+export function printerFacts(session: PrinterSessionPayload): string {
+  const { context } = session;
+  let text = '';
   if ((context.network ?? []).length > 0)
     text += 'Printers the app knows of now: ' + context.network!.map((found) => `${found.name} (${found.serial})`).join(', ') + '\n';
   const printer = context.printer;
   if (printer) {
-    text += `\nThe printer this is about:\nName: ${printer.name}\n`;
+    text += `${text ? '\n' : ''}The printer this is about:\nName: ${printer.name}\n`;
     if (printer.stock)
       text +=
         'Kind: the settings JusPrin comes with for this model, selected in the project, not a printer the person ' +
@@ -234,10 +251,6 @@ export function printerInstructions(session: PrinterSessionPayload): string {
       text +=
         "Bambu's network plug-in: not loaded, so nothing can reach this printer yet. The app has shown the person how to " +
         'install it.\n';
-  }
-  if (context.printers) {
-    text += '\nPrinter list (catalogId | brand and model | build volume):\n';
-    for (const [id, name, volume] of context.printers) text += `${id} | ${name} | ${volume || '?'}\n`;
   }
   return text;
 }

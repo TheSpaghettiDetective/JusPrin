@@ -126,6 +126,32 @@
     "type": "function"
   },
   {
+    "description": "Opens a new issue for the JusPrin developers on GitHub in the person's browser, filled in with your title and body, for a problem with the app that the person wants the developers to know about. Call it only after the person has said yes to reporting the problem, when they are stuck and want the developers to know. Nothing is filed by this call: the person reads the page, can change it, and submits it with their own GitHub account, which they need. Write the body as a short summary for a developer: what they were trying to do, the printer model when there is one, what was tried, what the app reported, and what the person said. Leave out any access code or API key. The app adds its version and what it knows of the setup, such as the printer and its connection type; it removes printer serials, IP addresses and the project's name and folder, and cuts a body too long for the link.",
+    "name": "issue_report_open",
+    "parameters": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "description": "Plain text or Markdown, a few short paragraphs.",
+          "maxLength": 8192,
+          "type": "string"
+        },
+        "title": {
+          "description": "One line naming the problem, such as the printer and what failed.",
+          "maxLength": 256,
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "body"
+      ],
+      "type": "object"
+    },
+    "strict": true,
+    "type": "function"
+  },
+  {
     "description": "Add up to 16 boxes or cylinders to one object, in one undo step, each as a part or a negative part. A part adds solid material: a block, a peg, a lip, a base. A negative part is a hole: the app takes its space out of the object's solid parts when it slices, so it makes a screw hole, a slot or a pocket, and it must overlap the object. Each row is {type: part|negative_part, shape: box, center, sizeMm} or {type, shape: cylinder, center, axis, diameterMm, lengthMm}, in millimetres in the world frame as the object stands now; read where the object is from object_analyze mesh and features first (a face's centre and normal, a hole's axis). A screw hole through a wall is a negative_part cylinder along the screw, longer than the wall is thick. It cannot add text, lettering or a logo: the person adds those with the app's text tool, and the guide on plates and objects has the steps to give them. It makes new geometry: to keep support out of a hole the model already has, use object_mark_region precision_hole instead. The result lists each new part's partId (project_delete_items {objectId, partId} deletes one) and, since a new solid part changes the object's parts, the object's regions in regionsUnbound; object_mark_region {regionId, objectId} binds one again. Project Undo removes the shapes.",
     "name": "object_add_shape",
     "parameters": {
