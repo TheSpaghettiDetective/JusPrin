@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>beqe4jnes</task-id>
+<tool-use-id>toolu_01YJiM15fLzBWRofQJVYHAwN</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-claude-cowork-wd/e72a2155-9484-4e5d-89d6-fcf6b8d253be/tasks/beqe4jnes.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the agent test suite on the VM" completed (exit code 0)</summary>
+</task-notification>

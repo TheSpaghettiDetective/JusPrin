@@ -3,7 +3,7 @@
   "checkpoint_id": "01M8HC5KE88R71752S3EWRZQ4T",
   "strategy": "manual-commit",
   "branch": "claude/appfolders-unicode-env",
-  "checkpoints_count": 2,
+  "checkpoints_count": 4,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/Mcp/McpCatalog.cpp",
     "src/slic3r/GUI/JusPrin/Support/AppFolders.cpp",
@@ -24,13 +24,20 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 640,
-    "cache_creation_tokens": 1454277,
-    "cache_read_tokens": 66772834,
-    "output_tokens": 240761,
-    "api_call_count": 320
+    "input_tokens": 970,
+    "cache_creation_tokens": 1757389,
+    "cache_read_tokens": 99285933,
+    "output_tokens": 340474,
+    "api_call_count": 485
   }
 }
